@@ -3,8 +3,8 @@ import { color, space, radius, font } from '../../../../../constants/design';
 import { Button, Card } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { getOrgId } from '../../../../../lib/orgContext';
-import { generateMinutesDraft, generateHomework30Items } from '../../../../../lib/spacareer/ai/mock';
-import { uploadVideoResumable } from '../../../../../lib/spacareer/integrations/videoUpload';
+import { generateHomework30Items } from '../../../../../lib/spacareer/ai/mock';
+import { uploadSessionVideoWithAudio, generateSessionMinutes } from '../../../../../lib/spacareer/sessionMinutes';
 
 // ============================================================
 // セッション完了フロー
@@ -36,6 +36,7 @@ export default function SessionCompleteFlow({
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState(null);
   const [generatingMinutes, setGeneratingMinutes] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [lastResult, setLastResult] = useState(null);
@@ -67,32 +68,19 @@ export default function SessionCompleteFlow({
       setErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
       return;
     }
-    setUploading(true); setErr(null); setUploadPct(0);
+    setUploading(true); setErr(null); setUploadPct(0); setUploadStatus(null);
+    let uploadedVideoId = null;
     try {
-      const orgId = getOrgId();
-      const extMatch = f.name.match(/\.([a-zA-Z0-9]+)$/);
-      const ext = (extMatch ? extMatch[1] : 'mp4').toLowerCase();
-      const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const safeName = `${uid}.${ext}`;
-      const path = `${orgId}/${customerId}/${session.id}/${safeName}`;
-      const { error: upErr } = await uploadVideoResumable({
-        bucket: 'spacareer-session-videos',
-        path,
+      const { videoId, audioWarning, error: upErr } = await uploadSessionVideoWithAudio({
+        customerId,
+        sessionId: session.id,
         file: f,
-        contentType: f.type || 'video/mp4',
-        upsert: false,
-        onProgress: (uploaded, total) => {
-          if (total > 0) setUploadPct(Math.floor((uploaded / total) * 100));
-        },
+        onVideoProgress: setUploadPct,
+        onStatus: setUploadStatus,
       });
       if (upErr) throw upErr;
-      const { error: insErr } = await supabase.from('spacareer_session_videos').insert({
-        org_id: orgId, session_id: session.id,
-        storage_path: path, file_size_bytes: f.size, ai_status: 'pending',
-      });
-      if (insErr) throw insErr;
+      uploadedVideoId = videoId;
+      if (audioWarning) setUploadStatus(audioWarning);
       onCompleted && onCompleted({ event: 'video_uploaded' });
     } catch (e2) {
       console.error('[SessionCompleteFlow] upload error:', e2);
@@ -102,15 +90,19 @@ export default function SessionCompleteFlow({
       setUploadPct(null);
       if (fileRef.current) fileRef.current.value = '';
     }
+    // アップロード完了後、そのままAI議事録生成を自動起動（再生成はボタンから）
+    if (uploadedVideoId) await runGenerateMinutes(uploadedVideoId);
   }
 
-  async function handleGenerateMinutes() {
+  async function runGenerateMinutes(videoId) {
     setGeneratingMinutes(true); setErr(null);
     try {
-      const r = await generateMinutesDraft({ sessionId: session.id });
-      const { error } = await supabase.from('spacareer_sessions')
-        .update({ minutes_draft: r.minutesDraft }).eq('id', session.id);
-      if (error) throw error;
+      await generateSessionMinutes({
+        sessionId: session.id,
+        customerId,
+        videoId,
+      });
+      setUploadStatus(null);
       setLastResult({ kind: 'minutes' });
       onCompleted && onCompleted({ event: 'minutes_generated' });
     } catch (e) {
@@ -119,6 +111,10 @@ export default function SessionCompleteFlow({
     } finally {
       setGeneratingMinutes(false);
     }
+  }
+
+  function handleGenerateMinutes() {
+    return runGenerateMinutes(null);
   }
 
   // キックオフ完了時にキックオフヒアリング(70問) を受講生に配信する。
@@ -328,6 +324,25 @@ export default function SessionCompleteFlow({
           borderRadius: radius.md, fontFamily: font.family.mono,
         }}>
           アップロード中 {uploadPct}%（大容量動画は数分かかります）
+        </div>
+      )}
+      {(uploadStatus || generatingMinutes) && (
+        <div style={{
+          marginTop: space[3], padding: space[2],
+          background: color.infoSoft,
+          fontSize: font.size.xs, color: color.textMid,
+          borderRadius: radius.md,
+        }}>
+          {uploadStatus || 'AI議事録を生成中...（文字起こし含め数分かかります。完了すると自動で反映されます）'}
+        </div>
+      )}
+      {lastResult?.kind === 'minutes' && (
+        <div style={{
+          marginTop: space[3], padding: space[3],
+          background: color.successSoft, color: '#1F6537',
+          fontSize: font.size.sm, borderRadius: radius.md,
+        }}>
+          AI議事録ドラフトを生成しました。セッション履歴タブで内容を確認・編集してください。
         </div>
       )}
       {err && (

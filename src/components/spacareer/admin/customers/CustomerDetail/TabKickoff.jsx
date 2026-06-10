@@ -3,8 +3,7 @@ import { color, space, radius, font, alpha } from '../../../../../constants/desi
 import { Button, Input, Card, Badge } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { getOrgId } from '../../../../../lib/orgContext';
-import { generateMinutesDraft } from '../../../../../lib/spacareer/ai/mock';
-import { uploadVideoResumable } from '../../../../../lib/spacareer/integrations/videoUpload';
+import { uploadSessionVideoWithAudio, generateSessionMinutes } from '../../../../../lib/spacareer/sessionMinutes';
 import SessionCompleteFlow from './SessionCompleteFlow';
 
 // ============================================================
@@ -76,31 +75,17 @@ export default function TabKickoff({ detail, onRefresh }) {
       return;
     }
     setUploading(true); setVideoErr(null); setUploadPct(0);
+    let uploadedVideoId = null;
     try {
-      const orgId = getOrgId();
-      const extMatch = f.name.match(/\.([a-zA-Z0-9]+)$/);
-      const ext = (extMatch ? extMatch[1] : 'mp4').toLowerCase();
-      const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const safeName = `${uid}.${ext}`;
-      const path = `${orgId}/${customerId}/${kickoffSession.id}/${safeName}`;
-      const { error: upErr } = await uploadVideoResumable({
-        bucket: 'spacareer-session-videos',
-        path,
+      const { videoId, audioWarning, error: upErr } = await uploadSessionVideoWithAudio({
+        customerId,
+        sessionId: kickoffSession.id,
         file: f,
-        contentType: f.type || 'video/mp4',
-        upsert: false,
-        onProgress: (uploaded, total) => {
-          if (total > 0) setUploadPct(Math.floor((uploaded / total) * 100));
-        },
+        onVideoProgress: setUploadPct,
       });
       if (upErr) throw upErr;
-      const { error: insErr } = await supabase.from('spacareer_session_videos').insert({
-        org_id: orgId, session_id: kickoffSession.id,
-        storage_path: path, file_size_bytes: f.size, ai_status: 'pending',
-      });
-      if (insErr) throw insErr;
+      uploadedVideoId = videoId;
+      if (audioWarning) setVideoErr(audioWarning);
       onRefresh && (await onRefresh());
     } catch (e2) {
       console.error('[TabKickoff] video upload error:', e2);
@@ -110,16 +95,19 @@ export default function TabKickoff({ detail, onRefresh }) {
       setUploadPct(null);
       if (videoFileRef.current) videoFileRef.current.value = '';
     }
+    // アップロード完了後、そのままAI議事録生成を自動起動（再生成はボタンから）
+    if (uploadedVideoId) await runGenerateMinutes(uploadedVideoId);
   }
 
-  async function handleGenerateMinutes() {
+  async function runGenerateMinutes(videoId) {
     if (!kickoffSession) return;
     setGeneratingMinutes(true); setVideoErr(null);
     try {
-      const r = await generateMinutesDraft({ sessionId: kickoffSession.id });
-      const { error } = await supabase.from('spacareer_sessions')
-        .update({ minutes_draft: r.minutesDraft }).eq('id', kickoffSession.id);
-      if (error) throw error;
+      await generateSessionMinutes({
+        sessionId: kickoffSession.id,
+        customerId,
+        videoId,
+      });
       onRefresh && (await onRefresh());
     } catch (e) {
       console.error('[TabKickoff] minutes error:', e);
@@ -127,6 +115,10 @@ export default function TabKickoff({ detail, onRefresh }) {
     } finally {
       setGeneratingMinutes(false);
     }
+  }
+
+  function handleGenerateMinutes() {
+    return runGenerateMinutes(null);
   }
 
   async function handleSave() {

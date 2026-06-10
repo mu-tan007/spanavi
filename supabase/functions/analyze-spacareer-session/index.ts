@@ -36,7 +36,9 @@ const supabase = createClient(
 const STORAGE_BUCKET = 'spacareer-session-videos'
 
 // Whisper の上限: 25 MB
-const SAFE_LIMIT = 15 * 1024 * 1024 // 15 MB（処理時間を抑えるため早めに truncate）
+// セッションは60〜90分が普通なので、ロープレ(15MB)より広めに取り
+// 32kbps mono MP3 で約100分まで丸ごと文字起こしできるようにする。
+const SAFE_LIMIT = 24 * 1024 * 1024 // 24 MB（Whisper上限ギリギリ手前で truncate）
 
 const EXT_ALIAS: Record<string, string> = {
   mov: 'mp4',
@@ -124,6 +126,19 @@ async function processInBackground(
   recording_url?: string,
   customer_id?: string,
 ) {
+  // 動画レコードから org_id（usage_logs の NOT NULL 制約用）と
+  // 音声/動画パスを解決する。フロントは session_video_id だけ渡せばよい。
+  const { data: videoRow } = await supabase
+    .from('spacareer_session_videos')
+    .select('org_id, storage_path, audio_storage_path, recording_url')
+    .eq('id', session_video_id)
+    .maybeSingle()
+  const orgId: string | null = videoRow?.org_id ?? null
+  // ブラウザ抽出済みの MP3 があれば最優先（動画 truncate より精度・網羅性が高い）
+  if (videoRow?.audio_storage_path) storage_path = videoRow.audio_storage_path
+  else if (!storage_path && videoRow?.storage_path) storage_path = videoRow.storage_path
+  if (!recording_url && videoRow?.recording_url) recording_url = videoRow.recording_url
+
   const failVideo = async (message: string, detail?: string) => {
     await supabase.from('spacareer_session_videos').update({
       ai_status: 'error',
@@ -131,13 +146,21 @@ async function processInBackground(
       ai_feedback: detail ? { error: message, detail } : { error: message },
       processed_at: new Date().toISOString(),
     }).eq('id', session_video_id)
-    await supabase.from('spacareer_ai_usage_logs').insert({
-      customer_id: customer_id ?? null,
-      feature: 'minutes_generation',
-      model: 'claude-haiku-4-5-20251001',
-      status: 'error',
-      error_message: detail ? `${message}: ${detail}` : message,
-    })
+    if (orgId) {
+      await supabase.from('spacareer_ai_usage_logs').insert({
+        org_id: orgId,
+        customer_id: customer_id ?? null,
+        feature: 'minutes_generation',
+        model: 'claude-haiku-4-5-20251001',
+        status: 'error',
+        error_message: detail ? `${message}: ${detail}` : message,
+      })
+    }
+  }
+
+  if (!videoRow) {
+    await failVideo('対象の動画レコードが見つかりません')
+    return
   }
 
   try {
@@ -287,15 +310,18 @@ async function processInBackground(
         },
         processed_at: new Date().toISOString(),
       }).eq('id', session_video_id)
-      await supabase.from('spacareer_ai_usage_logs').insert({
-        customer_id: customer_id ?? null,
-        feature: 'minutes_generation',
-        model: 'claude-haiku-4-5-20251001',
-        input_tokens: usage.input_tokens ?? null,
-        output_tokens: usage.output_tokens ?? null,
-        status: 'error',
-        error_message: parseError || 'empty ai response',
-      })
+      if (orgId) {
+        await supabase.from('spacareer_ai_usage_logs').insert({
+          org_id: orgId,
+          customer_id: customer_id ?? null,
+          feature: 'minutes_generation',
+          model: 'claude-haiku-4-5-20251001',
+          input_tokens: usage.input_tokens ?? null,
+          output_tokens: usage.output_tokens ?? null,
+          status: 'error',
+          error_message: parseError || 'empty ai response',
+        })
+      }
       return
     }
 
@@ -324,15 +350,18 @@ async function processInBackground(
     const inputTokens = usage.input_tokens ?? 0
     const outputTokens = usage.output_tokens ?? 0
     const costUsd = Number(((inputTokens / 1_000_000) * 1.0 + (outputTokens / 1_000_000) * 5.0).toFixed(6))
-    await supabase.from('spacareer_ai_usage_logs').insert({
-      customer_id: customer_id ?? null,
-      feature: 'minutes_generation',
-      model: 'claude-haiku-4-5-20251001',
-      input_tokens: inputTokens,
-      output_tokens: outputTokens,
-      cost_usd: costUsd,
-      status: 'success',
-    })
+    if (orgId) {
+      await supabase.from('spacareer_ai_usage_logs').insert({
+        org_id: orgId,
+        customer_id: customer_id ?? null,
+        feature: 'minutes_generation',
+        model: 'claude-haiku-4-5-20251001',
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        cost_usd: costUsd,
+        status: 'success',
+      })
+    }
 
     console.log(`[analyze-spacareer-session] done session_video_id=${session_video_id}`)
   } catch (err) {
@@ -349,9 +378,10 @@ Deno.serve(async (req) => {
   try {
     const { session_id, session_video_id, storage_path, recording_url, customer_id } = await req.json()
 
-    if (!session_id || !session_video_id || (!storage_path && !recording_url)) {
+    // storage_path / recording_url は省略可（session_video_id の行から解決する）
+    if (!session_id || !session_video_id) {
       return new Response(
-        JSON.stringify({ error: 'session_id, session_video_id, and storage_path or recording_url are required' }),
+        JSON.stringify({ error: 'session_id and session_video_id are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
