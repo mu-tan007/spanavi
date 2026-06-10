@@ -4,6 +4,7 @@ import { Button, Card } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { getOrgId } from '../../../../../lib/orgContext';
 import { generateMinutesDraft, generateHomework30Items } from '../../../../../lib/spacareer/ai/mock';
+import { uploadVideoResumable } from '../../../../../lib/spacareer/integrations/videoUpload';
 
 // ============================================================
 // セッション完了フロー
@@ -34,6 +35,7 @@ export default function SessionCompleteFlow({
 }) {
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(null);
   const [generatingMinutes, setGeneratingMinutes] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [lastResult, setLastResult] = useState(null);
@@ -60,17 +62,14 @@ export default function SessionCompleteFlow({
   async function handleUpload(e) {
     const f = e.target.files?.[0];
     if (!f) return;
-    // バケット上限（2GB）の事前チェック
     const BUCKET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
     if (f.size > BUCKET_LIMIT_BYTES) {
       setErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
       return;
     }
-    setUploading(true); setErr(null);
+    setUploading(true); setErr(null); setUploadPct(0);
     try {
       const orgId = getOrgId();
-      // Supabase Storage の key は ASCII セーフでないと Invalid key になる。
-      // 元のファイル名は使わず、UUID で完全に置き換えて確実に ASCII にする。
       const extMatch = f.name.match(/\.([a-zA-Z0-9]+)$/);
       const ext = (extMatch ? extMatch[1] : 'mp4').toLowerCase();
       const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
@@ -78,7 +77,16 @@ export default function SessionCompleteFlow({
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const safeName = `${uid}.${ext}`;
       const path = `${orgId}/${customerId}/${session.id}/${safeName}`;
-      const { error: upErr } = await supabase.storage.from('spacareer-session-videos').upload(path, f, { upsert: false, contentType: f.type || 'video/mp4' });
+      const { error: upErr } = await uploadVideoResumable({
+        bucket: 'spacareer-session-videos',
+        path,
+        file: f,
+        contentType: f.type || 'video/mp4',
+        upsert: false,
+        onProgress: (uploaded, total) => {
+          if (total > 0) setUploadPct(Math.floor((uploaded / total) * 100));
+        },
+      });
       if (upErr) throw upErr;
       const { error: insErr } = await supabase.from('spacareer_session_videos').insert({
         org_id: orgId, session_id: session.id,
@@ -88,16 +96,10 @@ export default function SessionCompleteFlow({
       onCompleted && onCompleted({ event: 'video_uploaded' });
     } catch (e2) {
       console.error('[SessionCompleteFlow] upload error:', e2);
-      let msg = `アップロードに失敗しました: ${e2.message || e2}`;
-      if ((e2.message || '').includes('exceeded the maximum allowed size')) {
-        msg = (
-          `動画ファイル（${(f.size / 1024 / 1024).toFixed(1)} MB）がプロジェクトの File Upload Size Limit を超過しました。\n`
-          + `Supabase Dashboard → Settings → Storage の「File upload size limit」を引き上げてください。`
-        );
-      }
-      setErr(msg);
+      setErr(`アップロードに失敗しました: ${e2.message || e2}`);
     } finally {
       setUploading(false);
+      setUploadPct(null);
       if (fileRef.current) fileRef.current.value = '';
     }
   }
@@ -318,6 +320,16 @@ export default function SessionCompleteFlow({
         </Button>
       </div>
 
+      {uploading && uploadPct != null && (
+        <div style={{
+          marginTop: space[3], padding: space[2],
+          background: color.infoSoft,
+          fontSize: font.size.xs, color: color.textMid,
+          borderRadius: radius.md, fontFamily: font.family.mono,
+        }}>
+          アップロード中 {uploadPct}%（大容量動画は数分かかります）
+        </div>
+      )}
       {err && (
         <div style={{
           marginTop: space[3], padding: space[3],

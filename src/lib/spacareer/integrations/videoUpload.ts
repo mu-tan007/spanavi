@@ -5,7 +5,14 @@
 // 既存 uploadRoleplayRecording (src/lib/supabaseWrite.js) のパターンを
 // 流用し、バケットだけ spacareer-session-videos / spacareer-course-videos
 // に分離した実装。
+//
+// 大容量(数百MB〜2GB)対応:
+//   キックオフ/通常セッションのZoom録画は数百MBが普通のため、
+//   標準アップロード(同期POST)ではプロジェクトのGlobal File Size Limit
+//   (Supabase標準=50MB)で弾かれる。Resumable Upload(TUS)経路に切り替えると
+//   bucket側のfile_size_limit(2GB)が直接効き、ネットワーク断にも強くなる。
 // ============================================================
+import * as tus from 'tus-js-client';
 import { supabase } from '../../supabase';
 import { getOrgId } from '../../orgContext';
 
@@ -162,3 +169,73 @@ export const SPACAREER_BUCKETS = {
   session: SESSION_BUCKET,
   course: COURSE_BUCKET,
 } as const;
+
+// ----------------------------------------------------------------
+// Resumable Upload (TUS) — 240MB級のキックオフ録画用
+// ----------------------------------------------------------------
+
+export type ResumableUploadOptions = {
+  bucket: string;
+  path: string;
+  file: File;
+  contentType?: string;
+  upsert?: boolean;
+  onProgress?: (bytesUploaded: number, bytesTotal: number) => void;
+};
+
+/**
+ * Supabase Storage に Resumable Upload (TUS) で動画を上げる。
+ *
+ * 標準の supabase.storage.from(...).upload() は同期POSTで、プロジェクトの
+ * "Global file upload size limit" (Dashboard 設定、標準=50MB) で弾かれる。
+ * TUS 経路は bucket 側の file_size_limit のみが効くため、2GB まで通る。
+ * またネットワーク断時にも自動再開してくれる。
+ *
+ * chunkSize は Supabase 推奨の 6MB。
+ */
+export async function uploadVideoResumable(
+  opts: ResumableUploadOptions,
+): Promise<{ error: unknown }> {
+  const { bucket, path, file, contentType, upsert = false, onProgress } = opts;
+
+  const { data: sessionData, error: sessErr } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  if (sessErr || !accessToken) {
+    return { error: sessErr || new Error('not authenticated') };
+  }
+
+  const supabaseUrl = (import.meta as unknown as { env: Record<string, string> })
+    .env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) {
+    return { error: new Error('VITE_SUPABASE_URL is not defined') };
+  }
+
+  return new Promise((resolve) => {
+    const upload = new tus.Upload(file, {
+      endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'x-upsert': upsert ? 'true' : 'false',
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        bucketName: bucket,
+        objectName: path,
+        contentType: contentType || file.type || 'video/mp4',
+        cacheControl: '3600',
+      },
+      chunkSize: 6 * 1024 * 1024,
+      onError: (err) => {
+        console.error('[videoUpload] tus error:', err);
+        resolve({ error: err });
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        try { onProgress?.(bytesUploaded, bytesTotal); } catch { /* ignore */ }
+      },
+      onSuccess: () => resolve({ error: null }),
+    });
+    upload.start();
+  });
+}

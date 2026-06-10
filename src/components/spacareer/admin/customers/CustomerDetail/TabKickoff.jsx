@@ -4,6 +4,7 @@ import { Button, Input, Card, Badge } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { getOrgId } from '../../../../../lib/orgContext';
 import { generateMinutesDraft } from '../../../../../lib/spacareer/ai/mock';
+import { uploadVideoResumable } from '../../../../../lib/spacareer/integrations/videoUpload';
 import SessionCompleteFlow from './SessionCompleteFlow';
 
 // ============================================================
@@ -49,6 +50,7 @@ export default function TabKickoff({ detail, onRefresh }) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(null);
   const [generatingMinutes, setGeneratingMinutes] = useState(false);
   const [videoErr, setVideoErr] = useState(null);
   const videoFileRef = useRef(null);
@@ -67,19 +69,15 @@ export default function TabKickoff({ detail, onRefresh }) {
   async function handleVideoUpload(e) {
     const f = e.target.files?.[0];
     if (!f || !kickoffSession) return;
-    // バケット上限（2GB）の事前チェック。プロジェクトレベルの上限はDashboard設定次第のため、
-    // 超過時は「Supabase Dashboard で上限を引き上げてください」のヒントを添えて案内する。
     const BUCKET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
     if (f.size > BUCKET_LIMIT_BYTES) {
       setVideoErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
       if (videoFileRef.current) videoFileRef.current.value = '';
       return;
     }
-    setUploading(true); setVideoErr(null);
+    setUploading(true); setVideoErr(null); setUploadPct(0);
     try {
       const orgId = getOrgId();
-      // Supabase Storage の key は ASCII セーフでないと Invalid key になる。
-      // 元のファイル名は使わず、UUID で完全に置き換えて確実に ASCII にする。
       const extMatch = f.name.match(/\.([a-zA-Z0-9]+)$/);
       const ext = (extMatch ? extMatch[1] : 'mp4').toLowerCase();
       const uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
@@ -87,7 +85,16 @@ export default function TabKickoff({ detail, onRefresh }) {
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const safeName = `${uid}.${ext}`;
       const path = `${orgId}/${customerId}/${kickoffSession.id}/${safeName}`;
-      const { error: upErr } = await supabase.storage.from('spacareer-session-videos').upload(path, f, { upsert: false, contentType: f.type || 'video/mp4' });
+      const { error: upErr } = await uploadVideoResumable({
+        bucket: 'spacareer-session-videos',
+        path,
+        file: f,
+        contentType: f.type || 'video/mp4',
+        upsert: false,
+        onProgress: (uploaded, total) => {
+          if (total > 0) setUploadPct(Math.floor((uploaded / total) * 100));
+        },
+      });
       if (upErr) throw upErr;
       const { error: insErr } = await supabase.from('spacareer_session_videos').insert({
         org_id: orgId, session_id: kickoffSession.id,
@@ -97,18 +104,10 @@ export default function TabKickoff({ detail, onRefresh }) {
       onRefresh && (await onRefresh());
     } catch (e2) {
       console.error('[TabKickoff] video upload error:', e2);
-      let msg = `アップロードに失敗しました: ${e2.message || e2}`;
-      // プロジェクトレベルの File Upload Size Limit を超過した時のメッセージ。
-      // むー様自身が Supabase Dashboard で設定変更する必要があるため、操作場所を併記。
-      if ((e2.message || '').includes('exceeded the maximum allowed size')) {
-        msg = (
-          `動画ファイル（${(f.size / 1024 / 1024).toFixed(1)} MB）がプロジェクトの File Upload Size Limit を超過しました。\n`
-          + `Supabase Dashboard → Settings → Storage の「File upload size limit」を引き上げてください。`
-        );
-      }
-      setVideoErr(msg);
+      setVideoErr(`アップロードに失敗しました: ${e2.message || e2}`);
     } finally {
       setUploading(false);
+      setUploadPct(null);
       if (videoFileRef.current) videoFileRef.current.value = '';
     }
   }
@@ -197,6 +196,16 @@ export default function TabKickoff({ detail, onRefresh }) {
             </span>
           )}
         </div>
+        {uploading && uploadPct != null && (
+          <div style={{
+            marginTop: space[3], padding: space[2],
+            background: alpha(color.info, 0.08),
+            fontSize: font.size.xs, color: color.textMid,
+            borderRadius: radius.md, fontFamily: font.family.mono,
+          }}>
+            アップロード中 {uploadPct}%（大容量動画は数分かかります）
+          </div>
+        )}
         {videoErr && (
           <div style={{
             marginTop: space[3], padding: space[3],
