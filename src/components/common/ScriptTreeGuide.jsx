@@ -66,10 +66,13 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
   const DEPTH_COLORS = [color.navy, color.navyLight, '#38BDF8', '#7DD0EE'];
   const depthColor = (depth) => DEPTH_COLORS[Math.min(depth, DEPTH_COLORS.length - 1)];
   const goldFade = (depth) => Math.max(0.06, 0.17 - depth * 0.04);
-  const renderResponses = (nodeId, resps, basePath, depth) => resps.map((r, ri) => {
+  // forceOpen: 祖先の反応がクリック済みなら、その階層に紐づくもの（返し・次の反応・
+  // さらにその返し…）を一気に全部展開する（1段ずつクリックさせない・むー様指定）
+  const renderResponses = (nodeId, resps, basePath, depth, forceOpen = false) => resps.map((r, ri) => {
     const p = [...basePath, ri];
     const key = `${nodeId}:${p.join('.')}`;
     const isMarked = marked.has(key);
+    const showSub = isMarked || expandAll || forceOpen;
     const hasChildren = (r.children || []).length > 0;
     const nextNode = (!hasChildren && r.nextId && nodeMap.has(r.nextId)) ? nodeMap.get(r.nextId) : null;
     const isEnd = !hasChildren && !nextNode;
@@ -111,13 +114,19 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
             </span>
           )}
           {isEnd && (
-            <span style={{ flexShrink: 0, fontSize: '0.82em', fontWeight: font.weight.normal, color: isMarked ? alpha(color.white, 0.7) : color.textLight }}>
-              → 終話
+            <span style={{
+              flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.semibold,
+              background: isMarked ? alpha(color.white, 0.22) : color.gray100,
+              color: isMarked ? color.white : color.textMid,
+              border: `1px solid ${isMarked ? alpha(color.white, 0.45) : color.border}`,
+              borderRadius: radius.pill, padding: '1px 10px', lineHeight: 1.6,
+            }}>
+              終話
             </span>
           )}
         </button>
-        {/* 返し＋入れ子は、経路マーク時（または全展開時）のみ表示。本流以外はデフォルト閉じ */}
-        {(r.answer || '').trim() && (isMarked || expandAll) && (
+        {/* 返し＋入れ子は、クリック（経路マーク）/祖先クリック/全展開時に表示。本流以外はデフォルト閉じ */}
+        {(r.answer || '').trim() && showSub && (
           <div style={{
             margin: '3px 0 0 10px',
             padding: '5px 10px',
@@ -132,8 +141,8 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
             </span>
           </div>
         )}
-        {/* 入れ子の反応 */}
-        {hasChildren && (isMarked || expandAll) && renderResponses(nodeId, r.children, p, depth + 1)}
+        {/* 入れ子の反応（祖先がクリック済みなら配下を丸ごと展開） */}
+        {hasChildren && showSub && renderResponses(nodeId, r.children, p, depth + 1, showSub)}
       </div>
     );
   });
