@@ -208,11 +208,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // useUrlState は連続呼び出しが race するため (feedback_use_url_state_race)、
   // 検索/モード変更時の「ページ0リセット」は単一 setSearchParams にまとめる
   const [, setSearchParamsRaw] = useSearchParams();
+  // ⚠ URLキーは useUrlState 側の 'flow_q' / 'flow_page' と完全一致させること。
+  // 旧キー('q'/'page')に書いていたせいで「検索窓に入力できない」「ページ残留で0件表示」が発生した。
   const setSearchAndResetPage = (newSearch) => {
     setSearchParamsRaw(prev => {
       const np = new URLSearchParams(prev);
-      if (newSearch) np.set('q', newSearch); else np.delete('q');
-      np.delete('page');
+      if (newSearch) np.set('flow_q', newSearch); else np.delete('flow_q');
+      np.delete('flow_page');
       return np;
     }, { replace: true });
   };
@@ -220,7 +222,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setSearchParamsRaw(prev => {
       const np = new URLSearchParams(prev);
       if (mode && mode !== 'callable') np.set('mode', mode); else np.delete('mode');
-      np.delete('page');
+      np.delete('flow_page');
       return np;
     }, { replace: true });
   };
@@ -669,6 +671,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const currentIdx = sorted.findIndex(i => i.id === selectedRow?.id);
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
   const pageItems = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // 残留ページ番号ガード: 別リスト閲覧時の flow_page がURLに残っていると
+  // 件数の少ないリストで「0件表示」になるため、範囲外なら先頭ページへ戻す
+  React.useEffect(() => {
+    if (!loading && totalPages > 0 && page >= totalPages) setPage(0);
+  }, [loading, totalPages, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stats = {
     total: statusFilteredItems.length,
