@@ -54,12 +54,17 @@ export default function TabKickoff({ detail, onRefresh }) {
   const [videoErr, setVideoErr] = useState(null);
   const videoFileRef = useRef(null);
 
+  const kickoffSession = useMemo(
+    () => (sessions || []).find((s) => s.session_no === 0) || null, [sessions]);
+  // キックオフMTGの実際の実施日時。完了ボタン押下時刻(completed_at)とはズレるため
+  // 管理者がここで明示設定し、session(第0回)の started_at に保存。受講生のセッション履歴に反映される。
+  const [kickoffHeldAt, setKickoffHeldAt] = useState(() => toDateTimeInput(kickoffSession?.started_at));
+
   useEffect(() => { setForm(buildForm(kickoff)); }, [kickoff]);
+  useEffect(() => { setKickoffHeldAt(toDateTimeInput(kickoffSession?.started_at)); }, [kickoffSession?.id, kickoffSession?.started_at]);
 
   const allChecked = CHECK_FIELDS.every((f) => !!form[f.key]);
   const checkedCount = CHECK_FIELDS.filter((f) => !!form[f.key]).length;
-  const kickoffSession = useMemo(
-    () => (sessions || []).find((s) => s.session_no === 0) || null, [sessions]);
   const hasVideo = useMemo(
     () => (videos || []).some((v) => v.session?.session_no === 0), [videos]);
   const hasMinutes = !!(kickoffSession?.minutes_draft || kickoffSession?.minutes_final);
@@ -157,6 +162,13 @@ export default function TabKickoff({ detail, onRefresh }) {
           .update({ scheduled_at: scheduledAt }).eq('id', target.id);
       }
 
+      // キックオフMTGの実施日時を第0回 session の started_at に保存（受講生履歴の実施日に反映）。
+      if (kickoffSession) {
+        await supabase.from('spacareer_sessions')
+          .update({ started_at: kickoffHeldAt ? new Date(kickoffHeldAt).toISOString() : null })
+          .eq('id', kickoffSession.id);
+      }
+
       setSavedAt(new Date());
       onRefresh && onRefresh();
     } catch (e) {
@@ -236,6 +248,14 @@ export default function TabKickoff({ detail, onRefresh }) {
               : '議事録はまだ生成されていません。動画をアップロードすると自動で生成されます。'}
           </div>
         )}
+      </Card>
+
+      <Card padding="md" title="キックオフ実施日時"
+        description="キックオフミーティングを実施した実際の日時です。受講生のセッション履歴「第0回 実施日」にそのまま反映されます（完了ボタンを押した時刻ではなく、ここで設定した日時が使われます）。">
+        <Input size="sm" label="キックオフ実施日時（日付＋時間）" type="datetime-local"
+          value={kickoffHeldAt}
+          onChange={(e) => setKickoffHeldAt(e.target.value)}
+          hint="「保存」を押すと受講生のセッション履歴に反映されます。" />
       </Card>
 
       <Card padding="md"

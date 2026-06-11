@@ -33,6 +33,17 @@ const SESSION_STATUS_VARIANT = {
   completed: 'success',
 };
 
+// 「現在のスキル」(セクションF) のうち Q46〜51 を、スキルセットとして一目で確認できるよう一覧表示する。
+const SKILL_QUESTION_NUMBERS = [46, 47, 48, 49, 50, 51];
+const SKILL_LABELS = {
+  46: 'AI／生成AI活用',
+  47: '営業経験',
+  48: 'フリーランス・副業',
+  49: 'SNS運用',
+  50: 'ライティング',
+  51: 'ポートフォリオ・実績',
+};
+
 export default function TabKickoffHearing({ detail, onRefresh }) {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
@@ -49,6 +60,23 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
     responses.forEach((r) => m.set(r.question_id, r));
     return m;
   }, [responses]);
+
+  // 現在のスキルセット（F・Q46〜51）
+  const skillItems = useMemo(() => {
+    return SKILL_QUESTION_NUMBERS
+      .map((num) => {
+        const q = questions.find((x) => x.question_number === num);
+        if (!q) return null;
+        return {
+          num,
+          label: SKILL_LABELS[num],
+          questionText: q.question_text,
+          answer: (responseByQid.get(q.id)?.answer_text || '').trim(),
+        };
+      })
+      .filter(Boolean);
+  }, [questions, responseByQid]);
+  const skillAnsweredCount = skillItems.filter((s) => s.answer.length > 0).length;
 
   const sections = useMemo(() => {
     const map = new Map();
@@ -289,6 +317,45 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
           </>
         )}
       </div>
+
+      {/* 現在のスキルセット（F・Q46〜51） */}
+      {skillItems.length > 0 && (
+        <Card
+          title="現在のスキルセット（ヒアリングF・Q46〜51）"
+          padding="md"
+          action={
+            <Badge variant={skillAnsweredCount === skillItems.length ? 'success' : 'neutral'} dot>
+              {skillAnsweredCount}/{skillItems.length} 回答
+            </Badge>
+          }
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: space[3] }}>
+            {skillItems.map((s) => (
+              <div key={s.num} style={{
+                padding: space[3],
+                border: `1px solid ${color.borderLight}`,
+                borderRadius: radius.md,
+                background: s.answer ? color.white : alpha(color.warn, 0.04),
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[1] }}>
+                  <span style={{ fontSize: font.size.xs, color: color.textMid, fontVariantNumeric: 'tabular-nums' }}>Q{s.num}</span>
+                  <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>{s.label}</span>
+                </div>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[1] }}>{s.questionText}</div>
+                <div style={{
+                  fontSize: font.size.sm,
+                  color: s.answer ? color.textDark : color.textLight,
+                  lineHeight: font.lineHeight.relaxed,
+                  whiteSpace: 'pre-wrap',
+                  fontStyle: s.answer ? 'normal' : 'italic',
+                }}>
+                  {s.answer || '（未回答）'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* AI抽出結果 */}
       <Card title="AI抽出（ハイライトTop5 / 深掘り候補3つ）" padding="md">

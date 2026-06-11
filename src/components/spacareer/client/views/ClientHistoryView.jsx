@@ -94,10 +94,12 @@ export default function ClientHistoryView() {
       width: 180,
       align: 'right',
       render: row => {
-        // 完了済みは実施日（完了日時）、それ以外は予定日時を表示。
+        // 完了済みは実施日、それ以外は予定日時を表示。
+        // 実施日は「実際に実施した日時(started_at)」を最優先（キックオフは管理画面で設定した実施日時）。
+        // started_at が無ければ completed_at（完了ボタン時刻）→ 予定日時の順でフォールバック。
         // 管理画面と揃え、キックオフ・第1回と完了済みは時刻まで、第2〜8回の予定は日付のみ＋「仮決め」。
         const isCompleted = row.status === 'completed' || !!row.completed_at;
-        const raw = isCompleted ? (row.completed_at || row.started_at || row.scheduled_at) : row.scheduled_at;
+        const raw = isCompleted ? (row.started_at || row.completed_at || row.scheduled_at) : row.scheduled_at;
         if (!raw) return <span style={{ color: color.textLight }}>未確定</span>;
         const d = new Date(raw);
         const provisional = !isCompleted && row.session_no >= 2;
