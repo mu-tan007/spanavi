@@ -109,16 +109,22 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
           }}>相手</span>
           <span style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>{r.label || `反応${ri + 1}`}</span>
           {nextNode && (
-            <span style={{ flexShrink: 0, fontSize: '0.82em', fontWeight: font.weight.normal, color: isMarked ? alpha(color.white, 0.85) : dc }}>
+            <span style={{
+              flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.bold,
+              background: isMarked ? alpha(color.white, 0.92) : alpha(color.gold, 0.18),
+              color: isMarked ? color.navyDark : '#8A6508',
+              border: `1.5px solid ${isMarked ? color.white : color.gold}`,
+              borderRadius: radius.pill, padding: '1px 10px', lineHeight: 1.6,
+            }}>
               → {nextNode.name}
             </span>
           )}
           {isEnd && (
             <span style={{
-              flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.semibold,
-              background: isMarked ? alpha(color.white, 0.22) : color.gray100,
-              color: isMarked ? color.white : color.textMid,
-              border: `1px solid ${isMarked ? alpha(color.white, 0.45) : color.border}`,
+              flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.bold,
+              background: isMarked ? alpha(color.white, 0.92) : color.white,
+              color: isMarked ? color.navyDark : color.gray700,
+              border: `1.5px solid ${isMarked ? color.white : color.gray400}`,
               borderRadius: radius.pill, padding: '1px 10px', lineHeight: 1.6,
             }}>
               終話
