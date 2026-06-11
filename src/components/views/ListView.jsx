@@ -1146,15 +1146,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                 )}
               </div>
             </div>
-            <div style={{ gridColumn: "span 3" }}>
-              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>スクリプト <span style={{ fontSize: 9, color: color.gray400, fontWeight: font.weight.normal }}>（Scriptsページでマーカー編集可）</span></label>
-              <textarea
-                value={formData.scriptBody}
-                onChange={e => setFormData(p => ({ ...p, scriptBody: e.target.value }))}
-                style={{ ...formInputStyle, minHeight: 100, resize: 'vertical' }}
-                placeholder="架電スクリプトを入力..."
-              />
-            </div>
+            {/* スクリプト欄は廃止: 編集はライブラリページの全画面エディタに集約
+                （formData.scriptBody はデータとして保持し続けるので、保存しても既存スクリプトは消えない） */}
             <div style={{ gridColumn: "span 2" }}>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>注意事項</label>
               <textarea value={formData.cautions} onChange={e => setFormData(p => ({ ...p, cautions: e.target.value }))} style={{ ...formInputStyle, minHeight: 50, resize: "vertical" }} placeholder="架電時の注意事項を入力..." />
