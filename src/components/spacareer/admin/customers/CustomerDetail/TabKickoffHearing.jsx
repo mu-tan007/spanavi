@@ -33,8 +33,9 @@ const SESSION_STATUS_VARIANT = {
   completed: 'success',
 };
 
-// 「現在のスキル」(セクションF) のうち Q46〜51 を、スキルセットとして一目で確認できるよう一覧表示する。
-const SKILL_QUESTION_NUMBERS = [46, 47, 48, 49, 50, 51];
+// 「現在のスキル」(セクションF) のスキル項目＋AI活用の稼ぎ方(Q75/76)を、
+// スキルセットとして一目で確認できるよう一覧表示する。
+const SKILL_QUESTION_NUMBERS = [46, 47, 48, 49, 50, 51, 75, 76];
 const SKILL_LABELS = {
   46: 'AI／生成AI活用',
   47: '営業経験',
@@ -42,6 +43,8 @@ const SKILL_LABELS = {
   49: 'SNS運用',
   50: 'ライティング',
   51: 'ポートフォリオ・実績',
+  75: 'AI活用の稼ぎ方（適性・興味）',
+  76: 'AI活用の稼ぎ方の理由',
 };
 
 export default function TabKickoffHearing({ detail, onRefresh }) {

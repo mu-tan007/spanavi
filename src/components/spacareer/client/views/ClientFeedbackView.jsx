@@ -132,10 +132,10 @@ export default function ClientFeedbackView() {
   const handleSubmit = async () => {
     if (!selectedFeedbackId) return;
     if (!score) { alert('満足度を選択してください'); return; }
-    if (!(freeComment || '').trim()) { alert('自由記述は必須です'); return; }
+    if (!(freeComment || '').trim()) { alert('感想・気づきをご記入ください'); return; }
     for (const q of questions) {
       if (q.required && !(responses[q.key] || '').trim()) {
-        alert(`「${q.label}」は必須です`);
+        alert(`「${q.label}」をご記入ください`);
         return;
       }
     }
@@ -177,7 +177,6 @@ export default function ClientFeedbackView() {
   const completedAt = selectedFb?.spacareer_sessions?.completed_at;
   const dueAt = selectedFb?.due_at;
   const submitted = !!selectedFb?.submitted_at;
-  const overdueButOk = dueAt && new Date(dueAt).getTime() < Date.now() && !submitted;
 
   return (
     <div style={{ padding: space[6], display: 'flex', flexDirection: 'column', gap: space[4] }}>
@@ -199,7 +198,6 @@ export default function ClientFeedbackView() {
             })}
           />
         </div>
-        {overdueButOk && <Badge variant="warn" dot>期限超過（事後回答可）</Badge>}
         {submitted && <Badge variant="success" dot>提出済み</Badge>}
       </div>
 
@@ -225,10 +223,22 @@ export default function ClientFeedbackView() {
         </div>
       </Card>
 
+      <div style={{
+        padding: space[3],
+        background: alpha(color.gold, 0.10),
+        border: `1px solid ${alpha(color.gold, 0.30)}`,
+        borderRadius: radius.md,
+        fontSize: font.size.sm,
+        color: color.textDark,
+        lineHeight: font.lineHeight.relaxed,
+      }}>
+        自分が得た学びをアウトプットとして記載することで、学習の定着率が上がります。ぜひAIを活用せず、ご自身の表現・言葉でご記載ください。
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
           <Card padding="md">
-            <Label required>このセッションへの満足度</Label>
+            <Label>このセッションへの満足度</Label>
             <div style={{ display: 'flex', gap: space[2], marginTop: space[2], flexWrap: 'wrap' }}>
               {SATISFACTION_LABELS.map(s => (
                 <button
@@ -285,7 +295,7 @@ export default function ClientFeedbackView() {
           <div style={{ display: 'flex', alignItems: 'center', gap: space[3], marginBottom: space[2] }}>
             <Donut pct={Math.round((answeredRequired / totalRequired) * 100)} />
             <div>
-              <div style={{ fontSize: font.size.sm, color: color.textMid }}>必須項目</div>
+              <div style={{ fontSize: font.size.sm, color: color.textMid }}>回答状況</div>
               <div style={{ fontSize: font.size.xl, fontWeight: font.weight.bold, color: color.navy }}>
                 {answeredRequired} / {totalRequired}
               </div>
@@ -326,11 +336,11 @@ function Centered({ children }) {
   );
 }
 
-function Label({ children, required }) {
+function Label({ children }) {
+  // 必須/任意バッジは表示しない（運用方針）。
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2] }}>
       <span style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.textDark }}>{children}</span>
-      {required ? <Badge variant="danger" size="sm">必須</Badge> : <Badge variant="neutral" size="sm">任意</Badge>}
     </div>
   );
 }
