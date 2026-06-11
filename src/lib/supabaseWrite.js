@@ -1646,9 +1646,12 @@ export async function fetchAllRecallRecords() {
   while (true) {
     const { data, error } = await supabase
       .from('call_records')
-      .select('*')
+      // P3負荷削減: 全列(*)→使用列のみ + 完了済み再コールをDB側で除外
+      // （この取得は全員のタブで定期実行されるため、行数×列幅×頻度がDB最大の負荷源だった）
+      .select('id, item_id, list_id, round, status, memo, called_at, getter_name, recording_url')
       // 旧ラベル '社長再コール' は古いキャッシュSPAから書き込まれる残存対策で含める
       .in('status', ['受付再コール', 'キーマン再コール', '社長再コール'])
+      .not('memo', 'like', '%"recall_completed":true%')
       .order('called_at', { ascending: false })
       .range(from, from + PAGE - 1)
     // エラー時は「_memoObj/_item を付ける前の生レコード」を返さない。

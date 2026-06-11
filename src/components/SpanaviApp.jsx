@@ -528,23 +528,31 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     setSupaRecalls(fresh);
   };
   useEffect(() => { fetchSupaRecalls(); }, []);
-  useEffect(() => { fetchSupaRecalls(); }, [now]);
+  // P3負荷削減: 毎分→5分毎に間引き（全員のタブで毎分実行されDB最大の負荷源だった）。
+  // 通知の取りこぼしは下の「予定時刻から10分以内」の窓判定で防ぐ
+  useEffect(() => { if (now.getMinutes() % 5 === 0) fetchSupaRecalls(); }, [now]);
 
   useEffect(() => {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-    const nowTimeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    // 「ちょうどその分」の一致だと5分毎ポーリングで取りこぼすため、
+    // 予定時刻が過去10分以内に到来していて未通知なら鳴らす
+    const nowMin = now.getHours() * 60 + now.getMinutes();
     supaRecalls.forEach(r => {
       const rDate = r._memoObj?.recall_date;
       const rTime = r._memoObj?.recall_time;
       const assignee = r._memoObj?.assignee || '';
       if (assignee !== currentUser) return;
-      if (rDate === todayStr && rTime === nowTimeStr && !notifiedIdsRef.current.has(r.id)) {
+      if (rDate !== todayStr || !rTime || notifiedIdsRef.current.has(r.id)) return;
+      const [h, m] = String(rTime).split(':').map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) return;
+      const dueMin = h * 60 + m;
+      if (dueMin <= nowMin && nowMin - dueMin <= 10) {
         new Notification("再コール予定", { body: `${r._item?.company || ''} - ${r.status} ${rTime}` });
         notifiedIdsRef.current.add(r.id);
       }
     });
-  }, [now]);
+  }, [now, supaRecalls]);
 
   const enrichedLists = useMemo(() => callListData.map(list => {
     const latestCallAt = latestSessionMap[list._supaId] || null;
