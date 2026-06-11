@@ -4,7 +4,6 @@ import { C } from '../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../constants/design';
 import { Button, Input, Select, Card, Badge } from './ui';
 import { CALL_RESULTS } from '../constants/callResults';
-import { DEFAULT_BASIC_SCRIPT } from '../constants/scripts';
 import { calcRankAndRate, getCurrentRecommendation } from '../utils/calculations';
 import { getIndustryCategory, parseTimeRange } from '../utils/industry';
 import { dialPhone } from '../utils/phone';

@@ -2,27 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
-import { DEFAULT_BASIC_SCRIPT } from '../../constants/scripts';
 import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
 import { toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker, createChipElement } from '../../utils/scriptMarker';
 import PageHeader from '../common/PageHeader';
 import ScriptBody, { flattenRebuttal } from '../common/ScriptBody';
 
 export default function ScriptView({ isAdmin, clientData, callListData, setCallListData, embedded = false }) {
-  const [basicScript, setBasicScript] = useState(DEFAULT_BASIC_SCRIPT);
-  const [basicScriptEdit, setBasicScriptEdit] = useState(DEFAULT_BASIC_SCRIPT);
-  const editorRef = useRef(null);
-  const editorInitRef = useRef(false);
   // 右クリックコンテキストメニュー
   const [ctxMenu, setCtxMenu] = useState(null); // { x, y, editorEl, isMarked }
-
-  // contentEditable初期化
-  useEffect(() => {
-    if (editorRef.current && !editorInitRef.current) {
-      editorRef.current.innerHTML = toHtml(basicScriptEdit);
-      editorInitRef.current = true;
-    }
-  }, [basicScriptEdit]);
 
   // メニュー外クリックで閉じる
   useEffect(() => {
@@ -63,13 +50,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     });
   }, []);
 
-  // アウト返しチップ挿入ダイアログ { editorEl, range, rebuttal, isBasic }
+  // アウト返しチップ挿入ダイアログ { editorEl, range, rebuttal }
   const [chipDialog, setChipDialog] = useState(null);
   const [chipSelected, setChipSelected] = useState([]);
 
   const handleInsertChips = () => {
     if (!chipDialog) return;
-    const { editorEl, range, isBasic } = chipDialog;
+    const { editorEl, range } = chipDialog;
     if (!editorEl || chipSelected.length === 0) { setChipDialog(null); return; }
     // 右クリック時に保存した位置がエディタ内なら使う。無効なら末尾に挿入
     let r = (range && editorEl.contains(range.commonAncestorContainer)) ? range.cloneRange() : null;
@@ -88,12 +75,10 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       r.setStartAfter(sp);
       r.collapse(true);
     });
-    if (isBasic) setBasicScriptEdit(fromHtml(editorEl.innerHTML));
+    setFeDirty(true);
     setChipDialog(null);
     setChipSelected([]);
   };
-  const [savedOk, setSavedOk] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [clientTabs, setClientTabs] = useState({});
   const [qaOpen, setQaOpen] = useState(false);
   const [qaTab, setQaTab] = useState('reception');
@@ -261,14 +246,6 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   const [qaEditData, setQaEditData] = useState(DEFAULT_QA_DATA);
 
   useEffect(() => {
-    fetchSetting('basic_script').then(({ value }) => {
-      const text = value || DEFAULT_BASIC_SCRIPT;
-      setBasicScript(text);
-      setBasicScriptEdit(text);
-      // Editor HTMLを初期化
-      if (editorRef.current) editorRef.current.innerHTML = toHtml(text);
-      editorInitRef.current = true;
-    });
     fetchSetting('qa_data').then(({ value }) => {
       if (value) {
         try {
@@ -279,19 +256,6 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       }
     });
   }, []);
-
-  const handleSaveBasicScript = async () => {
-    setSaving(true);
-    // editorから最新テキストを取得
-    const text = editorRef.current ? fromHtml(editorRef.current.innerHTML) : basicScriptEdit;
-    const err = await saveSetting('basic_script', text);
-    setSaving(false);
-    if (err) { alert('保存に失敗しました'); return; }
-    setBasicScriptEdit(text);
-    setBasicScript(text);
-    setSavedOk(true);
-    setTimeout(() => setSavedOk(false), 2000);
-  };
 
   const handleSaveQA = async () => {
     setQaSaving(true);
@@ -330,6 +294,20 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     (callListData || []).some(l => l.company === c.company && !l.is_archived)
   );
 
+  // クライアント検索（名前の部分一致。今後スクリプトが増えても目的のカードへ即到達できるように）
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientSearchFocus, setClientSearchFocus] = useState(false);
+  const searchQ = clientSearch.trim().toLowerCase();
+  const filteredClients = searchQ
+    ? activeClients.filter(c => (c.company || '').toLowerCase().includes(searchQ))
+    : activeClients;
+  const searchSuggestions = searchQ
+    ? activeClients
+        .map(c => c.company)
+        .filter(name => name && name.toLowerCase().includes(searchQ) && name !== clientSearch)
+        .slice(0, 8)
+    : [];
+
   return (
     <div style={{ animation: "fadeIn 0.3s ease", padding: "0 0 40px 0" }}>
       {!embedded && (
@@ -340,65 +318,75 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
         />
       )}
 
-      {/* 基本スクリプト */}
-      <div style={{ marginBottom: 32 }}>
+      {/* クライアント別スクリプト */}
+      <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <h2 style={{
             margin: 0, fontSize: font.size.base, fontWeight: font.weight.bold,
             color: color.navy, borderBottom: `2px solid ${color.navy}`, paddingBottom: 6,
-          }}>基本スクリプト</h2>
+          }}>クライアント別スクリプト</h2>
           <Button size="sm" onClick={() => setQaOpen(true)}>想定問答を見る</Button>
         </div>
 
-        <Card padding="md">
-          {isAdmin ? (
-            <>
-              <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginBottom: 6 }}>右クリックでマーカー（テキスト選択時）／アウト返しチップの挿入ができます</div>
-              <div
-                ref={editorRef}
-                contentEditable
-                suppressContentEditableWarning
-                onInput={() => setBasicScriptEdit(fromHtml(editorRef.current?.innerHTML || ''))}
-                onContextMenu={e => handleContextMenu(e, editorRef.current, qaData)}
-                style={{
-                  width: "100%", border: "none", outline: "none", minHeight: 180,
-                  fontSize: font.size.base, color: color.textDark, fontFamily: font.family.sans,
-                  background: "transparent", lineHeight: 1.8, boxSizing: "border-box",
-                  whiteSpace: "pre-wrap", overflowY: "auto",
-                }}
-              />
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-                <Button size="sm" onClick={handleSaveBasicScript} loading={saving}>
-                  {saving ? "保存中..." : "保存"}
-                </Button>
-                {savedOk && <span style={{ fontSize: font.size.sm, color: color.success }}>保存しました</span>}
-              </div>
-            </>
-          ) : (
-            <div style={{ minHeight: 120 }}>
-              {basicScript
-                ? <ScriptBody text={basicScript} rebuttal={qaData} style={{ fontSize: font.size.base, color: color.textDark, lineHeight: 1.8 }} />
-                : <span style={{ color: color.textLight, fontStyle: "italic" }}>（スクリプト未設定）</span>}
+        {/* クライアント検索: 名前の一部を入力すると候補が出て、該当クライアントだけ表示 */}
+        <div style={{ position: 'relative', maxWidth: 420, marginBottom: 16 }}>
+          <Input
+            size="md"
+            value={clientSearch}
+            onChange={e => setClientSearch(e.target.value)}
+            onFocus={() => setClientSearchFocus(true)}
+            onBlur={() => setTimeout(() => setClientSearchFocus(false), 150)}
+            placeholder="クライアント名で検索（一部入力でOK）"
+          />
+          {clientSearch.trim() && (
+            <button
+              type="button"
+              onClick={() => setClientSearch('')}
+              style={{
+                position: 'absolute', right: 10, top: 9,
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: color.textLight, fontSize: font.size.base, lineHeight: 1,
+                fontFamily: font.family.sans,
+              }}
+              title="クリア"
+            >✕</button>
+          )}
+          {clientSearchFocus && clientSearch.trim() && searchSuggestions.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+              marginTop: 4, background: color.white,
+              border: `1px solid ${color.border}`, borderRadius: radius.md,
+              boxShadow: shadow.lg, overflow: 'hidden',
+            }}>
+              {searchSuggestions.map(name => (
+                <button key={name} type="button"
+                  onMouseDown={() => { setClientSearch(name); setClientSearchFocus(false); }}
+                  style={{
+                    display: 'block', width: '100%', padding: '8px 14px',
+                    border: 'none', background: 'transparent', textAlign: 'left',
+                    fontSize: font.size.sm, color: color.textDark, cursor: 'pointer',
+                    fontFamily: font.family.sans,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = color.gray100}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  {name}
+                </button>
+              ))}
             </div>
           )}
-        </Card>
+        </div>
 
-      </div>
-
-      {/* クライアント別スクリプト */}
-      <div>
-        <h2 style={{
-          margin: "0 0 14px", fontSize: font.size.base, fontWeight: font.weight.bold,
-          color: color.navy, borderBottom: `2px solid ${color.navy}`, paddingBottom: 6,
-        }}>クライアント別スクリプト</h2>
         {activeClients.length === 0 ? (
           <div style={{ color: color.textLight, fontSize: font.size.base, padding: "20px 0" }}>支援中のクライアントがありません</div>
+        ) : filteredClients.length === 0 ? (
+          <div style={{ color: color.textLight, fontSize: font.size.base, padding: "20px 0" }}>「{clientSearch}」に一致するクライアントがありません</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            {activeClients.map((client, cIdx) => {
+            {filteredClients.map((client, cIdx) => {
               const clientLists = (callListData || []).filter(l => l.company === client.company && !l.is_archived);
               const allIndustries = [...new Set(clientLists.map(l => l.industry).filter(Boolean))];
-              const activeTab = clientTabs[cIdx] ?? 0;
+              const tabKey = client._supaId || client.company;
+              const activeTab = clientTabs[tabKey] ?? 0;
               const activeList = clientLists.find(l => l.industry === allIndustries[activeTab]) ?? clientLists[0];
               return (
                 <Card key={client._supaId || cIdx} padding="none" style={{ overflow: "hidden" }}>
@@ -422,7 +410,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     <div style={{ display: "flex", overflowX: "auto", borderBottom: `1px solid ${color.border}`, background: color.gray50 }}>
                       {allIndustries.map((ind, iIdx) => (
                         <button key={iIdx}
-                          onClick={() => setClientTabs(prev => ({ ...prev, [cIdx]: iIdx }))}
+                          onClick={() => setClientTabs(prev => ({ ...prev, [tabKey]: iIdx }))}
                           style={{
                             padding: "5px 12px", border: "none", cursor: "pointer",
                             fontSize: font.size.xs - 1,
@@ -853,10 +841,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
           {ctxMenu.hasSelection && (ctxMenu.isMarked ? (
             <button onClick={() => {
               removeMarker(ctxMenu.editorEl);
-              // state同期
-              if (ctxMenu.editorEl === editorRef.current) {
-                setBasicScriptEdit(fromHtml(editorRef.current.innerHTML));
-              }
+              setFeDirty(true);
               setCtxMenu(null);
             }} style={menuItemStyle}
               onMouseEnter={e => e.target.style.background = color.gray100}
@@ -866,10 +851,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
           ) : (
             <button onClick={() => {
               applyMarker(ctxMenu.editorEl);
-              // state同期
-              if (ctxMenu.editorEl === editorRef.current) {
-                setBasicScriptEdit(fromHtml(editorRef.current.innerHTML));
-              }
+              setFeDirty(true);
               setCtxMenu(null);
             }} style={menuItemStyle}
               onMouseEnter={e => e.target.style.background = color.gray100}
@@ -884,7 +866,6 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 editorEl: ctxMenu.editorEl,
                 range: ctxMenu.range,
                 rebuttal: ctxMenu.rebuttal,
-                isBasic: ctxMenu.editorEl === editorRef.current,
               });
               setCtxMenu(null);
             }} style={{ ...menuItemStyle, borderTop: ctxMenu.hasSelection ? `1px solid ${color.borderLight || color.border}` : 'none' }}
