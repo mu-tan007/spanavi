@@ -147,6 +147,8 @@ export function useSpanaviData(authOrgId) {
         client_id: cl.client_id || null,
         // リスト単位のアポ単価上書き（税別円）。NULL=報酬マスタを使用
         appoUnitPrice: cl.appo_unit_price != null ? Number(cl.appo_unit_price) : null,
+        // ツリー型スクリプト（ノード＋リンク）。NULL=テキスト型のみ
+        scriptTree: cl.script_tree || null,
         contactIds: (cl.contact_ids && cl.contact_ids.length > 0) ? cl.contact_ids : (cl.contact_id ? [cl.contact_id] : []),
         created_at: cl.created_at || null,
       });

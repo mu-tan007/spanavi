@@ -2073,6 +2073,17 @@ export async function updateCallListRebuttal(supaId, rebuttalData) {
   return error
 }
 
+// ツリー型スクリプト保存。treeObj は { version, startId, nodes } か null（=ツリー削除）
+export async function updateCallListScriptTree(supaId, treeObj) {
+  if (!supaId) { console.warn('[DB] updateCallListScriptTree: no supaId'); return null }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ script_tree: treeObj })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateCallListScriptTree error:', error)
+  return error
+}
+
 export async function updateCallListCautions(supaId, cautions) {
   if (!supaId) { console.warn('[DB] updateCallListCautions: no supaId'); return null }
   const { error } = await supabase

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
-import { fetchSetting, updateCallListRebuttal, updateCallListScript, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
+import { fetchSetting, updateCallListRebuttal, updateCallListScript, updateCallListScriptTree, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
 import { toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker, createChipElement } from '../../utils/scriptMarker';
 import PageHeader from '../common/PageHeader';
 import ScriptBody, { flattenRebuttal } from '../common/ScriptBody';
@@ -138,6 +138,127 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   // 他リスト（同じ商材・タイプ）のアウト返し候補セクションの開閉
   const [feCandOpen, setFeCandOpen] = useState(false);
 
+  // ── ツリー型スクリプト編集 ──
+  // feMode: 左ペインの編集対象 'text'(従来のテキスト型) | 'tree'(ツリー型)
+  // feTree: { version, startId, nodes: [{id, name, talk, responses:[{label, nextId}]}] }
+  //         talk はノードごとの contentEditable(feTreeTalkRefs) に持ち、保存/モード切替時に取り込む
+  const [feMode, setFeMode] = useState('text');
+  const [feTree, setFeTree] = useState(null);
+  const feTreeTalkRefs = useRef({});
+  // テキスト型→ツリー型へ切り替えたとき、未保存のテキスト編集を退避しておく
+  const feTextDraftRef = useRef(null);
+
+  const genNodeId = () => 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  // ノードの contentEditable から talk を state に取り込む（モード切替・保存時）
+  const captureTreeTalks = (treeState) => {
+    if (!treeState) return treeState;
+    return {
+      ...treeState,
+      nodes: treeState.nodes.map(n => {
+        const el = feTreeTalkRefs.current[n.id];
+        return el ? { ...n, talk: fromHtml(el.innerHTML) } : n;
+      }),
+    };
+  };
+
+  const handleSwitchFeMode = (mode) => {
+    if (mode === feMode) return;
+    if (feMode === 'text' && feEditorRef.current) {
+      feTextDraftRef.current = fromHtml(feEditorRef.current.innerHTML);
+    }
+    if (feMode === 'tree') {
+      setFeTree(prev => captureTreeTalks(prev));
+      feTreeTalkRefs.current = {};
+    }
+    setFeMode(mode);
+  };
+
+  const handleCreateTree = () => {
+    const id = genNodeId();
+    setFeTree({ version: 1, startId: id, nodes: [{ id, name: '受付', talk: '', responses: [] }] });
+    setFeDirty(true);
+  };
+
+  const feTreeAddNode = (name = '') => {
+    const id = genNodeId();
+    setFeTree(prev => ({
+      ...prev,
+      startId: prev?.startId || id,
+      nodes: [...(prev?.nodes || []), { id, name: name || `セクション${(prev?.nodes?.length || 0) + 1}`, talk: '', responses: [] }],
+    }));
+    setFeDirty(true);
+    return id;
+  };
+
+  const feTreeUpdateNode = (nodeId, patch) => {
+    setFeTree(prev => ({ ...prev, nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, ...patch } : n) }));
+    setFeDirty(true);
+  };
+
+  const feTreeDeleteNode = (nodeId) => {
+    const node = (feTree?.nodes || []).find(n => n.id === nodeId);
+    if (!window.confirm(`セクション「${node?.name || ''}」を削除しますか？\nこのセクションへのリンクは「終話」に変わります。`)) return;
+    setFeTree(prev => {
+      const nodes = prev.nodes
+        .filter(n => n.id !== nodeId)
+        .map(n => ({
+          ...n,
+          responses: (n.responses || []).map(r => r.nextId === nodeId ? { ...r, nextId: null } : r),
+        }));
+      let startId = prev.startId;
+      if (startId === nodeId) startId = nodes[0]?.id || null;
+      return { ...prev, startId, nodes };
+    });
+    delete feTreeTalkRefs.current[nodeId];
+    setFeDirty(true);
+  };
+
+  const feTreeMoveNode = (nodeId, dir) => {
+    setFeTree(prev => {
+      const idx = prev.nodes.findIndex(n => n.id === nodeId);
+      const to = idx + dir;
+      if (idx < 0 || to < 0 || to >= prev.nodes.length) return prev;
+      const nodes = [...prev.nodes];
+      [nodes[idx], nodes[to]] = [nodes[to], nodes[idx]];
+      return { ...prev, nodes };
+    });
+    setFeDirty(true);
+  };
+
+  const feTreeUpdateResponse = (nodeId, respIdx, patch) => {
+    setFeTree(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => {
+        if (n.id !== nodeId) return n;
+        const responses = [...(n.responses || [])];
+        responses[respIdx] = { ...responses[respIdx], ...patch };
+        return { ...n, responses };
+      }),
+    }));
+    setFeDirty(true);
+  };
+
+  const feTreeAddResponse = (nodeId) => {
+    setFeTree(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => n.id === nodeId
+        ? { ...n, responses: [...(n.responses || []), { label: '', nextId: null }] }
+        : n),
+    }));
+    setFeDirty(true);
+  };
+
+  const feTreeDeleteResponse = (nodeId, respIdx) => {
+    setFeTree(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => n.id === nodeId
+        ? { ...n, responses: (n.responses || []).filter((_, i) => i !== respIdx) }
+        : n),
+    }));
+    setFeDirty(true);
+  };
+
   const handleOpenFullEditor = (listId) => {
     const list = (callListData || []).find(l => l._supaId === listId);
     if (!list) return;
@@ -148,6 +269,12 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     setFeDirty(false);
     setFeSavedOk(false);
     setFeCandOpen(false);
+    // ツリー型の初期化（ツリーがあるリストはツリー編集を初期表示）
+    const tree = (list.scriptTree && Array.isArray(list.scriptTree.nodes)) ? JSON.parse(JSON.stringify(list.scriptTree)) : null;
+    setFeTree(tree);
+    setFeMode(tree?.nodes?.length ? 'tree' : 'text');
+    feTreeTalkRefs.current = {};
+    feTextDraftRef.current = null;
     setFullEditor(listId);
   };
 
@@ -158,21 +285,42 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
 
   const handleSaveFullEditor = async () => {
     const listId = fullEditor;
-    if (!listId || !feEditorRef.current) return;
+    if (!listId) return;
     setFeSaving(true);
-    const text = fromHtml(feEditorRef.current.innerHTML);
+    // テキスト型: マウント中ならエディタから、ツリー表示中ならモード切替時の退避分（無ければ触らない）
+    const text = feEditorRef.current
+      ? fromHtml(feEditorRef.current.innerHTML)
+      : (feTextDraftRef.current != null ? feTextDraftRef.current : null);
+    // ツリー型: ノードの contentEditable から talk を取り込んだ最新版（空ツリーは null = ツリー削除）
+    let treeToSave;
+    let capturedTree = null;
+    if (feTree) {
+      capturedTree = feMode === 'tree' ? captureTreeTalks(feTree) : feTree;
+      treeToSave = capturedTree.nodes.length
+        ? { version: 1, startId: capturedTree.startId || capturedTree.nodes[0].id, nodes: capturedTree.nodes }
+        : null;
+    } else {
+      treeToSave = undefined; // ツリー未作成 → 触らない
+    }
     const cleaned = {
       reception: (feRebuttal.reception || []).filter(it => (it.q || '').trim() || (it.a || '').trim()),
       president: (feRebuttal.president || []).filter(it => (it.q || '').trim() || (it.a || '').trim()),
     };
     // 全て空なら null 保存 → 架電画面の「共通の想定問答」フォールバックを維持する
     const jsonStr = (cleaned.reception.length || cleaned.president.length) ? JSON.stringify(cleaned) : null;
-    const err1 = await updateCallListScript(listId, text);
+    const err1 = text != null ? await updateCallListScript(listId, text) : null;
     const err2 = await updateCallListRebuttal(listId, jsonStr);
+    const err3 = treeToSave !== undefined ? await updateCallListScriptTree(listId, treeToSave) : null;
     setFeSaving(false);
-    if (err1 || err2) { alert('保存に失敗しました'); return; }
+    if (err1 || err2 || err3) { alert('保存に失敗しました'); return; }
+    if (capturedTree) setFeTree(capturedTree);
     if (setCallListData) {
-      setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, scriptBody: text, rebuttalData: jsonStr || '' } : l));
+      setCallListData(prev => prev.map(l => l._supaId === listId ? {
+        ...l,
+        ...(text != null ? { scriptBody: text } : {}),
+        rebuttalData: jsonStr || '',
+        ...(treeToSave !== undefined ? { scriptTree: treeToSave } : {}),
+      } : l));
     }
     setFeDirty(false);
     setFeSavedOk(true);
@@ -528,28 +676,215 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
             {/* 本体: 左=スクリプト編集 / 右=アウト返し・添付PDF */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
               <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-                <div
-                  key={fullEditor}
-                  ref={el => {
-                    feEditorRef.current = el;
-                    if (el && !el.dataset.feInit) {
-                      el.innerHTML = toHtml(list.scriptBody || '');
-                      el.dataset.feInit = '1';
-                    }
-                  }}
-                  contentEditable
-                  suppressContentEditableWarning
-                  onInput={() => setFeDirty(true)}
-                  onDoubleClick={handleEditorDoubleClick}
-                  onContextMenu={e => handleContextMenu(e, feEditorRef.current, effRebuttal)}
-                  style={{
-                    background: color.white, border: `1px solid ${color.border}`,
-                    borderRadius: radius.lg, padding: '24px 28px',
-                    minHeight: 'calc(100% - 2px)', boxSizing: 'border-box',
-                    fontSize: font.size.base, color: color.textDark, lineHeight: 1.9,
-                    whiteSpace: 'pre-wrap', outline: 'none', fontFamily: font.family.sans,
-                  }}
-                />
+                {/* テキスト型／ツリー型 切替 */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {[['text', 'テキスト型'], ['tree', 'ツリー型']].map(([m, l]) => (
+                    <Button key={m} size="sm"
+                      variant={feMode === m ? 'primary' : 'secondary'}
+                      onClick={() => handleSwitchFeMode(m)}
+                      style={{ fontSize: font.size.xs }}>
+                      {l}{m === 'tree' && feTree?.nodes?.length ? `（${feTree.nodes.length}）` : ''}
+                    </Button>
+                  ))}
+                  <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
+                    {feMode === 'tree'
+                      ? 'セクションを「相手の反応→行き先」で繋ぎます。架電画面ではガイドモードで表示されます'
+                      : 'ツリー型を作ると架電画面が「ガイド表示」になります（テキスト型は全文タブとして残ります）'}
+                  </span>
+                </div>
+
+                {feMode === 'tree' ? (
+                  /* ── ツリーエディタ ── */
+                  !feTree?.nodes?.length ? (
+                    <div style={{
+                      background: color.white, border: `1px dashed ${color.border}`,
+                      borderRadius: radius.lg, padding: '40px 28px', textAlign: 'center',
+                    }}>
+                      <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: 1.8, marginBottom: 16 }}>
+                        ツリー型スクリプトはまだありません。<br />
+                        「受付」「キーマン編」のような場面単位のセクションを作り、<br />
+                        相手の反応ごとに行き先を繋いでいきます。
+                      </div>
+                      <Button variant="primary" size="md" onClick={handleCreateTree}>最初のセクションを作成</Button>
+                    </div>
+                  ) : (() => {
+                    // 「←どこから来るか」と未接続警告のための逆リンク集計
+                    const incoming = {};
+                    feTree.nodes.forEach(n => (n.responses || []).forEach(r => {
+                      if (r.nextId) (incoming[r.nextId] = incoming[r.nextId] || []).push(n.name || 'セクション');
+                    }));
+                    const nodeOptions = feTree.nodes.map(n => ({ value: n.id, label: n.name || 'セクション' }));
+                    return (
+                      <div>
+                        {feTree.nodes.map((node, idx) => {
+                          const isStart = feTree.startId === node.id;
+                          const froms = incoming[node.id] || [];
+                          const orphan = !isStart && froms.length === 0;
+                          return (
+                            <Card key={node.id} padding="none" style={{
+                              marginBottom: 12, overflow: 'hidden',
+                              border: orphan ? `1px solid ${alpha(color.warn, 0.7)}` : undefined,
+                            }}>
+                              {/* ヘッダー: 名前 + スタート + 並び替え + 削除 */}
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '8px 12px', background: color.gray50,
+                                borderBottom: `1px solid ${color.border}`, flexWrap: 'wrap',
+                              }}>
+                                <Input
+                                  size="sm"
+                                  value={node.name}
+                                  onChange={e => feTreeUpdateNode(node.id, { name: e.target.value })}
+                                  placeholder="セクション名（例: 受付）"
+                                  fullWidth={false}
+                                  containerStyle={{ width: 220 }}
+                                  style={{ fontWeight: font.weight.semibold }}
+                                />
+                                {isStart ? (
+                                  <Badge variant="primary" size="sm">スタート</Badge>
+                                ) : (
+                                  <button type="button" onClick={() => { setFeTree(prev => ({ ...prev, startId: node.id })); setFeDirty(true); }}
+                                    style={{
+                                      background: 'transparent', border: `1px dashed ${color.border}`,
+                                      borderRadius: radius.pill, padding: '1px 8px', cursor: 'pointer',
+                                      fontSize: font.size.xs - 1, color: color.textLight, fontFamily: font.family.sans,
+                                    }}>
+                                    スタートに設定
+                                  </button>
+                                )}
+                                {froms.length > 0 && (
+                                  <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
+                                    ← {froms.join(' / ')} から
+                                  </span>
+                                )}
+                                {orphan && (
+                                  <span style={{ fontSize: font.size.xs - 1, color: color.warn, fontWeight: font.weight.semibold }}>
+                                    どこからもリンクされていません
+                                  </span>
+                                )}
+                                <span style={{ marginLeft: 'auto', display: 'flex', gap: 4, flexShrink: 0 }}>
+                                  <Button size="sm" variant="ghost" disabled={idx === 0} onClick={() => feTreeMoveNode(node.id, -1)} style={{ fontSize: font.size.xs - 1, padding: '2px 8px' }}>↑</Button>
+                                  <Button size="sm" variant="ghost" disabled={idx === feTree.nodes.length - 1} onClick={() => feTreeMoveNode(node.id, 1)} style={{ fontSize: font.size.xs - 1, padding: '2px 8px' }}>↓</Button>
+                                  <Button size="sm" variant="outline" onClick={() => feTreeDeleteNode(node.id)} style={{ borderColor: '#fca5a5', color: color.danger, fontSize: font.size.xs - 1 }}>削除</Button>
+                                </span>
+                              </div>
+                              {/* トーク本文（マーカー/チップは右クリックで挿入可） */}
+                              <div
+                                key={`${fullEditor}-${node.id}`}
+                                ref={el => {
+                                  if (el) {
+                                    feTreeTalkRefs.current[node.id] = el;
+                                    if (!el.dataset.feInit) {
+                                      el.innerHTML = toHtml(node.talk || '');
+                                      el.dataset.feInit = '1';
+                                    }
+                                  } else {
+                                    delete feTreeTalkRefs.current[node.id];
+                                  }
+                                }}
+                                contentEditable
+                                suppressContentEditableWarning
+                                onInput={() => setFeDirty(true)}
+                                onDoubleClick={handleEditorDoubleClick}
+                                onContextMenu={e => handleContextMenu(e, feTreeTalkRefs.current[node.id], effRebuttal)}
+                                style={{
+                                  padding: '12px 16px', minHeight: 64,
+                                  fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8,
+                                  whiteSpace: 'pre-wrap', outline: 'none', fontFamily: font.family.sans,
+                                  background: color.white,
+                                }}
+                              />
+                              {/* 相手の反応 → 行き先 */}
+                              <div style={{ padding: '8px 12px 12px', borderTop: `1px dashed ${color.border}`, background: alpha(color.navyLight, 0.025) }}>
+                                <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 6 }}>
+                                  相手の反応 → 次のセクション
+                                </div>
+                                {(node.responses || []).map((r, ri) => {
+                                  const broken = r.nextId && !feTree.nodes.some(n => n.id === r.nextId);
+                                  return (
+                                    <div key={ri} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                      <Input
+                                        size="sm"
+                                        value={r.label}
+                                        onChange={e => feTreeUpdateResponse(node.id, ri, { label: e.target.value })}
+                                        placeholder="相手の言葉（例: 少々お待ちください）"
+                                        fullWidth={false}
+                                        containerStyle={{ flex: 1, minWidth: 180 }}
+                                      />
+                                      <span style={{ fontSize: font.size.xs, color: color.textLight, flexShrink: 0 }}>→</span>
+                                      <Select
+                                        size="sm"
+                                        fullWidth={false}
+                                        containerStyle={{ width: 200, flexShrink: 0 }}
+                                        value={broken ? '__end__' : (r.nextId || '__end__')}
+                                        onChange={e => {
+                                          const v = e.target.value;
+                                          if (v === '__new__') {
+                                            const name = window.prompt('新しいセクション名', '');
+                                            if (name == null || !name.trim()) return;
+                                            const newId = feTreeAddNode(name.trim());
+                                            feTreeUpdateResponse(node.id, ri, { nextId: newId });
+                                          } else {
+                                            feTreeUpdateResponse(node.id, ri, { nextId: v === '__end__' ? null : v });
+                                          }
+                                        }}
+                                        options={[
+                                          { value: '__end__', label: '終話（ここで終了）' },
+                                          ...nodeOptions.filter(o => o.value !== node.id),
+                                          { value: '__new__', label: '＋ 新規セクションを作成…' },
+                                        ]}
+                                      />
+                                      <Button size="sm" variant="outline" onClick={() => feTreeDeleteResponse(node.id, ri)}
+                                        style={{ borderColor: '#fca5a5', color: color.danger, fontSize: font.size.xs - 1, flexShrink: 0 }}>
+                                        削除
+                                      </Button>
+                                      {broken && (
+                                        <span style={{ fontSize: font.size.xs - 1, color: color.danger, width: '100%' }}>
+                                          行き先のセクションが削除されたため「終話」扱いになっています
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                <Button variant="ghost" size="sm" onClick={() => feTreeAddResponse(node.id)} style={{
+                                  border: `1px dashed ${color.gray400}`, color: color.textMid,
+                                  fontSize: font.size.xs - 1,
+                                }}>+ 反応を追加</Button>
+                              </div>
+                            </Card>
+                          );
+                        })}
+                        <Button variant="ghost" size="md" onClick={() => feTreeAddNode()} fullWidth style={{
+                          border: `1px dashed ${color.gray400}`, color: color.textMid,
+                        }}>+ セクションを追加</Button>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  /* ── テキスト型エディタ（従来） ── */
+                  <div
+                    key={fullEditor}
+                    ref={el => {
+                      feEditorRef.current = el;
+                      if (el && !el.dataset.feInit) {
+                        el.innerHTML = toHtml(feTextDraftRef.current != null ? feTextDraftRef.current : (list.scriptBody || ''));
+                        el.dataset.feInit = '1';
+                      }
+                    }}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={() => setFeDirty(true)}
+                    onDoubleClick={handleEditorDoubleClick}
+                    onContextMenu={e => handleContextMenu(e, feEditorRef.current, effRebuttal)}
+                    style={{
+                      background: color.white, border: `1px solid ${color.border}`,
+                      borderRadius: radius.lg, padding: '24px 28px',
+                      minHeight: 'calc(100% - 50px)', boxSizing: 'border-box',
+                      fontSize: font.size.base, color: color.textDark, lineHeight: 1.9,
+                      whiteSpace: 'pre-wrap', outline: 'none', fontFamily: font.family.sans,
+                    }}
+                  />
+                )}
               </div>
               <div style={{
                 width: 400, flexShrink: 0, borderLeft: `1px solid ${color.border}`,

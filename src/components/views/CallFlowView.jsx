@@ -21,6 +21,7 @@ import ClientCalendarPanel from '../common/ClientCalendarPanel';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
 import ScriptBody from '../common/ScriptBody';
+import ScriptTreeGuide from '../common/ScriptTreeGuide';
 import RebuttalQuickSearch from '../common/RebuttalQuickSearch';
 import { resolveListContacts } from '../../utils/listContacts';
 
@@ -234,6 +235,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [aiError, setAiError] = useState({}); // { [itemId]: 'parse_failed'|'not_found'|'error' }
   const [scriptPanelOpen, setScriptPanelOpen] = useState(true);
   const [scriptTab, setScriptTab] = useState('script');
+  // ツリー型スクリプトのあるリストでの表示モード: 'guide'(ガイド) | 'text'(全文)
+  const [scriptViewMode, setScriptViewMode] = useState('guide');
   const [sortState, setSortState] = useState({ column: null, direction: null });
   const [callRecords, setCallRecords] = useState([]);
   const [selectedRound, setSelectedRound] = useState(null);
@@ -1722,12 +1725,30 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               let rdScript = null;
               try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
               const rebuttal = rdScript || qaData;
+              const hasTree = !!(list.scriptTree && Array.isArray(list.scriptTree.nodes) && list.scriptTree.nodes.length);
+              const showGuide = hasTree && scriptViewMode === 'guide';
               return (
                 <>
                   <RebuttalQuickSearch rebuttal={rebuttal} compact />
-                  {list.scriptBody
-                    ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7 }} />
-                    : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>}
+                  {hasTree && (
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                      {[['guide', 'ガイド'], ['text', '全文']].map(([m, l]) => (
+                        <button key={m} onClick={() => setScriptViewMode(m)}
+                          style={{ fontSize: 9, padding: '2px 10px', borderRadius: 4, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
+                            border: scriptViewMode === m ? '1px solid ' + C.gold : '1px solid ' + C.borderLight,
+                            background: scriptViewMode === m ? C.gold + '20' : C.white,
+                            color: scriptViewMode === m ? C.navy : C.textMid,
+                            fontWeight: scriptViewMode === m ? 700 : 400 }}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showGuide
+                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: 11, color: C.textDark }} />
+                    : list.scriptBody
+                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7 }} />
+                      : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>}
                   {pdfs.length > 0 && (
                     <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px dashed ' + C.borderLight }}>
                       <div style={{ fontSize: 9, fontWeight: 600, color: C.navy, marginBottom: 4 }}>添付PDF</div>
@@ -2571,12 +2592,29 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               let rdScript = null;
               try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
               const rebuttal = rdScript || qaData;
+              const hasTree = !!(list.scriptTree && Array.isArray(list.scriptTree.nodes) && list.scriptTree.nodes.length);
+              const showGuide = hasTree && scriptViewMode === 'guide';
               return (
                 <>
                   <RebuttalQuickSearch rebuttal={rebuttal} />
-                  {list.scriptBody
-                    ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
-                    : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
+                  {hasTree && (
+                    <div style={{ display: 'flex', gap: space[1], marginBottom: space[2] }}>
+                      {[['guide', 'ガイド'], ['text', '全文']].map(([m, l]) => (
+                        <button key={m} onClick={() => setScriptViewMode(m)}
+                          style={{ fontSize: font.size.xs, padding: '4px 14px', borderRadius: radius.md, cursor: 'pointer', fontFamily: font.family.sans, border: 'none',
+                            background: scriptViewMode === m ? color.navyDeep : color.gray100,
+                            color: scriptViewMode === m ? color.white : color.gray500,
+                            fontWeight: scriptViewMode === m ? font.weight.semibold : font.weight.normal }}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showGuide
+                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: font.size.sm, color: color.navyDeep }} />
+                    : list.scriptBody
+                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
+                      : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
                   {pdfs.length > 0 && (
                     <div style={{ marginTop: 14, paddingTop: 10, borderTop: `1px dashed ${color.gray200}` }}>
                       <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navyDeep, marginBottom: 6 }}>添付PDF</div>
