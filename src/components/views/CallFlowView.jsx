@@ -903,14 +903,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setCallRecords(prev => prev.map(r => r.id === rec.id ? { ...r, recording_url: url } : r));
   };
 
-  // アポ報告フォーム用録音URL取得（Zoom APIからリトライ付きで今回の通話録音のみ取得）
+  // アポ報告フォーム用録音URL取得（Zoom APIからリトライ付きで取得）
+  // called_at は渡さない: 「ボタン押下時刻-3h」の時間窓だと、通話からしばらく
+  // 経ってから報告を書いた場合に通話が窓から外れて取得できない
+  // （サンフロンティア事例: 13:38通話→16:40再取得で未取得）。
+  // called_at なしの場合、関数側は「この番号への最新の録音」を返すため
+  // アポ報告の用途（さっきの通話の録音）には常にこちらが正しい。
   const handleAppoFetchRecording = async (_itemId, phone) => {
-    const calledAt = new Date().toISOString();
-    // 最大30秒（5秒×6回）リトライしてZoom録音を取得
+    // 最大30秒（5秒×6回）リトライしてZoom録音を取得（Zoom側の処理遅延を吸収）
     for (let i = 0; i < 6; i++) {
       if (i > 0) await new Promise(r => setTimeout(r, 5000));
       try {
-        const url = await fetchRecordingUrl(phone, calledAt, null);
+        const url = await fetchRecordingUrl(phone, null, null);
         if (url) return url;
       } catch (e) { console.warn('[handleAppoFetchRecording] リトライ', i + 1, e); }
     }
