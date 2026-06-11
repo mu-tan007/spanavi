@@ -99,17 +99,73 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   const [qaTab, setQaTab] = useState('reception');
   const [qaEditing, setQaEditing] = useState(false);
   const [qaSaving, setQaSaving] = useState(false);
-  // クライアント別スクリプトのcontentEditable ref管理
-  const clientEditorRefs = useRef({});
-  const clientEditorInitIds = useRef(new Set());
-  const [clientScriptSaving, setClientScriptSaving] = useState(null); // listId being saved
-  const [clientScriptSaved, setClientScriptSaved] = useState(null); // listId just saved
+  // クライアント別スクリプト 全画面エディタ
+  // （デフォルトのカードは閲覧専用。編集・PDF添付・アウト返し登録は全画面に集約）
+  const [fullEditor, setFullEditor] = useState(null); // 編集中リストの _supaId
+  const feEditorRef = useRef(null);
+  const [feRebuttal, setFeRebuttal] = useState({ reception: [], president: [] });
+  const [feRebuttalTab, setFeRebuttalTab] = useState('reception');
+  const [feDirty, setFeDirty] = useState(false);
+  const [feSaving, setFeSaving] = useState(false);
+  const [feSavedOk, setFeSavedOk] = useState(false);
 
-  // リスト別アウト返し編集
-  const [rebuttalEditListId, setRebuttalEditListId] = useState(null);
-  const [rebuttalEditData, setRebuttalEditData] = useState(null);
-  const [rebuttalEditTab, setRebuttalEditTab] = useState('reception');
-  const [rebuttalSaving, setRebuttalSaving] = useState(false);
+  const handleOpenFullEditor = (listId) => {
+    const list = (callListData || []).find(l => l._supaId === listId);
+    if (!list) return;
+    let parsed = null;
+    try { parsed = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch { /* broken json */ }
+    setFeRebuttal(parsed || { reception: [], president: [] });
+    setFeRebuttalTab('reception');
+    setFeDirty(false);
+    setFeSavedOk(false);
+    setFullEditor(listId);
+  };
+
+  const handleCloseFullEditor = () => {
+    if (feDirty && !window.confirm('保存していない変更があります。閉じてよろしいですか？')) return;
+    setFullEditor(null);
+  };
+
+  const handleSaveFullEditor = async () => {
+    const listId = fullEditor;
+    if (!listId || !feEditorRef.current) return;
+    setFeSaving(true);
+    const text = fromHtml(feEditorRef.current.innerHTML);
+    const cleaned = {
+      reception: (feRebuttal.reception || []).filter(it => (it.q || '').trim() || (it.a || '').trim()),
+      president: (feRebuttal.president || []).filter(it => (it.q || '').trim() || (it.a || '').trim()),
+    };
+    // 全て空なら null 保存 → 架電画面の「共通の想定問答」フォールバックを維持する
+    const jsonStr = (cleaned.reception.length || cleaned.president.length) ? JSON.stringify(cleaned) : null;
+    const err1 = await updateCallListScript(listId, text);
+    const err2 = await updateCallListRebuttal(listId, jsonStr);
+    setFeSaving(false);
+    if (err1 || err2) { alert('保存に失敗しました'); return; }
+    if (setCallListData) {
+      setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, scriptBody: text, rebuttalData: jsonStr || '' } : l));
+    }
+    setFeDirty(false);
+    setFeSavedOk(true);
+    setTimeout(() => setFeSavedOk(false), 2000);
+  };
+
+  const feUpdateRebuttalItem = (tab, index, field, value) => {
+    setFeRebuttal(prev => {
+      const updated = { ...prev };
+      updated[tab] = [...(prev[tab] || [])];
+      updated[tab][index] = { ...updated[tab][index], [field]: value };
+      return updated;
+    });
+    setFeDirty(true);
+  };
+  const feAddRebuttalItem = (tab) => {
+    setFeRebuttal(prev => ({ ...prev, [tab]: [...(prev[tab] || []), { q: '', a: '' }] }));
+    setFeDirty(true);
+  };
+  const feRemoveRebuttalItem = (tab, index) => {
+    setFeRebuttal(prev => ({ ...prev, [tab]: (prev[tab] || []).filter((_, i) => i !== index) }));
+    setFeDirty(true);
+  };
 
   // PDF添付
   const [pdfUploadingListId, setPdfUploadingListId] = useState(null);
@@ -346,9 +402,21 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               const activeList = clientLists.find(l => l.industry === allIndustries[activeTab]) ?? clientLists[0];
               return (
                 <Card key={client._supaId || cIdx} padding="none" style={{ overflow: "hidden" }}>
-                  <div style={{ background: color.navy, padding: "10px 16px" }}>
-                    <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.white, wordBreak: "break-all" }}>{client.company}</div>
-                    <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginTop: 2 }}>{client.industry || ''}</div>
+                  <div style={{ background: color.navy, padding: "10px 16px", display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.white, wordBreak: "break-all" }}>{client.company}</div>
+                      <div style={{ fontSize: font.size.xs - 1, color: color.gray400, marginTop: 2 }}>{client.industry || ''}</div>
+                    </div>
+                    {isAdmin && activeList?._supaId && (
+                      <Button size="sm" variant="outline"
+                        onClick={() => handleOpenFullEditor(activeList._supaId)}
+                        style={{
+                          background: 'transparent', borderColor: alpha(color.white, 0.45),
+                          color: color.white, flexShrink: 0, fontSize: font.size.xs,
+                        }}>
+                        全画面で編集
+                      </Button>
+                    )}
                   </div>
                   {allIndustries.length > 1 && (
                     <div style={{ display: "flex", overflowX: "auto", borderBottom: `1px solid ${color.border}`, background: color.gray50 }}>
@@ -369,313 +437,213 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                       ))}
                     </div>
                   )}
-                  <div style={{ padding: "14px 16px", maxHeight: 220, overflowY: "auto" }}>
-                    {isAdmin ? (
-                      <>
-                        <div
-                          key={activeList?._supaId}
-                          ref={el => {
-                            if (el && activeList?._supaId) {
-                              clientEditorRefs.current[activeList._supaId] = el;
-                              if (!el.dataset.spInit) {
-                                el.innerHTML = toHtml(activeList.scriptBody || '');
-                                el.dataset.spInit = '1';
-                              }
-                            }
-                          }}
-                          contentEditable
-                          suppressContentEditableWarning
-                          onContextMenu={e => {
-                            if (!activeList?._supaId) return;
-                            // チップ候補はこのリストのアウト返し（未設定なら共通）
-                            let rb = null;
-                            try { rb = activeList.rebuttalData ? JSON.parse(activeList.rebuttalData) : null; } catch {}
-                            handleContextMenu(e, clientEditorRefs.current[activeList._supaId], rb || qaData);
-                          }}
-                          style={{
-                            fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8,
-                            whiteSpace: "pre-wrap", outline: "none", minHeight: 40,
-                            fontFamily: font.family.sans,
-                          }}
-                        />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                          <Button
-                            size="sm"
-                            loading={clientScriptSaving === activeList?._supaId}
-                            onClick={async () => {
-                              const listId = activeList?._supaId;
-                              if (!listId) return;
-                              const el = clientEditorRefs.current[listId];
-                              const text = el ? fromHtml(el.innerHTML) : '';
-                              setClientScriptSaving(listId);
-                              const err = await updateCallListScript(listId, text);
-                              setClientScriptSaving(null);
-                              if (err) { alert('保存に失敗しました'); return; }
-                              if (setCallListData) setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, scriptBody: text } : l));
-                              setClientScriptSaved(listId);
-                              setTimeout(() => setClientScriptSaved(null), 2000);
-                            }}
-                            style={{ fontSize: font.size.xs - 1 }}>
-                            {clientScriptSaving === activeList?._supaId ? '保存中...' : '保存'}
-                          </Button>
-                          {clientScriptSaved === activeList?._supaId && (
-                            <span style={{ fontSize: font.size.xs - 1, color: color.success }}>保存しました</span>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      activeList?.scriptBody ? (() => {
-                        let rb = null;
-                        try { rb = activeList.rebuttalData ? JSON.parse(activeList.rebuttalData) : null; } catch {}
-                        return <ScriptBody text={activeList.scriptBody} rebuttal={rb || qaData} style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8 }} />;
-                      })() : (
-                        <div style={{ fontSize: font.size.sm, color: color.textLight, fontStyle: "italic" }}>スクリプト未設定</div>
-                      )
+                  {/* デフォルトは閲覧専用プレビュー（編集・PDF・アウト返しは全画面エディタに集約） */}
+                  <div style={{ padding: "14px 16px", maxHeight: 440, overflowY: "auto" }}>
+                    {activeList?.scriptBody ? (() => {
+                      let rb = null;
+                      try { rb = activeList.rebuttalData ? JSON.parse(activeList.rebuttalData) : null; } catch { /* broken json */ }
+                      return <ScriptBody text={activeList.scriptBody} rebuttal={rb || qaData} style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8 }} />;
+                    })() : (
+                      <div style={{ fontSize: font.size.sm, color: color.textLight, fontStyle: "italic" }}>スクリプト未設定</div>
                     )}
                   </div>
-                  {/* 添付PDFセクション */}
-                  {activeList && (() => {
-                    const listId = activeList._supaId;
-                    const pdfs = Array.isArray(activeList.scriptPdfs) ? activeList.scriptPdfs : [];
-                    const isUploading = pdfUploadingListId === listId;
-                    return (
-                      <div style={{ borderTop: `1px solid ${color.border}` }}>
-                        <div style={{
-                          padding: '8px 16px', display: 'flex', alignItems: 'center',
-                          justifyContent: 'space-between', background: color.gray50,
-                        }}>
-                          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>添付PDF</span>
-                          {isAdmin && (
-                            <>
-                              <input
-                                ref={el => { if (el) pdfFileInputRefs.current[listId] = el; }}
-                                type="file"
-                                accept="application/pdf"
-                                style={{ display: 'none' }}
-                                onChange={e => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleUploadPdf(listId, file);
-                                  e.target.value = '';
-                                }}
-                              />
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                loading={isUploading}
-                                onClick={() => pdfFileInputRefs.current[listId]?.click()}
-                                style={{ fontSize: font.size.xs - 1 }}>
-                                {isUploading ? 'アップロード中...' : '＋ 追加'}
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                        {pdfs.length === 0 ? (
-                          <div style={{ padding: '6px 16px 12px', fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>未添付</div>
-                        ) : (
-                          <div style={{ padding: '6px 16px 12px' }}>
-                            {pdfs.map((pdf, i) => (
-                              <div key={pdf.path || i} style={{
-                                display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '5px 8px', borderRadius: radius.sm,
-                                background: color.gray50, borderLeft: `2px solid ${color.navy}`,
-                                marginBottom: 4,
-                              }}>
-                                <button
-                                  onClick={() => handleOpenPdf(pdf)}
-                                  style={{
-                                    flex: 1, textAlign: 'left', background: 'transparent',
-                                    border: 'none', cursor: 'pointer', padding: 0,
-                                    fontSize: font.size.xs, color: color.navy,
-                                    fontWeight: font.weight.medium, textDecoration: 'underline',
-                                    fontFamily: font.family.sans,
-                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                  }}
-                                  title={pdf.name}
-                                >
-                                  {pdf.name}
-                                </button>
-                                <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0 }}>{formatFileSize(pdf.size)}</span>
-                                {isAdmin && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    loading={pdfDeletingPath === pdf.path}
-                                    onClick={() => handleDeletePdf(listId, pdf)}
-                                    style={{
-                                      borderColor: '#fca5a5', color: color.danger,
-                                      fontSize: font.size.xs - 1, flexShrink: 0,
-                                    }}>
-                                    {pdfDeletingPath === pdf.path ? '...' : '削除'}
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* アウト返しセクション */}
-                  {activeList && (() => {
-                    const listId = activeList._supaId;
-                    const parsed = (() => { try { return activeList.rebuttalData ? JSON.parse(activeList.rebuttalData) : null; } catch { return null; } })();
-                    const isEditing = rebuttalEditListId === listId;
-                    return (
-                      <div style={{ borderTop: `1px solid ${color.border}` }}>
-                        <div style={{
-                          padding: '8px 16px', display: 'flex', alignItems: 'center',
-                          justifyContent: 'space-between', background: color.gray50,
-                        }}>
-                          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>アウト返し</span>
-                          {isAdmin && !isEditing && (
-                            <Button size="sm" variant="outline" onClick={() => {
-                              setRebuttalEditListId(listId);
-                              setRebuttalEditData(parsed || { reception: [{ q: '', a: '' }], president: [{ q: '', a: '' }] });
-                              setRebuttalEditTab('reception');
-                            }} style={{ fontSize: font.size.xs - 1 }}>
-                              {parsed ? '編集' : '設定する'}
-                            </Button>
-                          )}
-                        </div>
-                        {isEditing ? (
-                          <div style={{ padding: '10px 16px 14px' }}>
-                            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                              {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
-                                <Button key={k} size="sm"
-                                  variant={rebuttalEditTab === k ? 'primary' : 'secondary'}
-                                  onClick={() => setRebuttalEditTab(k)}
-                                  style={{ fontSize: font.size.xs - 1 }}>
-                                  {l}
-                                </Button>
-                              ))}
-                            </div>
-                            {(rebuttalEditData[rebuttalEditTab] || []).map((item, i) => (
-                              <div key={i} style={{
-                                marginBottom: 10, padding: '8px 10px',
-                                borderRadius: radius.md, background: color.gray50,
-                                borderLeft: `3px solid ${color.navy}`,
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                  <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.gray700 }}>Q:</span>
-                                  <Input
-                                    size="sm"
-                                    fullWidth
-                                    type="text"
-                                    value={item.q}
-                                    onChange={e => {
-                                      setRebuttalEditData(prev => {
-                                        const updated = { ...prev };
-                                        updated[rebuttalEditTab] = [...prev[rebuttalEditTab]];
-                                        updated[rebuttalEditTab][i] = { ...updated[rebuttalEditTab][i], q: e.target.value };
-                                        return updated;
-                                      });
-                                    }}
-                                    containerStyle={{ flex: 1 }}
-                                    style={{ fontSize: font.size.xs }}
-                                  />
-                                  <Button size="sm" variant="outline" onClick={() => {
-                                    setRebuttalEditData(prev => ({
-                                      ...prev,
-                                      [rebuttalEditTab]: prev[rebuttalEditTab].filter((_, idx) => idx !== i),
-                                    }));
-                                  }} style={{
-                                    borderColor: '#fca5a5', color: color.danger,
-                                    fontSize: font.size.xs - 1,
-                                  }}>削除</Button>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                                  <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.navy, marginTop: 3 }}>A:</span>
-                                  <textarea value={item.a} onChange={e => {
-                                    setRebuttalEditData(prev => {
-                                      const updated = { ...prev };
-                                      updated[rebuttalEditTab] = [...prev[rebuttalEditTab]];
-                                      updated[rebuttalEditTab][i] = { ...updated[rebuttalEditTab][i], a: e.target.value };
-                                      return updated;
-                                    });
-                                  }} rows={2} style={{
-                                    flex: 1, padding: '3px 6px', border: `1px solid ${color.border}`,
-                                    borderRadius: radius.md, fontSize: font.size.xs,
-                                    resize: 'vertical', lineHeight: 1.5,
-                                    color: color.textDark, background: color.white,
-                                    fontFamily: font.family.sans, outline: 'none',
-                                    boxSizing: 'border-box',
-                                  }} />
-                                </div>
-                              </div>
-                            ))}
-                            <Button variant="ghost" size="sm" onClick={() => {
-                              setRebuttalEditData(prev => ({
-                                ...prev,
-                                [rebuttalEditTab]: [...prev[rebuttalEditTab], { q: '', a: '' }],
-                              }));
-                            }} fullWidth style={{
-                              border: `1px dashed ${color.gray400}`, color: color.textMid,
-                              fontSize: font.size.xs - 1,
-                            }}>+ 項目を追加</Button>
-                            <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
-                              <Button size="sm" variant="secondary" onClick={() => setRebuttalEditListId(null)}
-                                style={{ fontSize: font.size.xs - 1 }}>キャンセル</Button>
-                              <Button size="sm" loading={rebuttalSaving} onClick={async () => {
-                                setRebuttalSaving(true);
-                                const jsonStr = JSON.stringify(rebuttalEditData);
-                                const err = await updateCallListRebuttal(listId, jsonStr);
-                                setRebuttalSaving(false);
-                                if (err) { alert('保存に失敗しました'); return; }
-                                setRebuttalEditListId(null);
-                                if (setCallListData) {
-                                  setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, rebuttalData: jsonStr } : l));
-                                }
-                              }} style={{ fontSize: font.size.xs - 1 }}>
-                                {rebuttalSaving ? '保存中...' : '保存'}
-                              </Button>
-                            </div>
-                          </div>
-                        ) : parsed ? (
-                          <div style={{ padding: '6px 16px 12px', maxHeight: 150, overflowY: 'auto' }}>
-                            {(parsed.reception || []).length > 0 && (
-                              <div style={{ marginBottom: 6 }}>
-                                <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: color.gray400, marginBottom: 4 }}>受付対応</div>
-                                {parsed.reception.map((item, i) => (
-                                  <div key={i} style={{
-                                    marginBottom: 6, padding: '4px 8px',
-                                    borderRadius: radius.sm, background: color.gray50,
-                                    borderLeft: `2px solid ${color.navy}`,
-                                  }}>
-                                    <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.gray700 }}>Q: {item.q}</div>
-                                    <div style={{ fontSize: font.size.xs - 1, color: color.navy, lineHeight: 1.5 }}>A: {item.a}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {(parsed.president || []).length > 0 && (
-                              <div>
-                                <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: color.gray400, marginBottom: 4 }}>キーマン対応</div>
-                                {parsed.president.map((item, i) => (
-                                  <div key={i} style={{
-                                    marginBottom: 6, padding: '4px 8px',
-                                    borderRadius: radius.sm, background: color.gray50,
-                                    borderLeft: `2px solid ${color.navy}`,
-                                  }}>
-                                    <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.gray700 }}>Q: {item.q}</div>
-                                    <div style={{ fontSize: font.size.xs - 1, color: color.navy, lineHeight: 1.5 }}>A: {item.a}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div style={{ padding: '6px 16px 12px', fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>未設定</div>
-                        )}
-                      </div>
-                    );
-                  })()}
                 </Card>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* クライアント別スクリプト 全画面エディタ */}
+      {fullEditor && (() => {
+        const list = (callListData || []).find(l => l._supaId === fullEditor);
+        if (!list) return null;
+        const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
+        // チップ挿入候補: このリストのアウト返し（編集中の最新状態）。空なら共通の想定問答
+        const effRebuttal = flattenRebuttal(feRebuttal).length ? feRebuttal : qaData;
+        const isUploading = pdfUploadingListId === fullEditor;
+        return (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9650, background: color.offWhite,
+            display: 'flex', flexDirection: 'column',
+          }}>
+            {/* ヘッダー */}
+            <div style={{
+              background: color.navy, padding: '10px 20px', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: color.white, fontSize: font.size.base, fontWeight: font.weight.bold, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {list.company}{list.industry ? ` - ${list.industry}` : ''}　スクリプト編集
+                </div>
+                <div style={{ color: alpha(color.white, 0.65), fontSize: font.size.xs - 1, marginTop: 2 }}>
+                  右クリックでマーカー（テキスト選択時）／アウト返しチップの挿入ができます
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                {feSavedOk && <span style={{ fontSize: font.size.sm, color: '#7EE2A8' }}>保存しました</span>}
+                {feDirty && !feSavedOk && <span style={{ fontSize: font.size.xs, color: alpha(color.white, 0.6) }}>未保存の変更あり</span>}
+                <Button size="sm" variant="primary" loading={feSaving} onClick={handleSaveFullEditor}>
+                  {feSaving ? '保存中...' : '保存'}
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleCloseFullEditor}
+                  style={{ background: 'transparent', borderColor: alpha(color.white, 0.45), color: color.white }}>
+                  閉じる
+                </Button>
+              </div>
+            </div>
+            {/* 本体: 左=スクリプト編集 / 右=アウト返し・添付PDF */}
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+                <div
+                  key={fullEditor}
+                  ref={el => {
+                    feEditorRef.current = el;
+                    if (el && !el.dataset.feInit) {
+                      el.innerHTML = toHtml(list.scriptBody || '');
+                      el.dataset.feInit = '1';
+                    }
+                  }}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={() => setFeDirty(true)}
+                  onContextMenu={e => handleContextMenu(e, feEditorRef.current, effRebuttal)}
+                  style={{
+                    background: color.white, border: `1px solid ${color.border}`,
+                    borderRadius: radius.lg, padding: '24px 28px',
+                    minHeight: 'calc(100% - 2px)', boxSizing: 'border-box',
+                    fontSize: font.size.base, color: color.textDark, lineHeight: 1.9,
+                    whiteSpace: 'pre-wrap', outline: 'none', fontFamily: font.family.sans,
+                  }}
+                />
+              </div>
+              <div style={{
+                width: 400, flexShrink: 0, borderLeft: `1px solid ${color.border}`,
+                overflowY: 'auto', background: color.white,
+              }}>
+                {/* アウト返し（このリスト専用） */}
+                <div style={{ padding: '14px 16px', borderBottom: `1px solid ${color.border}` }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>アウト返し</div>
+                  <div style={{ fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.6, marginBottom: 10 }}>
+                    このリスト専用のQ&A（未入力なら共通の想定問答が使われます）。登録したQ&Aは、左の本文を右クリック→「アウト返しチップを挿入」でスクリプト内に配置できます。
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                    {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
+                      <Button key={k} size="sm"
+                        variant={feRebuttalTab === k ? 'primary' : 'secondary'}
+                        onClick={() => setFeRebuttalTab(k)}
+                        style={{ fontSize: font.size.xs - 1 }}>
+                        {l}
+                      </Button>
+                    ))}
+                  </div>
+                  {(feRebuttal[feRebuttalTab] || []).map((item, i) => (
+                    <div key={i} style={{
+                      marginBottom: 10, padding: '8px 10px',
+                      borderRadius: radius.md, background: color.gray50,
+                      borderLeft: `3px solid ${color.navy}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.gray700 }}>Q:</span>
+                        <Input
+                          size="sm"
+                          fullWidth
+                          type="text"
+                          value={item.q}
+                          onChange={e => feUpdateRebuttalItem(feRebuttalTab, i, 'q', e.target.value)}
+                          containerStyle={{ flex: 1 }}
+                          style={{ fontSize: font.size.xs }}
+                        />
+                        <Button size="sm" variant="outline" onClick={() => feRemoveRebuttalItem(feRebuttalTab, i)} style={{
+                          borderColor: '#fca5a5', color: color.danger,
+                          fontSize: font.size.xs - 1,
+                        }}>削除</Button>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                        <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.navy, marginTop: 3 }}>A:</span>
+                        <textarea value={item.a} onChange={e => feUpdateRebuttalItem(feRebuttalTab, i, 'a', e.target.value)} rows={2} style={{
+                          flex: 1, padding: '3px 6px', border: `1px solid ${color.border}`,
+                          borderRadius: radius.md, fontSize: font.size.xs,
+                          resize: 'vertical', lineHeight: 1.5,
+                          color: color.textDark, background: color.white,
+                          fontFamily: font.family.sans, outline: 'none',
+                          boxSizing: 'border-box',
+                        }} />
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="ghost" size="sm" onClick={() => feAddRebuttalItem(feRebuttalTab)} fullWidth style={{
+                    border: `1px dashed ${color.gray400}`, color: color.textMid,
+                    fontSize: font.size.xs - 1,
+                  }}>+ 項目を追加</Button>
+                </div>
+                {/* 添付PDF */}
+                <div style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>添付PDF</span>
+                    <input
+                      ref={el => { if (el) pdfFileInputRefs.current[fullEditor] = el; }}
+                      type="file"
+                      accept="application/pdf"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadPdf(fullEditor, file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      loading={isUploading}
+                      onClick={() => pdfFileInputRefs.current[fullEditor]?.click()}
+                      style={{ fontSize: font.size.xs - 1 }}>
+                      {isUploading ? 'アップロード中...' : '＋ 追加'}
+                    </Button>
+                  </div>
+                  {pdfs.length === 0 ? (
+                    <div style={{ fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>未添付</div>
+                  ) : pdfs.map((pdf, i) => (
+                    <div key={pdf.path || i} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '5px 8px', borderRadius: radius.sm,
+                      background: color.gray50, borderLeft: `2px solid ${color.navy}`,
+                      marginBottom: 4,
+                    }}>
+                      <button
+                        onClick={() => handleOpenPdf(pdf)}
+                        style={{
+                          flex: 1, textAlign: 'left', background: 'transparent',
+                          border: 'none', cursor: 'pointer', padding: 0,
+                          fontSize: font.size.xs, color: color.navy,
+                          fontWeight: font.weight.medium, textDecoration: 'underline',
+                          fontFamily: font.family.sans,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                        title={pdf.name}
+                      >
+                        {pdf.name}
+                      </button>
+                      <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0 }}>{formatFileSize(pdf.size)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={pdfDeletingPath === pdf.path}
+                        onClick={() => handleDeletePdf(fullEditor, pdf)}
+                        style={{
+                          borderColor: '#fca5a5', color: color.danger,
+                          fontSize: font.size.xs - 1, flexShrink: 0,
+                        }}>
+                        {pdfDeletingPath === pdf.path ? '...' : '削除'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 想定問答モーダル */}
       {qaOpen && (
@@ -787,7 +755,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       {pdfPreviewLoading && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9790, display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: color.white, fontSize: font.size.base,
         }}>
           PDFを読み込み中...
@@ -799,7 +767,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
         <div onClick={() => setPdfPreview(null)}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
-            zIndex: 9600, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9800, display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 20,
           }}>
           <div onClick={e => e.stopPropagation()}
