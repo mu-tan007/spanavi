@@ -1285,8 +1285,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         {/* ── 左パネル：企業一覧 ── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid ' + C.borderLight }}>
           <div style={{ padding: '8px 12px', background: C.white, borderBottom: '1px solid ' + C.borderLight, flexShrink: 0, display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input value={search} onChange={e => setSearchAndResetPage(e.target.value)} placeholder="企業名・代表者・電話番号で検索..."
-              style={{ flex: 1, padding: '6px 12px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', boxSizing: 'border-box' }} />
+            {/* IME対応のため共通Inputを使用（生inputだとURL書き戻しで日本語変換が壊れる） */}
+            <Input size="sm" value={search} onChange={e => setSearchAndResetPage(e.target.value)} placeholder="企業名・代表者・電話番号で検索..."
+              containerStyle={{ flex: 1 }} style={{ fontSize: 11 }} />
             {[['callable','架電可能'],['all','全件'],['excluded','除外']].map(([mode, label]) => (
               <button key={mode} onClick={() => setFilterModeAndResetPage(mode)}
                 style={{ padding: '4px 8px', borderRadius: 4, fontSize: 9, fontWeight: 600, cursor: 'pointer',
@@ -2028,8 +2029,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             <div style={{ background: color.white, borderRadius: radius.md, overflow: 'hidden', border: `1px solid ${color.gray200}` }}>
               {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color.gray200}`, display: 'flex', gap: 6, alignItems: 'center', background: color.offWhite, flexWrap: 'wrap' }}>
-                <input value={search} onChange={e => setSearchAndResetPage(e.target.value)} placeholder="検索..."
-                  style={{ width: 180, minWidth: 120, padding: '6px 10px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none', boxSizing: 'border-box' }} />
+                {/* IME対応のため共通Inputを使用（生inputだとURL書き戻しで日本語変換が壊れる） */}
+                <Input size="sm" value={search} onChange={e => setSearchAndResetPage(e.target.value)} placeholder="検索..."
+                  fullWidth={false} containerStyle={{ width: 180, minWidth: 120 }} style={{ fontSize: font.size.xs }} />
                 {[['callable','架電可能'],['all','全件'],['excluded','架電不可']].map(([mode, label]) => (
                   <button key={mode} onClick={() => { setStatusFilterLocal([]); setFilterModeAndResetPage(mode); }}
                     style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',

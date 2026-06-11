@@ -396,6 +396,15 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null });
             }}
           >検索</Button>
+          <Button
+            size="sm"
+            variant="outline"
+            title="ナンバーを入力せず、リスト全件を一覧で開く"
+            onClick={() => {
+              const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
+              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null });
+            }}
+          >全件</Button>
           {itemCount !== null && (
             <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
               リスト: {itemCount.toLocaleString()}件
