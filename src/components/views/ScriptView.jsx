@@ -952,7 +952,8 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 width: 400, flexShrink: 0, borderLeft: `1px solid ${color.border}`,
                 overflowY: 'auto', background: color.white,
               }}>
-                {/* アウト返し（このリスト専用） */}
+                {/* アウト返し（このリスト専用）。ツリー型では入れ子の反応で表現するため非表示 */}
+                {feMode !== 'tree' && (
                 <div style={{ padding: '14px 16px', borderBottom: `1px solid ${color.border}` }}>
                   <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>アウト返し</div>
                   <div style={{ fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.6, marginBottom: 10 }}>
@@ -1077,6 +1078,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     );
                   })()}
                 </div>
+                )}
                 {/* 添付PDF */}
                 <div style={{ padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
