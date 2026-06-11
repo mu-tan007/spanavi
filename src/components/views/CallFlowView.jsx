@@ -9,7 +9,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -945,13 +945,31 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const _appoDialedPhone = lastDialedPhone || appoModal.phone;
     const recordingUrlAppo = await fetchRecordingUrl(_appoDialedPhone, calledAtAppo, _prevCalledAtAppo);
 
-    const { result: newRec, error: recErr } = await insertCallRecord({
-      item_id: appoModal.id, list_id: list._supaId,
-      round: selectedRound, status: 'アポ獲得', memo: localMemo || null,
-      called_at: calledAtAppo, recording_url: recordingUrlAppo, getter_name: currentUser,
-    });
+    // テンプレ式アポ報告ではモーダル側が先にアポ本体を保存し、DBトリガー
+    // (sync_call_status_from_appointment) が「アポ獲得」記録を自動挿入している。
+    // その行があれば二重挿入せず memo/録音/round を上書きして1本化する
+    // （サンフロンティア事例: トリガー行+フロント行で同じ架電が2回表示された対策）。
+    let newRec = null;
+    let recErr = null;
+    const { data: trigRec } = await findRecentApoCallRecord(appoModal.id);
+    if (trigRec) {
+      ({ result: newRec, error: recErr } = await updateCallRecordFields(trigRec.id, {
+        list_id: list._supaId,
+        round: selectedRound,
+        memo: localMemo || null,
+        called_at: calledAtAppo,
+        recording_url: recordingUrlAppo,
+        getter_name: currentUser,
+      }));
+    } else {
+      ({ result: newRec, error: recErr } = await insertCallRecord({
+        item_id: appoModal.id, list_id: list._supaId,
+        round: selectedRound, status: 'アポ獲得', memo: localMemo || null,
+        called_at: calledAtAppo, recording_url: recordingUrlAppo, getter_name: currentUser,
+      }));
+    }
     if (recErr || !newRec) {
-      console.error('[handleAppoSave] insertCallRecord 失敗 — calledCountは更新しない');
+      console.error('[handleAppoSave] 架電記録の保存に失敗 — calledCountは更新しない');
       return;
     }
 

@@ -1515,23 +1515,69 @@ export async function fetchCallRecords(listId) {
   return { data: allData, error: null }
 }
 
+// 架電記録の二重登録防止: 同一 item×status×round の挿入を5秒間デデュープする。
+// ボタン連打・イベント二重発火で全statusに二重登録が発生していた対策
+// （架電集中/架電フロー/企業検索の3画面すべて insertCallRecord 経由のためここで一括防御）。
+// 2回目の呼び出しには1回目と同じ結果を返すので、呼び出し側の後続処理はそのまま動く。
+const _recentCallRecordInserts = new Map() // key -> { at, promise }
 export async function insertCallRecord(data) {
+  const dedupeKey = `${data.item_id}|${data.status}|${data.round}`
+  const nowMs = Date.now()
+  const recent = _recentCallRecordInserts.get(dedupeKey)
+  if (recent && nowMs - recent.at < 5000) {
+    console.warn('[DB] insertCallRecord: 5秒以内の同一挿入を抑止（二重登録防止）:', dedupeKey)
+    return recent.promise
+  }
+  const promise = (async () => {
+    const { data: result, error } = await supabase
+      .from('call_records')
+      .insert({
+        org_id: getOrgId(),
+        item_id: data.item_id,
+        list_id: data.list_id,
+        round: data.round,
+        status: data.status,
+        memo: data.memo || null,
+        called_at: data.called_at || new Date().toISOString(),
+        recording_url: data.recording_url || null,
+        getter_name: data.getter_name || null,
+      })
+      .select()
+      .single()
+    if (error) console.error('[DB] insertCallRecord error:', error)
+    return { result, error }
+  })()
+  _recentCallRecordInserts.set(dedupeKey, { at: nowMs, promise })
+  return promise
+}
+
+// アポ保存トリガー(sync_call_status_from_appointment)が直前に自動挿入した
+// 「アポ獲得」記録を探す（フロントが二重挿入せず、その行を流用するため）
+export async function findRecentApoCallRecord(itemId) {
+  if (!itemId) return { data: null, error: null }
+  const { data, error } = await supabase
+    .from('call_records')
+    .select('*')
+    .eq('item_id', itemId)
+    .eq('status', 'アポ獲得')
+    .gte('called_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+    .order('called_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) console.error('[DB] findRecentApoCallRecord error:', error)
+  return { data, error }
+}
+
+// 架電記録の部分更新（トリガー挿入行への memo/録音/round の上書き等）
+export async function updateCallRecordFields(id, patch) {
+  if (!id) return { result: null, error: new Error('no id') }
   const { data: result, error } = await supabase
     .from('call_records')
-    .insert({
-      org_id: getOrgId(),
-      item_id: data.item_id,
-      list_id: data.list_id,
-      round: data.round,
-      status: data.status,
-      memo: data.memo || null,
-      called_at: data.called_at || new Date().toISOString(),
-      recording_url: data.recording_url || null,
-      getter_name: data.getter_name || null,
-    })
+    .update(patch)
+    .eq('id', id)
     .select()
     .single()
-  if (error) console.error('[DB] insertCallRecord error:', error)
+  if (error) console.error('[DB] updateCallRecordFields error:', error)
   return { result, error }
 }
 
