@@ -25,8 +25,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     const sel = window.getSelection();
     const hasSelection = !!(sel && !sel.isCollapsed && sel.toString().trim());
     const hasChips = flattenRebuttal(rebuttal).length > 0;
-    // 選択なし＆アウト返し未登録なら出すものが無いのでデフォルトメニュー
-    if (!hasSelection && !hasChips) return;
+    // 分岐ブロック挿入は常に可能なのでメニューは常時表示
     e.preventDefault();
     // チップ挿入位置: 選択があれば選択の直後、なければ右クリックした位置のキャレット
     let range = null;
@@ -53,6 +52,34 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   // アウト返しチップ挿入ダイアログ { editorEl, range, rebuttal }
   const [chipDialog, setChipDialog] = useState(null);
   const [chipSelected, setChipSelected] = useState([]);
+
+  // 分岐ブロック挿入ダイアログ { editorEl, range }
+  const [branchDialog, setBranchDialog] = useState(null);
+  const [branchTitle, setBranchTitle] = useState('');
+  const [branchOptions, setBranchOptions] = useState(['', '']);
+
+  const handleInsertBranch = () => {
+    if (!branchDialog) return;
+    const { editorEl, range } = branchDialog;
+    const title = branchTitle.trim() || '相手の反応';
+    const opts = branchOptions.map(o => o.trim()).filter(Boolean);
+    if (!editorEl) { setBranchDialog(null); return; }
+    if (opts.length < 2) { alert('選択肢を2つ以上入力してください'); return; }
+    let r = (range && editorEl.contains(range.commonAncestorContainer)) ? range.cloneRange() : null;
+    if (!r) {
+      r = document.createRange();
+      r.selectNodeContents(editorEl);
+    }
+    r.collapse(false);
+    const lines = [`{{分岐:${title}}}`];
+    opts.forEach(o => { lines.push(`{{→:${o}}}`); lines.push('（ここにトークを書く）'); });
+    lines.push('{{/分岐}}');
+    r.insertNode(document.createTextNode('\n' + lines.join('\n') + '\n'));
+    setFeDirty(true);
+    setBranchDialog(null);
+    setBranchTitle('');
+    setBranchOptions(['', '']);
+  };
 
   const handleInsertChips = () => {
     if (!chipDialog) return;
@@ -93,6 +120,8 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   const [feDirty, setFeDirty] = useState(false);
   const [feSaving, setFeSaving] = useState(false);
   const [feSavedOk, setFeSavedOk] = useState(false);
+  // 他リスト（同じ商材・タイプ）のアウト返し候補セクションの開閉
+  const [feCandOpen, setFeCandOpen] = useState(false);
 
   const handleOpenFullEditor = (listId) => {
     const list = (callListData || []).find(l => l._supaId === listId);
@@ -103,6 +132,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     setFeRebuttalTab('reception');
     setFeDirty(false);
     setFeSavedOk(false);
+    setFeCandOpen(false);
     setFullEditor(listId);
   };
 
@@ -599,6 +629,75 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     border: `1px dashed ${color.gray400}`, color: color.textMid,
                     fontSize: font.size.xs - 1,
                   }}>+ 項目を追加</Button>
+
+                  {/* 同じ商材・タイプの他リストに登録済みのQ&Aを候補表示 → 1クリックで追加 */}
+                  {(() => {
+                    const seen = new Set(flattenRebuttal(feRebuttal).map(it => it.q));
+                    const dupe = new Set();
+                    const candidates = [];
+                    (callListData || []).forEach(l => {
+                      if (l._supaId === fullEditor || !l.rebuttalData) return;
+                      if (!l.engagement_id || l.engagement_id !== list.engagement_id) return;
+                      let rb = null;
+                      try { rb = JSON.parse(l.rebuttalData); } catch { return; }
+                      ['reception', 'president'].forEach(tab => {
+                        (rb?.[tab] || []).forEach(it => {
+                          const q = (it.q || '').trim();
+                          if (!q || seen.has(q) || dupe.has(q)) return;
+                          dupe.add(q);
+                          candidates.push({ tab, q, a: it.a || '', source: `${l.company}${l.industry ? ' - ' + l.industry : ''}` });
+                        });
+                      });
+                    });
+                    if (!candidates.length) return null;
+                    return (
+                      <div style={{ marginTop: 12, borderTop: `1px dashed ${color.border}`, paddingTop: 10 }}>
+                        <button type="button" onClick={() => setFeCandOpen(v => !v)} style={{
+                          display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+                          background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                          fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy,
+                          fontFamily: font.family.sans,
+                        }}>
+                          <span>{feCandOpen ? '▾' : '▸'}</span>
+                          同じタイプの他リストから追加（{candidates.length}件の候補）
+                        </button>
+                        {feCandOpen && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginBottom: 8, lineHeight: 1.5 }}>
+                              同じ商材・タイプの他リストに登録済みのアウト返しです。「追加」でこのリストにコピーされます。
+                            </div>
+                            {candidates.map((c, i) => (
+                              <div key={i} style={{
+                                marginBottom: 6, padding: '6px 10px',
+                                borderRadius: radius.md, background: color.offWhite,
+                                border: `1px dashed ${color.border}`,
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginBottom: 2 }}>
+                                      {c.tab === 'reception' ? '受付対応' : 'キーマン対応'}　出典: {c.source}
+                                    </div>
+                                    <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.gray700 }}>Q: {c.q}</div>
+                                    <div style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.5 }}>A: {c.a}</div>
+                                  </div>
+                                  <Button size="sm" variant="outline" style={{ flexShrink: 0, fontSize: font.size.xs - 1 }}
+                                    onClick={() => {
+                                      setFeRebuttal(prev => ({
+                                        ...prev,
+                                        [c.tab]: [...(prev[c.tab] || []), { q: c.q, a: c.a }],
+                                      }));
+                                      setFeDirty(true);
+                                    }}>
+                                    追加
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 {/* 添付PDF */}
                 <div style={{ padding: '14px 16px' }}>
@@ -880,9 +979,99 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               アウト返しチップを挿入
             </button>
           )}
+          <button onClick={() => {
+            setBranchTitle('');
+            setBranchOptions(['', '']);
+            setBranchDialog({ editorEl: ctxMenu.editorEl, range: ctxMenu.range });
+            setCtxMenu(null);
+          }} style={{ ...menuItemStyle, borderTop: (ctxMenu.hasSelection || ctxMenu.hasChips) ? `1px solid ${color.borderLight || color.border}` : 'none' }}
+            onMouseEnter={e => e.target.style.background = color.gray100}
+            onMouseLeave={e => e.target.style.background = 'transparent'}>
+            <span style={{
+              display: 'inline-block', background: alpha(color.gold, 0.15),
+              border: `1px solid ${alpha(color.gold, 0.6)}`, color: color.navyDark,
+              borderRadius: radius.pill, padding: '0 6px', fontSize: font.size.xs - 1,
+              fontWeight: font.weight.semibold, marginRight: 6,
+            }}>⑂</span>
+            分岐ブロックを挿入
+          </button>
         </div>
         );
       })()}
+
+      {/* 分岐ブロック挿入ダイアログ */}
+      {branchDialog && (
+        <div onClick={() => setBranchDialog(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{
+              width: '90vw', maxWidth: 480, maxHeight: '75vh', borderRadius: radius.lg,
+              background: color.white, boxShadow: shadow.xl,
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}>
+            <div style={{
+              background: color.navy, color: color.white, padding: '12px 20px',
+              fontSize: font.size.base, fontWeight: font.weight.semibold, flexShrink: 0,
+            }}>
+              分岐ブロックを挿入
+            </div>
+            <div style={{ padding: '14px 20px', overflowY: 'auto', flex: 1 }}>
+              <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 12, lineHeight: 1.6 }}>
+                相手の反応に応じてトークを切り替えるブロックです。架電者には選択肢がボタンで表示され、押した選択肢のトークだけがその場に展開されます。挿入後、各選択肢の「（ここにトークを書く）」を書き換えてください。
+              </div>
+              <Input
+                label="分岐の見出し"
+                size="sm"
+                value={branchTitle}
+                onChange={e => setBranchTitle(e.target.value)}
+                placeholder="例: 担当者に代わってもらえたら"
+                containerStyle={{ marginBottom: 12 }}
+              />
+              <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: 4 }}>
+                選択肢（相手の反応）
+              </div>
+              {branchOptions.map((opt, i) => (
+                <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                  <Input
+                    size="sm"
+                    value={opt}
+                    onChange={e => setBranchOptions(prev => prev.map((o, k) => k === i ? e.target.value : o))}
+                    placeholder={`例: ${['興味あり', '忙しい・時間がない', '他社と付き合いがある'][i] || '選択肢' + (i + 1)}`}
+                    containerStyle={{ flex: 1 }}
+                  />
+                  {branchOptions.length > 2 && (
+                    <Button size="sm" variant="outline"
+                      onClick={() => setBranchOptions(prev => prev.filter((_, k) => k !== i))}
+                      style={{ borderColor: '#fca5a5', color: color.danger, fontSize: font.size.xs - 1, flexShrink: 0 }}>
+                      削除
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {branchOptions.length < 6 && (
+                <Button variant="ghost" size="sm" onClick={() => setBranchOptions(prev => [...prev, ''])} fullWidth style={{
+                  border: `1px dashed ${color.gray400}`, color: color.textMid,
+                  fontSize: font.size.xs - 1,
+                }}>+ 選択肢を追加</Button>
+              )}
+            </div>
+            <div style={{
+              padding: '10px 20px', borderTop: `1px solid ${color.border}`, flexShrink: 0,
+              display: 'flex', justifyContent: 'flex-end', gap: 8,
+            }}>
+              <Button size="sm" variant="outline" onClick={() => setBranchDialog(null)}>キャンセル</Button>
+              <Button size="sm" variant="primary"
+                disabled={branchOptions.filter(o => o.trim()).length < 2}
+                onClick={handleInsertBranch}>
+                挿入する
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* アウト返しチップ挿入ダイアログ */}
       {chipDialog && (() => {

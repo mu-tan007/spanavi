@@ -63,6 +63,9 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
   const initialNetIncome   = row.net_income != null ? Number(row.net_income).toLocaleString() + '千円' : '';
   // フォームオープン時に ourSales も計算済みにする
   const initialOurSales = (() => {
+    // リスト単価上書きが最優先（call_lists.appo_unit_price は税別円 → ×1.1 で税込に）
+    const listUnit = Number(list?.appoUnitPrice);
+    if (listUnit > 0) return String(applyTaxIfPretax(listUnit, '税別'));
     if (!rewardRows.length) return '';
     const applyTax = p => applyTaxIfPretax(p, rewardRows[0].tax);
     if (isFixed) return String(applyTax(rewardRows[0].price));

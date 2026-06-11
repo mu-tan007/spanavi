@@ -142,6 +142,14 @@ export default function TemplateDrivenAppoReportModal({
   // 旧 AppoReportModal の computeOurSales 相当。手動編集後は上書きしない。
   useEffect(() => {
     if (ourSalesEdited) return;
+    // リスト単価上書きが最優先（同一クライアント・同一商材でもリストごとに
+    // 単価が異なるケース。call_lists.appo_unit_price は税別円 → ×1.1 で税込に）
+    const listUnit = Number(list?.appoUnitPrice);
+    if (listUnit > 0) {
+      const next = String(applyTaxIfPretax(listUnit, '税別'));
+      setForm(prev => prev.ourSales === next ? prev : { ...prev, ourSales: next });
+      return;
+    }
     if (!rewardRows.length) return;
     const applyTax = p => applyTaxIfPretax(p, rewardRows[0].tax);
     const basis = rewardRows[0].basis;
@@ -168,7 +176,7 @@ export default function TemplateDrivenAppoReportModal({
       setForm(prev => prev.ourSales === next ? prev : { ...prev, ourSales: next });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.salesAmount, form.netIncome, rewardRows, row?.revenue, row?.net_income, ourSalesEdited, priorApoCount]);
+  }, [form.salesAmount, form.netIncome, rewardRows, row?.revenue, row?.net_income, ourSalesEdited, priorApoCount, list?.appoUnitPrice]);
 
   // 録音URL + 状態
   const [recordingUrl, setRecordingUrl] = useState(initialRecordingUrl);

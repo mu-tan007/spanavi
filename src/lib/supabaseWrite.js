@@ -65,6 +65,8 @@ export async function updateCallList(supaId, data) {
     is_prospecting: data.isProspecting === true,
     contact_ids: data.contactIds ?? undefined,
     contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId ?? undefined),
+    // リスト単位のアポ単価（税別円）。空文字/未入力は null（報酬マスタを使用）
+    appo_unit_price: (data.appoUnitPrice === '' || data.appoUnitPrice == null) ? null : Number(data.appoUnitPrice),
   }
   if (data.engagementId) payload.engagement_id = data.engagementId
   // リスト名は「{会社名} - {業種}」で常に再生成（業種＝リスト名として一元管理）。
@@ -121,6 +123,7 @@ export async function insertCallList(data, engagementId = null) {
       script_name: data.script,
       contact_ids: data.contactIds || [],
       contact_id: (data.contactIds && data.contactIds.length > 0) ? data.contactIds[0] : (data.contactId || null),
+      appo_unit_price: (data.appoUnitPrice === '' || data.appoUnitPrice == null) ? null : Number(data.appoUnitPrice),
     })
     .select()
     .single()

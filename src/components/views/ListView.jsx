@@ -355,7 +355,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   };
   // type (call_lists.list_type) は engagementから商材カテゴリ名を引いて自動連動する。
   // 過去にデフォルト"M&A仲介"固定だった事で、IFA/人材リードでも"M&A仲介"が保存される事故があった。
-  const emptyForm = { name: "", company: "", type: "", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "" };
+  const emptyForm = { name: "", company: "", type: "", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "", appoUnitPrice: "" };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
@@ -567,6 +567,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
       isProspecting: !!list.is_prospecting,
       engagementId: engId,
+      appoUnitPrice: list.appoUnitPrice != null ? String(list.appoUnitPrice) : "",
     });
     setEditingListId(list.id);
     setListFormOpen(true);
@@ -587,7 +588,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         const error = await updateCallList(target._supaId, dataToSave);
         if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
       }
-      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: dataToSave.company, type: dataToSave.type, status: dataToSave.status, industry: dataToSave.industry, count: parseInt(dataToSave.count) || 0, manager: dataToSave.manager, contactIds: dataToSave.contactIds, companyInfo: dataToSave.companyInfo, companyUrl: dataToSave.companyUrl, scriptBody: dataToSave.scriptBody, cautions: dataToSave.cautions, notes: dataToSave.notes, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId } : l));
+      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: dataToSave.company, type: dataToSave.type, status: dataToSave.status, industry: dataToSave.industry, count: parseInt(dataToSave.count) || 0, manager: dataToSave.manager, contactIds: dataToSave.contactIds, companyInfo: dataToSave.companyInfo, companyUrl: dataToSave.companyUrl, scriptBody: dataToSave.scriptBody, cautions: dataToSave.cautions, notes: dataToSave.notes, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId, appoUnitPrice: (dataToSave.appoUnitPrice === '' || dataToSave.appoUnitPrice == null) ? null : Number(dataToSave.appoUnitPrice) } : l));
     } else {
       const { result, error } = await insertCallList(dataToSave, dataToSave.engagementId || currentEngagement?.id);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
@@ -945,6 +946,15 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
             <div>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>リスト社数 *</label>
               <input type="number" value={formData.count} onChange={e => setFormData(p => ({ ...p, count: e.target.value }))} style={formInputStyle} placeholder="例: 1000" />
+            </div>
+            <div>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>
+                アポ単価（税別・任意）
+              </label>
+              <input type="number" value={formData.appoUnitPrice} onChange={e => setFormData(p => ({ ...p, appoUnitPrice: e.target.value }))} style={formInputStyle} placeholder="未入力なら報酬マスタを使用" />
+              <span style={{ fontSize: font.size.xs - 2, color: color.textLight }}>
+                このリストのアポだけ単価が異なる場合に入力（例: 60000）。アポ報告時の当社売上に税込換算で自動反映
+              </span>
             </div>
             <div>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>クライアント担当者</label>
