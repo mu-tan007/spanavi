@@ -1309,7 +1309,10 @@ function stripLabelPrefix(value, field) {
 
 export async function insertCallListItems(listId, rows) {
   if (!listId || !rows?.length) return { data: null, error: null }
-  const CHUNK_SIZE = 500
+  // チャンクは100行: 500行だとDBの書き込みIOが劣化している時に
+  // APIのstatement_timeout(約8秒)を超えて取込全体が失敗する
+  // （2026-06-11 IO枯渇インシデントで500行=12秒を実測）
+  const CHUNK_SIZE = 100
   const totalChunks = Math.ceil(rows.length / CHUNK_SIZE)
   for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
     const chunk = rows.slice(i, i + CHUNK_SIZE)
@@ -1329,9 +1332,16 @@ export async function insertCallListItems(listId, rows) {
       memo: stripLabelPrefix(r.memo || '', 'memo') || null,
     }))
     const chunkNo = Math.floor(i / CHUNK_SIZE) + 1
-    const { error } = await supabase
-      .from('call_list_items')
-      .upsert(items, { onConflict: 'list_id,no', ignoreDuplicates: true })
+    // 一時的なtimeout向けに1回だけ自動リトライ（upsert+ignoreDuplicatesなので再実行しても安全）
+    let error = null
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      ({ error } = await supabase
+        .from('call_list_items')
+        .upsert(items, { onConflict: 'list_id,no', ignoreDuplicates: true }))
+      if (!error) break
+      console.warn(`[DB] insertCallListItems チャンク${chunkNo}/${totalChunks} 失敗(試行${attempt}):`, error.message)
+      if (attempt === 1) await new Promise(r => setTimeout(r, 2000))
+    }
     if (error) {
       console.error(`[DB] insertCallListItems error (チャンク${chunkNo}/${totalChunks}):`, error)
       return { data: null, error }
