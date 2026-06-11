@@ -111,9 +111,9 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
           {nextNode && (
             <span style={{
               flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.bold,
-              background: isMarked ? alpha(color.white, 0.92) : alpha(color.gold, 0.18),
+              background: isMarked ? alpha(color.white, 0.92) : color.white,
               color: isMarked ? color.navyDark : '#8A6508',
-              border: `1.5px solid ${isMarked ? color.white : color.gold}`,
+              border: `1.5px solid ${color.gold}`,
               borderRadius: radius.pill, padding: '1px 10px', lineHeight: 1.6,
             }}>
               → {nextNode.name}
