@@ -11,6 +11,16 @@ export function useSpanaviData(authOrgId) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const fetchedOrgIdRef = useRef(null)
+  // 一時的な取得失敗時のリトライ管理。
+  // 失敗時に空データで上書きすると「アポ一覧等が全部消えた」表示になるため、
+  // 前回データを保持したまま自動リトライする（2026-06-11 IO枯渇インシデント対策 P4）
+  const retryCountRef = useRef(0)
+  const retryTimerRef = useRef(null)
+  const mountedRef = useRef(true)
+  useEffect(() => () => {
+    mountedRef.current = false
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
+  }, [])
 
   // authOrgIdが確定したらフェッチ（確定前はスキップ）
   useEffect(() => {
@@ -19,7 +29,10 @@ export function useSpanaviData(authOrgId) {
     fetchAllData()
   }, [authOrgId])
 
+  const hasDataRef = useRef(false)
+
   const fetchAllData = async () => {
+    let keepLoadingForRetry = false
     try {
       setLoading(true)
       setError(null)
@@ -76,12 +89,27 @@ export function useSpanaviData(authOrgId) {
         'メンバー': 'メンバー',
       }
 
-      // エラーチェック
-      for (const res of [clientsRes, callListsRes, membersRes, appointmentsRes, rewardTypesRes]) {
-        if (res.error) {
-          console.warn('Supabase fetch warning:', res.error.message)
+      // エラーチェック: 1本でも失敗したら、空データで画面を上書きせず
+      // 前回データを保持したまま自動リトライする。
+      // （旧実装は失敗を console.warn だけして空配列で描画していたため、
+      //   クエリが波に当たるたび「アポ一覧等が全部消えた」表示になっていた）
+      const failedRes = [clientsRes, callListsRes, membersRes, appointmentsRes, rewardTypesRes,
+        clientContactsRes, sourcingEngRes, clientEngagementRewardsRes, engagementsRes, businessCategoriesRes]
+        .find(res => res?.error)
+      if (failedRes) {
+        console.warn('[useSpanaviData] 取得失敗 — 前回データを保持して自動再試行します:', failedRes.error.message)
+        setError(failedRes.error.message)
+        if (mountedRef.current && retryCountRef.current < 5) {
+          retryCountRef.current += 1
+          const delay = Math.min(3000 * retryCountRef.current, 10000)
+          if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
+          retryTimerRef.current = setTimeout(() => { if (mountedRef.current) fetchAllData() }, delay)
+          // 初回ロード（まだ何も表示できていない）の間はローディング表示を維持
+          if (!hasDataRef.current) keepLoadingForRetry = true
         }
+        return // data は更新しない（前回値を維持）
       }
+      retryCountRef.current = 0
 
       const clients = clientsRes.data || []
       const callLists = callListsRes.data || []
@@ -269,6 +297,7 @@ export function useSpanaviData(authOrgId) {
       }))
 
       const clientEngagementRewards = clientEngagementRewardsRes?.data || []
+      hasDataRef.current = true
       setData({
         callLists: callListsFormatted,
         clientData: clientDataFormatted,
@@ -282,10 +311,17 @@ export function useSpanaviData(authOrgId) {
         _raw: { clients, callLists, members, appointments, rewardTypes },
       })
     } catch (err) {
+      // ネットワーク断等の例外も同様に: 空表示にせず前回データを保持してリトライ
       console.error('Failed to fetch Spanavi data:', err)
       setError(err.message)
+      if (mountedRef.current && retryCountRef.current < 5) {
+        retryCountRef.current += 1
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
+        retryTimerRef.current = setTimeout(() => { if (mountedRef.current) fetchAllData() }, Math.min(3000 * retryCountRef.current, 10000))
+        if (!hasDataRef.current) keepLoadingForRetry = true
+      }
     } finally {
-      setLoading(false)
+      if (!keepLoadingForRetry) setLoading(false)
     }
   }
 
