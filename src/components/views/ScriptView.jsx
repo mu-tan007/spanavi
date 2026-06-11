@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
-import { fetchSetting, saveSetting, updateCallListRebuttal, updateCallListScript, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
+import { fetchSetting, updateCallListRebuttal, updateCallListScript, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
 import { toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker, createChipElement } from '../../utils/scriptMarker';
 import PageHeader from '../common/PageHeader';
 import ScriptBody, { flattenRebuttal } from '../common/ScriptBody';
@@ -107,10 +107,6 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     setChipSelected([]);
   };
   const [clientTabs, setClientTabs] = useState({});
-  const [qaOpen, setQaOpen] = useState(false);
-  const [qaTab, setQaTab] = useState('reception');
-  const [qaEditing, setQaEditing] = useState(false);
-  const [qaSaving, setQaSaving] = useState(false);
   // クライアント別スクリプト 全画面エディタ
   // （デフォルトのカードは閲覧専用。編集・PDF添付・アウト返し登録は全画面に集約）
   const [fullEditor, setFullEditor] = useState(null); // 編集中リストの _supaId
@@ -272,52 +268,18 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     ],
   };
 
+  // 共通の想定問答（アウト返し未設定リストのフォールバック+チップ候補として使用）
   const [qaData, setQaData] = useState(DEFAULT_QA_DATA);
-  const [qaEditData, setQaEditData] = useState(DEFAULT_QA_DATA);
 
   useEffect(() => {
     fetchSetting('qa_data').then(({ value }) => {
       if (value) {
         try {
-          const parsed = JSON.parse(value);
-          setQaData(parsed);
-          setQaEditData(parsed);
+          setQaData(JSON.parse(value));
         } catch { /* use defaults */ }
       }
     });
   }, []);
-
-  const handleSaveQA = async () => {
-    setQaSaving(true);
-    const err = await saveSetting('qa_data', JSON.stringify(qaEditData));
-    setQaSaving(false);
-    if (err) { alert('Q&Aの保存に失敗しました'); return; }
-    setQaData(qaEditData);
-    setQaEditing(false);
-  };
-
-  const updateQAItem = (tab, index, field, value) => {
-    setQaEditData(prev => {
-      const updated = { ...prev };
-      updated[tab] = [...prev[tab]];
-      updated[tab][index] = { ...updated[tab][index], [field]: value };
-      return updated;
-    });
-  };
-
-  const addQAItem = (tab) => {
-    setQaEditData(prev => ({
-      ...prev,
-      [tab]: [...prev[tab], { q: '', a: '' }],
-    }));
-  };
-
-  const removeQAItem = (tab, index) => {
-    setQaEditData(prev => ({
-      ...prev,
-      [tab]: prev[tab].filter((_, i) => i !== index),
-    }));
-  };
 
   const activeClients = (clientData || []).filter(c =>
     c.status === '支援中' &&
@@ -355,7 +317,6 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
             margin: 0, fontSize: font.size.base, fontWeight: font.weight.bold,
             color: color.navy, borderBottom: `2px solid ${color.navy}`, paddingBottom: 6,
           }}>クライアント別スクリプト</h2>
-          <Button size="sm" onClick={() => setQaOpen(true)}>想定問答を見る</Button>
         </div>
 
         {/* クライアント検索: 名前の一部を入力すると候補が出て、該当クライアントだけ表示 */}
@@ -767,111 +728,6 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
         );
       })()}
 
-      {/* 想定問答モーダル */}
-      {qaOpen && (
-        <div onClick={() => setQaOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9400,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{
-              width: '90vw', maxWidth: 640, maxHeight: '80vh', borderRadius: radius.md,
-              background: color.white, border: `1px solid ${color.border}`,
-              display: 'flex', flexDirection: 'column', overflow: 'hidden',
-              boxShadow: shadow.xl,
-            }}>
-            <div style={{
-              background: color.navy, padding: '12px 24px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexShrink: 0, fontWeight: font.weight.semibold,
-              fontSize: font.size.lg - 1, color: color.white,
-            }}>
-              <span>想定問答集</span>
-              <button onClick={() => setQaOpen(false)} style={{
-                background: 'none', border: 'none', color: color.white,
-                fontSize: 18, cursor: 'pointer', lineHeight: 1,
-              }}>✕</button>
-            </div>
-            <div style={{ display: 'flex', borderBottom: `1px solid ${color.border}`, flexShrink: 0 }}>
-              {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
-                <button key={k} onClick={() => setQaTab(k)} style={{
-                  flex: 1, padding: '10px', border: 'none', background: 'transparent',
-                  fontWeight: qaTab === k ? font.weight.semibold : font.weight.normal,
-                  fontSize: font.size.sm,
-                  color: qaTab === k ? color.navy : color.gray400,
-                  borderBottom: qaTab === k ? `2px solid ${color.navy}` : '2px solid transparent',
-                  cursor: 'pointer', fontFamily: font.family.sans,
-                }}>
-                  {l}
-                </button>
-              ))}
-            </div>
-            <div style={{ overflowY: 'auto', padding: '16px 20px' }}>
-              {qaEditing ? (
-                <>
-                  {qaEditData[qaTab].map((item, i) => (
-                    <div key={i} style={{
-                      marginBottom: 16, padding: '12px 14px',
-                      borderRadius: radius.md, background: color.gray50,
-                      borderLeft: `3px solid ${color.navy}`,
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.gray700 }}>Q:</span>
-                        <Input
-                          size="sm"
-                          fullWidth
-                          type="text"
-                          value={item.q}
-                          onChange={e => updateQAItem(qaTab, i, 'q', e.target.value)}
-                          containerStyle={{ flex: 1 }}
-                        />
-                        <Button size="sm" variant="outline" onClick={() => removeQAItem(qaTab, i)} style={{
-                          borderColor: '#fca5a5', color: color.danger, fontSize: font.size.xs,
-                        }}>削除</Button>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginTop: 4 }}>A:</span>
-                        <textarea value={item.a} onChange={e => updateQAItem(qaTab, i, 'a', e.target.value)} rows={2} style={{
-                          flex: 1, padding: '4px 8px', border: `1px solid ${color.border}`,
-                          borderRadius: radius.md, fontSize: font.size.sm,
-                          resize: 'vertical', lineHeight: 1.6,
-                          color: color.textDark, background: color.white,
-                          fontFamily: font.family.sans, outline: 'none',
-                          boxSizing: 'border-box',
-                        }} />
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="ghost" size="sm" onClick={() => addQAItem(qaTab)} fullWidth style={{
-                    border: `1px dashed ${color.gray400}`, color: color.textMid,
-                  }}>+ 項目を追加</Button>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                    <Button size="sm" variant="secondary" onClick={() => { setQaEditData(qaData); setQaEditing(false); }}>キャンセル</Button>
-                    <Button size="sm" onClick={handleSaveQA} loading={qaSaving}>{qaSaving ? '保存中...' : '保存'}</Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {qaData[qaTab].map((item, i) => (
-                    <div key={i} style={{
-                      marginBottom: 16, padding: '12px 14px',
-                      borderRadius: radius.md, background: color.gray50,
-                      borderLeft: `3px solid ${color.navy}`,
-                    }}>
-                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.gray700, marginBottom: 6 }}>Q: {item.q}</div>
-                      <div style={{ fontSize: font.size.sm, color: color.navy, lineHeight: 1.7 }}>A: {item.a}</div>
-                    </div>
-                  ))}
-                  {isAdmin && (
-                    <Button size="sm" variant="outline" onClick={() => { setQaEditData(qaData); setQaEditing(true); }} style={{ marginTop: 8 }}>編集する</Button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* PDFプレビューローディング */}
       {pdfPreviewLoading && (

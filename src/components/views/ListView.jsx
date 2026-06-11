@@ -131,6 +131,27 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
   }, [rewardMaster, reward]);
   const head = tiers[0];
   const introHead = introTiers[0];
+  // リスト単価上書き（call_lists.appo_unit_price 税別）があれば報酬マスタより
+  // 優先して表示する（アポ報告時の当社売上初期値と同じ優先順位）
+  const listUnit = Number(list.appoUnitPrice);
+  if (listUnit > 0) {
+    return (
+      <span
+        title={`リスト単価: 税別¥${listUnit.toLocaleString()} の税込換算（このリストのアポはこの単価で計上）`}
+        style={{
+          fontFamily: font.family.mono, fontSize: font.size.xs,
+          color: color.navy, fontWeight: font.weight.semibold,
+          borderBottom: `1px dotted ${color.textLight}`, cursor: 'default',
+        }}
+      >
+        <span style={{
+          fontFamily: font.family.sans, fontSize: 9, fontWeight: font.weight.medium,
+          color: color.textLight, marginRight: 4, letterSpacing: 0.5,
+        }}>リスト単価</span>
+        ¥{applyTaxIfPretax(listUnit, '税別').toLocaleString()}
+      </span>
+    );
+  }
   if (!head) {
     return <span style={{ color: color.textLight, fontSize: 10 }}>—</span>;
   }
