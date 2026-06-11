@@ -462,6 +462,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
         // チップ挿入候補: このリストのアウト返し（編集中の最新状態）。空なら共通の想定問答
         const effRebuttal = flattenRebuttal(feRebuttal).length ? feRebuttal : qaData;
         const isUploading = pdfUploadingListId === fullEditor;
+        // 同じクライアントの他リスト（全画面のままスクリプトを切り替えられるようにする）
+        const siblingLists = (callListData || []).filter(l => l.company === list.company && !l.is_archived);
+        const handleSwitchList = (targetId) => {
+          if (targetId === fullEditor) return;
+          if (feDirty && !window.confirm('保存していない変更があります。切り替えると破棄されますが、よろしいですか？')) return;
+          handleOpenFullEditor(targetId);
+        };
         return (
           <div style={{
             position: 'fixed', inset: 0, zIndex: 9650, background: color.offWhite,
@@ -492,6 +499,34 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 </Button>
               </div>
             </div>
+            {/* リスト切替タブ（同じクライアントに複数リストがある場合のみ） */}
+            {siblingLists.length > 1 && (
+              <div style={{
+                display: 'flex', overflowX: 'auto', flexShrink: 0,
+                background: color.white, borderBottom: `1px solid ${color.border}`,
+                padding: '0 12px',
+              }}>
+                {siblingLists.map(sl => {
+                  const active = sl._supaId === fullEditor;
+                  return (
+                    <button key={sl._supaId} type="button"
+                      onClick={() => handleSwitchList(sl._supaId)}
+                      style={{
+                        padding: '9px 16px', border: 'none', cursor: 'pointer',
+                        fontSize: font.size.sm,
+                        fontWeight: active ? font.weight.semibold : font.weight.normal,
+                        background: 'transparent',
+                        color: active ? color.navy : color.textMid,
+                        borderBottom: `2px solid ${active ? color.gold : 'transparent'}`,
+                        whiteSpace: 'nowrap', fontFamily: font.family.sans,
+                        marginBottom: -1,
+                      }}>
+                      {sl.industry || sl.name || 'リスト'}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {/* 本体: 左=スクリプト編集 / 右=アウト返し・添付PDF */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
               <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
