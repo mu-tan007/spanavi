@@ -447,6 +447,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // 「既存リストから転記」: 新規リスト追加時、同じクライアントの既存リストから
   // 企業概要・スクリプト・アウト返し・注意事項・備考・担当者を引き継ぐ
   const [copySourceId, setCopySourceId] = useState('');
+  // リスト追加/更新の保存中フラグ（二重実行防止 + ボタンのローディング表示）
+  const [listSaving, setListSaving] = useState(false);
 
   // 企業概要PDF添付
   const [overviewPdfUploading, setOverviewPdfUploading] = useState(false);
@@ -632,8 +634,14 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   };
 
   const handleSave = async () => {
+    // 二重実行ガード: 保存に数秒かかる間の連打/二重発火で同一リストが2つ作られる事故の防止
+    // （ガクポン事例: 2.4秒差で同一リストが2行INSERTされた）
+    if (handleSave._inFlight) return;
     if (!formData.company || !formData.industry || !formData.count) return;
     if (!formData.engagementId) { alert('タイプを選択してください'); return; }
+    handleSave._inFlight = true;
+    setListSaving(true);
+    try {
     // クライアント開拓 engagement を選んだ場合は is_prospecting=true を自動付与
     const derivedIsProspecting = clientAcquisitionIds.has(formData.engagementId);
     // list_type は engagement の商材カテゴリ名で常に上書き(IFA/M&A/SaaS/人材)。
@@ -650,16 +658,22 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     } else {
       const { result, error } = await insertCallList(dataToSave, dataToSave.engagementId || currentEngagement?.id);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
-      const newId = Math.max(0, ...callListData.map(l => l.id)) + 1;
       // client_id を補完: 会社名から clientData の _supaId を逆引きしておかないと
       // RewardCell が list.client_id を読めず「当社売上」列が — になる
       const matchedClient = (clientData || []).find(c => c.company === dataToSave.company);
       const clientSupaId = matchedClient?._supaId || null;
-      setCallListData(prev => [...prev, { id: newId, ...dataToSave, contactIds: dataToSave.contactIds, count: parseInt(dataToSave.count) || 0, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId, client_id: clientSupaId, _supaId: result.id }]);
+      // 画面内の管理番号(id)は必ず最新stateから採番する。
+      // 古いstateから採番すると並行実行時に同じidが2行に付き、片方への
+      // アーカイブ等の操作が両方に効いてしまう（ガクポン事例の二次被害）
+      setCallListData(prev => [...prev, { id: Math.max(0, ...prev.map(l => l.id)) + 1, ...dataToSave, contactIds: dataToSave.contactIds, count: parseInt(dataToSave.count) || 0, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId, client_id: clientSupaId, _supaId: result.id }]);
     }
     setListFormOpen(false);
     setEditingListId(null);
     setFormData(emptyForm);
+    } finally {
+      handleSave._inFlight = false;
+      setListSaving(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -1162,8 +1176,9 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               variant="primary"
               size="md"
               onClick={handleSave}
-              disabled={!formData.company || !formData.industry || !formData.count}
-            >{editingListId !== null ? "更新する" : "追加する"}</Button>
+              loading={listSaving}
+              disabled={listSaving || !formData.company || !formData.industry || !formData.count}
+            >{listSaving ? '保存中...' : (editingListId !== null ? "更新する" : "追加する")}</Button>
             <Button
               variant="outline"
               size="md"
