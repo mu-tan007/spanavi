@@ -11,12 +11,14 @@ import { supabase } from '../lib/supabase';
 // engagement_id が無い場合 (= 旧経路で engagement 未指定アポ) は M&A 売り手 既定。
 // 表示順 (display_order) でソート済み。
 
-// engagement 不明時のフォールバック (M&A 売り手 想定の旧仕様)
+// engagement 不明時のフォールバック。
+// ラベル軸は全商材共通で「温度感」に統一（売却意向/買収意向の商材別表記は廃止。
+// 買い手マッチングで「キーマンの売却意向」と表示される違和感への対応。DB側も統一済み）
 const FALLBACK_OPTIONS = [
-  { value: 'positive', label: '前向き',   short_label: '高',   color: 'success',  display_order: 1 },
-  { value: 'wait',     label: '様子見',   short_label: '中',   color: 'info',     display_order: 2 },
-  { value: 'negative', label: '消極的',   short_label: '低',   color: 'warn',     display_order: 3 },
-  { value: 'unknown',  label: '不明',     short_label: '不明', color: 'neutral',  display_order: 4 },
+  { value: 'positive', label: '温度感: 高い',  short_label: '高',   color: 'success',  display_order: 1 },
+  { value: 'wait',     label: '温度感: 中',    short_label: '中',   color: 'info',     display_order: 2 },
+  { value: 'negative', label: '温度感: 低い',  short_label: '低',   color: 'warn',     display_order: 3 },
+  { value: 'unknown',  label: '不明 / 未判定', short_label: '不明', color: 'neutral',  display_order: 4 },
 ];
 
 // 単純なメモリキャッシュ (engagement_id → options)。アプリ起動中は1回引いたら使い回す。
