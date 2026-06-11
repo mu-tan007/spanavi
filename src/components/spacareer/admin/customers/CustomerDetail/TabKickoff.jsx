@@ -30,6 +30,10 @@ const CHECK_FIELDS = [
   { key: 'check_all_sessions_dated',      label: '第2回〜第8回 全回の仮日程の確定' },
 ];
 
+// 右サイドバー等で進捗計算に使うための、現行チェックリストのキー一覧。
+// ※ ここを単一の正にしておくことで、サイドバーが古いキーで進捗を誤計算する事故を防ぐ。
+export const KICKOFF_CHECK_KEYS = CHECK_FIELDS.map((f) => f.key);
+
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
 function toDateInput(v) {
   if (!v) return '';

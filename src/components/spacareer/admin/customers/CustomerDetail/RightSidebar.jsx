@@ -1,6 +1,7 @@
 import React from 'react';
 import { color, space, font, radius, alpha } from '../../../../../constants/design';
 import { Card, Badge, Button } from '../../../../ui';
+import { KICKOFF_CHECK_KEYS } from './TabKickoff';
 
 // ============================================================
 // 右カラム（タブ連動）
@@ -64,18 +65,17 @@ function BasicSidebar({ customer, trainer }) {
 }
 
 function KickoffSidebar({ kickoff, sessions }) {
-  const CHECK_KEYS = [
-    'check_unclear_points', 'check_session_content', 'check_refund_policy',
-    'check_reschedule_rules', 'check_weekly_pace', 'check_zoom_recording',
-    'check_schedule_done', 'check_all_sessions_dated', 'check_first_session_confirmed',
-  ];
-  const checked = kickoff ? CHECK_KEYS.filter((k) => !!kickoff[k]).length : 0;
-  const pct = Math.round((checked / CHECK_KEYS.length) * 100);
+  // キックオフ管理タブの現行チェックリスト（13項目）と同じキーで進捗を計算する。
+  // 旧実装は廃止済みの9キーで計算していたため、全項目チェック済みでも最大5/9にしかならなかった。
+  const checked = kickoff ? KICKOFF_CHECK_KEYS.filter((k) => !!kickoff[k]).length : 0;
+  const pct = KICKOFF_CHECK_KEYS.length
+    ? Math.round((checked / KICKOFF_CHECK_KEYS.length) * 100)
+    : 0;
   const firstSession = sessions.find((s) => s.session_no === 1);
   return (
     <div style={{ display: 'grid', gap: space[3] }}>
       <Card padding="md" title="ヒアリング進捗">
-        <Donut percent={pct} label={`${checked}/${CHECK_KEYS.length}`} />
+        <Donut percent={pct} label={`${checked}/${KICKOFF_CHECK_KEYS.length}`} />
       </Card>
       <Card padding="md" title="第1回セッション開始">
         <div style={{ fontSize: font.size.sm, color: color.textDark, fontFamily: font.family.mono }}>

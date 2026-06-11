@@ -127,6 +127,16 @@ export default function CustomerDetail({ customerId, isAdmin }) {
   const member = customer?.member || {};
   const age = ageFromBirthdate(customer?.birthdate);
 
+  // 氏名の横（括弧内）に表示する呼称。キックオフヒアリングQ3「呼ばれたい呼称」を優先し、
+  // 未回答ならニックネームにフォールバック。
+  const calledName = (() => {
+    const q3 = (detail.kickoffHearingQuestions || []).find((q) => q.question_number === 3);
+    if (!q3) return null;
+    const r = (detail.kickoffHearingResponses || []).find((x) => x.question_id === q3.id);
+    return (r?.answer_text || '').trim() || null;
+  })();
+  const displayCallName = calledName || customer?.nickname || null;
+
   // 第N回セッション管理タブは、前のセッション(第N-1回)が完了した受講生にだけ表示する。
   // 例: キックオフ(第0回)完了→第1回タブ、第1回完了→第2回タブ … と進行に応じて増える。
   const completedNos = new Set(
@@ -193,8 +203,8 @@ export default function CustomerDetail({ customerId, isAdmin }) {
                 display: 'flex', alignItems: 'baseline', gap: space[2], flexWrap: 'wrap',
               }}>
                 {member.name || '(名前未設定)'}
-                {customer?.nickname && (
-                  <span style={{ fontSize: font.size.sm, color: color.textMid }}>（{customer.nickname}）</span>
+                {displayCallName && (
+                  <span style={{ fontSize: font.size.sm, color: color.textMid }}>（{displayCallName}）</span>
                 )}
                 {customer?.status && (
                   <Badge variant={customer.status === 'graduated' ? 'success'

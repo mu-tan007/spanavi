@@ -54,6 +54,12 @@ export default function SessionCompleteFlow({
 
   const isKickoff = session.session_no === 0;
   const status = session.status;
+  // 完了時に「次回事前課題30項目」をAI生成するのは第2〜7回のみ。
+  // 第1回(ゴール設計)の次回=第2回の事前課題は全員共通のため自動生成せず、キックオフ同様に完了のみ。
+  // 第8回は卒業のため次回課題なし。
+  const generatesHomework = !isKickoff
+    && (session.session_no ?? 0) >= 2
+    && (session.session_no ?? 0) <= 7;
   // キックオフも第1〜8回と同じく、動画+AI議事録+ヒアリングシート3点が必須
   const canComplete =
     status !== 'completed' &&
@@ -203,8 +209,9 @@ export default function SessionCompleteFlow({
         })
         .eq('id', customerId);
 
-      // キックオフ(第0回)完了時はキックオフヒアリング配信を自動発火、
-      // それ以外の回は AI 30問の事前課題ドラフトを生成。
+      // キックオフ(第0回)完了時はキックオフヒアリング配信を自動発火。
+      // 第2〜7回完了時のみ AI 30問の事前課題ドラフトを生成。
+      // 第1回完了時は次回事前課題が全員共通のため自動生成しない（完了のみ）。
       if (isKickoff) {
         const publishResult = await publishKickoffHearing();
         if (publishResult.ok) {
@@ -217,6 +224,9 @@ export default function SessionCompleteFlow({
           // セッション完了自体は成功しているので、ユーザーに警告だけ出す
           setLastResult({ kind: 'kickoff_done_notify_failed', reason: publishResult.reason });
         }
+      } else if (!generatesHomework) {
+        // 第1回（次回=第2回の事前課題は全員共通）→ 自動生成しない
+        if (session.session_no === 1) setLastResult({ kind: 'completed_common_homework' });
       } else if (nextNo >= 1 && nextNo <= 8) {
         const { data: nextSess } = await supabase.from('spacareer_sessions')
           .select('id').eq('customer_id', customerId).eq('session_no', nextNo).maybeSingle();
@@ -273,16 +283,25 @@ export default function SessionCompleteFlow({
       title={`完了フロー（${isKickoff ? 'キックオフ' : `第${session.session_no}回`}）`}
       description={isKickoff
         ? '動画アップロード+AI議事録+9項目チェックを満たすと「セッション完了」が押せます。完了時にキックオフヒアリングが自動配信されます。'
-        : '必須ゲートを満たすと「セッション完了」が押せます。完了後は次回の事前課題ドラフトが自動生成されます。'}
+        : generatesHomework
+          ? '必須ゲートを満たすと「セッション完了」が押せます。完了後は次回の事前課題ドラフトが自動生成されます。'
+          : '必須ゲートを満たすと「セッション完了」が押せます。次回の事前課題は全員共通のため、自動生成は行いません。'}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginTop: space[2] }}>
         {STEP_LABELS.map((st, idx) => {
           if (st.id === 'homework') {
+            const homeworkLabel = isKickoff
+              ? '5. キックオフヒアリングをSlack自動配信'
+              : generatesHomework
+                ? st.label
+                : '5. セッション完了（次回事前課題は全員共通・自動生成なし）';
             return (
               <StepRow key={st.id} index={idx + 1}
-                label={isKickoff ? '5. キックオフヒアリングをSlack自動配信' : st.label}
+                label={homeworkLabel}
                 state={stepDone[st.id] ? 'done' : 'todo'}
-                note={stepDone[st.id] ? '完了' : '完了ボタン押下時に自動実行'}
+                note={!isKickoff && !generatesHomework
+                  ? '自動生成なし'
+                  : (stepDone[st.id] ? '完了' : '完了ボタン押下時に自動実行')}
               />
             );
           }
@@ -359,6 +378,15 @@ export default function SessionCompleteFlow({
           fontSize: font.size.sm, borderRadius: radius.md,
         }}>
           次回事前課題 {lastResult.count} 項目のドラフトを生成しました。事前課題管理画面で確認・修正してください。
+        </div>
+      )}
+      {lastResult?.kind === 'completed_common_homework' && (
+        <div style={{
+          marginTop: space[3], padding: space[3],
+          background: color.successSoft, color: '#1F6537',
+          fontSize: font.size.sm, borderRadius: radius.md,
+        }}>
+          第1回を完了しました。次回（第2回）の事前課題は全員共通のため、自動生成は行いません。
         </div>
       )}
       {lastResult?.kind === 'kickoff_done_with_notify' && (
