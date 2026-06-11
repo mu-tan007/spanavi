@@ -255,7 +255,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [activeRecordingId, setActiveRecordingId] = useState(null);
   const [quickAppoSlot, setQuickAppoSlot] = useState(null); // { date, time }
   const [qaData, setQaData] = useState(null);
-  const [qaSubTab, setQaSubTab] = useState('reception');
   const [pdfPreview, setPdfPreview] = useState(null); // { name, url }
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   // 企業概要PDF: タブ切替＋インラインiframe（focusモード用）
@@ -1704,7 +1703,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {scriptPanelOpen && [
               { key: 'script',   label: 'スクリプト' },
-              { key: 'rebuttal', label: 'アウト返し' },
               { key: 'info',     label: '企業概要' },
               { key: 'cautions', label: '注意事項' },
               { key: 'calendar', label: 'カレンダー' },
@@ -1763,31 +1761,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </div>
                   )}
                 </>
-              );
-            })()}
-            {scriptTab === 'rebuttal' && (() => {
-              let rd = null;
-              try { rd = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
-              const data = rd || qaData;
-              if (!data) return <div style={{ color: C.textLight, fontSize: 11 }}>アウト返し未設定（Scriptsページで設定できます）</div>;
-              return (
-                <div>
-                  {!rd && qaData && <div style={{ fontSize: 9, color: C.gold, marginBottom: 6, fontWeight: 500 }}>共通のアウト返しを表示中</div>}
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                    {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
-                      <button key={k} onClick={() => setQaSubTab(k)}
-                        style={{ fontSize: 9, padding: '2px 10px', borderRadius: 4, border: qaSubTab === k ? '1px solid ' + C.gold : '1px solid ' + C.borderLight, background: qaSubTab === k ? C.gold + '20' : C.white, color: qaSubTab === k ? C.navy : C.textMid, cursor: 'pointer', fontFamily: "'Noto Sans JP'", fontWeight: qaSubTab === k ? 700 : 400 }}>
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                  {(data[qaSubTab] || []).map((item, i) => (
-                    <div key={i} style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 4, background: '#F8F9FA', borderLeft: '3px solid ' + C.navy }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#374151', marginBottom: 3 }}>Q: {item.q}</div>
-                      <div style={{ fontSize: 10, color: C.navy, lineHeight: 1.6 }}>A: {item.a}</div>
-                    </div>
-                  ))}
-                </div>
               );
             })()}
             {scriptTab === 'info' && (() => {
@@ -2042,8 +2015,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {/* ── メインエリア（2カラム / モバイルは縦並び） ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
 
-        {/* 左カラム（モバイル時は全幅） */}
-        <div style={{ width: listMode ? '100%' : isMobile ? '100%' : '60%', overflow: 'auto', padding: isMobile ? 10 : 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* 左カラム（モバイル時は全幅）。左:右=5:5（スクリプト側の充実に合わせて拡大） */}
+        <div style={{ width: listMode ? '100%' : isMobile ? '100%' : '50%', overflow: 'auto', padding: isMobile ? 10 : 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {listMode ? (
             /* ────────────── リスト表示モード ────────────── */
@@ -2568,13 +2541,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           transition: 'height 0.25s ease', zIndex: 10,
           boxShadow: mobileScriptOpen ? shadow.lg : 'none',
         } : {
-          width: '40%', background: color.white, borderLeft: `1px solid ${color.gray200}`,
+          width: '50%', background: color.white, borderLeft: `1px solid ${color.gray200}`,
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}>
           {/* タブヘッダー */}
           <div onClick={() => isMobile && setMobileScriptOpen(o => !o)} style={{ display: 'flex', borderBottom: `2px solid ${color.gray200}`, background: color.offWhite, flexShrink: 0, cursor: isMobile ? 'pointer' : 'default' }}>
             {isMobile && <span style={{ display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: font.size.md, color: color.gray400 }}>{mobileScriptOpen ? '▼' : '▲'}</span>}
-            {[{ key: 'script', label: 'スクリプト' }, { key: 'rebuttal', label: 'アウト返し' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
+            {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
               <button key={tab.key} onClick={(e) => { e.stopPropagation(); setScriptTab(tab.key); if (isMobile) setMobileScriptOpen(true); }}
                 style={{ flex: 1, padding: isMobile ? '12px 4px' : '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? `2px solid ${color.navyDeep}` : '2px solid transparent',
                   background: 'transparent', color: scriptTab === tab.key ? color.navyDeep : color.gray400,
@@ -2629,31 +2602,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </div>
                   )}
                 </>
-              );
-            })()}
-            {scriptTab === 'rebuttal' && (() => {
-              let rd = null;
-              try { rd = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
-              const data = rd || qaData;
-              if (!data) return <div style={{ color: color.gray400, fontSize: font.size.sm }}>アウト返し未設定（Scriptsページで設定できます）</div>;
-              return (
-                <div>
-                  {!rd && qaData && <div style={{ fontSize: font.size.xs - 1, color: '#D4A017', marginBottom: 8, fontWeight: font.weight.medium }}>共通のアウト返しを表示中（リスト別はScriptsページで設定できます）</div>}
-                  <div style={{ display: 'flex', gap: space[2], marginBottom: space[3] }}>
-                    {[['reception', '受付対応'], ['president', 'キーマン対応']].map(([k, l]) => (
-                      <button key={k} onClick={() => setQaSubTab(k)}
-                        style={{ fontSize: font.size.xs, padding: '4px 14px', borderRadius: radius.md, border: 'none', background: qaSubTab === k ? color.navyDeep : color.gray100, color: qaSubTab === k ? color.white : color.gray500, cursor: 'pointer', fontFamily: font.family.sans, fontWeight: qaSubTab === k ? font.weight.semibold : font.weight.normal }}>
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                  {(data[qaSubTab] || []).map((item, i) => (
-                    <div key={i} style={{ marginBottom: space[3], padding: '10px 14px', borderRadius: radius.md, background: color.offWhite, borderLeft: `3px solid ${color.navyDeep}` }}>
-                      <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.gray700, marginBottom: 4 }}>Q: {item.q}</div>
-                      <div style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.7 }}>A: {item.a}</div>
-                    </div>
-                  ))}
-                </div>
               );
             })()}
             {scriptTab === 'info' && (() => {
