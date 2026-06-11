@@ -183,20 +183,6 @@ export default function ClientFeedbackView() {
     <div style={{ padding: space[6], display: 'flex', flexDirection: 'column', gap: space[4] }}>
       <Heading />
 
-      {!submitted && (
-        <div style={{
-          padding: space[3],
-          background: alpha(color.danger, 0.06),
-          border: `1px solid ${alpha(color.danger, 0.25)}`,
-          borderRadius: radius.md,
-          fontSize: font.size.sm,
-          color: color.danger,
-          fontWeight: font.weight.semibold,
-        }}>
-          満足度アンケートが未回答のままだと、全額返金保証の対象外となります。必ずご回答ください。
-        </div>
-      )}
-
       <div style={{ display: 'flex', gap: space[3], alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 320 }}>
           <Select

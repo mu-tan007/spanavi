@@ -24,6 +24,10 @@ const SUPER_ADMIN_EMAILS = [
 ]
 
 // スパキャリ受講生ポータルへの redirect は固定。営業代行と混線させない。
+// （フロント側 lib/supabase.js は、この magic link で着地した際のハッシュ type=magiclink を
+//  検知して「代理ログインタブ」と判定し、認証セッションをメモリ内のみで保持する隔離クライアントに
+//  切り替える。これにより共有 localStorage を上書きせず別タブの管理者セッションを汚さない。
+//  redirect 先を変えないのは、Auth のリダイレクト許可URL設定に依存させないため。）
 const SPACAREER_REDIRECT_PATH = '/spacareer'
 
 Deno.serve(async (req) => {

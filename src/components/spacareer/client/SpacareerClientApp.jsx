@@ -136,7 +136,13 @@ export default function SpacareerClientApp() {
 
   // ソーシャルスタイル診断 未完了の間は他タブを選んでも強制的に診断画面に戻す
   // （キックオフヒアリングと同じ強制度）
+  // 例外: 「セッション感想(feedback)」はロック中でも開ける。キックオフ完了直後は
+  // キックオフヒアリングがロックされるが、その間にキックオフMTGの感想も収集したいため。
   const guardedSetCurrentTab = (tabId) => {
+    if (tabId === 'feedback') {
+      setCurrentTab(tabId); // ロック有無に関わらずセッション感想は常に許可
+      return;
+    }
     if (socialStyleActive && tabId !== 'social_style') {
       return; // 強制的に診断画面のまま
     }

@@ -400,14 +400,9 @@ function FeedbackPromptCard({ latestFeedback }) {
   return (
     <Card title="直近のセッション感想" padding="md">
       {unsubmitted ? (
-        <>
-          <p style={{ fontSize: font.size.sm, color: color.danger, margin: 0, fontWeight: font.weight.semibold }}>
-            未回答のアンケートがあります。
-          </p>
-          <p style={{ fontSize: font.size.xs, color: color.textLight, marginTop: space[1] }}>
-            未回答のままだと全額返金保証の対象外となります。
-          </p>
-        </>
+        <p style={{ fontSize: font.size.sm, color: color.danger, margin: 0, fontWeight: font.weight.semibold }}>
+          未回答のアンケートがあります。
+        </p>
       ) : latestFeedback ? (
         <p style={{ fontSize: font.size.sm, color: color.textMid, margin: 0 }}>
           ご回答ありがとうございました。

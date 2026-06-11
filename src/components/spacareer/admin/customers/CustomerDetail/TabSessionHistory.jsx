@@ -15,6 +15,11 @@ function fmtDate(v) {
   const d = new Date(v);
   return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+function fmtDateOnly(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 export default function TabSessionHistory({ detail, onRefresh }) {
   const { customer, sessions = [], videos = [] } = detail || {};
@@ -30,7 +35,6 @@ export default function TabSessionHistory({ detail, onRefresh }) {
   const rows = sessions.map((s) => ({
     ...s,
     _label: s.session_no === 0 ? 'キックオフ' : `第${s.session_no}回`,
-    _scheduled: fmtDate(s.scheduled_at),
     _completed: fmtDate(s.completed_at),
     _hasMinutes: !!s.minutes_draft || !!s.minutes_final,
     _hasVideo: (videosBySession.get(s.id) || []).length > 0,
@@ -44,8 +48,25 @@ export default function TabSessionHistory({ detail, onRefresh }) {
         columns={[
           { key: '_label', label: '回', width: 110, align: 'left',
             cellStyle: { fontWeight: font.weight.semibold } },
-          { key: '_scheduled', label: '予定日時', width: 130, align: 'right',
-            cellStyle: { fontFamily: font.family.mono } },
+          { key: '_scheduled', label: '予定日時', width: 150, align: 'right',
+            render: (r) => {
+              if (!r.scheduled_at) return <span style={{ color: color.textLight }}>—</span>;
+              // 第2回以降はキックオフ時点で時刻未確定のため、日付のみ＋「仮決め」表示
+              const provisional = r.session_no >= 2;
+              return (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'baseline',
+                  justifyContent: 'flex-end', gap: space[1],
+                }}>
+                  <span style={{ fontFamily: font.family.mono, color: color.textDark }}>
+                    {provisional ? fmtDateOnly(r.scheduled_at) : fmtDate(r.scheduled_at)}
+                  </span>
+                  {provisional && (
+                    <span style={{ fontSize: font.size.xs, color: color.textLight }}>仮決め</span>
+                  )}
+                </span>
+              );
+            } },
           { key: '_completed', label: '完了日時', width: 130, align: 'right',
             cellStyle: { fontFamily: font.family.mono } },
           { key: 'status', label: 'ステータス', width: 110, align: 'center',

@@ -85,11 +85,14 @@ export default function SpacareerSessionsView({ isAdmin }) {
 
   const filteredRows = useMemo(() => {
     if (tab === 'summary') {
-      return [...flat].sort((a, b) => {
-        const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : Infinity;
-        const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : Infinity;
-        return ta - tb;
-      });
+      // 全体サマリーは「次回実施(next_up)」のセッションのみ表示する
+      return flat
+        .filter((r) => r.status === 'next_up')
+        .sort((a, b) => {
+          const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : Infinity;
+          const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : Infinity;
+          return ta - tb;
+        });
     }
     const no = parseInt(tab.replace('session_', ''), 10);
     return flat.filter((r) => r.session_no === no).sort((a, b) => {
@@ -170,7 +173,7 @@ export default function SpacareerSessionsView({ isAdmin }) {
         rowKey="id"
         loading={loading}
         height="calc(100vh - 320px)"
-        emptyMessage={tab === 'summary' ? 'セッションがありません' : '該当する回のセッションがありません'}
+        emptyMessage={tab === 'summary' ? '次回実施予定のセッションがありません' : '該当する回のセッションがありません'}
         onRowClick={(r) => setOpenRowId(openRowId === r.id ? null : r.id)}
         rowAccent={(r) => {
           if (r.status === 'completed') return null;

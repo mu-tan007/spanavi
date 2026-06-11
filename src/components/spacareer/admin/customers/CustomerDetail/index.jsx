@@ -22,6 +22,7 @@ import ProgressStepper from './ProgressStepper';
 import TabBasicInfo from './TabBasicInfo';
 import TabKickoffHearing from './TabKickoffHearing';
 import TabKickoff from './TabKickoff';
+import TabSessionManage from './TabSessionManage';
 import TabSessionHistory from './TabSessionHistory';
 import TabHomework from './TabHomework';
 import TabStrengths from './TabStrengths';
@@ -126,11 +127,20 @@ export default function CustomerDetail({ customerId, isAdmin }) {
   const member = customer?.member || {};
   const age = ageFromBirthdate(customer?.birthdate);
 
+  // キックオフ(第0回)完了済み＝第1回に進んだ受講生には「第1回セッション管理」タブを表示
+  const kickoffCompleted = (detail.sessions || []).find((s) => s.session_no === 0)?.status === 'completed';
+  const tabs = kickoffCompleted
+    ? TABS.flatMap((t) => (t.id === 'kickoff'
+      ? [t, { id: 'session1', label: '第1回セッション管理' }]
+      : [t]))
+    : TABS;
+
   let CenterContent = null;
   switch (tab) {
     case 'basic':           CenterContent = <TabBasicInfo detail={detail} />; break;
     case 'kickoff_hearing': CenterContent = <TabKickoffHearing detail={detail} onRefresh={refresh} />; break;
     case 'kickoff':         CenterContent = <TabKickoff detail={detail} onRefresh={refresh} />; break;
+    case 'session1':        CenterContent = <TabSessionManage detail={detail} sessionNo={1} onRefresh={refresh} />; break;
     case 'sessions':    CenterContent = <TabSessionHistory detail={detail} onRefresh={refresh} />; break;
     case 'homework':    CenterContent = <TabHomework detail={detail} />; break;
     case 'strengths':   CenterContent = <TabStrengths detail={detail} />; break;
@@ -228,7 +238,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
           borderBottom: `1px solid ${color.border}`,
           background: color.white,
         }}>
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               style={{
                 padding: `${space[3]}px ${space[3]}px`,
