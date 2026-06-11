@@ -62,7 +62,7 @@ export default function TabKickoff({ detail, onRefresh }) {
     () => (sessions || []).find((s) => s.session_no === 0) || null, [sessions]);
   const hasVideo = useMemo(
     () => (videos || []).some((v) => v.session?.session_no === 0), [videos]);
-  const hasMinutes = !!kickoffSession?.minutes_draft;
+  const hasMinutes = !!(kickoffSession?.minutes_draft || kickoffSession?.minutes_final);
   const kickoffStatus = kickoffSession?.status;
 
   async function handleVideoUpload(e) {
@@ -126,7 +126,18 @@ export default function TabKickoff({ detail, onRefresh }) {
     setSaving(true);
     try {
       const orgId = getOrgId();
-      const payload = { org_id: orgId, customer_id: customerId, ...form };
+      // datetime-local はタイムゾーン無しのローカル壁時計文字列を返すため、
+      // timestamptz カラムにそのまま渡すと Postgres が UTC として解釈し JST 表示で
+      // 9時間ズレる。new Date(...).toISOString() でブラウザのローカル時刻として
+      // 解釈し直し、正しい UTC 瞬間に正規化してから保存する（scheduled_at と同じ扱い）。
+      const payload = {
+        org_id: orgId,
+        customer_id: customerId,
+        ...form,
+        session_1_start_at: form.session_1_start_at
+          ? new Date(form.session_1_start_at).toISOString()
+          : null,
+      };
       const { error } = await supabase.from('spacareer_kickoff_checks')
         .upsert(payload, { onConflict: 'customer_id' });
       if (error) throw error;
@@ -204,6 +215,26 @@ export default function TabKickoff({ detail, onRefresh }) {
             background: color.dangerSoft, color: '#A20018',
             fontSize: font.size.sm, borderRadius: radius.md,
           }}>{videoErr}</div>
+        )}
+      </Card>
+
+      <Card padding="md"
+        title="議事録ドラフト（AI生成）"
+        description="キックオフのAI議事録です。トレーナーが確認・修正してください。最終版は受講生のクライアントポータルにも反映されます。">
+        {hasMinutes ? (
+          <pre style={{
+            margin: 0, padding: space[3],
+            background: color.cream, borderRadius: radius.md,
+            fontSize: font.size.sm, fontFamily: font.family.sans,
+            color: color.textDark, whiteSpace: 'pre-wrap',
+            maxHeight: 360, overflow: 'auto',
+          }}>{kickoffSession.minutes_final || kickoffSession.minutes_draft}</pre>
+        ) : (
+          <div style={{ color: color.textLight, fontSize: font.size.sm }}>
+            {generatingMinutes
+              ? 'AI議事録を生成中です…（数分かかる場合があります）'
+              : '議事録はまだ生成されていません。動画をアップロードすると自動で生成されます。'}
+          </div>
         )}
       </Card>
 
