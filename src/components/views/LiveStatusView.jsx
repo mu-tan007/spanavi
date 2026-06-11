@@ -3,7 +3,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
-import { fetchAllCallSessionsWithClients, fetchCalledCountForSession, updateSessionRange, deleteSession } from '../../lib/supabaseWrite';
+import { fetchAllCallSessionsWithClients, fetchCalledCountsForSessions, updateSessionRange, deleteSession } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
 
 // ─── ユーティリティ ─────────────────────────────────────────────
@@ -403,18 +403,10 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
       const targets = raw.filter(s => validDates.has(toJSTDateStr(s.started_at)));
       if (!targets.length) return;
 
-      const results = await Promise.all(
-        targets.map(async (s) => {
-          if (!s.list_supa_id) return { id: s.id, count: 0 };
-          const { count } = await fetchCalledCountForSession(
-            s.list_supa_id, s.started_at, s.finished_at || null,
-            s.start_no ?? null, s.end_no ?? null
-          );
-          return { id: s.id, count: count || 0 };
-        })
-      );
+      // P2: セッションごとの個別クエリ(N+1)をやめ、RPC1往復で一括集計
+      const { data: counts } = await fetchCalledCountsForSessions(targets);
       const map = {};
-      results.forEach(r => { map[r.id] = { count: r.count }; });
+      targets.forEach(s => { map[s.id] = { count: Number(counts?.[s.id] ?? 0) }; });
       setCalledCounts(map);
     };
 

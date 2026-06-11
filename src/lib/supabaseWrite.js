@@ -1870,6 +1870,18 @@ export async function fetchCalledItemCountsByListIds(listIds) {
 }
 
 // セッション期間中に架電されたユニーク件数とリスト総件数をSupabaseから取得
+// ライブ稼働状況: 複数セッションの架電数をRPC1往復で一括取得（P2: N+1解消）
+// sessions: [{ id, list_supa_id, started_at, finished_at }]
+export async function fetchCalledCountsForSessions(sessions) {
+  const payload = (sessions || [])
+    .filter(s => s.list_supa_id && s.started_at)
+    .map(s => ({ id: s.id, list_id: s.list_supa_id, started_at: s.started_at, finished_at: s.finished_at || null }))
+  if (!payload.length) return { data: {}, error: null }
+  const { data, error } = await supabase.rpc('live_session_called_counts', { p_sessions: payload })
+  if (error) { console.error('[DB] fetchCalledCountsForSessions error:', error); return { data: {}, error } }
+  return { data: data || {}, error: null }
+}
+
 export async function fetchCalledCountForSession(listSupaId, startedAt, finishedAt, startNo, endNo) {
   if (!listSupaId || !startedAt) {
     console.warn('[fetchCalledCount] listSupaIdまたはstartedAtが未設定 — スキップ')
