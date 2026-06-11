@@ -61,8 +61,9 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   const handleInsertBranch = () => {
     if (!branchDialog) return;
     const { editorEl, range } = branchDialog;
-    const title = branchTitle.trim() || '相手の反応';
-    const opts = branchOptions.map(o => o.trim()).filter(Boolean);
+    // {} は記法を壊すため除去
+    const title = branchTitle.replace(/[{}]/g, '').trim() || '相手の反応';
+    const opts = branchOptions.map(o => o.replace(/[{}]/g, '').trim()).filter(Boolean);
     if (!editorEl) { setBranchDialog(null); return; }
     if (opts.length < 2) { alert('選択肢を2つ以上入力してください'); return; }
     let r = (range && editorEl.contains(range.commonAncestorContainer)) ? range.cloneRange() : null;
@@ -75,10 +76,28 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     opts.forEach(o => { lines.push(`{{→:${o}}}`); lines.push('（ここにトークを書く）'); });
     lines.push('{{/分岐}}');
     r.insertNode(document.createTextNode('\n' + lines.join('\n') + '\n'));
+    // 挿入した記法テキストを即座に色付き部品の表示へ正規化（カーソル位置は失われるが挿入直後なので許容）
+    editorEl.innerHTML = toHtml(fromHtml(editorEl.innerHTML));
     setFeDirty(true);
     setBranchDialog(null);
     setBranchTitle('');
     setBranchOptions(['', '']);
+  };
+
+  // 分岐部品（見出し/選択肢）のダブルクリックで名称変更
+  const handleEditorDoubleClick = (e) => {
+    const tok = e.target?.closest?.('[data-br]');
+    if (!tok) return;
+    const kind = tok.getAttribute('data-br');
+    if (kind === 'close') return;
+    const cur = tok.getAttribute('data-val') || '';
+    const next = window.prompt(kind === 'open' ? '分岐の見出しを変更' : '選択肢名を変更', cur);
+    if (next == null) return;
+    const cleaned = next.replace(/[{}]/g, '').trim();
+    if (!cleaned) return;
+    tok.setAttribute('data-val', cleaned);
+    tok.textContent = (kind === 'open' ? '⑂ 分岐: ' : '→ ') + cleaned;
+    setFeDirty(true);
   };
 
   const handleInsertChips = () => {
@@ -521,6 +540,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                   contentEditable
                   suppressContentEditableWarning
                   onInput={() => setFeDirty(true)}
+                  onDoubleClick={handleEditorDoubleClick}
                   onContextMenu={e => handleContextMenu(e, feEditorRef.current, effRebuttal)}
                   style={{
                     background: color.white, border: `1px solid ${color.border}`,

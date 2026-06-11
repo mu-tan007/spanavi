@@ -131,13 +131,25 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
   }, [rewardMaster, reward]);
   const head = tiers[0];
   const introHead = introTiers[0];
+  const handleEnterShared = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const TIP_W = 300;
+    const vw = window.innerWidth;
+    let x = rect.left;
+    if (x + TIP_W > vw - 10) x = Math.max(10, vw - TIP_W - 10);
+    setPos({ x, y: rect.bottom + 4 });
+    setHover(true);
+  };
   // リスト単価上書き（call_lists.appo_unit_price 税別）があれば報酬マスタより
   // 優先して表示する（アポ報告時の当社売上初期値と同じ優先順位）
   const listUnit = Number(list.appoUnitPrice);
   if (listUnit > 0) {
+    const incl = applyTaxIfPretax(listUnit, '税別');
     return (
       <span
-        title={`リスト単価: 税別¥${listUnit.toLocaleString()} の税込換算（このリストのアポはこの単価で計上）`}
+        onMouseEnter={handleEnterShared}
+        onMouseLeave={() => setHover(false)}
+        onClick={e => e.stopPropagation()}
         style={{
           fontFamily: font.family.mono, fontSize: font.size.xs,
           color: color.navy, fontWeight: font.weight.semibold,
@@ -148,7 +160,35 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
           fontFamily: font.family.sans, fontSize: 9, fontWeight: font.weight.medium,
           color: color.textLight, marginRight: 4, letterSpacing: 0.5,
         }}>リスト単価</span>
-        ¥{applyTaxIfPretax(listUnit, '税別').toLocaleString()}
+        ¥{incl.toLocaleString()}
+        {hover && createPortal(
+          <div style={{
+            position: 'fixed', top: pos.y, left: pos.x, zIndex: 99999,
+            padding: '10px 12px', background: '#FFFFFF',
+            border: `1px solid ${color.border}`, borderRadius: radius.md,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.12)',
+            width: 320, fontSize: font.size.xs, color: color.textDark,
+            fontFamily: font.family.sans, fontWeight: font.weight.normal,
+            pointerEvents: 'none',
+          }}>
+            <div style={{ fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>
+              リスト単価
+              <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
+                このリスト専用（固定）
+              </span>
+            </div>
+            <div style={{ color: color.textDark, marginBottom: 4 }}>
+              アポ1件あたり <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>¥{incl.toLocaleString()}</span>
+              <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid }}>
+                （税別 ¥{listUnit.toLocaleString()} × 1.1）
+              </span>
+            </div>
+            <div style={{ fontSize: 10, color: color.textLight, lineHeight: 1.5 }}>
+              リスト編集の「アポ単価」で設定。報酬マスタより優先して、アポ報告時の当社売上に自動反映されます。
+            </div>
+          </div>,
+          document.body
+        )}
       </span>
     );
   }

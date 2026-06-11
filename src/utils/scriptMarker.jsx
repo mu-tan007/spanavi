@@ -41,8 +41,15 @@ export function renderMarkedScript(text, style = {}) {
   );
 }
 
+// 分岐ブロック記法のエディタ内表示。生の {{分岐:...}} テキストだと読みづらいため、
+// 構造行を色付きのアトミックな部品として描画する（本来の値は data-val 属性に保持し、
+// fromHtml で記法テキストへ復元する）。ダブルクリックで名称変更（ScriptView側で対応）。
+const BR_OPEN_STYLE = 'display:inline-block;background:rgba(212,160,23,0.12);border:1px solid rgba(212,160,23,0.55);color:#0D2247;border-radius:4px;padding:1px 10px;font-size:0.85em;font-weight:700;margin:2px 0;user-select:none;cursor:default';
+const BR_OPT_STYLE = 'display:inline-block;background:#0D2247;color:#FFFFFF;border-radius:10px;padding:1px 12px;font-size:0.85em;font-weight:600;margin:2px 0;user-select:none;cursor:default';
+const BR_CLOSE_STYLE = 'display:inline-block;background:rgba(13,34,71,0.05);border:1px dashed rgba(13,34,71,0.3);color:#6B7280;border-radius:4px;padding:0 8px;font-size:0.8em;margin:2px 0;user-select:none;cursor:default';
+
 /**
- * ==text== / [[Q:...]] 構文 → contentEditable用HTML
+ * ==text== / [[Q:...]] / {{分岐}} 構文 → contentEditable用HTML
  */
 export function toHtml(text) {
   if (!text) return '';
@@ -51,17 +58,25 @@ export function toHtml(text) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\{\{分岐:([^}\n]*)\}\}/g, `<span style="${BR_OPEN_STYLE}" data-br="open" data-val="$1" contenteditable="false" title="ダブルクリックで見出しを変更">⑂ 分岐: $1</span>`)
+    .replace(/\{\{→:([^}\n]*)\}\}/g, `<span style="${BR_OPT_STYLE}" data-br="opt" data-val="$1" contenteditable="false" title="ダブルクリックで選択肢名を変更">→ $1</span>`)
+    .replace(/\{\{\/分岐\}\}/g, `<span style="${BR_CLOSE_STYLE}" data-br="close" contenteditable="false">分岐ここまで（本流に戻る）</span>`)
     .replace(/\[\[Q:([\s\S]+?)\]\]/g, `<span style="${CHIP_STYLE}" data-chip="1" contenteditable="false">$1</span>`)
     .replace(/==([\s\S]+?)==/g, `<span style="${MARKER_STYLE}" data-marker="1">$1</span>`)
     .replace(/\n/g, '<br>');
 }
 
 /**
- * contentEditableのHTML → ==text== / [[Q:...]] 構文
+ * contentEditableのHTML → ==text== / [[Q:...]] / {{分岐}} 構文
  */
 export function fromHtml(html) {
+  // 分岐部品は表示テキストでなく data-val 属性から復元する
+  let text = html.replace(/<span[^>]*data-br="open"[^>]*data-val="([^"]*)"[^>]*>[\s\S]*?<\/span>/gi, '{{分岐:$1}}');
+  text = text.replace(/<span[^>]*data-br="opt"[^>]*data-val="([^"]*)"[^>]*>[\s\S]*?<\/span>/gi, '{{→:$1}}');
+  text = text.replace(/<span[^>]*data-br="close"[^>]*>[\s\S]*?<\/span>/gi, '{{/分岐}}');
   // 改行を含むマーカー span も拾えるよう `[\s\S]*?` を使用
-  let text = html.replace(/<span[^>]*data-chip="1"[^>]*>([\s\S]*?)<\/span>/gi, '[[Q:$1]]');
+  text = text.replace(/<span[^>]*data-chip="1"[^>]*>([\s\S]*?)<\/span>/gi, '[[Q:$1]]');
   text = text.replace(/<span[^>]*data-marker="1"[^>]*>([\s\S]*?)<\/span>/gi, '==$1==');
   text = text.replace(/<br\s*\/?>/gi, '\n');
   text = text.replace(/<\/div>\s*<div[^>]*>/gi, '\n');
@@ -71,7 +86,7 @@ export function fromHtml(html) {
   text = text.replace(/<p[^>]*>/gi, '\n');
   text = text.replace(/<\/p>/gi, '');
   text = text.replace(/<[^>]+>/g, '');
-  text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
   if (text.startsWith('\n')) text = text.slice(1);
   return text;
 }
