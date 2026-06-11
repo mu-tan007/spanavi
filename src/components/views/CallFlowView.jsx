@@ -9,7 +9,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getScriptPdfSignedUrl, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -259,15 +259,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // 企業概要PDF: タブ切替＋インラインiframe（focusモード用）
   const [overviewPdfUrls, setOverviewPdfUrls] = useState({}); // { [path]: signedUrl }
   const [selectedOverviewPdfPath, setSelectedOverviewPdfPath] = useState(null);
-
-  const handleOpenScriptPdf = async (pdf) => {
-    if (!pdf?.path) return;
-    setPdfPreviewLoading(true);
-    const { url, error } = await getScriptPdfSignedUrl(pdf.path);
-    setPdfPreviewLoading(false);
-    if (error || !url) { alert('PDFを開けませんでした'); return; }
-    setPdfPreview({ name: pdf.name, url });
-  };
 
   // 企業概要PDFの署名URLをキャッシュ（再レンダリングで毎回作り直さない）
   const ensureOverviewPdfUrl = async (pdf) => {
@@ -1717,7 +1708,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         {scriptPanelOpen && (
           <div style={{ height: 120, overflowY: 'auto', padding: '8px 16px' }}>
             {scriptTab === 'script' && (() => {
-              const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
               // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
               let rdScript = null;
               try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
@@ -1745,19 +1735,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     : list.scriptBody
                       ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7 }} />
                       : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>}
-                  {pdfs.length > 0 && (
-                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px dashed ' + C.borderLight }}>
-                      <div style={{ fontSize: 9, fontWeight: 600, color: C.navy, marginBottom: 4 }}>添付PDF</div>
-                      {pdfs.map((pdf, i) => (
-                        <button key={pdf.path || i}
-                          onClick={() => handleOpenScriptPdf(pdf)}
-                          title={pdf.name}
-                          style={{ display: 'block', width: '100%', textAlign: 'left', background: '#F8F9FA', border: '1px solid ' + C.borderLight, borderLeft: '2px solid ' + C.navy, borderRadius: 3, padding: '3px 6px', fontSize: 10, color: C.navy, fontWeight: 500, cursor: 'pointer', marginBottom: 3, textDecoration: 'underline', fontFamily: "'Noto Sans JP'", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {pdf.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </>
               );
             })()}
@@ -2558,7 +2535,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           {/* タブコンテンツ */}
           <div style={{ flex: 1, overflowY: 'auto', padding: space[5] }}>
             {scriptTab === 'script' && (() => {
-              const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
               // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
               let rdScript = null;
               try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
@@ -2585,19 +2561,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     : list.scriptBody
                       ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
                       : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
-                  {pdfs.length > 0 && (
-                    <div style={{ marginTop: 14, paddingTop: 10, borderTop: `1px dashed ${color.gray200}` }}>
-                      <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navyDeep, marginBottom: 6 }}>添付PDF</div>
-                      {pdfs.map((pdf, i) => (
-                        <button key={pdf.path || i}
-                          onClick={() => handleOpenScriptPdf(pdf)}
-                          title={pdf.name}
-                          style={{ display: 'block', width: '100%', textAlign: 'left', background: color.offWhite, border: `1px solid ${color.gray200}`, borderLeft: `3px solid ${color.navyDeep}`, borderRadius: radius.md, padding: '6px 10px', fontSize: font.size.sm, color: color.navyDeep, fontWeight: font.weight.medium, cursor: 'pointer', marginBottom: 5, textDecoration: 'underline', fontFamily: font.family.sans, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {pdf.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </>
               );
             })()}

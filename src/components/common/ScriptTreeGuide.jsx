@@ -20,15 +20,18 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
   const nodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
   const startId = (tree?.startId && nodeMap.has(tree.startId)) ? tree.startId : (nodes[0]?.id || null);
 
-  // クリックでハイライトした反応のキー集合（経路をマークしていく）
+  // クリックでハイライトした反応のキー集合（経路マーク＝その枝の展開を兼ねる）
   const [marked, setMarked] = useState(() => new Set());
   // 折りたたんだセクションID集合（デフォルト全展開）
   const [collapsed, setCollapsed] = useState(() => new Set());
+  // 全展開モード（読み合わせ・予習用）。通常は本流以外デフォルト閉じ
+  const [expandAll, setExpandAll] = useState(false);
   const sectionRefs = useRef({});
 
   useEffect(() => {
     setMarked(new Set());
     setCollapsed(new Set());
+    setExpandAll(false);
   }, [resetKey]);
 
   if (!nodes.length) {
@@ -113,8 +116,8 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
             </span>
           )}
         </button>
-        {/* こちらの返し（金系・深さで薄く） */}
-        {(r.answer || '').trim() && (
+        {/* 返し＋入れ子は、経路マーク時（または全展開時）のみ表示。本流以外はデフォルト閉じ */}
+        {(r.answer || '').trim() && (isMarked || expandAll) && (
           <div style={{
             margin: '3px 0 0 10px',
             padding: '5px 10px',
@@ -130,13 +133,26 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
           </div>
         )}
         {/* 入れ子の反応 */}
-        {hasChildren && renderResponses(nodeId, r.children, p, depth + 1)}
+        {hasChildren && (isMarked || expandAll) && renderResponses(nodeId, r.children, p, depth + 1)}
       </div>
     );
   });
 
   return (
     <div style={{ fontFamily: font.family.sans, ...style }}>
+      {/* 全展開トグル（読み合わせ・予習用） */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+        <button type="button" onClick={() => setExpandAll(v => !v)}
+          style={{
+            background: expandAll ? color.navy : 'transparent',
+            border: `1px solid ${expandAll ? color.navy : color.border}`,
+            color: expandAll ? color.white : color.textMid,
+            borderRadius: radius.pill, padding: '2px 12px', cursor: 'pointer',
+            fontSize: '0.85em', fontFamily: font.family.sans,
+          }}>
+          {expandAll ? '本流のみに戻す' : '全て展開'}
+        </button>
+      </div>
       {nodes.map(node => {
         const isCollapsed = collapsed.has(node.id);
         const isStart = node.id === startId;

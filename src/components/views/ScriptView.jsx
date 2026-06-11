@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
-import { fetchSetting, updateCallListRebuttal, updateCallListScript, updateCallListScriptTree, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
+import { fetchSetting, updateCallListRebuttal, updateCallListScript, updateCallListScriptTree } from '../../lib/supabaseWrite';
 import { toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker, createChipElement } from '../../utils/scriptMarker';
 import PageHeader from '../common/PageHeader';
 import ScriptBody, { flattenRebuttal } from '../common/ScriptBody';
@@ -263,6 +263,69 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     feTreeMutateNodeResponses(nodeId, arr => arrayOpAt(arr, parent, a => a.filter((_, i) => i !== idx)));
   };
 
+  // ── ツリー転記（他リストから全体 or 枝だけコピー） ──
+  const [trOpen, setTrOpen] = useState(false);
+  const [trSource, setTrSource] = useState('');   // 転記元リストの _supaId
+  const [trMode, setTrMode] = useState('full');   // 'full' | 'branch'
+  const [trSection, setTrSection] = useState(''); // 転記元セクションid（branch時）
+  const [trPicked, setTrPicked] = useState([]);   // 転記する枝（トップ階層の反応index）
+  const [trTarget, setTrTarget] = useState('');   // 貼り付け先セクションid（branch時）
+
+  // 反応の枝をディープコピー。idMap があればリンクを新idへ張り替え、無ければ終話化
+  const copyRespDeep = (r, idMap) => ({
+    label: r.label || '',
+    answer: r.answer || '',
+    children: (r.children || []).map(c => copyRespDeep(c, idMap)),
+    nextId: idMap ? (r.nextId && idMap.has(r.nextId) ? idMap.get(r.nextId) : null) : null,
+  });
+
+  const handleOpenTrDialog = () => {
+    const candidates = (callListData || []).filter(l =>
+      l._supaId !== fullEditor && Array.isArray(l.scriptTree?.nodes) && l.scriptTree.nodes.length);
+    if (!candidates.length) { alert('ツリー型スクリプトを持つ他のリストがありません'); return; }
+    setTrSource(candidates[0]._supaId);
+    setTrMode('full');
+    setTrSection(candidates[0].scriptTree.nodes[0]?.id || '');
+    setTrPicked([]);
+    setTrTarget(feTree?.nodes?.[0]?.id || '');
+    setTrOpen(true);
+  };
+
+  const handleTrApply = () => {
+    const src = (callListData || []).find(l => l._supaId === trSource)?.scriptTree;
+    if (!src?.nodes?.length) return;
+    if (trMode === 'full') {
+      if (feTree?.nodes?.length && !window.confirm('現在のツリーを転記内容で置き換えます。よろしいですか？')) return;
+      // 新しいid体系に張り替えてディープコピー
+      const idMap = new Map(src.nodes.map(n => [n.id, genNodeId()]));
+      const tree = {
+        version: 1,
+        startId: idMap.get(src.startId) || idMap.get(src.nodes[0].id),
+        nodes: src.nodes.map(n => ({
+          id: idMap.get(n.id), name: n.name || '', talk: n.talk || '',
+          responses: (n.responses || []).map(r => copyRespDeep(r, idMap)),
+        })),
+      };
+      feTreeTalkRefs.current = {};
+      setFeTree(tree);
+    } else {
+      const srcNode = src.nodes.find(n => n.id === trSection);
+      if (!srcNode || !trPicked.length || !trTarget) return;
+      const branches = trPicked
+        .map(i => (srcNode.responses || [])[i])
+        .filter(Boolean)
+        .map(r => copyRespDeep(r, null)); // リンク先は転記されないため終話化
+      setFeTree(prev => ({
+        ...prev,
+        nodes: prev.nodes.map(n => n.id === trTarget
+          ? { ...n, responses: [...(n.responses || []), ...branches] }
+          : n),
+      }));
+    }
+    setFeDirty(true);
+    setTrOpen(false);
+  };
+
   const handleOpenFullEditor = (listId) => {
     const list = (callListData || []).find(l => l._supaId === listId);
     if (!list) return;
@@ -347,76 +410,6 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   const feRemoveRebuttalItem = (tab, index) => {
     setFeRebuttal(prev => ({ ...prev, [tab]: (prev[tab] || []).filter((_, i) => i !== index) }));
     setFeDirty(true);
-  };
-
-  // PDF添付
-  const [pdfUploadingListId, setPdfUploadingListId] = useState(null);
-  const [pdfDeletingPath, setPdfDeletingPath] = useState(null);
-  const [pdfPreview, setPdfPreview] = useState(null); // { name, url }
-  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
-  const pdfFileInputRefs = useRef({});
-
-  const handleUploadPdf = async (listId, file) => {
-    if (!listId || !file) return;
-    if (file.type !== 'application/pdf') { alert('PDFファイルのみアップロードできます'); return; }
-    if (file.size > 20 * 1024 * 1024) { alert('ファイルサイズは20MB以下にしてください'); return; }
-    setPdfUploadingListId(listId);
-    const { item, error } = await uploadScriptPdf(listId, file);
-    if (error || !item) {
-      setPdfUploadingListId(null);
-      alert('PDFのアップロードに失敗しました');
-      return;
-    }
-    const currentList = (callListData || []).find(l => l._supaId === listId);
-    const currentPdfs = Array.isArray(currentList?.scriptPdfs) ? currentList.scriptPdfs : [];
-    const nextPdfs = [...currentPdfs, item];
-    const updErr = await updateCallListScriptPdfs(listId, nextPdfs);
-    setPdfUploadingListId(null);
-    if (updErr) {
-      // ロールバック: アップロード済みオブジェクトを削除
-      await deleteScriptPdfObject(item.path);
-      alert('PDFの保存に失敗しました');
-      return;
-    }
-    if (setCallListData) {
-      setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, scriptPdfs: nextPdfs } : l));
-    }
-  };
-
-  const handleDeletePdf = async (listId, pdf) => {
-    if (!listId || !pdf?.path) return;
-    if (!window.confirm(`「${pdf.name}」を削除しますか？`)) return;
-    setPdfDeletingPath(pdf.path);
-    const currentList = (callListData || []).find(l => l._supaId === listId);
-    const currentPdfs = Array.isArray(currentList?.scriptPdfs) ? currentList.scriptPdfs : [];
-    const nextPdfs = currentPdfs.filter(p => p.path !== pdf.path);
-    const updErr = await updateCallListScriptPdfs(listId, nextPdfs);
-    if (updErr) {
-      setPdfDeletingPath(null);
-      alert('PDFの削除に失敗しました');
-      return;
-    }
-    await deleteScriptPdfObject(pdf.path);
-    setPdfDeletingPath(null);
-    if (setCallListData) {
-      setCallListData(prev => prev.map(l => l._supaId === listId ? { ...l, scriptPdfs: nextPdfs } : l));
-    }
-  };
-
-  const handleOpenPdf = async (pdf) => {
-    if (!pdf?.path) return;
-    setPdfPreviewLoading(true);
-    const { url, error } = await getScriptPdfSignedUrl(pdf.path);
-    setPdfPreviewLoading(false);
-    if (error || !url) { alert('PDFを開けませんでした'); return; }
-    setPdfPreview({ name: pdf.name, url });
-  };
-
-  const formatFileSize = (bytes) => {
-    if (!bytes && bytes !== 0) return '';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   };
 
 
@@ -608,10 +601,8 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       {fullEditor && (() => {
         const list = (callListData || []).find(l => l._supaId === fullEditor);
         if (!list) return null;
-        const pdfs = Array.isArray(list.scriptPdfs) ? list.scriptPdfs : [];
         // チップ挿入候補: このリストのアウト返し（編集中の最新状態）。空なら共通の想定問答
         const effRebuttal = flattenRebuttal(feRebuttal).length ? feRebuttal : qaData;
-        const isUploading = pdfUploadingListId === fullEditor;
         // 同じクライアントの他リスト（全画面のままスクリプトを切り替えられるようにする）
         const siblingLists = (callListData || []).filter(l => l.company === list.company && !l.is_archived);
         const handleSwitchList = (targetId) => {
@@ -690,6 +681,11 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                       {l}{m === 'tree' && feTree?.nodes?.length ? `（${feTree.nodes.length}）` : ''}
                     </Button>
                   ))}
+                  {feMode === 'tree' && (
+                    <Button size="sm" variant="outline" onClick={handleOpenTrDialog} style={{ fontSize: font.size.xs }}>
+                      他のリストから転記
+                    </Button>
+                  )}
                   <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
                     {feMode === 'tree'
                       ? 'セクションを「相手の反応→行き先」で繋ぎます。架電画面ではガイドモードで表示されます'
@@ -948,12 +944,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                   />
                 )}
               </div>
+              {/* 右パネルはテキスト型のときのみ（ツリー型はアウト返し不使用・PDF廃止のため全幅で編集） */}
+              {feMode !== 'tree' && (
               <div style={{
                 width: 400, flexShrink: 0, borderLeft: `1px solid ${color.border}`,
                 overflowY: 'auto', background: color.white,
               }}>
-                {/* アウト返し（このリスト専用）。ツリー型では入れ子の反応で表現するため非表示 */}
-                {feMode !== 'tree' && (
+                {/* アウト返し（このリスト専用） */}
                 <div style={{ padding: '14px 16px', borderBottom: `1px solid ${color.border}` }}>
                   <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>アウト返し</div>
                   <div style={{ fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.6, marginBottom: 10 }}>
@@ -1078,125 +1075,143 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     );
                   })()}
                 </div>
-                )}
-                {/* 添付PDF */}
-                <div style={{ padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>添付PDF</span>
-                    <input
-                      ref={el => { if (el) pdfFileInputRefs.current[fullEditor] = el; }}
-                      type="file"
-                      accept="application/pdf"
-                      style={{ display: 'none' }}
-                      onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) handleUploadPdf(fullEditor, file);
-                        e.target.value = '';
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      loading={isUploading}
-                      onClick={() => pdfFileInputRefs.current[fullEditor]?.click()}
-                      style={{ fontSize: font.size.xs - 1 }}>
-                      {isUploading ? 'アップロード中...' : '＋ 追加'}
-                    </Button>
-                  </div>
-                  {pdfs.length === 0 ? (
-                    <div style={{ fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>未添付</div>
-                  ) : pdfs.map((pdf, i) => (
-                    <div key={pdf.path || i} style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '5px 8px', borderRadius: radius.sm,
-                      background: color.gray50, borderLeft: `2px solid ${color.navy}`,
-                      marginBottom: 4,
-                    }}>
-                      <button
-                        onClick={() => handleOpenPdf(pdf)}
-                        style={{
-                          flex: 1, textAlign: 'left', background: 'transparent',
-                          border: 'none', cursor: 'pointer', padding: 0,
-                          fontSize: font.size.xs, color: color.navy,
-                          fontWeight: font.weight.medium, textDecoration: 'underline',
-                          fontFamily: font.family.sans,
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        }}
-                        title={pdf.name}
-                      >
-                        {pdf.name}
-                      </button>
-                      <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0 }}>{formatFileSize(pdf.size)}</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        loading={pdfDeletingPath === pdf.path}
-                        onClick={() => handleDeletePdf(fullEditor, pdf)}
-                        style={{
-                          borderColor: '#fca5a5', color: color.danger,
-                          fontSize: font.size.xs - 1, flexShrink: 0,
-                        }}>
-                        {pdfDeletingPath === pdf.path ? '...' : '削除'}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
               </div>
+              )}
             </div>
           </div>
         );
       })()}
 
 
-      {/* PDFプレビューローディング */}
-      {pdfPreviewLoading && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          zIndex: 9790, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: color.white, fontSize: font.size.base,
-        }}>
-          PDFを読み込み中...
-        </div>
-      )}
 
-      {/* PDFプレビューモーダル */}
-      {pdfPreview && (
-        <div onClick={() => setPdfPreview(null)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
-            zIndex: 9800, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 20,
-          }}>
-          <div onClick={e => e.stopPropagation()}
+      {/* ツリー転記ダイアログ */}
+      {trOpen && (() => {
+        const candidates = (callListData || []).filter(l =>
+          l._supaId !== fullEditor && Array.isArray(l.scriptTree?.nodes) && l.scriptTree.nodes.length);
+        const srcList = candidates.find(l => l._supaId === trSource) || candidates[0];
+        const srcTree = srcList?.scriptTree;
+        const srcNode = (srcTree?.nodes || []).find(n => n.id === trSection) || srcTree?.nodes?.[0];
+        const togglePick = (i) => setTrPicked(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
+        return (
+          <div onClick={() => setTrOpen(false)}
             style={{
-              width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: radius.md,
-              background: color.white, border: `1px solid ${color.border}`,
-              display: 'flex', flexDirection: 'column', overflow: 'hidden',
-              boxShadow: shadow.xl,
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-            <div style={{
-              background: color.navy, padding: '10px 20px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexShrink: 0, fontWeight: font.weight.semibold,
-              fontSize: font.size.base, color: color.white,
-            }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdfPreview.name}</span>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                <a href={pdfPreview.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: font.size.xs, color: color.white, textDecoration: 'underline' }}>新規タブで開く</a>
-                <button onClick={() => setPdfPreview(null)} style={{
-                  background: 'none', border: 'none', color: color.white,
-                  fontSize: 18, cursor: 'pointer', lineHeight: 1,
-                }}>✕</button>
+            <div onClick={e => e.stopPropagation()}
+              style={{
+                width: '90vw', maxWidth: 620, maxHeight: '80vh', borderRadius: radius.lg,
+                background: color.white, boxShadow: shadow.xl,
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              }}>
+              <div style={{
+                background: color.navy, color: color.white, padding: '12px 20px',
+                fontSize: font.size.base, fontWeight: font.weight.semibold, flexShrink: 0,
+              }}>
+                他のリストからツリーを転記
+              </div>
+              <div style={{ padding: '14px 20px', overflowY: 'auto', flex: 1 }}>
+                <Select
+                  label="転記元リスト"
+                  size="sm"
+                  value={srcList?._supaId || ''}
+                  onChange={e => {
+                    setTrSource(e.target.value);
+                    const t = candidates.find(l => l._supaId === e.target.value)?.scriptTree;
+                    setTrSection(t?.nodes?.[0]?.id || '');
+                    setTrPicked([]);
+                  }}
+                  options={candidates.map(l => ({
+                    value: l._supaId,
+                    label: `${l.company}${l.industry ? ' - ' + l.industry : ''}（${l.scriptTree.nodes.length}セクション）`,
+                  }))}
+                  containerStyle={{ marginBottom: 12 }}
+                />
+                <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                  {[['full', 'ツリー全体を転記'], ['branch', '反応の枝だけ転記']].map(([m, l]) => (
+                    <Button key={m} size="sm"
+                      variant={trMode === m ? 'primary' : 'secondary'}
+                      onClick={() => setTrMode(m)}
+                      style={{ fontSize: font.size.xs }}>
+                      {l}
+                    </Button>
+                  ))}
+                </div>
+                {trMode === 'full' ? (
+                  <div style={{ fontSize: font.size.xs, color: color.textLight, lineHeight: 1.7 }}>
+                    転記元のセクション・反応・返しを丸ごとコピーします。
+                    {feTree?.nodes?.length ? <span style={{ color: color.danger }}>現在のツリーは置き換えられます。</span> : ''}
+                    転記後は自由に編集できます（転記元には影響しません）。
+                  </div>
+                ) : (
+                  <>
+                    <Select
+                      label="転記元のセクション"
+                      size="sm"
+                      value={srcNode?.id || ''}
+                      onChange={e => { setTrSection(e.target.value); setTrPicked([]); }}
+                      options={(srcTree?.nodes || []).map(n => ({ value: n.id, label: n.name || 'セクション' }))}
+                      containerStyle={{ marginBottom: 10 }}
+                    />
+                    <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: 6 }}>
+                      転記する枝（相手の反応）を選択
+                    </div>
+                    {(srcNode?.responses || []).length === 0 ? (
+                      <div style={{ fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic', marginBottom: 10 }}>このセクションに反応がありません</div>
+                    ) : (srcNode?.responses || []).map((r, i) => (
+                      <label key={i} style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 8,
+                        padding: '6px 10px', marginBottom: 4, borderRadius: radius.md,
+                        background: trPicked.includes(i) ? alpha(color.navyLight, 0.08) : color.gray50,
+                        border: `1px solid ${trPicked.includes(i) ? alpha(color.navyLight, 0.4) : 'transparent'}`,
+                        cursor: 'pointer',
+                      }}>
+                        <input type="checkbox" checked={trPicked.includes(i)} onChange={() => togglePick(i)}
+                          style={{ accentColor: color.navy, marginTop: 3 }} />
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.gray700 }}>
+                            相手: {r.label || `反応${i + 1}`}
+                          </span>
+                          {(r.answer || '').trim() && (
+                            <span style={{ display: 'block', fontSize: font.size.xs, color: color.textMid, lineHeight: 1.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              返し: {r.answer}
+                            </span>
+                          )}
+                          {(r.children || []).length > 0 && (
+                            <span style={{ display: 'block', fontSize: font.size.xs - 1, color: color.textLight, marginTop: 1 }}>
+                              入れ子の反応 {(r.children || []).length}件を含む
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                    <Select
+                      label="貼り付け先セクション（このリスト）"
+                      size="sm"
+                      value={trTarget}
+                      onChange={e => setTrTarget(e.target.value)}
+                      options={(feTree?.nodes || []).map(n => ({ value: n.id, label: n.name || 'セクション' }))}
+                      hint="枝の「次のセクション」リンクは転記されず終話になります。転記後に繋ぎ直してください"
+                      containerStyle={{ marginTop: 10 }}
+                    />
+                  </>
+                )}
+              </div>
+              <div style={{
+                padding: '10px 20px', borderTop: `1px solid ${color.border}`, flexShrink: 0,
+                display: 'flex', justifyContent: 'flex-end', gap: 8,
+              }}>
+                <Button size="sm" variant="outline" onClick={() => setTrOpen(false)}>キャンセル</Button>
+                <Button size="sm" variant="primary"
+                  disabled={trMode === 'branch' && (!trPicked.length || !trTarget || !(feTree?.nodes || []).length)}
+                  onClick={handleTrApply}>
+                  転記する
+                </Button>
               </div>
             </div>
-            <iframe
-              src={pdfPreview.url}
-              title={pdfPreview.name}
-              style={{ flex: 1, border: 'none', width: '100%' }}
-            />
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 右クリックコンテキストメニュー */}
       {ctxMenu && (() => {
