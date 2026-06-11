@@ -468,8 +468,8 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     <div style={{ animation: "fadeIn 0.3s ease", padding: "0 0 40px 0" }}>
       {!embedded && (
         <PageHeader
-          title="トークスクリプト"
-          description="架電スクリプトライブラリ"
+          title="スクリプト"
+          description="クライアント別スクリプト管理"
           style={{ marginBottom: 24 }}
         />
       )}

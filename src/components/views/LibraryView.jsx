@@ -10,7 +10,6 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Card, Badge } from '../ui';
 import InternRulesView from './InternRulesView';
-import ScriptView from './ScriptView';
 import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import PageHeader from '../common/PageHeader';
 import DailyReportPanel from './library/DailyReportPanel';
@@ -23,14 +22,13 @@ import {
 const CF_STREAM_SUBDOMAIN = import.meta.env.VITE_CF_STREAM_CUSTOMER_SUBDOMAIN || '';
 
 const STORAGE_KEY = 'spanavi_library_card_order_v1';
-const DEFAULT_ORDER = ['daily_report', 'bookmarks', 'rules', 'meetings', 'scripts'];
+const DEFAULT_ORDER = ['daily_report', 'bookmarks', 'rules', 'meetings'];
 
 const CARDS = {
   daily_report: { title: 'Daily Report',         eyebrow: '本日の活動レポート', accent: color.navy },
   bookmarks:    { title: 'お気に入り録音',        eyebrow: '保存した録音',       accent: color.navy },
   rules:        { title: '22箇条',               eyebrow: 'インターン心得',     accent: color.navy },
   meetings:     { title: '週次ミーティング',     eyebrow: 'アーカイブ',         accent: color.navy },
-  scripts:      { title: 'スクリプト一覧',       eyebrow: 'クライアント別',     accent: color.navy },
 };
 
 export default function LibraryView({
@@ -360,9 +358,6 @@ export default function LibraryView({
               </>
             )}
 
-            {activeCardId === 'scripts' && (
-              <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} embedded />
-            )}
           </div>
         </Card>
       )}
