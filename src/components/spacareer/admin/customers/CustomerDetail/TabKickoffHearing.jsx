@@ -92,13 +92,15 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
     return Array.from(map.values());
   }, [questions]);
 
-  const requiredQuestions = questions.filter((q) => q.is_required);
-  const requiredAnswered = requiredQuestions.filter((q) => {
-    const r = responseByQid.get(q.id);
-    return r && (r.answer_text || '').trim().length > 0;
-  }).length;
-  const requiredProgressPct = requiredQuestions.length
-    ? Math.round((requiredAnswered / requiredQuestions.length) * 100)
+  // 記入率（目安）: 全項目を対象に、下限文字数があれば文字数比で按分した平均（受講生画面と同じ算出）。
+  const answeredCount = questions.filter((q) => (responseByQid.get(q.id)?.answer_text || '').trim().length > 0).length;
+  const fillProgressPct = questions.length
+    ? Math.round(questions.reduce((sum, q) => {
+        const v = (responseByQid.get(q.id)?.answer_text || '').trim();
+        if (!v.length) return sum;
+        const th = q.min_chars && q.min_chars > 0 ? q.min_chars : 1;
+        return sum + Math.min(1, v.length / th);
+      }, 0) / questions.length * 100)
     : 0;
 
   const remainingLabel = useMemo(() => {
@@ -295,8 +297,8 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
           }
         />
         <KpiCard
-          label="必須項目 回答率"
-          value={`${requiredAnswered} / ${requiredQuestions.length} (${requiredProgressPct}%)`}
+          label="記入率（目安）"
+          value={`${fillProgressPct}%（${answeredCount} / ${questions.length} 問入力）`}
         />
         <KpiCard label="残り期限" value={remainingLabel} />
         <KpiCard

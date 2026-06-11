@@ -28,6 +28,18 @@ export default function TabBasicInfo({ detail }) {
   const { customer, trainer, socialStyle } = detail;
   const member = customer?.member || {};
 
+  // キックオフヒアリングの記入率（目安）。全項目を対象に、下限文字数があれば文字数比で按分した平均。
+  const hearingQs = detail.kickoffHearingQuestions || [];
+  const hearingRespByQ = new Map((detail.kickoffHearingResponses || []).map((r) => [r.question_id, r.answer_text || '']));
+  const hearingFillPct = hearingQs.length
+    ? Math.round(hearingQs.reduce((sum, q) => {
+        const v = (hearingRespByQ.get(q.id) || '').trim();
+        if (!v.length) return sum;
+        const th = q.min_chars && q.min_chars > 0 ? q.min_chars : 1;
+        return sum + Math.min(1, v.length / th);
+      }, 0) / hearingQs.length * 100)
+    : 0;
+
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
       <Card padding="md" title="プロフィール">
@@ -52,6 +64,7 @@ export default function TabBasicInfo({ detail }) {
               {customer?.status || '—'}
             </Badge>} />
           <Row label="現在の回数" value={`第${customer?.current_session_no ?? 0}回 / 9`} mono />
+          <Row label="ヒアリング記入率" value={hearingQs.length ? `${hearingFillPct}%` : '—'} mono />
           <Row label="直案件DB閲覧権限"
             value={customer?.direct_db_access_granted_at
               ? <Badge variant="success" dot>付与済</Badge>

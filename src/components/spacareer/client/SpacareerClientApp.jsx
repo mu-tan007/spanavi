@@ -114,20 +114,19 @@ export default function SpacareerClientApp() {
           .eq('customer_id', cust.id)
           .maybeSingle();
         if (cancelled) return;
-        // キックオフヒアリングを「表示・強制」するのは、まだ提出されておらず、かつ
-        // 第1回に進んでいない間だけ。提出(submitted/ai_extracted/completed) または
-        // 第1回受講中(current_session_no>=1)になったら、メニューから消しロックも解除する。
+        // キックオフヒアリングはいつでも修正・再提出できるよう、セッションが存在する限り
+        // 左メニューに常時表示する（提出後・第1回進行後も非表示にしない）。ロックもしない。
         const hearingSubmitted = !!sess && ['submitted', 'ai_extracted', 'completed'].includes(sess.status);
         const progressedPastKickoff = (cust.current_session_no ?? 0) >= 1;
-        const hearingStillActive = !!sess && !hearingSubmitted && !progressedPastKickoff;
-        setHearingActive(hearingStillActive);
+        setHearingActive(!!sess);
 
-        // 強制リダイレクト優先順位:
-        //   1. ソーシャルスタイル診断 未完了
-        //   2. キックオフヒアリング 未完了（かつ第1回未到達）
+        // 初回の軽いリダイレクトのみ（ロックはしないので、すぐ他タブへ移動できる）:
+        //   1. ソーシャルスタイル診断 未完了 → 診断へ
+        //   2. キックオフヒアリング 未提出かつ第1回未到達 → ヒアリングへ（誘導のみ）
         if (!socialStyleDone) {
           setCurrentTab('social_style');
-        } else if (hearingStillActive && ['unnotified','unstarted','in_progress'].includes(sess.status)) {
+        } else if (sess && !hearingSubmitted && !progressedPastKickoff
+          && ['unnotified', 'unstarted', 'in_progress'].includes(sess.status)) {
           setCurrentTab('kickoff_hearing');
         }
       } catch (e) {
@@ -149,12 +148,9 @@ export default function SpacareerClientApp() {
       return;
     }
     if (socialStyleActive && tabId !== 'social_style') {
-      return; // 強制的に診断画面のまま
+      return; // 診断未完了の間だけは診断画面に固定
     }
-    if (hearingActive && !socialStyleActive && tabId !== 'kickoff_hearing') {
-      // 診断完了済 & ヒアリング未完了 → ヒアリングのみ許可
-      return;
-    }
+    // キックオフヒアリングはロックしない（いつでも他タブへ移動でき、いつでも再提出できる）。
     setCurrentTab(tabId);
   };
 

@@ -112,44 +112,41 @@ export default function ClientKickoffHearingView() {
     return Array.from(map.values());
   }, [questions]);
 
-  // 進捗計算
-  // ・記入率（メイン進捗）: 必須+任意の全項目を対象
-  //   - 必須: min_chars 満たさないと未記入扱い
-  //   - 任意: min_chars があれば満たす必要あり、なければ1文字以上で記入扱い
-  // ・提出可否: 必須項目がすべて min_chars を満たしているかで判定（任意は不問）
-  const requiredQuestions = useMemo(() => questions.filter(q => q.is_required), [questions]);
-  const isAnswered = (q, raw) => {
+  // 提出率（記入率）の計算
+  // ・全項目を対象（必須/任意の区別はしない＝すべて記入対象として扱う）
+  // ・各項目の「記入度」を 0〜1 で算出し、その平均を提出率とする:
+  //     - 下限文字数(min_chars)がある項目: 文字数 / 下限 を上限1.0で按分（例 200字下限で100字なら0.5）
+  //     - 下限が無い項目: 1文字以上で 1.0
+  // ・提出自体は記入度に関わらずいつでも可能（提出ゲートにはしない）。
+  const itemFill = (q, raw) => {
     const v = (raw || '').trim();
-    if (v.length === 0) return false;
-    if (q.min_chars && v.length < q.min_chars) return false;
-    return true;
+    if (v.length === 0) return 0;
+    const threshold = q.min_chars && q.min_chars > 0 ? q.min_chars : 1;
+    return Math.min(1, v.length / threshold);
   };
-  // 後方互換: 既存表示で使っている名前を残す
-  const isRequiredFulfilled = isAnswered;
-  const requiredAnswered = useMemo(
-    () => requiredQuestions.filter(q => isAnswered(q, responses[q.id])).length,
-    [requiredQuestions, responses],
-  );
   const totalAnswered = useMemo(
-    () => questions.filter(q => isAnswered(q, responses[q.id])).length,
+    () => questions.filter(q => (responses[q.id] || '').trim().length > 0).length,
+    [questions, responses],
+  );
+  const totalFill = useMemo(
+    () => questions.reduce((sum, q) => sum + itemFill(q, responses[q.id]), 0),
     [questions, responses],
   );
   const overallProgress = questions.length
-    ? Math.round((totalAnswered / questions.length) * 100)
+    ? Math.round((totalFill / questions.length) * 100)
     : 0;
-  const canSubmit = requiredAnswered === requiredQuestions.length && requiredQuestions.length > 0;
+  // 提出はいつでも可能（埋まっていなくても、下限未満でも提出できる）。
+  const canSubmit = true;
 
-  // セクションごとの必須未回答数（min_chars 未満も未回答扱い）
+  // セクションごとの記入状況（記入度の合計と、何か入力された件数）
   const sectionStats = useMemo(() => {
     const m = {};
     sections.forEach(sec => {
-      const req = sec.items.filter(it => it.is_required);
-      const answered = req.filter(it => isRequiredFulfilled(it, responses[it.id])).length;
+      const fill = sec.items.reduce((sum, it) => sum + itemFill(it, responses[it.id]), 0);
       m[sec.code] = {
-        requiredTotal: req.length,
-        requiredDone: answered,
         allTotal: sec.items.length,
         allDone: sec.items.filter(it => (responses[it.id] || '').trim().length > 0).length,
+        fillPct: sec.items.length ? Math.round((fill / sec.items.length) * 100) : 0,
       };
     });
     return m;
@@ -253,28 +250,10 @@ export default function ClientKickoffHearingView() {
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit) {
-      // 文字数下限を満たさない必須項目だけ抽出して具体的に提示
-      const insufficient = requiredQuestions
-        .filter(q => {
-          const v = (responses[q.id] || '').trim();
-          return v.length > 0 && q.min_chars && v.length < q.min_chars;
-        })
-        .map(q => `Q${q.question_number}: ${q.question_text.slice(0, 30)}... （現在 ${(responses[q.id] || '').trim().length} / 最低 ${q.min_chars} 文字）`);
-      const empty = requiredQuestions.filter(q => !(responses[q.id] || '').trim().length).length;
-      const lines = [];
-      if (empty > 0) lines.push(`未回答の必須項目が ${empty} 問あります`);
-      if (insufficient.length > 0) {
-        lines.push('以下の必須項目が最低文字数を満たしていません:');
-        lines.push(...insufficient);
-      }
-      alert(lines.join('\n'));
-      return;
-    }
     if (!window.confirm(
       `回答を提出します。\n` +
-      `現在の記入率は ${overallProgress}% です（全 ${totalAnswered} / ${questions.length} 問回答済み）。\n` +
-      `提出後は内容変更ができません。よろしいですか？`
+      `現在の記入率は ${overallProgress}% です（全 ${totalAnswered} / ${questions.length} 問入力済み）。\n` +
+      `提出後も内容の修正・再提出はいつでもできます。よろしいですか？`
     )) return;
     setSubmitting(true);
     try {
@@ -340,14 +319,26 @@ export default function ClientKickoffHearingView() {
   if (!session) return <Centered>キックオフヒアリングのセッションが見つかりません。運営にお問い合わせください。</Centered>;
   if (questions.length === 0) return <Centered>質問が見つかりません。運営にお問い合わせください。</Centered>;
 
-  // 提出済み or AI抽出済み or 完了 → サンクス画面
-  if (['submitted', 'ai_extracted', 'completed'].includes(session.status)) {
-    return <SubmittedView session={session} />;
-  }
+  // 提出済みでもフォームは編集可能のまま表示し、いつでも修正・再提出できるようにする。
+  const alreadySubmitted = ['submitted', 'ai_extracted', 'completed'].includes(session.status);
 
   return (
     <div style={{ padding: space[6], display: 'flex', flexDirection: 'column', gap: space[4], paddingBottom: 140 }}>
       <Heading />
+
+      {alreadySubmitted && (
+        <div style={{
+          padding: space[3],
+          background: alpha(color.success, 0.08),
+          border: `1px solid ${alpha(color.success, 0.30)}`,
+          borderRadius: radius.md,
+          fontSize: font.size.sm,
+          color: color.textDark,
+          lineHeight: font.lineHeight.relaxed,
+        }}>
+          提出済みです。内容はいつでも修正して「再提出する」で再提出できます。
+        </div>
+      )}
 
       {/* 上部固定バー: カウントダウン + 進捗 */}
       <Card padding="md">
@@ -361,7 +352,10 @@ export default function ClientKickoffHearingView() {
           <div style={{ flex: 1, minWidth: 240 }}>
             <ProgressBar pct={overallProgress} />
             <div style={{ marginTop: space[1], fontSize: font.size.xs, color: color.textMid }}>
-              記入率 {overallProgress}%（全 {totalAnswered} / {questions.length} 回答済み・うち必須 {requiredAnswered} / {requiredQuestions.length}）
+              提出率 {overallProgress}%（全 {questions.length} 問・{totalAnswered} 問に入力済み）
+            </div>
+            <div style={{ marginTop: 2, fontSize: font.size.xs, color: color.textLight }}>
+              ※ 文字数の下限がある項目は、文字数に応じて提出率に反映されます。未入力・下限未満でも提出できます。
             </div>
           </div>
           {savedAt && (
@@ -394,7 +388,7 @@ export default function ClientKickoffHearingView() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {sections.map(sec => {
               const st = sectionStats[sec.code];
-              const allDone = st.requiredTotal === 0 || st.requiredDone === st.requiredTotal;
+              const allDone = st.allDone === st.allTotal;
               return (
                 <a
                   key={sec.code}
@@ -416,7 +410,7 @@ export default function ClientKickoffHearingView() {
                 >
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sec.name}</span>
                   <span style={{ color: color.textLight, fontVariantNumeric: 'tabular-nums' }}>
-                    {st.requiredTotal > 0 ? `${st.requiredDone}/${st.requiredTotal}` : '任意'}
+                    {st.allDone}/{st.allTotal}
                   </span>
                 </a>
               );
@@ -436,14 +430,12 @@ export default function ClientKickoffHearingView() {
         zIndex: 50,
       }}>
         <div style={{ fontSize: font.size.xs, color: color.textMid }}>
-          {canSubmit
-            ? '必須項目はすべて回答済みです。提出できます。'
-            : `必須項目があと ${requiredQuestions.length - requiredAnswered} 問残っています`}
+          現在の提出率 {overallProgress}%。未入力・下限未満でも提出でき、提出後も修正・再提出できます。
         </div>
         <div style={{ display: 'flex', gap: space[2] }}>
           <Button variant="outline" onClick={handleManualSaveAll}>一時保存</Button>
-          <Button variant="primary" onClick={handleSubmit} loading={submitting} disabled={!canSubmit || submitting}>
-            提出する
+          <Button variant="primary" onClick={handleSubmit} loading={submitting} disabled={submitting}>
+            {alreadySubmitted ? '再提出する' : '提出する'}
           </Button>
         </div>
       </div>
@@ -508,7 +500,6 @@ function ProgressBar({ pct }) {
 }
 
 function SectionCard({ section, stats, collapsed, onToggle, responses, savingMap, onAnswerChange }) {
-  const isOptional = stats.requiredTotal === 0;
   return (
     <Card padding="none" id={`sec-${section.code}`} style={{ scrollMarginTop: 80 }}>
       <button
@@ -529,13 +520,10 @@ function SectionCard({ section, stats, collapsed, onToggle, responses, savingMap
           <span style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy }}>
             {section.name}
           </span>
-          {isOptional && <Badge variant="neutral" size="sm">任意</Badge>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
           <span style={{ fontSize: font.size.xs, color: color.textMid, fontVariantNumeric: 'tabular-nums' }}>
-            {isOptional
-              ? `${stats.allDone}/${stats.allTotal} 回答`
-              : `必須 ${stats.requiredDone}/${stats.requiredTotal}`}
+            {stats.allDone}/{stats.allTotal} 入力
           </span>
           <Chevron open={!collapsed} />
         </div>
@@ -585,7 +573,6 @@ function Chevron({ open }) {
 function QuestionItem({ index, question, answer, saving, onAnswerChange }) {
   const len = (answer || '').length;
   const max = question.char_limit || null;
-  const required = question.is_required;
   const isSelectOne = question.answer_type === 'select_one' && Array.isArray(question.options);
 
   return (
@@ -604,10 +591,12 @@ function QuestionItem({ index, question, answer, saving, onAnswerChange }) {
             <span style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.textDark }}>
               {question.question_text}
             </span>
-            {required
-              ? <Badge variant="danger" size="sm">必須</Badge>
-              : <Badge variant="neutral" size="sm">任意</Badge>}
           </div>
+          {question.min_chars > 0 && (
+            <div style={{ fontSize: font.size.xs, color: color.navyLight, fontWeight: font.weight.semibold, marginTop: space[1] }}>
+              当項目は{question.min_chars}文字以上の記載を推奨します。
+            </div>
+          )}
           {question.help_text && (
             <div style={{ fontSize: font.size.xs, color: color.textLight, lineHeight: font.lineHeight.relaxed, marginTop: space[1] }}>
               {question.help_text}
@@ -733,28 +722,3 @@ function SelectOneInput({ options, value, onChange }) {
   );
 }
 
-function SubmittedView({ session }) {
-  return (
-    <div style={{ padding: space[6], maxWidth: 720 }}>
-      <Card padding="lg">
-        <h1 style={{ fontSize: font.size['2xl'], fontWeight: font.weight.bold, color: color.navy, margin: 0 }}>
-          ご回答ありがとうございました
-        </h1>
-        <p style={{ fontSize: font.size.md, color: color.textDark, marginTop: space[3], lineHeight: font.lineHeight.relaxed }}>
-          キックオフヒアリングの提出が完了しました。第1回セッションでお会いできることを楽しみにしております。
-        </p>
-        <div style={{
-          marginTop: space[4],
-          padding: space[3],
-          background: color.cream,
-          borderRadius: radius.md,
-          fontSize: font.size.sm,
-          color: color.textMid,
-          lineHeight: font.lineHeight.relaxed,
-        }}>
-          <div>提出日時: {session.submitted_at ? new Date(session.submitted_at).toLocaleString('ja-JP') : '—'}</div>
-        </div>
-      </Card>
-    </div>
-  );
-}

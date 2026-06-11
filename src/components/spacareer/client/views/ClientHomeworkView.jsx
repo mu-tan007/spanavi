@@ -165,7 +165,7 @@ export default function ClientHomeworkView() {
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm('回答を提出します。よろしいですか？')) return;
+    if (!window.confirm('回答を提出します。提出後も修正・再提出はいつでもできます。よろしいですか？')) return;
     setSubmitting(true);
     try {
       const submitIds = items.filter(it => (answers[it.id] || '').trim().length > 0).map(it => it.id);
@@ -388,7 +388,6 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
             <span style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.textDark }}>
               {item.question_text}
             </span>
-            {item.is_required && <Badge variant="danger" size="sm">必須</Badge>}
           </div>
           {item.question_hint && (
             <div style={{ fontSize: font.size.xs, color: color.textLight, lineHeight: font.lineHeight.relaxed, marginBottom: space[2] }}>
