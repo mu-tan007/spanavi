@@ -20,12 +20,14 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     return () => { window.removeEventListener('click', close); window.removeEventListener('scroll', close, true); };
   }, [ctxMenu]);
 
-  const handleContextMenu = useCallback((e, editorEl, rebuttal) => {
+  const handleContextMenu = useCallback((e, editorEl, rebuttal, opts = {}) => {
     if (!editorEl) return;
     const sel = window.getSelection();
     const hasSelection = !!(sel && !sel.isCollapsed && sel.toString().trim());
     const hasChips = flattenRebuttal(rebuttal).length > 0;
-    // 分岐ブロック挿入は常に可能なのでメニューは常時表示
+    const allowBranch = opts.allowBranch !== false;
+    // 出せる項目が何も無ければデフォルトメニュー（ツリー型のトークは選択時マーカーのみ）
+    if (!hasSelection && !hasChips && !allowBranch) return;
     e.preventDefault();
     // チップ挿入位置: 選択があれば選択の直後、なければ右クリックした位置のキャレット
     let range = null;
@@ -43,6 +45,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
       editorEl,
       hasSelection,
       hasChips,
+      allowBranch,
       isMarked: hasSelection ? isSelectionMarked(editorEl) : false,
       range,
       rebuttal,
@@ -226,37 +229,38 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     setFeDirty(true);
   };
 
-  const feTreeUpdateResponse = (nodeId, respIdx, patch) => {
+  // ── 入れ子の反応ツリー操作（path = 反応インデックスの配列） ──
+  // 反応 = { label, answer(こちらの返し), children(さらに相手の反応), nextId }
+  // path が指す反応そのものに patch を当てる
+  const patchRespAt = (arr, p, patch) => {
+    const [i, ...rest] = p;
+    return arr.map((r, k) => {
+      if (k !== i) return r;
+      if (rest.length === 0) return { ...r, ...patch };
+      return { ...r, children: patchRespAt(r.children || [], rest, patch) };
+    });
+  };
+  // path が指す反応の配列（path=[]ならトップ階層）に fn を適用
+  const arrayOpAt = (arr, p, fn) => {
+    if (p.length === 0) return fn(arr);
+    const [i, ...rest] = p;
+    return arr.map((r, k) => k === i ? { ...r, children: arrayOpAt(r.children || [], rest, fn) } : r);
+  };
+  const feTreeMutateNodeResponses = (nodeId, mutate) => {
     setFeTree(prev => ({
       ...prev,
-      nodes: prev.nodes.map(n => {
-        if (n.id !== nodeId) return n;
-        const responses = [...(n.responses || [])];
-        responses[respIdx] = { ...responses[respIdx], ...patch };
-        return { ...n, responses };
-      }),
+      nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, responses: mutate(n.responses || []) } : n),
     }));
     setFeDirty(true);
   };
-
-  const feTreeAddResponse = (nodeId) => {
-    setFeTree(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => n.id === nodeId
-        ? { ...n, responses: [...(n.responses || []), { label: '', nextId: null }] }
-        : n),
-    }));
-    setFeDirty(true);
-  };
-
-  const feTreeDeleteResponse = (nodeId, respIdx) => {
-    setFeTree(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => n.id === nodeId
-        ? { ...n, responses: (n.responses || []).filter((_, i) => i !== respIdx) }
-        : n),
-    }));
-    setFeDirty(true);
+  const feTreePatchResponse = (nodeId, p, patch) =>
+    feTreeMutateNodeResponses(nodeId, arr => patchRespAt(arr, p, patch));
+  const feTreeAddResponseAt = (nodeId, p) =>
+    feTreeMutateNodeResponses(nodeId, arr => arrayOpAt(arr, p, a => [...a, { label: '', answer: '', children: [], nextId: null }]));
+  const feTreeDeleteResponseAt = (nodeId, p) => {
+    const parent = p.slice(0, -1);
+    const idx = p[p.length - 1];
+    feTreeMutateNodeResponses(nodeId, arr => arrayOpAt(arr, parent, a => a.filter((_, i) => i !== idx)));
   };
 
   const handleOpenFullEditor = (listId) => {
@@ -708,11 +712,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                       <Button variant="primary" size="md" onClick={handleCreateTree}>最初のセクションを作成</Button>
                     </div>
                   ) : (() => {
-                    // 「←どこから来るか」と未接続警告のための逆リンク集計
+                    // 「←どこから来るか」と未接続警告のための逆リンク集計（入れ子の反応も再帰で辿る）
                     const incoming = {};
-                    feTree.nodes.forEach(n => (n.responses || []).forEach(r => {
-                      if (r.nextId) (incoming[r.nextId] = incoming[r.nextId] || []).push(n.name || 'セクション');
-                    }));
+                    const walkLinks = (fromName, rs) => (rs || []).forEach(r => {
+                      if (r.nextId) (incoming[r.nextId] = incoming[r.nextId] || []).push(fromName);
+                      walkLinks(fromName, r.children);
+                    });
+                    feTree.nodes.forEach(n => walkLinks(n.name || 'セクション', n.responses));
                     const nodeOptions = feTree.nodes.map(n => ({ value: n.id, label: n.name || 'セクション' }));
                     return (
                       <div>
@@ -786,7 +792,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                                 suppressContentEditableWarning
                                 onInput={() => setFeDirty(true)}
                                 onDoubleClick={handleEditorDoubleClick}
-                                onContextMenu={e => handleContextMenu(e, feTreeTalkRefs.current[node.id], effRebuttal)}
+                                onContextMenu={e => handleContextMenu(e, feTreeTalkRefs.current[node.id], null, { allowBranch: false })}
                                 style={{
                                   padding: '12px 16px', minHeight: 64,
                                   fontSize: font.size.sm, color: color.textDark, lineHeight: 1.8,
@@ -794,59 +800,115 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                                   background: color.white,
                                 }}
                               />
-                              {/* 相手の反応 → 行き先 */}
+                              {/* 相手の反応（トーナメント式の入れ子: 反応→返し→さらに反応…→次のセクション/終話） */}
                               <div style={{ padding: '8px 12px 12px', borderTop: `1px dashed ${color.border}`, background: alpha(color.navyLight, 0.025) }}>
                                 <div style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 6 }}>
-                                  相手の反応 → 次のセクション
+                                  相手の反応 →（こちらの返し）→ さらに反応… → 次のセクション
                                 </div>
-                                {(node.responses || []).map((r, ri) => {
-                                  const broken = r.nextId && !feTree.nodes.some(n => n.id === r.nextId);
-                                  return (
-                                    <div key={ri} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                                      <Input
-                                        size="sm"
-                                        value={r.label}
-                                        onChange={e => feTreeUpdateResponse(node.id, ri, { label: e.target.value })}
-                                        placeholder="相手の言葉（例: 少々お待ちください）"
-                                        fullWidth={false}
-                                        containerStyle={{ flex: 1, minWidth: 180 }}
-                                      />
-                                      <span style={{ fontSize: font.size.xs, color: color.textLight, flexShrink: 0 }}>→</span>
-                                      <Select
-                                        size="sm"
-                                        fullWidth={false}
-                                        containerStyle={{ width: 200, flexShrink: 0 }}
-                                        value={broken ? '__end__' : (r.nextId || '__end__')}
-                                        onChange={e => {
-                                          const v = e.target.value;
-                                          if (v === '__new__') {
-                                            const name = window.prompt('新しいセクション名', '');
-                                            if (name == null || !name.trim()) return;
-                                            const newId = feTreeAddNode(name.trim());
-                                            feTreeUpdateResponse(node.id, ri, { nextId: newId });
-                                          } else {
-                                            feTreeUpdateResponse(node.id, ri, { nextId: v === '__end__' ? null : v });
-                                          }
-                                        }}
-                                        options={[
-                                          { value: '__end__', label: '終話（ここで終了）' },
-                                          ...nodeOptions.filter(o => o.value !== node.id),
-                                          { value: '__new__', label: '＋ 新規セクションを作成…' },
-                                        ]}
-                                      />
-                                      <Button size="sm" variant="outline" onClick={() => feTreeDeleteResponse(node.id, ri)}
-                                        style={{ borderColor: '#fca5a5', color: color.danger, fontSize: font.size.xs - 1, flexShrink: 0 }}>
-                                        削除
-                                      </Button>
-                                      {broken && (
-                                        <span style={{ fontSize: font.size.xs - 1, color: color.danger, width: '100%' }}>
-                                          行き先のセクションが削除されたため「終話」扱いになっています
-                                        </span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                                <Button variant="ghost" size="sm" onClick={() => feTreeAddResponse(node.id)} style={{
+                                {(() => {
+                                  const renderResponses = (resps, basePath, depth) => resps.map((r, ri) => {
+                                    const p = [...basePath, ri];
+                                    const hasChildren = (r.children || []).length > 0;
+                                    const broken = r.nextId && !feTree.nodes.some(n => n.id === r.nextId);
+                                    return (
+                                      <div key={ri} style={{
+                                        marginBottom: 8,
+                                        marginLeft: depth ? 18 : 0,
+                                        borderLeft: depth ? `2px solid ${alpha(color.navyLight, 0.3)}` : 'none',
+                                        paddingLeft: depth ? 10 : 0,
+                                      }}>
+                                        <div style={{
+                                          background: color.white, border: `1px solid ${color.border}`,
+                                          borderRadius: radius.md, padding: '8px 10px',
+                                        }}>
+                                          {/* 相手の言葉 */}
+                                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                                            <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.gray700, flexShrink: 0 }}>相手</span>
+                                            <Input
+                                              size="sm"
+                                              value={r.label}
+                                              onChange={e => feTreePatchResponse(node.id, p, { label: e.target.value })}
+                                              placeholder="相手の言葉（例: 少々お待ちください／ご用件は？）"
+                                              containerStyle={{ flex: 1 }}
+                                            />
+                                            <Button size="sm" variant="outline" onClick={() => feTreeDeleteResponseAt(node.id, p)}
+                                              style={{ borderColor: '#fca5a5', color: color.danger, fontSize: font.size.xs - 1, flexShrink: 0 }}>
+                                              削除
+                                            </Button>
+                                          </div>
+                                          {/* こちらの返し（アンサー・任意） */}
+                                          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                            <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.gold, flexShrink: 0, marginTop: 4 }}>返し</span>
+                                            <textarea
+                                              value={r.answer || ''}
+                                              onChange={e => feTreePatchResponse(node.id, p, { answer: e.target.value })}
+                                              rows={Math.min(5, Math.max(1, (r.answer || '').split('\n').length))}
+                                              placeholder="こちらの返し（任意。空なら反応ボタンを押した瞬間に次へ進む）"
+                                              style={{
+                                                flex: 1, padding: '4px 8px', border: `1px solid ${color.border}`,
+                                                borderRadius: radius.md, fontSize: font.size.xs,
+                                                resize: 'vertical', lineHeight: 1.6,
+                                                color: color.textDark, background: color.white,
+                                                fontFamily: font.family.sans, outline: 'none', boxSizing: 'border-box',
+                                              }}
+                                            />
+                                          </div>
+                                          {/* この後の流れ: 子の反応があればそちら優先、なければ行き先Select */}
+                                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
+                                            {hasChildren ? (
+                                              <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
+                                                ↓ この返しへの相手の反応で続く
+                                              </span>
+                                            ) : (
+                                              <>
+                                                <span style={{ fontSize: font.size.xs - 1, color: color.textLight, flexShrink: 0 }}>この後 →</span>
+                                                <Select
+                                                  size="sm"
+                                                  fullWidth={false}
+                                                  containerStyle={{ width: 200, flexShrink: 0 }}
+                                                  value={broken ? '__end__' : (r.nextId || '__end__')}
+                                                  onChange={e => {
+                                                    const v = e.target.value;
+                                                    if (v === '__new__') {
+                                                      const name = window.prompt('新しいセクション名', '');
+                                                      if (name == null || !name.trim()) return;
+                                                      const newId = feTreeAddNode(name.trim());
+                                                      feTreePatchResponse(node.id, p, { nextId: newId });
+                                                    } else {
+                                                      feTreePatchResponse(node.id, p, { nextId: v === '__end__' ? null : v });
+                                                    }
+                                                  }}
+                                                  options={[
+                                                    { value: '__end__', label: '終話（ここで終了）' },
+                                                    ...nodeOptions.filter(o => o.value !== node.id),
+                                                    { value: '__new__', label: '＋ 新規セクションを作成…' },
+                                                  ]}
+                                                />
+                                              </>
+                                            )}
+                                            <Button size="sm" variant="ghost" onClick={() => feTreeAddResponseAt(node.id, p)}
+                                              style={{ border: `1px dashed ${color.gray400}`, color: color.textMid, fontSize: font.size.xs - 1 }}>
+                                              + この返しへの反応を追加
+                                            </Button>
+                                            {broken && (
+                                              <span style={{ fontSize: font.size.xs - 1, color: color.danger, width: '100%' }}>
+                                                行き先のセクションが削除されたため「終話」扱いになっています
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {/* 子の反応（入れ子） */}
+                                        {hasChildren && (
+                                          <div style={{ marginTop: 6 }}>
+                                            {renderResponses(r.children, p, depth + 1)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  });
+                                  return renderResponses(node.responses || [], [], 0);
+                                })()}
+                                <Button variant="ghost" size="sm" onClick={() => feTreeAddResponseAt(node.id, [])} style={{
                                   border: `1px dashed ${color.gray400}`, color: color.textMid,
                                   fontSize: font.size.xs - 1,
                                 }}>+ 反応を追加</Button>
@@ -1190,6 +1252,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               アウト返しチップを挿入
             </button>
           )}
+          {ctxMenu.allowBranch !== false && (
           <button onClick={() => {
             setBranchTitle('');
             setBranchOptions(['', '']);
@@ -1206,6 +1269,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
             }}>⑂</span>
             分岐ブロックを挿入
           </button>
+          )}
         </div>
         );
       })()}

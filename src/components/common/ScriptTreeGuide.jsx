@@ -5,15 +5,14 @@ import ScriptBody from './ScriptBody';
 /**
  * ツリー型スクリプトのガイドモード（架電者向け閲覧）。
  *
- * - 今いるセクションだけ全文表示し、相手の反応ボタンで次のセクションへ進む
- * - 通過済みセクションは見出しだけ畳んで上に積む（クリックで展開・「ここからやり直す」可）
- * - 行き先のない反応は「終話」扱い
- * - resetKey が変わる（=次の企業に移る）と自動で最初に戻る
+ * セクション = { id, name, talk, responses }
+ * 反応       = { label(相手の言葉), answer(こちらの返し・任意),
+ *               children(さらに相手の反応・任意), nextId(次セクション/null=終話) }
  *
- * @param tree     { version, startId, nodes: [{ id, name, talk, responses: [{label, nextId}] }] }
- * @param rebuttal アウト返しデータ（トーク内の [[Q:]] チップが参照）
- * @param resetKey 企業切替で変わるキー
- * @param style    フォントサイズ等
+ * - 今いるセクションだけ表示し、反応ボタン→返し→さらに反応…と入れ子で進む
+ * - 入れ子の終点で「次のセクションへ」or 終話
+ * - 通過済みセクションは畳んで上に積む（展開・「ここからやり直す」可）
+ * - resetKey が変わる（=次の企業に移る）と自動で最初に戻る
  */
 export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }) {
   const nodeMap = useMemo(() => new Map((tree?.nodes || []).map(n => [n.id, n])), [tree]);
@@ -22,13 +21,16 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
     return tree?.nodes?.[0]?.id || null;
   }, [tree, nodeMap]);
 
-  const [path, setPath] = useState(() => (startId ? [startId] : []));
-  const [ended, setEnded] = useState(null);      // { label } 終話に到達したとき
-  const [openPassed, setOpenPassed] = useState(null); // 展開中の通過済みindex
+  // path: 通過してきたセクション [{ nodeId, via }] via=前のセクションでの選択経路ラベル
+  // chain: 現在のセクション内で選んだ反応のインデックス経路
+  const [path, setPath] = useState(() => (startId ? [{ nodeId: startId, via: null }] : []));
+  const [chain, setChain] = useState([]);
+  const [ended, setEnded] = useState(null);      // { label } 終話に到達
+  const [openPassed, setOpenPassed] = useState(null);
 
-  // 次の企業へ移ったら最初に戻る
   useEffect(() => {
-    setPath(startId ? [startId] : []);
+    setPath(startId ? [{ nodeId: startId, via: null }] : []);
+    setChain([]);
     setEnded(null);
     setOpenPassed(null);
   }, [resetKey, startId]);
@@ -37,30 +39,69 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
     return <div style={{ color: color.textLight, fontSize: font.size.sm, ...style }}>ツリー型スクリプトが未設定です</div>;
   }
 
-  const currentId = path[path.length - 1];
+  const currentId = path[path.length - 1]?.nodeId;
   const current = nodeMap.get(currentId);
   const passed = path.slice(0, -1);
 
-  const handleResponse = (resp) => {
-    setOpenPassed(null);
-    if (resp.nextId && nodeMap.has(resp.nextId)) {
-      setPath(prev => [...prev, resp.nextId]);
-    } else {
-      setEnded({ label: resp.label });
+  // chain を現在ノードの反応ツリーに解決
+  const chainResps = [];
+  {
+    let arr = current?.responses || [];
+    for (const idx of chain) {
+      const r = arr[idx];
+      if (!r) break;
+      chainResps.push(r);
+      arr = r.children || [];
     }
+  }
+  const lastResp = chainResps[chainResps.length - 1] || null;
+  const currentChoices = lastResp ? (lastResp.children || []) : (current?.responses || []);
+  const chainSummary = (extra) => [...chainResps.map(r => r.label), ...(extra ? [extra] : [])].filter(Boolean).join(' › ');
+
+  const advanceTo = (nextId, viaLabel) => {
+    setPath(prev => [...prev, { nodeId: nextId, via: viaLabel }]);
+    setChain([]);
+    setOpenPassed(null);
+  };
+
+  const choose = (resp) => {
+    const idx = currentChoices.indexOf(resp);
+    const hasChildren = (resp.children || []).length > 0;
+    const hasAnswer = (resp.answer || '').trim();
+    if (!hasChildren && !hasAnswer) {
+      // 返しも続きも無い反応: 即遷移 or 終話（旧データ互換）
+      if (resp.nextId && nodeMap.has(resp.nextId)) advanceTo(resp.nextId, chainSummary(resp.label));
+      else setEnded({ label: chainSummary(resp.label) || resp.label });
+      return;
+    }
+    setChain(prev => [...prev, idx]);
   };
 
   const rewindTo = (idx) => {
     setPath(prev => prev.slice(0, idx + 1));
+    setChain([]);
     setEnded(null);
     setOpenPassed(null);
   };
 
+  // チェーン終端の遷移ボタン（子が無く、返しを見せた後）
+  const terminal = lastResp && (lastResp.children || []).length === 0 ? lastResp : null;
+  const terminalNext = terminal && terminal.nextId && nodeMap.has(terminal.nextId) ? nodeMap.get(terminal.nextId) : null;
+
   return (
     <div style={{ fontFamily: font.family.sans, ...style }}>
-      {/* 最初からボタン（進んでいるときだけ） */}
-      {(passed.length > 0 || ended) && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+      {(passed.length > 0 || ended || chain.length > 0) && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 4 }}>
+          {chain.length > 0 && !ended && (
+            <button type="button" onClick={() => setChain(prev => prev.slice(0, -1))}
+              style={{
+                background: 'transparent', border: `1px solid ${color.border}`,
+                borderRadius: radius.pill, padding: '2px 10px', cursor: 'pointer',
+                fontSize: '0.85em', color: color.textMid, fontFamily: font.family.sans,
+              }}>
+              ← 1つ戻る
+            </button>
+          )}
           <button type="button" onClick={() => rewindTo(0)}
             style={{
               background: 'transparent', border: `1px solid ${color.border}`,
@@ -73,13 +114,11 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
       )}
 
       {/* 通過済みセクション（畳み） */}
-      {passed.map((id, idx) => {
-        const node = nodeMap.get(id);
+      {passed.map((entry, idx) => {
+        const node = nodeMap.get(entry.nodeId);
         if (!node) return null;
         const open = openPassed === idx;
-        // この通過時に選んだ反応ラベル（次のpath要素への遷移に使ったもの）
-        const nextInPath = path[idx + 1];
-        const chosen = (node.responses || []).find(r => r.nextId === nextInPath)?.label || '';
+        const via = path[idx + 1]?.via || '';
         return (
           <div key={idx} style={{
             marginBottom: 4, borderRadius: radius.md, overflow: 'hidden',
@@ -95,9 +134,9 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
               }}>
               <span style={{ flexShrink: 0 }}>{open ? '▾' : '▸'}</span>
               <span style={{ fontWeight: font.weight.semibold, color: color.textMid }}>{node.name || 'セクション'}</span>
-              {chosen && (
+              {via && (
                 <span style={{ fontSize: '0.85em', color: color.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  → {chosen}
+                  → {via}
                 </span>
               )}
               <span style={{ marginLeft: 'auto', fontSize: '0.8em', color: color.textLight, flexShrink: 0 }}>通過済</span>
@@ -120,21 +159,19 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
         );
       })}
 
-      {/* 終話表示 */}
       {ended ? (
         <div style={{
           borderRadius: radius.md, border: `1px solid ${color.border}`,
           background: alpha(color.navyLight, 0.04), padding: '14px 16px', textAlign: 'center',
         }}>
           <div style={{ fontSize: '0.95em', fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>
-            終話（{ended.label}）
+            終話{ended.label ? `（${ended.label}）` : ''}
           </div>
           <div style={{ fontSize: '0.85em', color: color.textMid }}>
             お疲れさまでした。架電結果を入力してください。
           </div>
         </div>
       ) : current ? (
-        /* 現在のセクション */
         <div style={{
           borderRadius: radius.md, overflow: 'hidden',
           border: `1px solid ${alpha(color.navyLight, 0.45)}`,
@@ -151,14 +188,37 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
           <div style={{ padding: '10px 14px' }}>
             <ScriptBody text={current.talk || ''} rebuttal={rebuttal} style={{ lineHeight: 1.8 }} />
           </div>
-          {(current.responses || []).length > 0 && (
+
+          {/* これまでに選んだ反応とこちらの返し（チェーン） */}
+          {chainResps.map((r, i) => (
+            <div key={i} style={{ borderTop: `1px dashed ${color.border}` }}>
+              <div style={{
+                padding: '6px 14px', display: 'flex', gap: 8, alignItems: 'baseline',
+                background: alpha(color.navyLight, 0.05),
+              }}>
+                <span style={{ fontSize: '0.78em', fontWeight: font.weight.semibold, color: color.textLight, flexShrink: 0 }}>相手</span>
+                <span style={{ fontSize: '0.92em', fontWeight: font.weight.semibold, color: color.navyDark }}>{r.label}</span>
+              </div>
+              {(r.answer || '').trim() && (
+                <div style={{ padding: '8px 14px', display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                  <span style={{ fontSize: '0.78em', fontWeight: font.weight.semibold, color: color.gold, flexShrink: 0 }}>返し</span>
+                  <span style={{ flex: 1 }}>
+                    <ScriptBody text={r.answer} rebuttal={rebuttal} style={{ lineHeight: 1.8 }} />
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* 次の選択肢 or 遷移/終話 */}
+          {currentChoices.length > 0 ? (
             <div style={{ padding: '8px 14px 12px', borderTop: `1px dashed ${color.border}` }}>
               <div style={{ fontSize: '0.82em', color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 6 }}>
                 相手の反応は？
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {(current.responses || []).map((r, i) => (
-                  <button key={i} type="button" onClick={() => handleResponse(r)}
+                {currentChoices.map((r, i) => (
+                  <button key={i} type="button" onClick={() => choose(r)}
                     style={{
                       background: color.white,
                       border: `1px solid ${alpha(color.navyLight, 0.5)}`,
@@ -172,12 +232,35 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
                       lineHeight: 1.5,
                     }}>
                     {r.label || `反応${i + 1}`}
-                    {(!r.nextId || !nodeMap.has(r.nextId)) && (
-                      <span style={{ marginLeft: 4, fontSize: '0.8em', color: color.textLight, fontWeight: font.weight.normal }}>終話</span>
-                    )}
                   </button>
                 ))}
               </div>
+            </div>
+          ) : terminal && (
+            <div style={{ padding: '8px 14px 12px', borderTop: `1px dashed ${color.border}`, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {terminalNext ? (
+                <button type="button"
+                  onClick={() => advanceTo(terminal.nextId, chainSummary())}
+                  style={{
+                    background: color.navy, border: `1px solid ${color.navy}`, color: color.white,
+                    borderRadius: radius.pill, padding: '6px 16px',
+                    fontSize: '0.92em', fontWeight: font.weight.semibold,
+                    cursor: 'pointer', fontFamily: font.family.sans, lineHeight: 1.5,
+                  }}>
+                  次のセクションへ：{terminalNext.name || 'セクション'} →
+                </button>
+              ) : (
+                <button type="button"
+                  onClick={() => setEnded({ label: chainSummary() })}
+                  style={{
+                    background: color.white, border: `1px solid ${color.border}`, color: color.textMid,
+                    borderRadius: radius.pill, padding: '6px 16px',
+                    fontSize: '0.92em', fontWeight: font.weight.semibold,
+                    cursor: 'pointer', fontFamily: font.family.sans, lineHeight: 1.5,
+                  }}>
+                  終話（ここで終了）
+                </button>
+              )}
             </div>
           )}
         </div>
