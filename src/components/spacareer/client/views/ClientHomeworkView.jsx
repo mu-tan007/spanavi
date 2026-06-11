@@ -30,6 +30,7 @@ export default function ClientHomeworkView() {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [kickoffHearingStatus, setKickoffHearingStatus] = useState(null);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -44,6 +45,14 @@ export default function ClientHomeworkView() {
       setCustomer(cust);
 
       if (cust) {
+        // 第0回（キックオフヒアリング）の提出状況。事前課題画面の先頭に表示する。
+        const { data: kh } = await supabase
+          .from('spacareer_kickoff_hearing_sessions')
+          .select('status')
+          .eq('customer_id', cust.id)
+          .maybeSingle();
+        if (!cancelled) setKickoffHearingStatus(kh?.status || null);
+
         const { data: hws } = await supabase
           .from('spacareer_homework')
           .select('id, session_no, status, notified_at, due_at, submitted_at')
@@ -207,10 +216,24 @@ export default function ClientHomeworkView() {
 
   if (loading) return <Centered>読み込み中...</Centered>;
   if (!customer) return <Centered>受講情報が見つかりません。運営にお問い合わせください。</Centered>;
+
+  const kickoffSubmitted = ['submitted', 'ai_extracted', 'completed'].includes(kickoffHearingStatus);
+  const kickoffNote = kickoffSubmitted ? (
+    <Card padding="md" variant="subtle" style={{ marginBottom: space[3] }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+        <Badge variant="success" dot>提出済み</Badge>
+        <span style={{ fontSize: font.size.sm, color: color.textMid }}>
+          第0回（キックオフヒアリング）は提出済みです。
+        </span>
+      </div>
+    </Card>
+  ) : null;
+
   if (homeworks.length === 0) {
     return (
       <div style={{ padding: space[6] }}>
         <Heading />
+        {kickoffNote}
         <Card title="現在配信中の事前課題はありません" padding="lg">
           <p style={{ fontSize: font.size.sm, color: color.textMid, margin: 0 }}>
             セッション後にトレーナーから通知されるとここに表示されます。
@@ -223,6 +246,7 @@ export default function ClientHomeworkView() {
   return (
     <div style={{ padding: space[6], display: 'flex', flexDirection: 'column', gap: space[4], paddingBottom: 120 }}>
       <Heading />
+      {kickoffNote}
 
       <div style={{ display: 'flex', gap: space[3], alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 200 }}>

@@ -195,9 +195,9 @@ export default function ClientCoursesView() {
       </div>
 
       {videos.length === 0 ? (
-        <Card title="講座動画はまだありません" padding="lg">
+        <Card title="まだお客様にカスタマイズされた講座はありません" padding="lg">
           <p style={{ fontSize: font.size.sm, color: color.textMid, margin: 0 }}>
-            運営がアップロード次第、ここに表示されます。
+            随時、研修内容に合わせた講座をお送りいたします。
           </p>
         </Card>
       ) : (

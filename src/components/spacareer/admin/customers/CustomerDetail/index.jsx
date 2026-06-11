@@ -127,28 +127,36 @@ export default function CustomerDetail({ customerId, isAdmin }) {
   const member = customer?.member || {};
   const age = ageFromBirthdate(customer?.birthdate);
 
-  // キックオフ(第0回)完了済み＝第1回に進んだ受講生には「第1回セッション管理」タブを表示
-  const kickoffCompleted = (detail.sessions || []).find((s) => s.session_no === 0)?.status === 'completed';
-  const tabs = kickoffCompleted
-    ? TABS.flatMap((t) => (t.id === 'kickoff'
-      ? [t, { id: 'session1', label: '第1回セッション管理' }]
-      : [t]))
+  // 第N回セッション管理タブは、前のセッション(第N-1回)が完了した受講生にだけ表示する。
+  // 例: キックオフ(第0回)完了→第1回タブ、第1回完了→第2回タブ … と進行に応じて増える。
+  const completedNos = new Set(
+    (detail.sessions || []).filter((s) => s.status === 'completed').map((s) => s.session_no));
+  const sessionMgmtTabs = [];
+  for (let n = 1; n <= 8; n++) {
+    if (completedNos.has(n - 1)) sessionMgmtTabs.push({ id: `session${n}`, label: `第${n}回セッション管理` });
+  }
+  const tabs = sessionMgmtTabs.length
+    ? TABS.flatMap((t) => (t.id === 'kickoff' ? [t, ...sessionMgmtTabs] : [t]))
     : TABS;
 
   let CenterContent = null;
-  switch (tab) {
-    case 'basic':           CenterContent = <TabBasicInfo detail={detail} />; break;
-    case 'kickoff_hearing': CenterContent = <TabKickoffHearing detail={detail} onRefresh={refresh} />; break;
-    case 'kickoff':         CenterContent = <TabKickoff detail={detail} onRefresh={refresh} />; break;
-    case 'session1':        CenterContent = <TabSessionManage detail={detail} sessionNo={1} onRefresh={refresh} />; break;
-    case 'sessions':    CenterContent = <TabSessionHistory detail={detail} onRefresh={refresh} />; break;
-    case 'homework':    CenterContent = <TabHomework detail={detail} />; break;
-    case 'strengths':   CenterContent = <TabStrengths detail={detail} />; break;
-    case 'files':       CenterContent = <TabFiles detail={detail} />; break;
-    case 'memo':        CenterContent = <TabMemo detail={detail} />; break;
-    case 'members':     CenterContent = <TabMembers detail={detail} isAdmin={isAdmin} onRefresh={refresh} />; break;
-    case 'video_logs':  CenterContent = <TabVideoLogs detail={detail} />; break;
-    default:            CenterContent = null;
+  const sessionMgmtMatch = /^session([1-8])$/.exec(tab);
+  if (sessionMgmtMatch) {
+    CenterContent = <TabSessionManage detail={detail} sessionNo={parseInt(sessionMgmtMatch[1], 10)} onRefresh={refresh} />;
+  } else {
+    switch (tab) {
+      case 'basic':           CenterContent = <TabBasicInfo detail={detail} />; break;
+      case 'kickoff_hearing': CenterContent = <TabKickoffHearing detail={detail} onRefresh={refresh} />; break;
+      case 'kickoff':         CenterContent = <TabKickoff detail={detail} onRefresh={refresh} />; break;
+      case 'sessions':    CenterContent = <TabSessionHistory detail={detail} onRefresh={refresh} />; break;
+      case 'homework':    CenterContent = <TabHomework detail={detail} />; break;
+      case 'strengths':   CenterContent = <TabStrengths detail={detail} />; break;
+      case 'files':       CenterContent = <TabFiles detail={detail} />; break;
+      case 'memo':        CenterContent = <TabMemo detail={detail} />; break;
+      case 'members':     CenterContent = <TabMembers detail={detail} isAdmin={isAdmin} onRefresh={refresh} />; break;
+      case 'video_logs':  CenterContent = <TabVideoLogs detail={detail} />; break;
+      default:            CenterContent = null;
+    }
   }
 
   return (

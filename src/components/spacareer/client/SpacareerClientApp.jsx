@@ -97,7 +97,7 @@ export default function SpacareerClientApp() {
         if (!member) { if (!cancelled) setBootstrapped(true); return; }
         const { data: cust } = await supabase
           .from('spacareer_customers')
-          .select('id, social_style_completed_at')
+          .select('id, social_style_completed_at, current_session_no')
           .eq('member_id', member.id)
           .maybeSingle();
         if (!cust) { if (!cancelled) setBootstrapped(true); return; }
@@ -114,12 +114,17 @@ export default function SpacareerClientApp() {
           .eq('customer_id', cust.id)
           .maybeSingle();
         if (cancelled) return;
-        const hearingStillActive = sess && !['completed'].includes(sess.status);
-        setHearingActive(!!hearingStillActive);
+        // キックオフヒアリングを「表示・強制」するのは、まだ提出されておらず、かつ
+        // 第1回に進んでいない間だけ。提出(submitted/ai_extracted/completed) または
+        // 第1回受講中(current_session_no>=1)になったら、メニューから消しロックも解除する。
+        const hearingSubmitted = !!sess && ['submitted', 'ai_extracted', 'completed'].includes(sess.status);
+        const progressedPastKickoff = (cust.current_session_no ?? 0) >= 1;
+        const hearingStillActive = !!sess && !hearingSubmitted && !progressedPastKickoff;
+        setHearingActive(hearingStillActive);
 
         // 強制リダイレクト優先順位:
         //   1. ソーシャルスタイル診断 未完了
-        //   2. キックオフヒアリング 未完了
+        //   2. キックオフヒアリング 未完了（かつ第1回未到達）
         if (!socialStyleDone) {
           setCurrentTab('social_style');
         } else if (hearingStillActive && ['unnotified','unstarted','in_progress'].includes(sess.status)) {

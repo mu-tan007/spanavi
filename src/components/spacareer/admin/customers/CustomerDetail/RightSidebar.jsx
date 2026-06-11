@@ -16,10 +16,12 @@ export default function RightSidebar({ detail, activeTab }) {
   if (!detail) return null;
   const { customer, sessions = [], homework = [], strength, kickoff, trainer } = detail;
 
+  const sessMatch = /^session([1-8])$/.exec(activeTab);
+  if (sessMatch) return <SilentSidebar label={`第${sessMatch[1]}回セッション管理`} />;
+
   switch (activeTab) {
     case 'basic':       return <BasicSidebar customer={customer} trainer={trainer} />;
     case 'kickoff':     return <KickoffSidebar kickoff={kickoff} sessions={sessions} />;
-    case 'session1':    return <SilentSidebar label="第1回セッション管理" />;
     case 'sessions':    return <SessionsSidebar sessions={sessions} />;
     case 'homework':    return <HomeworkSidebar homework={homework} />;
     case 'strengths':   return <StrengthSidebar strength={strength} />;

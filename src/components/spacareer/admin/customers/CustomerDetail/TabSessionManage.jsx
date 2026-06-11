@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { color, space, radius, font, alpha } from '../../../../../constants/design';
-import { Button, Card, Badge } from '../../../../ui';
+import { Button, Input, Card, Badge } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { uploadSessionVideoWithAudio, generateSessionMinutes } from '../../../../../lib/spacareer/sessionMinutes';
 import SessionCompleteFlow from './SessionCompleteFlow';
+
+function pad(n) { return n < 10 ? `0${n}` : String(n); }
+function toDateTimeInput(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 // ============================================================
 // 第N回 セッション管理タブ（キックオフ管理タブと同構成・session_no>=1用）
@@ -25,13 +32,28 @@ const CHECK_FIELDS = [
 ];
 
 export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
-  const { customer, sessions, videos } = detail || {};
+  const { customer, sessions, videos, kickoff } = detail || {};
   const customerId = customer?.id;
 
   const targetSession = useMemo(
     () => (sessions || []).find((s) => s.session_no === sessionNo) || null, [sessions, sessionNo]);
+  const prevSession = useMemo(
+    () => (sessions || []).find((s) => s.session_no === sessionNo - 1) || null, [sessions, sessionNo]);
+  const nextSession = useMemo(
+    () => (sessions || []).find((s) => s.session_no === sessionNo + 1) || null, [sessions, sessionNo]);
+
+  // 前回の引き継ぎ（質問記録・議事録）。第1回の前回はキックオフ(kickoff_checks)、
+  // 第2回以降の前回は前セッションの hearing_sheet_json から取得する。
+  const prevLabel = sessionNo === 1 ? 'キックオフ' : `第${sessionNo - 1}回`;
+  const prevQuestions = sessionNo === 1
+    ? (kickoff?.customer_questions_log || '')
+    : (prevSession?.hearing_sheet_json?.customer_questions_log || '');
+  const prevMinutes = prevSession
+    ? (prevSession.minutes_final || prevSession.minutes_draft || '')
+    : '';
 
   const [form, setForm] = useState(() => buildForm(targetSession));
+  const [nextStartAt, setNextStartAt] = useState(() => toDateTimeInput(nextSession?.scheduled_at));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -41,6 +63,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const videoFileRef = useRef(null);
 
   useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id, targetSession?.hearing_sheet_json]);
+  useEffect(() => { setNextStartAt(toDateTimeInput(nextSession?.scheduled_at)); }, [nextSession?.id, nextSession?.scheduled_at]);
 
   const allChecked = CHECK_FIELDS.every((f) => !!form[f.key]);
   const checkedCount = CHECK_FIELDS.filter((f) => !!form[f.key]).length;
@@ -116,6 +139,17 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
         })
         .eq('id', targetSession.id);
       if (error) throw error;
+
+      // 次回（第N+1回）の開始日時を更新。datetime-local はTZ無しのローカル文字列のため
+      // new Date(...).toISOString() でブラウザのローカル時刻として正規化してから保存する
+      // （timestamptz にそのまま渡すと UTC 解釈で9時間ズレるため）。
+      if (nextSession && nextStartAt) {
+        const { error: e2 } = await supabase.from('spacareer_sessions')
+          .update({ scheduled_at: new Date(nextStartAt).toISOString() })
+          .eq('id', nextSession.id);
+        if (e2) throw e2;
+      }
+
       setSavedAt(new Date());
       onRefresh && onRefresh();
     } catch (e) {
@@ -138,6 +172,45 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
 
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
+      <Card padding="md"
+        title={`前回（${prevLabel}）からの引き継ぎ`}
+        description="前回のお客様からの質問記録と議事録です。今回のセッションで解消できるよう、まず確認してください。">
+        <div style={{ display: 'grid', gap: space[3] }}>
+          <div>
+            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+              前回のお客様からの質問記録
+            </div>
+            {prevQuestions ? (
+              <pre style={{
+                margin: 0, padding: space[3],
+                background: alpha(color.warn, 0.06), borderRadius: radius.md,
+                fontSize: font.size.sm, fontFamily: font.family.sans,
+                color: color.textDark, whiteSpace: 'pre-wrap',
+                maxHeight: 200, overflow: 'auto',
+              }}>{prevQuestions}</pre>
+            ) : (
+              <div style={{ fontSize: font.size.sm, color: color.textLight }}>前回の質問記録はありません。</div>
+            )}
+          </div>
+          <div>
+            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] }}>
+              前回（{prevLabel}）の議事録
+            </div>
+            {prevMinutes ? (
+              <pre style={{
+                margin: 0, padding: space[3],
+                background: color.cream, borderRadius: radius.md,
+                fontSize: font.size.sm, fontFamily: font.family.sans,
+                color: color.textDark, whiteSpace: 'pre-wrap',
+                maxHeight: 240, overflow: 'auto',
+              }}>{prevMinutes}</pre>
+            ) : (
+              <div style={{ fontSize: font.size.sm, color: color.textLight }}>前回の議事録はまだありません。</div>
+            )}
+          </div>
+        </div>
+      </Card>
+
       <Card padding="md"
         title={`第${sessionNo}回 動画・AI議事録`}
         description="セッションの録画ファイルをアップロードし、AI議事録を生成します。セッション完了の必須ゲートです。"
@@ -254,8 +327,18 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
         />
       </Card>
 
+      {nextSession && (
+        <Card padding="md" title={`次回（第${sessionNo + 1}回）開始日時`}
+          description="次回セッションの開始日時を確定します。セッション履歴・受講生ポータルにも反映されます。">
+          <Input size="sm" label={`第${sessionNo + 1}回 開始日時（日付＋時間）`} type="datetime-local"
+            value={nextStartAt}
+            onChange={(e) => setNextStartAt(e.target.value)}
+            hint="保存すると次回セッションのスケジュールに反映されます。" />
+        </Card>
+      )}
+
       <div style={{ display: 'flex', gap: space[2], alignItems: 'center' }}>
-        <Button variant="outline" loading={saving} onClick={handleSave}>ヒアリング内容を保存</Button>
+        <Button variant="outline" loading={saving} onClick={handleSave}>保存</Button>
         {savedAt && (
           <span style={{ fontSize: font.size.xs, color: color.success }}>
             保存しました（{savedAt.toLocaleTimeString()}）

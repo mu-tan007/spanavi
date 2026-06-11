@@ -13,6 +13,8 @@ import { supabase } from '../../../../lib/supabase';
 
 const SESSIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
+function pad(n) { return n < 10 ? `0${n}` : String(n); }
+
 export default function ClientHistoryView() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -88,16 +90,25 @@ export default function ClientHistoryView() {
     },
     {
       key: 'date',
-      label: '実施日',
-      width: 160,
+      label: '実施日／予定日時',
+      width: 180,
       align: 'right',
       render: row => {
-        const d = row.completed_at || row.started_at || row.scheduled_at;
-        if (!d) return <span style={{ color: color.textLight }}>未確定</span>;
-        const date = new Date(d);
+        // 完了済みは実施日（完了日時）、それ以外は予定日時を表示。
+        // 管理画面と揃え、キックオフ・第1回と完了済みは時刻まで、第2〜8回の予定は日付のみ＋「仮決め」。
+        const isCompleted = row.status === 'completed' || !!row.completed_at;
+        const raw = isCompleted ? (row.completed_at || row.started_at || row.scheduled_at) : row.scheduled_at;
+        if (!raw) return <span style={{ color: color.textLight }}>未確定</span>;
+        const d = new Date(raw);
+        const provisional = !isCompleted && row.session_no >= 2;
+        const withTime = isCompleted || row.session_no <= 1;
+        const dateStr = withTime
+          ? `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+          : `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
         return (
-          <span style={{ fontFamily: font.family.mono, color: color.textDark }}>
-            {date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: space[1] }}>
+            <span style={{ fontFamily: font.family.mono, color: color.textDark }}>{dateStr}</span>
+            {provisional && <span style={{ fontSize: font.size.xs, color: color.textLight }}>仮決め</span>}
           </span>
         );
       },
