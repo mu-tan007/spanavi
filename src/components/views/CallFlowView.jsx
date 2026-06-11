@@ -741,7 +741,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // getterName: 録音を引くZoomアカウントの持ち主（過去レコードの手動取得時は架電した本人を指定）
   const fetchRecordingUrl = async (phone, calledAt, prevCalledAt = null, getterName = currentUser) => {
     try {
-      const member = members.find(m => (typeof m === 'string' ? m : m.name) === getterName);
+      // 名前照合はスペース除去で正規化（ログイン名「篠宮拓武」vs名簿「篠宮 拓武」の
+      // 表記ゆれで zoomUserId が引けず録音未取得になる事故の再発防止）
+      const normName = (s) => String(s || '').replace(/[\s　]/g, '');
+      const member = members.find(m => normName(typeof m === 'string' ? m : m.name) === normName(getterName));
       const zoomUserId = typeof member === 'object' ? member?.zoomUserId : null;
       if (!zoomUserId || !phone) return null;
       const normalizedPhone = phone.replace(/[^\d]/g, '');
