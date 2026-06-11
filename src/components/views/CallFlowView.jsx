@@ -22,7 +22,6 @@ import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
 import ScriptBody from '../common/ScriptBody';
 import ScriptTreeGuide from '../common/ScriptTreeGuide';
-import RebuttalQuickSearch from '../common/RebuttalQuickSearch';
 import { resolveListContacts } from '../../utils/listContacts';
 
 // ============================================================
@@ -1727,7 +1726,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const showGuide = hasTree && scriptViewMode === 'guide';
               return (
                 <>
-                  <RebuttalQuickSearch rebuttal={rebuttal} compact />
                   {hasTree && (
                     <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
                       {[['guide', 'ガイド'], ['text', '全文']].map(([m, l]) => (
@@ -2569,7 +2567,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const showGuide = hasTree && scriptViewMode === 'guide';
               return (
                 <>
-                  <RebuttalQuickSearch rebuttal={rebuttal} />
                   {hasTree && (
                     <div style={{ display: 'flex', gap: space[1], marginBottom: space[2] }}>
                       {[['guide', 'ガイド'], ['text', '全文']].map(([m, l]) => (

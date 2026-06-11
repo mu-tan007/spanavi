@@ -56,7 +56,12 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
     }
   };
 
-  // 反応ツリーを再帰描画（トーナメント表のようにインデント＋縦線で枝を表現）
+  // 反応ツリーを再帰描画（トーナメント表のようにインデント＋縦線で枝を表現）。
+  // 色のルール: 相手=紺系 / こちらの返し=金系 で話者を色分けし、
+  // 同じ深さ（同列の選択肢）は同じ濃さ、深くなるほど薄くしていく。
+  const navyFade = (depth) => Math.max(0.04, 0.16 - depth * 0.045);
+  const navyBorderFade = (depth) => Math.max(0.18, 0.55 - depth * 0.12);
+  const goldFade = (depth) => Math.max(0.05, 0.17 - depth * 0.045);
   const renderResponses = (nodeId, resps, basePath, depth) => resps.map((r, ri) => {
     const p = [...basePath, ri];
     const key = `${nodeId}:${p.join('.')}`;
@@ -68,10 +73,10 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
       <div key={ri} style={{
         marginTop: 4,
         marginLeft: depth ? 16 : 0,
-        borderLeft: depth ? `2px solid ${alpha(color.navyLight, 0.25)}` : 'none',
+        borderLeft: depth ? `2px solid ${alpha(color.navyLight, navyBorderFade(depth) * 0.6)}` : 'none',
         paddingLeft: depth ? 10 : 0,
       }}>
-        {/* 相手の反応（クリックで強調） */}
+        {/* 相手の反応（紺系・クリックで強調） */}
         <button
           type="button"
           onClick={() => toggleMark(key, !hasChildren ? r.nextId : null)}
@@ -79,8 +84,8 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
           style={{
             display: 'flex', alignItems: 'baseline', gap: 6, width: '100%',
             textAlign: 'left', cursor: 'pointer',
-            background: isMarked ? color.navy : alpha(color.info, 0.05),
-            border: `1px solid ${isMarked ? color.navy : alpha(color.navyLight, 0.3)}`,
+            background: isMarked ? color.navy : alpha(color.navyLight, navyFade(depth)),
+            border: `1px solid ${isMarked ? color.navy : alpha(color.navyLight, navyBorderFade(depth))}`,
             color: isMarked ? color.white : color.navyDark,
             borderRadius: radius.md,
             padding: '4px 10px',
@@ -90,7 +95,10 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
             lineHeight: 1.5,
           }}
         >
-          <span style={{ flexShrink: 0, fontSize: '0.8em', color: isMarked ? alpha(color.white, 0.7) : color.textLight, fontWeight: font.weight.normal }}>相手</span>
+          <span style={{
+            flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.semibold,
+            color: isMarked ? alpha(color.white, 0.75) : color.navyLight,
+          }}>相手</span>
           <span style={{ flex: 1, minWidth: 0, whiteSpace: 'normal' }}>{r.label || `反応${ri + 1}`}</span>
           {nextNode && (
             <span style={{ flexShrink: 0, fontSize: '0.82em', fontWeight: font.weight.normal, color: isMarked ? alpha(color.white, 0.8) : color.navyLight }}>
@@ -103,17 +111,17 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
             </span>
           )}
         </button>
-        {/* こちらの返し */}
+        {/* こちらの返し（金系・深さで薄く） */}
         {(r.answer || '').trim() && (
           <div style={{
             margin: '3px 0 0 10px',
             padding: '5px 10px',
-            background: isMarked ? alpha(color.gold, 0.12) : alpha(color.navyLight, 0.04),
-            borderLeft: `3px solid ${isMarked ? color.gold : alpha(color.navy, 0.35)}`,
+            background: alpha(color.gold, isMarked ? 0.2 : goldFade(depth)),
+            borderLeft: `3px solid ${alpha(color.gold, isMarked ? 0.95 : Math.max(0.35, 0.85 - depth * 0.15))}`,
             borderRadius: radius.sm,
             display: 'flex', gap: 6, alignItems: 'baseline',
           }}>
-            <span style={{ flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.semibold, color: color.gold }}>返し</span>
+            <span style={{ flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.semibold, color: '#A87E0E' }}>返し</span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <ScriptBody text={r.answer} rebuttal={rebuttal} style={{ lineHeight: 1.7 }} />
             </span>
