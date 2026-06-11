@@ -179,9 +179,6 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
             </div>
             <div style={{ color: color.textDark, marginBottom: 4 }}>
               アポ1件あたり <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>¥{incl.toLocaleString()}</span>
-              <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid }}>
-                （税別 ¥{listUnit.toLocaleString()} × 1.1）
-              </span>
             </div>
             <div style={{ fontSize: 10, color: color.textLight, lineHeight: 1.5 }}>
               リスト編集の「アポ単価」で設定。報酬マスタより優先して、アポ報告時の当社売上に自動反映されます。
