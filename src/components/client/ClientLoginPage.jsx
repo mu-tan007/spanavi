@@ -27,6 +27,11 @@ export default function ClientLoginPage() {
     // パスワードもコピペ時の前後空白・全角混入を吸収（発行されるPWは半角英数のみ）
     const pw = toHankaku(password);
     const email = uname.includes('@') ? uname : `${uname}@${EMAIL_DOMAIN}`;
+    // localStorage に残った古い/壊れた/別ロールのセッションがあると、
+    // ログインが失敗・ループする（シークレットウィンドウでのみ入れる症状の正体。
+    // 昨夜のDB障害で死んだセッションや、PW再発行で無効化された旧トークンが残るため）。
+    // ログイン前に必ずローカルを掃除して、毎回クリーンな状態からサインインする。
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* 残骸が無くてもOK */ }
     const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password: pw });
     setSubmitting(false);
     if (authErr) {
