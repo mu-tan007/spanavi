@@ -15,11 +15,11 @@ import {
 import AnalyticsFilters from './analytics/AnalyticsFilters';
 import Funnel from './analytics/Funnel';
 import Heatmap from './analytics/Heatmap';
-import MemberRanking from './analytics/MemberRanking';
 import StrengthWeakness from './analytics/StrengthWeakness';
 import IndustryAnalytics from './analytics/IndustryAnalytics';
 import AppoPatternAnalytics from './analytics/AppoPatternAnalytics';
 import OverallSummary from './analytics/OverallSummary';
+import SalesRanking from './analytics/SalesRanking';
 import TeamComparison from './analytics/TeamComparison';
 import ConversionPanel from './analytics/ConversionPanel';
 import StatsView from './StatsView';
@@ -271,6 +271,7 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
       {tab === 'overall' && (
         <>
           <OverallSummary stats={orgStats} appoData={appoData} range={range} />
+          <SalesRanking appoData={appoData} range={range} teamMap={teamMap} />
           <Funnel stats={orgStats} appoData={appoData} from={range.from} to={range.to} loading={rankLoading} />
           <Heatmap heatmapData={heatmapData} loading={heatmapLoading} listName={selectedListName} />
           <AppoPatternAnalytics from={range.from} to={range.to} memberName={null} />
@@ -282,7 +283,6 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
       {tab === 'team' && (
         <>
           <TeamComparison rankByPerson={rankByPerson} appoData={appoData} range={range} teamMap={teamMap} />
-          <MemberRanking from={range.from} to={range.to} currentUser={currentUser} members={members} appoData={scopedAppoData} />
           <ConversionPanel appoData={scopedAppoData} range={range} by="getter" title="メンバー別 アポ転換率" />
           {scope === 'member' && scopeId && memberStats && (
             <StrengthWeakness memberName={scopeId} myStats={memberStats} orgStats={orgStats} />
