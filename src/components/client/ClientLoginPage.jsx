@@ -13,16 +13,24 @@ export default function ClientLoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+  // 全角英数字→半角に正規化（IMEが全角のまま入力されるケースが「ログインできない」
+  // 問い合わせの典型原因。見た目では気づけないため自動で吸収する）
+  const toHankaku = (s) => String(s || '')
+    .replace(/[Ａ-Ｚａ-ｚ０-９＠．－＿]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/[\s　]/g, '');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const uname = username.trim().toLowerCase();
+    const uname = toHankaku(username).toLowerCase();
+    // パスワードもコピペ時の前後空白・全角混入を吸収（発行されるPWは半角英数のみ）
+    const pw = toHankaku(password);
     const email = uname.includes('@') ? uname : `${uname}@${EMAIL_DOMAIN}`;
-    const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password: pw });
     setSubmitting(false);
     if (authErr) {
-      setError('ID またはパスワードが正しくありません');
+      setError('ID またはパスワードが正しくありません。IDとパスワードは半角英数字です（コピー&貼り付け時は前後の空白にご注意ください）');
       return;
     }
     const role = data?.user?.user_metadata?.role;
