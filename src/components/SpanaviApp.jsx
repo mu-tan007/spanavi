@@ -1406,7 +1406,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
-        {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} members={members} now={now} appoData={appoData} isAdmin={isAdmin} />}
+        {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} members={members} now={now} appoData={appoData} isAdmin={isAdmin} callListData={callListData} setCallFlowScreen={setCallFlowScreen} setCurrentTab={setCurrentTab} />}
         {currentTab === "overview" && isAdmin && <BusinessOverviewView appoData={appoData} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} currentUser={currentUser} setCallFlowScreen={setCallFlowScreen} onNavigateToCrmDetail={navigateToCrmDetail} />}
         {currentTab === "mypage" && (
           <MyPageView

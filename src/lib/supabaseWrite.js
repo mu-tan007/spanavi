@@ -2954,6 +2954,26 @@ export async function fetchCallListItemByAppo(company, phone, hintListId = null,
   return { data: null, error: null };
 }
 
+// 個人ダッシュボード: 指定メンバーの再アプローチ候補（キーマン断りHIGH・直近もキーマン断り）
+export async function fetchMemberReapproach(getterName) {
+  if (!getterName) return { data: [], error: null };
+  const { data, error } = await supabase.rpc('dashboard_member_reapproach', {
+    p_getter: getterName, p_org: getOrgId(),
+  });
+  if (error) console.error('[DB] fetchMemberReapproach error:', error);
+  return { data: data || [], error };
+}
+
+// 個人ダッシュボード: 曜日×時間帯のキーマン接続率ヒートマップ（指定メンバー）
+export async function fetchMemberHeatmap(getterName, fromISO, toISO) {
+  if (!getterName) return { data: [], error: null };
+  const { data, error } = await supabase.rpc('perf_call_heatmap', {
+    p_from: fromISO, p_to: toISO, p_getter_name: getterName,
+  });
+  if (error) console.error('[DB] fetchMemberHeatmap error:', error);
+  return { data: data || [], error };
+}
+
 export async function fetchCallActivity(fromISO, toISO) {
   const all = [];
   let from = 0;
