@@ -4,7 +4,7 @@ import { Select, Card } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useUrlState } from '../../hooks/useUrlState';
 import PageHeader from '../common/PageHeader';
-import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
+import { useRecordingPlayer } from '../common/RecordingPlayerProvider';
 import { useCallQueue } from './smart-queue/useCallQueue';
 import { fetchCallActivity, fetchAllRecallRecords, fetchMemberReapproach, fetchMemberHeatmap } from '../../lib/supabaseWrite';
 
@@ -22,7 +22,20 @@ const jstStartISO = (ds) => new Date(ds + 'T00:00:00+09:00').toISOString();
 const jstEndISO   = (ds) => new Date(ds + 'T23:59:59.999+09:00').toISOString();
 const getMemberName = (m) => (typeof m === 'string' ? m : (m?.name || ''));
 
-function computeRange(period, now) {
+// 直近12ヶ月の選択肢（YYYY-MM, 表示=YYYY年M月）
+function buildMonthOptions(now) {
+  const base = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+  const opts = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    opts.push({ value: ym, label: `${d.getFullYear()}年${d.getMonth() + 1}月` });
+  }
+  return opts;
+}
+
+// period: 'today' | 'week' | 'month'。month のときは monthStr(YYYY-MM) を当月として扱う
+function computeRange(period, now, monthStr) {
   const todayStr = jstDateStr(now);
   if (period === 'today') {
     return { fromISO: jstStartISO(todayStr), toISO: jstEndISO(todayStr), fromDate: todayStr, toDate: todayStr };
@@ -34,14 +47,22 @@ function computeRange(period, now) {
     const fromDate = jstDateStr(monday);
     return { fromISO: jstStartISO(fromDate), toISO: jstEndISO(todayStr), fromDate, toDate: todayStr };
   }
-  const fromDate = todayStr.slice(0, 8) + '01';
-  return { fromISO: jstStartISO(fromDate), toISO: jstEndISO(todayStr), fromDate, toDate: todayStr };
+  // month: 当月は今日まで、過去月は月末まで
+  const ym = monthStr || todayStr.slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const fromDate = `${ym}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const isCurrentMonth = ym === todayStr.slice(0, 7);
+  const toDate = isCurrentMonth ? todayStr : `${ym}-${String(lastDay).padStart(2, '0')}`;
+  return { fromISO: jstStartISO(fromDate), toISO: jstEndISO(toDate), fromDate, toDate };
 }
 
 export default function SourcingDashboardView({ currentUser, members = [], now = new Date(), appoData = [], callListData = [], setCallFlowScreen, setCurrentTab }) {
   const isMobile = useIsMobile();
   const [member, setMember] = useUrlState('dash_member', currentUser || '');
   const [period, setPeriod] = useUrlState('dash_period', 'month', { allowed: ['today', 'week', 'month'] });
+  const monthOptions = useMemo(() => buildMonthOptions(now), [now]);
+  const [monthStr, setMonthStr] = useUrlState('dash_month', monthOptions[0]?.value || '');
   const activeMember = member || currentUser || '';
 
   const memberOptions = useMemo(() => {
@@ -50,7 +71,7 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
     return names.map(n => ({ value: n, label: n }));
   }, [members, currentUser]);
 
-  const range = useMemo(() => computeRange(period, now), [period, now]);
+  const range = useMemo(() => computeRange(period, now, monthStr), [period, now, monthStr]);
 
   // ② 行動量 + ⑧ 前週比のためのデータ取得
   const [callRows, setCallRows] = useState([]);
@@ -139,8 +160,8 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
     return () => { cancelled = true; };
   }, [activeMember, range.fromISO, range.toISO]);
 
-  // 録音再生 + 架電画面ジャンプ
-  const [playingUrl, setPlayingUrl] = useState(null);
+  // 録音再生（画面下部の共通プレイヤー）+ 架電画面ジャンプ
+  const { play: playRecording, isCurrent } = useRecordingPlayer();
   const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   const jumpToCall = (row) => { openQueue([row], 0); };
   const goAppoList = () => { if (setCurrentTab) setCurrentTab('appo'); };
@@ -157,7 +178,7 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
           <Select size="sm" value={activeMember} onChange={e => setMember(e.target.value)} options={memberOptions} />
         </div>
         <div style={{ display: 'flex', gap: space[1] }}>
-          {[['today', '今日'], ['week', '今週'], ['month', '今月']].map(([p, l]) => (
+          {[['today', '今日'], ['week', '今週'], ['month', '月']].map(([p, l]) => (
             <button key={p} onClick={() => setPeriod(p)}
               style={{
                 padding: '8px 16px', borderRadius: radius.md, cursor: 'pointer', fontFamily: font.family.sans,
@@ -168,6 +189,12 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
               }}>{l}</button>
           ))}
         </div>
+        {/* 月モードのときだけ対象月を選べる */}
+        {period === 'month' && (
+          <div style={{ minWidth: 140 }}>
+            <Select size="sm" value={monthStr} onChange={e => setMonthStr(e.target.value)} options={monthOptions} />
+          </div>
+        )}
       </div>
 
       {/* ② 行動量カード */}
@@ -225,11 +252,10 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
                   <span style={{ fontSize: font.size.sm }}>{r._item?.company || '—'}</span>
                   <span style={{ fontSize: font.size.xs - 1, color: color.textLight, marginLeft: 6 }}>{r.status}</span>
                 </div>
-                <RowActions rec={r} onCall={() => jumpToCall({ item_id: r.item_id, list_id: r.list_id })} onPlay={setPlayingUrl} playingUrl={playingUrl} />
+                <RowActions rec={r} company={r._item?.company} onCall={() => jumpToCall({ item_id: r.item_id, list_id: r.list_id })} playRecording={playRecording} isCurrent={isCurrent} />
               </Row>
             );
           })}
-          {playingUrl && recalls.some(r => r.recording_url === playingUrl) && <InlineAudioPlayer url={playingUrl} onClose={() => setPlayingUrl(null)} />}
         </Section>
 
         {/* ⑤ 直近アポ5件 */}
@@ -242,10 +268,9 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
                   面談 {a.meetDate || '未定'} {a.meetTime || ''}・{a.status}
                 </div>
               </div>
-              {a.recordingUrl && <PlayBtn onClick={() => setPlayingUrl(playingUrl === a.recordingUrl ? null : a.recordingUrl)} active={playingUrl === a.recordingUrl} />}
+              {a.recordingUrl && <PlayBtn onClick={() => playRecording(a.recordingUrl, a.company, `面談 ${a.meetDate || ''}`)} active={isCurrent(a.recordingUrl)} />}
             </Row>
           ))}
-          {playingUrl && recentAppos.some(a => a.recordingUrl === playingUrl) && <InlineAudioPlayer url={playingUrl} onClose={() => setPlayingUrl(null)} />}
         </Section>
       </div>
 
@@ -260,10 +285,9 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
                 {String(r.rejection_reason || '').replace(/^HIGH\s*\n?/i, '')}
               </div>
             </div>
-            <RowActions rec={r} onCall={() => jumpToCall({ item_id: r.item_id, list_id: r.list_id })} onPlay={setPlayingUrl} playingUrl={playingUrl} />
+            <RowActions rec={r} company={r.company} onCall={() => jumpToCall({ item_id: r.item_id, list_id: r.list_id })} playRecording={playRecording} isCurrent={isCurrent} />
           </Row>
         ))}
-        {playingUrl && reapproach.some(r => r.recording_url === playingUrl) && <InlineAudioPlayer url={playingUrl} onClose={() => setPlayingUrl(null)} />}
       </Section>
 
       {/* ⑦ 曜日×時間帯 ヒートマップ */}
@@ -317,10 +341,10 @@ function PlayBtn({ onClick, active }) {
     </button>
   );
 }
-function RowActions({ rec, onCall, onPlay, playingUrl }) {
+function RowActions({ rec, company, onCall, playRecording, isCurrent }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-      {rec.recording_url && <PlayBtn onClick={() => onPlay(playingUrl === rec.recording_url ? null : rec.recording_url)} active={playingUrl === rec.recording_url} />}
+      {rec.recording_url && <PlayBtn onClick={() => playRecording(rec.recording_url, company || '', rec.list_name || '')} active={isCurrent(rec.recording_url)} />}
       <button onClick={onCall} title="架電画面で開く"
         style={{ padding: '3px 12px', borderRadius: radius.pill, cursor: 'pointer', fontFamily: font.family.sans,
           fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, border: 'none', background: color.navy, color: color.white }}>
@@ -344,25 +368,26 @@ function Heatmap({ data }) {
   };
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ borderCollapse: 'collapse', fontSize: font.size.xs - 1, fontFamily: font.family.mono }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: font.size.sm, fontFamily: font.family.mono, width: '100%', tableLayout: 'fixed' }}>
         <thead>
           <tr>
-            <th style={{ padding: 3 }}></th>
-            {HOURS.map(h => <th key={h} style={{ padding: '3px 5px', color: color.textLight, fontWeight: font.weight.normal }}>{h}</th>)}
+            <th style={{ padding: 4, width: 44 }}></th>
+            {HOURS.map(h => <th key={h} style={{ padding: '5px 0', color: color.textLight, fontWeight: font.weight.normal, fontSize: font.size.xs }}>{h}時</th>)}
           </tr>
         </thead>
         <tbody>
           {DOW_LABELS.map((label, dow) => (
             <tr key={dow}>
-              <td style={{ padding: '3px 6px', color: color.textMid, fontWeight: font.weight.semibold, fontFamily: font.family.sans }}>{label}</td>
+              <td style={{ padding: '4px 8px', color: color.textMid, fontWeight: font.weight.semibold, fontFamily: font.family.sans, fontSize: font.size.sm }}>{label}</td>
               {HOURS.map(h => {
                 const c = map[`${dow}_${h}`];
                 const rate = c?.rate || 0;
                 return (
                   <td key={h}
                     title={c?.calls ? `${label}曜 ${h}時：接続率 ${rate.toFixed(0)}%（${c.connects}/${c.calls}）` : `${label}曜 ${h}時：データなし`}
-                    style={{ width: 28, height: 24, textAlign: 'center', background: cellColor(rate, c?.calls || 0),
-                      color: rate > 30 ? color.white : color.textMid, border: `1px solid ${color.white}` }}>
+                    style={{ height: 44, textAlign: 'center', background: cellColor(rate, c?.calls || 0),
+                      color: rate > 30 ? color.white : color.textMid, border: `2px solid ${color.white}`,
+                      fontWeight: font.weight.semibold, borderRadius: radius.sm }}>
                     {c?.calls ? rate.toFixed(0) : ''}
                   </td>
                 );
@@ -371,7 +396,7 @@ function Heatmap({ data }) {
           ))}
         </tbody>
       </table>
-      <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 6 }}>数値は接続率(%)。色が濃いほど高接続。ホバーで件数を表示。</div>
+      <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 8 }}>数値は接続率(%)。色が濃いほど高接続。マスにカーソルを合わせると件数を表示します。</div>
     </div>
   );
 }
