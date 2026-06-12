@@ -575,43 +575,57 @@ export default function TemplateDrivenAppoReportModal({
       });
       if (insError) throw insError;
 
-      // #アポ取得報告チャンネルへSlack即時投稿（LegacyAppoReportModalと同等）
-      try {
-        const supabaseUrlEnv = import.meta.env.VITE_SUPABASE_URL;
-        const anonKeyEnv     = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        const slackRes = await fetch(`${supabaseUrlEnv}/functions/v1/post-appo-to-slack`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': anonKeyEnv },
-          body: JSON.stringify({ text: reportNote }),
-        });
-        if (!slackRes.ok) console.warn('[TemplateModal] post-appo-to-slack failed:', slackRes.status);
-      } catch (e) { console.warn('[TemplateModal] post-appo-to-slack error:', e); }
-
       // 企業ドシエ非同期生成
       if (insResult?.id) {
         invokeGenerateCompanyDossier({ appointment_id: insResult.id, org_id: getOrgId() }).catch(() => {});
       }
 
-      // 保存時の自動AI添削 fire-and-forget
-      // 録音URLが取得済み & AI抽出対象フィールドが全部空 のときだけ自動で
-      // transcribe-and-extract を実行し、結果を appointments に書き戻す。
-      // アポインターが「文字起こし+AI添削」ボタンを押し忘れても自動で添削される。
+      // 保存時の自動AI添削（録音→文字起こし→AIがメモ欄を抽出）を実行するか先に判定。
+      // 録音URLが取得済み & AI抽出対象フィールドが全部空 のときだけ走る。
       const effectiveRecordingUrl = form.recordingUrl || recordingUrl;
-      if (insResult?.id && effectiveRecordingUrl) {
-        const aiTargetFields = (template.schema || [])
-          .filter(f => f.ai_extract)
-          .map(f => ({ key: f.key, label: f.label, options: f.options || [] }));
-        const allEmpty = aiTargetFields.length > 0 && aiTargetFields.every(f => !form[f.key]);
-        if (allEmpty) {
-          (async () => {
-            try {
-              const { extracted, keyman_ma_intent, publicRecordingUrl } = await invokeTranscribeAndExtract({
-                recording_url: effectiveRecordingUrl,
-                item_id: row?._supaId || row?.id,
-                ai_prompt: template.ai_prompt || '',
-                extract_fields: aiTargetFields,
-              });
-              if (!extracted) return;
+      const aiTargetFields = (template.schema || [])
+        .filter(f => f.ai_extract)
+        .map(f => ({ key: f.key, label: f.label, options: f.options || [] }));
+      const willRunAiRefine = !!(insResult?.id && effectiveRecordingUrl)
+        && aiTargetFields.length > 0
+        && aiTargetFields.every(f => !form[f.key]);
+
+      // #アポ取得報告チャンネルへSlack投稿（post-appo-to-slack）
+      const postAppoSlack = async (text) => {
+        try {
+          const supabaseUrlEnv = import.meta.env.VITE_SUPABASE_URL;
+          const anonKeyEnv     = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          const slackRes = await fetch(`${supabaseUrlEnv}/functions/v1/post-appo-to-slack`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': anonKeyEnv },
+            body: JSON.stringify({ text }),
+          });
+          if (!slackRes.ok) console.warn('[TemplateModal] post-appo-to-slack failed:', slackRes.status);
+        } catch (e) { console.warn('[TemplateModal] post-appo-to-slack error:', e); }
+      };
+
+      // AI添削が走らない場合のみ即時投稿（手入力メモがあればそのまま載る）。
+      // 走る場合は「メモが空の速報」がSlackに残ってしまうのを避けるため、
+      // 添削完了後にメモ入りの完成版を投稿する（案A: 正確さ優先・通知は数十秒遅延）。
+      if (!willRunAiRefine) {
+        await postAppoSlack(reportNote);
+      }
+
+      // 自動AI添削 fire-and-forget。
+      // transcribe-and-extract で結果を appointments に書き戻したうえで、
+      // メモ入りの完成版を Slack へ投稿する。
+      // アポインターが「文字起こし+AI添削」ボタンを押し忘れても自動で添削される。
+      if (willRunAiRefine) {
+        (async () => {
+          let slackText = reportNote; // 添削が失敗してもフォールバックで必ず投稿する
+          try {
+            const { extracted, keyman_ma_intent, publicRecordingUrl } = await invokeTranscribeAndExtract({
+              recording_url: effectiveRecordingUrl,
+              item_id: row?._supaId || row?.id,
+              ai_prompt: template.ai_prompt || '',
+              extract_fields: aiTargetFields,
+            });
+            if (extracted) {
               const merged = { ...form };
               for (const k of Object.keys(extracted)) {
                 if (extracted[k]) merged[k] = extracted[k];
@@ -634,12 +648,15 @@ export default function TemplateDrivenAppoReportModal({
                 recording_url: finalRecUrl,
                 keyman_ma_intent: keyman_ma_intent || null,
               }).eq('id', insResult.id);
+              slackText = newReportNote;
               console.info('[TemplateModal] 自動AI添削 完了:', insResult.id);
-            } catch (e) {
-              console.warn('[TemplateModal] 自動AI添削 失敗:', e);
             }
-          })();
-        }
+          } catch (e) {
+            console.warn('[TemplateModal] 自動AI添削 失敗:', e);
+          }
+          // 添削の成否に関わらず Slack へ投稿（成功時はメモ入り、失敗時は元の本文）
+          await postAppoSlack(slackText);
+        })();
       }
 
       // appo-ai-report (Zoom録音→Claude強化レポート) を fire-and-forget で呼ぶ

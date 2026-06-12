@@ -1539,6 +1539,44 @@ export async function insertCallRecord(data) {
     return recent.promise
   }
   const promise = (async () => {
+    // 「アポ獲得」だけは、アポ本体 insert のDBトリガー
+    // (sync_call_status_from_appointment) が直前に同じ item の「アポ獲得」行を
+    // 既に自動生成している。ここで重ねて insert すると架電履歴に同一ラウンドの
+    // アポが2行出る（トリガー行＝録音/メモ空 ＋ フロント行）。CallFlowView は
+    // findRecentApoCallRecord で回避していたが、CallingScreen(markStatus) と
+    // CompanySearchView は無条件 insert していたため二重登録が常発していた。
+    // → どの画面から来ても、直近のトリガー行があれば insert せずその行を
+    //    memo/録音/round/getter で上書きして1本化する（生成元を insertCallRecord に集約）。
+    if (data.status === 'アポ獲得' && data.item_id) {
+      const { data: trig } = await supabase
+        .from('call_records')
+        .select('id')
+        .eq('item_id', data.item_id)
+        .eq('status', 'アポ獲得')
+        .gte('called_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .order('called_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (trig?.id) {
+        const patch = {
+          list_id: data.list_id,
+          round: data.round,
+          called_at: data.called_at || new Date().toISOString(),
+          getter_name: data.getter_name || null,
+        }
+        // null 上書きで既存の memo/録音を消さないよう、値があるときだけ反映
+        if (data.memo != null) patch.memo = data.memo
+        if (data.recording_url != null) patch.recording_url = data.recording_url
+        const { data: updated, error } = await supabase
+          .from('call_records')
+          .update(patch)
+          .eq('id', trig.id)
+          .select()
+          .single()
+        if (error) console.error('[DB] insertCallRecord(アポ獲得→トリガー行を上書き) error:', error)
+        return { result: updated, error }
+      }
+    }
     const { data: result, error } = await supabase
       .from('call_records')
       .insert({
