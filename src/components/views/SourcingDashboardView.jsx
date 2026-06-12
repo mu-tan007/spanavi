@@ -143,13 +143,13 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
   }, [activeMember]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ⑥ 再アプローチ候補（キーマン断り・温度感で絞り込み）
-  // tempFilter: 'HIGH'(高のみ) | 'HM'(高+中) | 'ALL'(すべて=高+中+低)
-  const [tempFilter, setTempFilter] = useUrlState('dash_temp', 'HM', { allowed: ['HIGH', 'HM', 'ALL'] });
+  // tempFilter: 'ALL'(高+中) | 'HIGH'(高のみ) | 'MEDIUM'(中のみ)。低は再アプローチ対象外
+  const [tempFilter, setTempFilter] = useUrlState('dash_temp', 'ALL', { allowed: ['ALL', 'HIGH', 'MEDIUM'] });
   const [reapproach, setReapproach] = useState([]);
   useEffect(() => {
     let cancelled = false;
     if (!activeMember) { setReapproach([]); return; }
-    const temps = tempFilter === 'HIGH' ? ['HIGH'] : tempFilter === 'HM' ? ['HIGH', 'MEDIUM'] : ['HIGH', 'MEDIUM', 'LOW'];
+    const temps = tempFilter === 'HIGH' ? ['HIGH'] : tempFilter === 'MEDIUM' ? ['MEDIUM'] : ['HIGH', 'MEDIUM'];
     fetchMemberReapproach(activeMember, temps).then(({ data }) => {
       if (cancelled) return;
       // 温度の高い順 → 同温度は新しい順
@@ -293,9 +293,9 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
           <div style={{ minWidth: 130 }}>
             <Select size="sm" value={tempFilter} onChange={e => setTempFilter(e.target.value)}
               options={[
-                { value: 'HIGH', label: '温度感: 高' },
-                { value: 'HM', label: '温度感: 高＋中' },
                 { value: 'ALL', label: '温度感: すべて' },
+                { value: 'HIGH', label: '温度感: 高' },
+                { value: 'MEDIUM', label: '温度感: 中' },
               ]} />
           </div>
         </div>
