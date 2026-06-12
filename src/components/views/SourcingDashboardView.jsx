@@ -290,14 +290,13 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
           <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, borderLeft: `3px solid ${color.gold}`, paddingLeft: 8 }}>
             再アプローチ候補（{reapproach.length}件）
           </div>
-          <div style={{ display: 'flex', gap: space[1] }}>
-            {[['HIGH', '高のみ'], ['HM', '高＋中'], ['ALL', 'すべて']].map(([t, l]) => (
-              <button key={t} onClick={() => setTempFilter(t)}
-                style={{ padding: '4px 12px', borderRadius: radius.pill, cursor: 'pointer', fontFamily: font.family.sans,
-                  fontSize: font.size.xs, fontWeight: tempFilter === t ? font.weight.semibold : font.weight.normal,
-                  border: `1px solid ${tempFilter === t ? color.navy : color.border}`,
-                  background: tempFilter === t ? color.navy : color.white, color: tempFilter === t ? color.white : color.textMid }}>{l}</button>
-            ))}
+          <div style={{ minWidth: 130 }}>
+            <Select size="sm" value={tempFilter} onChange={e => setTempFilter(e.target.value)}
+              options={[
+                { value: 'HIGH', label: '温度感: 高' },
+                { value: 'HM', label: '温度感: 高＋中' },
+                { value: 'ALL', label: '温度感: すべて' },
+              ]} />
           </div>
         </div>
         <Card padding="sm">
