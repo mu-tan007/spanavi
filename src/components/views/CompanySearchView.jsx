@@ -35,6 +35,7 @@ import { PlayRecordingButton } from '../common/RecordingPlayerProvider';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { useUrlState } from '../../hooks/useUrlState';
+import { useEngagements } from '../../hooks/useEngagements';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import PageHeader from '../common/PageHeader';
 
@@ -151,6 +152,9 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   const [recDateFrom, setRecDateFrom] = useUrlState('rec_from', '');
   const [recDateTo, setRecDateTo] = useUrlState('rec_to', '');
   const [recSortDir, setRecSortDir] = useUrlState('rec_sort', 'desc', { allowed: ['asc', 'desc'] });
+  // 商材・タイプ絞り込み（架電リストのリスト一覧と同じ2階層仕様）
+  const [recCategory, setRecCategory] = useUrlState('rec_cat', 'all');
+  const [recEngSlug, setRecEngSlug] = useUrlState('rec_eng', 'all');
   const [recList, setRecList] = useState([]);
   const [recLoading, setRecLoading] = useState(false);
   const [recPlayingId, setRecPlayingId] = useState(null);
@@ -893,6 +897,49 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   };
 
   // ====== 録音一覧タブ ロジック ======
+  // 商材・タイプ絞り込み（架電リストのリスト一覧と同じ2階層仕様）
+  const { engagements: allEngagements, categories: allCategories } = useEngagements();
+  const recSelectableCategories = useMemo(
+    () => (allCategories || []).slice().sort((a, b) => (a.display_order || 0) - (b.display_order || 0)),
+    [allCategories]
+  );
+  const recSalesAgencyEngagements = useMemo(() => {
+    const order = ['seller_sourcing', 'matching', 'client_acquisition'];
+    return (allEngagements || [])
+      .filter(e => order.includes(e.type) && e.status === 'active')
+      .map(e => ({ id: e.id, slug: e.slug, type: e.type, name: e.name, category_id: e.category_id }))
+      .sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
+  }, [allEngagements]);
+  // 商材切替時に、選択中タイプが新商材に存在しなければ「全て」に戻す（リスト一覧と同じ挙動）
+  useEffect(() => {
+    if (recCategory === 'all' || recEngSlug === 'all') return;
+    const eng = recSalesAgencyEngagements.find(e => e.slug === recEngSlug);
+    if (!eng || eng.category_id !== recCategory) setRecEngSlug('all');
+  }, [recCategory, recEngSlug, recSalesAgencyEngagements]);
+  // 録音 → リスト → engagement の解決マップ
+  const recListEngMap = useMemo(() => {
+    const map = new Map();
+    (callListData || []).forEach(l => { if (l._supaId) map.set(l._supaId, l.engagement_id || null); });
+    return map;
+  }, [callListData]);
+  const recEngMetaMap = useMemo(() => {
+    const map = new Map();
+    (allEngagements || []).forEach(e => map.set(e.id, { slug: e.slug, category_id: e.category_id }));
+    return map;
+  }, [allEngagements]);
+  // 商材・タイプでの絞り込み（録音はlist_id経由で商材を引く）
+  const recListFiltered = useMemo(() => {
+    if (recCategory === 'all' && recEngSlug === 'all') return recList;
+    return (recList || []).filter(r => {
+      const engId = recListEngMap.get(r.list_id);
+      const meta = engId ? recEngMetaMap.get(engId) : null;
+      if (!meta) return false;
+      if (recCategory !== 'all' && meta.category_id !== recCategory) return false;
+      if (recEngSlug !== 'all' && meta.slug !== recEngSlug) return false;
+      return true;
+    });
+  }, [recList, recCategory, recEngSlug, recListEngMap, recEngMetaMap]);
+
   const reloadBookmarks = useCallback(async () => {
     if (!currentUser) return;
     const { data } = await fetchRecordingBookmarks(currentUser);
@@ -1684,8 +1731,41 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
           <div style={{ background: color.white, borderRadius: radius.md, padding: "16px 20px", marginBottom: space[4], border: `1px solid ${color.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>録音一覧</span>
-              <span style={{ fontSize: 10, color: color.textLight }}>担当者・ステータスで絞り込み{recList.length > 0 ? `（${recList.length}件）` : ""}</span>
+              <span style={{ fontSize: 10, color: color.textLight }}>担当者・ステータスで絞り込み{recListFiltered.length > 0 ? `（${recListFiltered.length}件）` : ""}</span>
             </div>
+            {/* 商材・タイプ絞り込み（架電リストのリスト一覧と同じ仕様） */}
+            {(() => {
+              const pillStyle = (active) => ({
+                padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+                cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
+                ...(active
+                  ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
+                  : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
+              });
+              const typesForCategory = recCategory === 'all'
+                ? []
+                : recSalesAgencyEngagements.filter(e => e.category_id === recCategory);
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginBottom: space[3] }}>
+                  <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>商材:</span>
+                    <button onClick={() => { setRecCategory('all'); setRecEngSlug('all'); }} style={pillStyle(recCategory === 'all')}>全商材</button>
+                    {recSelectableCategories.map(c => (
+                      <button key={c.id} onClick={() => setRecCategory(c.id)} style={pillStyle(recCategory === c.id)}>{c.name}</button>
+                    ))}
+                  </div>
+                  {recCategory !== 'all' && (
+                    <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>タイプ:</span>
+                      <button onClick={() => setRecEngSlug('all')} style={pillStyle(recEngSlug === 'all')}>全て</button>
+                      {typesForCategory.map(e => (
+                        <button key={e.slug} onClick={() => setRecEngSlug(e.slug)} style={pillStyle(recEngSlug === e.slug)}>{e.name}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <div>
                 <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, display: 'block', marginBottom: 4 }}>担当者</label>
@@ -1765,8 +1845,8 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
           <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, overflow: 'hidden' }}>
             {recLoading && <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>読み込み中...</div>}
-            {!recLoading && recList.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>該当する録音がありません</div>}
-            {!recLoading && recList.map((rec, idx) => {
+            {!recLoading && recListFiltered.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>該当する録音がありません</div>}
+            {!recLoading && recListFiltered.map((rec, idx) => {
               const isPlaying = recPlayingId === rec.id;
               const isBookmarked = !!bookmarkSet[rec.id];
               const sc = getStatusColor(rec.status);
