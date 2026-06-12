@@ -142,14 +142,24 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
     return () => { cancelled = true; };
   }, [activeMember]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ⑥ 再アプローチ候補（キーマン断りHIGH）
+  // ⑥ 再アプローチ候補（キーマン断り・温度感で絞り込み）
+  // tempFilter: 'HIGH'(高のみ) | 'HM'(高+中) | 'ALL'(すべて=高+中+低)
+  const [tempFilter, setTempFilter] = useUrlState('dash_temp', 'HM', { allowed: ['HIGH', 'HM', 'ALL'] });
   const [reapproach, setReapproach] = useState([]);
   useEffect(() => {
     let cancelled = false;
     if (!activeMember) { setReapproach([]); return; }
-    fetchMemberReapproach(activeMember).then(({ data }) => { if (!cancelled) setReapproach(data || []); });
+    const temps = tempFilter === 'HIGH' ? ['HIGH'] : tempFilter === 'HM' ? ['HIGH', 'MEDIUM'] : ['HIGH', 'MEDIUM', 'LOW'];
+    fetchMemberReapproach(activeMember, temps).then(({ data }) => {
+      if (cancelled) return;
+      // 温度の高い順 → 同温度は新しい順
+      const ord = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+      const sorted = [...(data || [])].sort((a, b) =>
+        (ord[a.temp] ?? 9) - (ord[b.temp] ?? 9) || String(b.called_at).localeCompare(String(a.called_at)));
+      setReapproach(sorted);
+    });
     return () => { cancelled = true; };
-  }, [activeMember]);
+  }, [activeMember, tempFilter]);
 
   // ⑦ ヒートマップ
   const [heatmap, setHeatmap] = useState([]);
@@ -275,20 +285,37 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
       </div>
 
       {/* ⑥ 再アプローチ候補 */}
-      <Section title={`再アプローチ候補（温度感: 高 ・ ${reapproach.length}件）`} style={{ marginBottom: space[4] }}>
-        {reapproach.length === 0 ? <Empty>再アプローチ候補はありません</Empty> : reapproach.map((r, i) => (
-          <Row key={i}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold }}>{r.company}</span>
-              <span style={{ fontSize: font.size.xs - 1, color: color.textLight, marginLeft: 6 }}>{r.list_name}</span>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, whiteSpace: 'pre-wrap', marginTop: 2 }}>
-                {String(r.rejection_reason || '').replace(/^HIGH\s*\n?/i, '')}
+      <div style={{ marginBottom: space[4] }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2], flexWrap: 'wrap', gap: space[2] }}>
+          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, borderLeft: `3px solid ${color.gold}`, paddingLeft: 8 }}>
+            再アプローチ候補（{reapproach.length}件）
+          </div>
+          <div style={{ display: 'flex', gap: space[1] }}>
+            {[['HIGH', '高のみ'], ['HM', '高＋中'], ['ALL', 'すべて']].map(([t, l]) => (
+              <button key={t} onClick={() => setTempFilter(t)}
+                style={{ padding: '4px 12px', borderRadius: radius.pill, cursor: 'pointer', fontFamily: font.family.sans,
+                  fontSize: font.size.xs, fontWeight: tempFilter === t ? font.weight.semibold : font.weight.normal,
+                  border: `1px solid ${tempFilter === t ? color.navy : color.border}`,
+                  background: tempFilter === t ? color.navy : color.white, color: tempFilter === t ? color.white : color.textMid }}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <Card padding="sm">
+          {reapproach.length === 0 ? <Empty>再アプローチ候補はありません</Empty> : reapproach.map((r, i) => (
+            <Row key={i}>
+              <TempBadge temp={r.temp} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold }}>{r.company}</span>
+                <span style={{ fontSize: font.size.xs - 1, color: color.textLight, marginLeft: 6 }}>{r.list_name}</span>
+                <div style={{ fontSize: font.size.xs, color: color.textMid, whiteSpace: 'pre-wrap', marginTop: 2 }}>
+                  {String(r.rejection_reason || '').replace(/^(HIGH|MEDIUM|LOW)\s*\n?/i, '')}
+                </div>
               </div>
-            </div>
-            <RowActions rec={r} company={r.company} onCall={() => jumpToCall({ item_id: r.item_id, list_id: r.list_id })} playRecording={playRecording} isCurrent={isCurrent} />
-          </Row>
-        ))}
-      </Section>
+              <RowActions rec={r} company={r.company} onCall={() => jumpToCall({ item_id: r.item_id, list_id: r.list_id })} playRecording={playRecording} isCurrent={isCurrent} />
+            </Row>
+          ))}
+        </Card>
+      </div>
 
       {/* ⑦ 曜日×時間帯 ヒートマップ */}
       <Section title="曜日 × 時間帯のキーマン接続率">
@@ -327,6 +354,20 @@ function Section({ title, children, style }) {
 }
 function Row({ children }) {
   return <div style={{ display: 'flex', alignItems: 'center', gap: space[2], padding: '6px 4px', borderBottom: `1px solid ${alpha(color.border, 0.5)}` }}>{children}</div>;
+}
+function TempBadge({ temp }) {
+  // 既存の再アプローチ候補タブと同じ配色（高=success/中=info/低=danger）
+  const m = {
+    HIGH:   { bg: alpha(color.success, 0.15), c: color.success, l: '高' },
+    MEDIUM: { bg: alpha(color.info, 0.15),    c: color.info,    l: '中' },
+    LOW:    { bg: alpha(color.danger, 0.15),  c: color.danger,  l: '低' },
+  }[temp] || { bg: color.gray100, c: color.textMid, l: '—' };
+  return (
+    <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: radius.sm, background: m.bg, color: m.c,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: font.size.xs, fontWeight: font.weight.bold }}>
+      {m.l}
+    </span>
+  );
 }
 function Empty({ children }) {
   return <div style={{ padding: '14px 6px', fontSize: font.size.sm, color: color.textLight, textAlign: 'center' }}>{children}</div>;

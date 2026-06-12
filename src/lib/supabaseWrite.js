@@ -2954,11 +2954,12 @@ export async function fetchCallListItemByAppo(company, phone, hintListId = null,
   return { data: null, error: null };
 }
 
-// 個人ダッシュボード: 指定メンバーの再アプローチ候補（キーマン断りHIGH・直近もキーマン断り）
-export async function fetchMemberReapproach(getterName) {
+// 個人ダッシュボード: 指定メンバーの再アプローチ候補（キーマン断り・直近もキーマン断り）
+// temps: 含める温度感の配列（既定 ['HIGH','MEDIUM']）
+export async function fetchMemberReapproach(getterName, temps = ['HIGH', 'MEDIUM']) {
   if (!getterName) return { data: [], error: null };
   const { data, error } = await supabase.rpc('dashboard_member_reapproach', {
-    p_getter: getterName, p_org: getOrgId(),
+    p_getter: getterName, p_org: getOrgId(), p_temps: temps,
   });
   if (error) console.error('[DB] fetchMemberReapproach error:', error);
   return { data: data || [], error };
