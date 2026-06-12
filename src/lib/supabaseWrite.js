@@ -866,47 +866,90 @@ export async function insertAppointment(data, engagementId = null) {
   const defaultNote = !data.note && data.client ? (CLIENT_DEFAULT_NOTES[data.client] || null) : null
   const finalNote = data.note || defaultNote || null
 
-  const { data: result, error } = await supabase
-    .from('appointments')
-    .insert({
-      org_id: getOrgId(),
-      engagement_id: resolvedEngagementId,
-      client_id: clientId,
-      company_name: data.company,
-      status: data.status || 'アポ取得',
-      getter_name: data.getter,
-      appointment_date: data.getDate || null,
-      meeting_date: data.meetDate || null,
-      sales_amount: parseInt(data.sales) || 0,
-      intern_reward: parseInt(data.reward) || 0,
-      notes: finalNote,
-      appo_report: data.appoReport || null,
-      appo_month: appoMonth,
-      email_status: data.emailStatus || 'pending',
-      list_id: data.list_id || null,
-      item_id: data.item_id || null,
-      phone: data.phone || null,
-      recording_url: data.recording_url || null,
-      report_style: data.reportStyle || null,
-      report_supplement: data.reportSupplement || null,
-      meeting_time: data.meetTime || null,
-      meeting_location: data.meetLocation || null,
-      is_online: data.isOnline || false,
-      gcal_event_id: data.gcalEventId || null,
-      // transcribe-recording が録音から判定した M&A 意向（4値）を直書き保存。
-      // 既存の appo_report テキストからの正規表現抽出（apppoReportParse）は後方互換 fallback。
-      keyman_ma_intent: data.keymanMaIntent || null,
-      // テンプレ駆動: 保存時テンプレIDのスナップショット + 動的フィールド値
-      report_template_id_snapshot: data.reportTemplateIdSnapshot || null,
-      report_data: data.reportData || null,
-    })
-    .select()
-    .single()
-  if (error) console.error('[DB] insertAppointment error:', error)
+  const orgId = getOrgId()
+  const payload = {
+    org_id: orgId,
+    engagement_id: resolvedEngagementId,
+    client_id: clientId,
+    company_name: data.company,
+    status: data.status || 'アポ取得',
+    getter_name: data.getter,
+    appointment_date: data.getDate || null,
+    meeting_date: data.meetDate || null,
+    sales_amount: parseInt(data.sales) || 0,
+    intern_reward: parseInt(data.reward) || 0,
+    notes: finalNote,
+    appo_report: data.appoReport || null,
+    appo_month: appoMonth,
+    email_status: data.emailStatus || 'pending',
+    list_id: data.list_id || null,
+    item_id: data.item_id || null,
+    phone: data.phone || null,
+    recording_url: data.recording_url || null,
+    report_style: data.reportStyle || null,
+    report_supplement: data.reportSupplement || null,
+    meeting_time: data.meetTime || null,
+    meeting_location: data.meetLocation || null,
+    is_online: data.isOnline || false,
+    gcal_event_id: data.gcalEventId || null,
+    // transcribe-recording が録音から判定した M&A 意向（4値）を直書き保存。
+    // 既存の appo_report テキストからの正規表現抽出（apppoReportParse）は後方互換 fallback。
+    keyman_ma_intent: data.keymanMaIntent || null,
+    // テンプレ駆動: 保存時テンプレIDのスナップショット + 動的フィールド値
+    report_template_id_snapshot: data.reportTemplateIdSnapshot || null,
+    report_data: data.reportData || null,
+  }
+
+  // ── 冪等保存（生insert禁止 / 二重登録の根本対策）──────────────────────
+  // DB の prevent_duplicate_appointment_trigger は BEFORE INSERT 専用で、
+  // 同一(org_id, list_id, company_name, appointment_date, getter_name)の実体行が
+  // 既にあると例外を投げる。再送・二重クリック・「失敗したと思って再保存」のたびに
+  // ハードエラーになり「保存できない」事故が再発していた。
+  // → insert 前にトリガーと同一条件で既存行を探し、見つかれば UPDATE で上書きする。
+  //   トリガーは UPDATE では発火しないので弾かれず、二重行も作られない。
+  //   見つからなければ従来どおり insert（トリガーが安全に通す）。
+  let existingId = null
+  if (payload.list_id && payload.company_name && payload.appointment_date && payload.getter_name) {
+    const { data: dupRows } = await supabase
+      .from('appointments')
+      .select('id, status, item_id, sales_amount, appo_report')
+      .eq('org_id', orgId)
+      .eq('list_id', payload.list_id)
+      .eq('company_name', payload.company_name)
+      .eq('appointment_date', payload.appointment_date)
+      .eq('getter_name', payload.getter_name)
+      .order('created_at', { ascending: false })
+    // トリガーの述語と完全一致させる: キャンセルは無視 / 残骸行(item_id無+売上0+報告空)は無視
+    const match = (dupRows || []).find(r =>
+      (r.status || '') !== 'キャンセル' &&
+      !(r.item_id == null && (r.sales_amount || 0) === 0 && !((r.appo_report || '').trim()))
+    )
+    existingId = match?.id || null
+  }
+
+  let result, error
+  if (existingId) {
+    ;({ data: result, error } = await supabase
+      .from('appointments')
+      .update(payload)
+      .eq('id', existingId)
+      .select()
+      .single())
+    if (error) console.error('[DB] insertAppointment (idempotent update) error:', error)
+    else console.info('[DB] insertAppointment: 既存アポを上書き保存しました', existingId)
+  } else {
+    ;({ data: result, error } = await supabase
+      .from('appointments')
+      .insert(payload)
+      .select()
+      .single())
+    if (error) console.error('[DB] insertAppointment error:', error)
+  }
 
   // Fire push notification for new appointment (best-effort, don't block)
-  if (result && !error) {
-    sendAppointmentPushNotification(data, getOrgId()).catch(e =>
+  // 既存行の上書き（再送・冪等保存）では通知しない。新規 insert のみ通知する。
+  if (result && !error && !existingId) {
+    sendAppointmentPushNotification(data, orgId).catch(e =>
       console.warn('[Push] Failed to send appointment notification:', e)
     )
   }
