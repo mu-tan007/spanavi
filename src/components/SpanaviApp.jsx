@@ -40,7 +40,6 @@ import ScriptView from './views/ScriptView';
 import MyPageView from './views/MyPageView';
 import { subscribeToPush } from '../lib/pushNotification';
 import SourcingDashboardView from './views/SourcingDashboardView';
-import BusinessOverviewView from './views/BusinessOverviewView';
 import CRMView from './views/CRMView';
 import EmailMarketingView from './views/EmailMarketingView';
 import AppoListView, { MembersView } from './views/AppoListView';
@@ -426,7 +425,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
     const MASP_TABS = ['database', 'firms', 'all_members', 'admin_settings', 'mypage'];
-    const SOURCING_TABS = ['overview','dashboard','live','incoming','lists','scripts','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
+    const SOURCING_TABS = ['dashboard','live','incoming','lists','scripts','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
     const CAREER_TABS = ['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'];
     if (engSlug === 'masp') {
       if (!MASP_TABS.includes(currentTab)) setCurrentTab('database');
@@ -680,7 +679,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // 単独項目 (children=null) は本体 id を、グループは children の各 id を権限判定する。
   // children が 0 になったグループは表示しない。
   const _rawNavGroups = [
-    ...(isAdmin ? [{ id: "overview", label: "事業俯瞰", children: null }] : []),
+    // 事業俯瞰はアナリティクスに統合済み（2026-06-12）。サイドバーから撤去
     { id: "dashboard", label: "ダッシュボード", children: null },
     { id: "g_call", label: "架電", children: [
       { id: "lists", label: "架電リスト" },
@@ -1407,7 +1406,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
         {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} members={members} now={now} appoData={appoData} isAdmin={isAdmin} callListData={callListData} setCallFlowScreen={setCallFlowScreen} setCurrentTab={setCurrentTab} />}
-        {currentTab === "overview" && isAdmin && <BusinessOverviewView appoData={appoData} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} currentUser={currentUser} setCallFlowScreen={setCallFlowScreen} onNavigateToCrmDetail={navigateToCrmDetail} />}
         {currentTab === "mypage" && (
           <MyPageView
             currentUser={currentUser}

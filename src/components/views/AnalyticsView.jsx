@@ -13,15 +13,15 @@ import {
 } from '../../lib/supabaseWrite';
 
 import AnalyticsFilters from './analytics/AnalyticsFilters';
-import ActionBoard from './analytics/ActionBoard';
-import ListAlert from './analytics/ListAlert';
-import KPIScorecard from './analytics/KPIScorecard';
 import Funnel from './analytics/Funnel';
 import Heatmap from './analytics/Heatmap';
 import MemberRanking from './analytics/MemberRanking';
 import StrengthWeakness from './analytics/StrengthWeakness';
 import IndustryAnalytics from './analytics/IndustryAnalytics';
 import AppoPatternAnalytics from './analytics/AppoPatternAnalytics';
+import OverallSummary from './analytics/OverallSummary';
+import TeamComparison from './analytics/TeamComparison';
+import ConversionPanel from './analytics/ConversionPanel';
 import StatsView from './StatsView';
 
 const NAVY = '#0D2247';
@@ -85,6 +85,8 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   const monthStr = todayStr.slice(0, 7);
 
   // ハードリロード/URL共有で状態保持するため URL クエリに同期
+  // 3タブ構成: overall(全体の数字) / team(チームごと) / client(クライアント・リスト)
+  const [tab, setTab] = useUrlState('an_tab', 'overall', { allowed: ['overall', 'team', 'client'] });
   const [period, setPeriod]         = useUrlState('period', 'month', { allowed: ['day', 'week', 'month', 'custom'] });
   const [customFrom, setCustomFrom] = useUrlState('from', '');
   const [customTo, setCustomTo]     = useUrlState('to', '');
@@ -215,14 +217,38 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
     return { calls: p.call, keymanConnect: p.connect, appo: p.appo };
   }, [rankByPerson, scope, scopeId]);
 
+  const TABS = [
+    { id: 'overall', label: '全体の数字' },
+    { id: 'team', label: 'チームごとの数字' },
+    { id: 'client', label: 'クライアント・リストごとの数字' },
+  ];
+
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="アナリティクス"
-        description="組織・チーム・個人を俯瞰する戦略分析"
-        style={{ marginBottom: isMobile ? 16 : 24 }}
+        description="全体・チーム・案件を俯瞰する分析"
+        style={{ marginBottom: isMobile ? 12 : 16 }}
       />
 
+      {/* タブバー */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${color.border}`, marginBottom: space[4], overflowX: 'auto' }}>
+        {TABS.map(t => {
+          const active = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{
+                padding: '10px 18px', border: 'none', background: 'transparent', cursor: 'pointer',
+                fontSize: font.size.sm, fontFamily: font.family.sans, whiteSpace: 'nowrap',
+                fontWeight: active ? font.weight.semibold : font.weight.normal,
+                color: active ? color.navy : color.textMid,
+                borderBottom: `2px solid ${active ? color.gold : 'transparent'}`, marginBottom: -1,
+              }}>{t.label}</button>
+          );
+        })}
+      </div>
+
+      {/* 期間フィルタ（全タブ共通）。チーム/メンバー絞り込みは team タブでのみ意味を持つ */}
       <AnalyticsFilters
         period={period} setPeriod={setPeriod}
         from={customFrom} setFrom={setCustomFrom}
@@ -233,86 +259,51 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
         members={members}
         lists={listsMeta}
         teamMap={teamMap}
+        hideScope={tab !== 'team'}
       />
 
       <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 16, padding: '0 4px' }}>
-        対象: <b style={{ color: NAVY }}>{scopeLabel}</b>
-        {selectedListName && <> / リスト: <b style={{ color: NAVY }}>{selectedListName}</b></>}
-        {' '}・ 期間: <b style={{ color: NAVY }}>{range.from} 〜 {range.to}</b>
-        {prevRange && <> / 前期: <b style={{ color: NAVY }}>{prevRange.from} 〜 {prevRange.to}</b></>}
+        {tab === 'team' && <>対象: <b style={{ color: NAVY }}>{scopeLabel}</b>{' '}・ </>}
+        期間: <b style={{ color: NAVY }}>{range.from} 〜 {range.to}</b>
       </div>
 
-      <ActionBoard
-        heatmapData={heatmapData}
-        orgStats={orgStats}
-        callListData={callListData}
-        rankByPerson={rankByPerson}
-      />
-
-      <ListAlert callListData={callListData} />
-
-      <KPIScorecard
-        stats={scopedStats}
-        prevStats={prevScopedStats}
-        appoData={scopedAppoData}
-        period={period}
-        range={range}
-        prevRange={prevRange}
-        todayStr={todayStr}
-        loading={rankLoading}
-      />
-
-      <Funnel
-        stats={scopedStats}
-        appoData={scopedAppoData}
-        from={range.from}
-        to={range.to}
-        loading={rankLoading}
-      />
-
-      <Heatmap
-        heatmapData={heatmapData}
-        loading={heatmapLoading}
-        listName={selectedListName}
-      />
-
-      <MemberRanking
-        from={range.from}
-        to={range.to}
-        currentUser={currentUser}
-        members={members}
-        appoData={scopedAppoData}
-      />
-
-      {scope === 'member' && scopeId && memberStats && (
-        <StrengthWeakness
-          memberName={scopeId}
-          myStats={memberStats}
-          orgStats={orgStats}
-        />
+      {/* ── タブ① 全体の数字 ── */}
+      {tab === 'overall' && (
+        <>
+          <OverallSummary stats={orgStats} appoData={appoData} range={range} />
+          <Funnel stats={orgStats} appoData={appoData} from={range.from} to={range.to} loading={rankLoading} />
+          <Heatmap heatmapData={heatmapData} loading={heatmapLoading} listName={selectedListName} />
+          <AppoPatternAnalytics from={range.from} to={range.to} memberName={null} />
+          <IndustryAnalytics />
+        </>
       )}
 
-      <AppoPatternAnalytics
-        from={range.from}
-        to={range.to}
-        memberName={scope === 'member' ? scopeId : null}
-      />
+      {/* ── タブ② チームごとの数字 ── */}
+      {tab === 'team' && (
+        <>
+          <TeamComparison rankByPerson={rankByPerson} appoData={appoData} range={range} teamMap={teamMap} />
+          <MemberRanking from={range.from} to={range.to} currentUser={currentUser} members={members} appoData={scopedAppoData} />
+          <ConversionPanel appoData={scopedAppoData} range={range} by="getter" title="メンバー別 アポ転換率" />
+          {scope === 'member' && scopeId && memberStats && (
+            <StrengthWeakness memberName={scopeId} myStats={memberStats} orgStats={orgStats} />
+          )}
+        </>
+      )}
 
-      <IndustryAnalytics />
-
-      <div style={{ margin: '28px 0 20px', borderTop: `1px solid ${color.border}`, paddingTop: 20 }}>
-        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.textLight, letterSpacing: font.letterSpacing.wider, textTransform: 'uppercase', marginBottom: 4 }}>売上・クライアント・リスト別分析</div>
-        <div style={{ fontSize: font.size.xs, color: color.textLight }}>（以下のセクションは独自の期間/絞込を持ちます）</div>
-      </div>
-
-      <StatsView
-        callListData={callListData}
-        currentUser={currentUser}
-        appoData={appoData}
-        members={members}
-        now={nowProp}
-        embedded={true}
-      />
+      {/* ── タブ③ クライアント・リストごとの数字 ── */}
+      {tab === 'client' && (
+        <>
+          <ConversionPanel appoData={appoData} range={range} by="client" title="クライアント別 アポ転換率" />
+          <StatsView
+            callListData={callListData}
+            currentUser={currentUser}
+            appoData={appoData}
+            members={members}
+            now={nowProp}
+            embedded={true}
+          />
+        </>
+      )}
     </div>
   );
 }

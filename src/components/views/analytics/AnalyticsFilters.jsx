@@ -12,6 +12,7 @@ export default function AnalyticsFilters({
   members = [],
   lists = [],
   teamMap = {},
+  hideScope = false,
 }) {
   const teams = useMemo(() => {
     const s = new Set();
@@ -58,16 +59,18 @@ export default function AnalyticsFilters({
           )}
         </div>
 
+        {!hideScope && (
         <div>
           <div style={labelStyle}>スコープ</div>
           <div style={{ display: 'flex', gap: space[1] }}>
-            {[['org', '組織'], ['team', 'チーム'], ['member', '個人']].map(([k, l]) => (
+            {[['org', '全体'], ['team', 'チーム'], ['member', 'メンバー']].map(([k, l]) => (
               <button key={k} onClick={() => setScope(k)} style={tabBtn(scope === k)}>{l}</button>
             ))}
           </div>
         </div>
+        )}
 
-        {scope === 'team' && (
+        {!hideScope && scope === 'team' && (
           <div>
             <div style={labelStyle}>チーム選択</div>
             <Select
@@ -84,7 +87,7 @@ export default function AnalyticsFilters({
           </div>
         )}
 
-        {scope === 'member' && (
+        {!hideScope && scope === 'member' && (
           <div>
             <div style={labelStyle}>メンバー選択</div>
             <Select
