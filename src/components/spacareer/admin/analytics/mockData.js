@@ -15,7 +15,7 @@ export function getMockKpis(_preset) {
     cancelledCustomers:    3,
     avgProgressPct:       54.2,
 
-    // 事前課題
+    // 事後課題
     homeworkSubmissionRate: 78.4,
     homeworkOkRate:         62.1,
     homeworkAvgDaysToSubmit: 3.2,

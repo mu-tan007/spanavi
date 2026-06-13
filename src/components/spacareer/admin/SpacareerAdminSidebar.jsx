@@ -32,7 +32,7 @@ export default function SpacareerAdminSidebar({
     ]},
     { label: 'OPERATIONS', items: [
       { id: 'sessions', label: 'セッション管理' },
-      { id: 'homework', label: '事前課題管理' },
+      { id: 'homework', label: '事後課題管理' },
     ]},
     { label: 'DIAGNOSIS', items: [
       { id: 'social_style', label: 'ソーシャルスタイル診断' },

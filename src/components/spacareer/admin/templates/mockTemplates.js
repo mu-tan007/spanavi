@@ -4,7 +4,7 @@
 // テンプレート機能別カテゴリ
 export const TEMPLATE_CATEGORIES = [
   { key: 'kickoff_hearing', label: 'キックオフ70問' },
-  { key: 'homework',        label: '事前課題' },
+  { key: 'homework',        label: '事後課題' },
   { key: 'session',         label: 'セッション' },
   { key: 'diagnosis',       label: '診断' },
   { key: 'notification',    label: '通知' },
@@ -12,12 +12,12 @@ export const TEMPLATE_CATEGORIES = [
 
 // type: text(本文編集) / items(項目リスト) / prompt(AIプロンプト) / notification(通知文+変数)
 export const TEMPLATES = [
-  // ── 事前課題タブ ────────────────────────────
+  // ── 事後課題タブ ────────────────────────────
   {
     key: 'homework_1',
     category: 'homework',
-    label: '第1回事前課題（共通）',
-    description: 'キックオフ完了時に自動配布される第1回事前課題テンプレート',
+    label: '第1回事後課題（共通）',
+    description: 'キックオフ完了時に自動配布される第1回事後課題テンプレート',
     adminOnly: false,
     type: 'items',
     enabled: true,
@@ -33,7 +33,7 @@ export const TEMPLATES = [
   {
     key: 'homework_base',
     category: 'homework',
-    label: '第2〜8回事前課題ベース項目',
+    label: '第2〜8回事後課題ベース項目',
     description: 'AI生成時の共通土台となる項目（残り30項目はAIが補完）',
     adminOnly: false,
     type: 'items',
@@ -49,7 +49,7 @@ export const TEMPLATES = [
     key: 'ai_prompt',
     category: 'homework',
     label: 'AIプロンプト（30項目生成）',
-    description: 'AI事前課題30項目生成時に Claude へ渡すプロンプト本文',
+    description: 'AI事後課題30項目生成時に Claude へ渡すプロンプト本文',
     adminOnly: true,
     type: 'prompt',
     enabled: true,
@@ -57,13 +57,13 @@ export const TEMPLATES = [
     updatedBy: '運営',
     body:
 `あなたはキャリアコーチングの経験豊富なトレーナーです。
-受講生 {顧客名} の第{セッション番号}回事前課題として、以下の情報を踏まえ、
+受講生 {顧客名} の第{セッション番号}回事後課題として、以下の情報を踏まえ、
 30個の問いを生成してください。
 
 【入力】
 - 直近のセッション議事録：{議事録}
 - ヒアリングシート：{ヒアリングシート}
-- 過去事前課題の回答：{過去回答}
+- 過去事後課題の回答：{過去回答}
 - ソーシャルスタイル診断結果：{診断結果}
 - 強み診断結果：{強み診断}
 
@@ -76,7 +76,7 @@ export const TEMPLATES = [
     key: 'ok_criteria',
     category: 'homework',
     label: 'OK判定基準',
-    description: 'トレーナーが事前課題をOK判定する際の運用基準',
+    description: 'トレーナーが事後課題をOK判定する際の運用基準',
     adminOnly: false,
     type: 'text',
     enabled: true,
@@ -177,7 +177,7 @@ Q4. トレーナーへのフィードバック（任意）`,
   {
     key: 'notify_unstarted',
     category: 'notification',
-    label: '事前課題未着手リマインド',
+    label: '事後課題未着手リマインド',
     description: '締切3日前に未着手の顧客に Slack 送信される通知文',
     adminOnly: false,
     type: 'notification',
@@ -187,7 +187,7 @@ Q4. トレーナーへのフィードバック（任意）`,
     body:
 `{顧客名}様
 
-第{セッション番号}回前の事前課題がまだ未着手のようです。
+第{セッション番号}回の事後課題がまだ未着手のようです。
 締切は {締切日} です。
 
 回答はこちら：{ポータルURL}
@@ -208,7 +208,7 @@ Q4. トレーナーへのフィードバック（任意）`,
     body:
 `{顧客名}様
 
-本日が第{セッション番号}回前事前課題の締切日です。
+本日が第{セッション番号}回事後課題の締切日です。
 セッション（{セッション日時}）をより有意義にするため、
 できる範囲でご回答をお願いいたします。
 
@@ -228,7 +228,7 @@ Q4. トレーナーへのフィードバック（任意）`,
     body:
 `{顧客名}様
 
-第{セッション番号}回前の事前課題をクライアントポータルに公開しました。
+第{セッション番号}回の事後課題をクライアントポータルに公開しました。
 締切：{締切日}
 回答URL：{ポータルURL}
 
@@ -253,7 +253,7 @@ export const NOTIFICATION_VARIABLES = [
   { token: '{顧客名}',         hint: '受講生の氏名' },
   { token: '{セッション番号}', hint: '第◯回（1〜8）' },
   { token: '{セッション日時}', hint: 'YYYY-MM-DD HH:mm' },
-  { token: '{締切日}',         hint: '事前課題の提出期限' },
+  { token: '{締切日}',         hint: '事後課題の提出期限' },
   { token: '{担当トレーナー}', hint: '担当コーチ氏名' },
   { token: '{ポータルURL}',    hint: 'クライアントポータル該当ページ' },
 ];

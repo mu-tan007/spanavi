@@ -15,7 +15,7 @@ import {
   kpiSummary,
 } from './mockData';
 
-// 仕様書: tasks/spacareer-spec.md §7.3 事前課題管理
+// 仕様書: tasks/spacareer-spec.md §7.3 事後課題管理
 // 参考画像: イメージ④
 // 中央4タブ + 上部KPI4枚 + 右カラム編集パネル
 const MAIN_TABS = [
@@ -42,8 +42,8 @@ export default function SpacareerHomeworkView() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="事前課題管理"
-        description="全顧客×第1〜第8回（全8サイクル）の事前課題を横断管理します。第0回は事前課題なし。"
+        title="事後課題管理"
+        description="全顧客×第1〜第8回（全8サイクル）の事後課題を横断管理します。第0回は事後課題なし。"
         style={{ marginBottom: space[4] }}
       />
 
@@ -116,7 +116,7 @@ function SummaryView({ onCellClick, selectedCell }) {
                   <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.navy }}>
                     {row.name}
                     <span style={{ marginLeft: 8, fontWeight: font.weight.normal, color: color.textMid, fontSize: font.size.sm }}>
-                      第{row.sessionNumber}回前 事前課題
+                      第{row.sessionNumber}回 事後課題
                     </span>
                   </div>
                   <div style={{ marginTop: 4, fontSize: font.size.xs, color: color.textMid }}>
@@ -200,7 +200,7 @@ function HomeworkTemplatesQuickList() {
         fontSize: font.size.sm,
         color: color.textMid,
       }}>
-        ※ 11種のテンプレート全体管理は「テンプレート管理」メニューで行います。ここでは事前課題に関する 4 種への近道を表示しています。
+        ※ 11種のテンプレート全体管理は「テンプレート管理」メニューで行います。ここでは事後課題に関する 4 種への近道を表示しています。
       </div>
       <DataTable columns={columns} rows={MOCK_HOMEWORK_TEMPLATES} rowKey="key" height="auto" />
     </div>

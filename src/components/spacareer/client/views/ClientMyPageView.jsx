@@ -23,7 +23,7 @@ const GOAL_CARD_TITLES = {
 //   ヘッダー
 //   原動力フレーズ（AI抽出 §8.5）
 //   3カラム: 基本情報 / 学習進捗 / セッション進捗
-//   あなたの目標カード×3（第1回事前課題から自動引用）
+//   あなたの目標カード×3（第1回事後課題から自動引用）
 //   右カラム: 次回セッション情報 / 直近セッション感想 / 今日のひとこと（AI §8.6）
 
 const SESSION_TOTAL = 9; // 第0〜8回
@@ -388,7 +388,7 @@ function NextSessionCard({ nextSession }) {
           color: color.textMid,
           lineHeight: font.lineHeight.relaxed,
         }}>
-          事前にやっておくこと：事前課題に回答し、提出を完了させましょう。
+          事前にやっておくこと：事後課題に回答し、提出を完了させましょう。
         </div>
       </div>
     </Card>

@@ -59,7 +59,7 @@ export default function SpacareerTemplatesView() {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="テンプレート管理"
-        description="既存11種のテンプレートを機能別4タブで管理します。配信済み事前課題は旧テンプレ版のまま固定。"
+        description="既存11種のテンプレートを機能別4タブで管理します。配信済み事後課題は旧テンプレ版のまま固定。"
         right={(
           <Button variant={showHistory ? 'outline' : 'ghost'} size="md" onClick={() => setShowHistory(s => !s)}>
             {showHistory ? '編集に戻る' : '変更履歴を見る'}

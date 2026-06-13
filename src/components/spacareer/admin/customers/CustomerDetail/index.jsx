@@ -41,7 +41,7 @@ const TABS = [
   { id: 'kickoff_hearing', label: 'キックオフヒアリング' }, // §6.2A 第1回前70問
   { id: 'kickoff',         label: 'キックオフ管理' },        // §5.2 第0回キックオフ
   { id: 'sessions',        label: 'セッション履歴' },
-  { id: 'homework',        label: '事前課題' },
+  { id: 'homework',        label: '事後課題' },
   { id: 'strengths',       label: '強み・価値観' },
   { id: 'files',           label: 'ファイル' },
   { id: 'memo',            label: 'メモ' },

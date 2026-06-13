@@ -1,7 +1,7 @@
 import React from 'react';
 import { color, space, font } from '../../../../constants/design';
 
-// 分析レポート内のカテゴリ見出し（「進捗」「事前課題」など）
+// 分析レポート内のカテゴリ見出し（「進捗」「事後課題」など）
 export default function SectionTitle({ label, hint }) {
   return (
     <div style={{

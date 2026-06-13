@@ -1,8 +1,8 @@
-// スパキャリ 事前課題管理 mockデータ
+// スパキャリ 事後課題管理 mockデータ
 // 基盤構築（ステップ2）完了までのプレースホルダ。Supabase接続後はAPI差替え。
-// 仕様書: tasks/spacareer-spec.md §7.3 事前課題管理
+// 仕様書: tasks/spacareer-spec.md §7.3 事後課題管理
 
-// セッションは第0〜第8回。第0回は事前課題なし。事前課題は第1〜第8回前の8サイクル。
+// セッションは第0〜第8回。第0回は事後課題なし。事後課題は第1〜第8回の8サイクル。
 export const HOMEWORK_STATUSES = [
   { key: 'unsent',     label: '未通知',   variant: 'danger',  cellColor: '#FBE7EA' },
   { key: 'sent',       label: '通知済み', variant: 'info',    cellColor: '#DDECF8' },
@@ -55,8 +55,8 @@ export const MOCK_UNSENT = [
 
 // 課題テンプレートタブ用ダミー（テンプレ管理画面と整合）
 export const MOCK_HOMEWORK_TEMPLATES = [
-  { key: 'homework_1',     label: '第1回事前課題（共通）',    updatedAt: '2026-04-22', updatedBy: '佐藤 美咲', itemCount: 18 },
-  { key: 'homework_base',  label: '第2〜8回事前課題ベース項目', updatedAt: '2026-05-01', updatedBy: '運営',     itemCount: 12 },
+  { key: 'homework_1',     label: '第1回事後課題（共通）',    updatedAt: '2026-04-22', updatedBy: '佐藤 美咲', itemCount: 18 },
+  { key: 'homework_base',  label: '第2〜8回事後課題ベース項目', updatedAt: '2026-05-01', updatedBy: '運営',     itemCount: 12 },
   { key: 'ai_prompt',      label: 'AIプロンプト（30項目生成）', updatedAt: '2026-05-08', updatedBy: '運営',     adminOnly: true },
   { key: 'ok_criteria',    label: 'OK判定基準',               updatedAt: '2026-04-15', updatedBy: '佐藤 美咲', itemCount: 8 },
 ];

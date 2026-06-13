@@ -59,7 +59,7 @@ export default function TabFiles({ detail }) {
   return (
     <Card padding="md"
       title="顧客から添付された全ファイル"
-      description="事前課題の項目単位で添付されたファイルを集約しています。"
+      description="事後課題の項目単位で添付されたファイルを集約しています。"
       action={<Badge variant="primary" dot>{rows.length} 件</Badge>}
     >
       <DataTable

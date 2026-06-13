@@ -125,7 +125,7 @@ function HomeworkSidebar({ homework }) {
   const pct = Math.round((submitted / total) * 100);
   return (
     <div style={{ display: 'grid', gap: space[3] }}>
-      <Card padding="md" title="事前課題 提出進捗">
+      <Card padding="md" title="事後課題 提出進捗">
         <Donut percent={pct} label={`${submitted}/${total}`} />
       </Card>
       <Card padding="md" title="部分提出中">

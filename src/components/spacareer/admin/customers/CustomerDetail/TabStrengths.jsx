@@ -10,7 +10,7 @@ export default function TabStrengths({ detail }) {
   const s = detail?.strength;
   if (!s || !s.completed_at) {
     return (
-      <Card padding="md" title="強み診断" description="第2回事前課題のタイミングで受講生が実施します。">
+      <Card padding="md" title="強み診断" description="第2回事後課題のタイミングで受講生が実施します。">
         <div style={{ color: color.textLight, fontSize: font.size.sm }}>
           まだ診断が完了していません
         </div>

@@ -30,7 +30,7 @@ export const SOCIAL_STYLE_LABELS: Record<SocialStyleType, string> = {
 
 export type PhraseExtractionInput = {
   customerId: string;
-  // 第1回事前課題の所定項目テキスト群（生い立ち／動機／ゴール設計）
+  // 第1回事後課題の所定項目テキスト群（生い立ち／動機／ゴール設計）
   homeworkTexts: string[];
 };
 
@@ -41,7 +41,7 @@ export type PhraseExtractionResult = {
 
 /**
  * §8.5 フレーズ抽出（あなたの原動力）
- * 第1回事前課題から「自分に伝えたいフレーズ」を1〜2文で抽出。
+ * 第1回事後課題から「自分に伝えたいフレーズ」を1〜2文で抽出。
  */
 export async function extractDrivingPhrase(
   _input: PhraseExtractionInput,
@@ -58,7 +58,7 @@ export async function extractDrivingPhrase(
 
 export type DailyMessageInput = {
   customerId: string;
-  // プロフィール／直近の事前課題サマリ／直近の議事録サマリ
+  // プロフィール／直近の事後課題サマリ／直近の議事録サマリ
   profileSummary?: string;
   recentHomeworkSummary?: string;
   recentMinutesSummary?: string;
@@ -107,7 +107,7 @@ export type GoalCard = {
 };
 
 /**
- * 第1回事前課題から「あなたの目標」3カードを抽出。
+ * 第1回事後課題から「あなたの目標」3カードを抽出。
  * 仕様書 §6.1：
  *   ・今回のスパキャリで絶対に手に入れたいもの
  *   ・お金以外で本当に達成したい価値観
@@ -119,15 +119,15 @@ export async function extractGoalCards(
   return [
     {
       title: '今回のスパキャリで絶対に手に入れたいもの',
-      body: '事前課題に回答すると、ここに自動引用されます。',
+      body: '事後課題に回答すると、ここに自動引用されます。',
     },
     {
       title: 'お金以外で本当に達成したい価値観',
-      body: '事前課題に回答すると、ここに自動引用されます。',
+      body: '事後課題に回答すると、ここに自動引用されます。',
     },
     {
       title: '尊敬している人物とその理由',
-      body: '事前課題に回答すると、ここに自動引用されます。',
+      body: '事後課題に回答すると、ここに自動引用されます。',
     },
   ];
 }
@@ -162,7 +162,7 @@ export async function generateMinutesDraft(
       '- 次回までの具体的な行動を確認',
       '',
       '### 2. 次回までの宿題',
-      '- 事前課題への回答',
+      '- 事後課題への回答',
       '- 興味のある求人をピックアップ',
       '',
       '### 3. トレーナー所感',
@@ -175,7 +175,7 @@ export async function generateMinutesDraft(
 }
 
 // ============================================================
-// §8.2 AI 事前課題 30 項目自動生成（mock）
+// §8.2 AI 事後課題 30 項目自動生成（mock）
 // ============================================================
 
 export type HomeworkItemsInput = {
@@ -198,7 +198,7 @@ export type HomeworkItem = {
 };
 
 /**
- * 次回事前課題30項目をAIで生成する mock。
+ * 次回事後課題30項目をAIで生成する mock。
  * 本実装はトレーナーが手動編集後「完了・通知」で確定。
  */
 export async function generateHomework30Items(

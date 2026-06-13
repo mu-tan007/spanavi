@@ -4,7 +4,7 @@ import { Button, Card, Badge, Select } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
 
-// 仕様書: tasks/spacareer-spec.md §6.2 事前課題
+// 仕様書: tasks/spacareer-spec.md §6.2 事後課題
 // 参考: イメージ画像③
 //
 // 仕様要点:
@@ -45,7 +45,7 @@ export default function ClientHomeworkView() {
       setCustomer(cust);
 
       if (cust) {
-        // 第0回（キックオフヒアリング）の提出状況。事前課題画面の先頭に表示する。
+        // 第0回（キックオフヒアリング）の提出状況。事後課題画面の先頭に表示する。
         const { data: kh } = await supabase
           .from('spacareer_kickoff_hearing_sessions')
           .select('status')
@@ -234,7 +234,7 @@ export default function ClientHomeworkView() {
       <div style={{ padding: space[6] }}>
         <Heading />
         {kickoffNote}
-        <Card title="現在配信中の事前課題はありません" padding="lg">
+        <Card title="現在配信中の事後課題はありません" padding="lg">
           <p style={{ fontSize: font.size.sm, color: color.textMid, margin: 0 }}>
             セッション後にトレーナーから通知されるとここに表示されます。
           </p>
@@ -256,7 +256,7 @@ export default function ClientHomeworkView() {
             onChange={e => setSelectedHomeworkId(e.target.value)}
             options={homeworks.map(h => ({
               value: h.id,
-              label: `第${h.session_no}回 事前課題 (${labelOfStatus(h.status)})`,
+              label: `第${h.session_no}回 事後課題 (${labelOfStatus(h.status)})`,
             }))}
           />
         </div>
@@ -272,20 +272,26 @@ export default function ClientHomeworkView() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
-          {items.map((item, idx) => (
-            <QuestionCard
-              key={item.id}
-              index={idx + 1}
-              item={item}
-              answer={answers[item.id] || ''}
-              onAnswerChange={v => setAnswers(prev => ({ ...prev, [item.id]: v }))}
-              files={files[item.id] || []}
-              onFileAdd={f => handleFileAdd(item.id, f)}
-              onFileRemove={i => handleFileRemove(item.id, i)}
-              onTempSave={() => handleTempSave(item.id)}
-              saving={saving}
-            />
-          ))}
+          {items.map((item, idx) => {
+            const prevSection = idx > 0 ? items[idx - 1].section : null;
+            const showSection = item.section && item.section !== prevSection;
+            return (
+              <React.Fragment key={item.id}>
+                {showSection && <SectionHeader label={item.section} />}
+                <QuestionCard
+                  index={idx + 1}
+                  item={item}
+                  answer={answers[item.id] || ''}
+                  onAnswerChange={v => setAnswers(prev => ({ ...prev, [item.id]: v }))}
+                  files={files[item.id] || []}
+                  onFileAdd={f => handleFileAdd(item.id, f)}
+                  onFileRemove={i => handleFileRemove(item.id, i)}
+                  onTempSave={() => handleTempSave(item.id)}
+                  saving={saving}
+                />
+              </React.Fragment>
+            );
+          })}
         </div>
 
         <div>
@@ -357,10 +363,28 @@ function labelOfStatus(s) {
 function Heading() {
   return (
     <div>
-      <h1 style={{ fontSize: font.size['2xl'], fontWeight: font.weight.bold, color: color.navy, margin: 0 }}>事前課題</h1>
+      <h1 style={{ fontSize: font.size['2xl'], fontWeight: font.weight.bold, color: color.navy, margin: 0 }}>事後課題</h1>
       <p style={{ fontSize: font.size.sm, color: color.textMid, marginTop: space[1] }}>
         セッションをより有意義な時間にするために、以下の質問にご回答ください。
       </p>
+    </div>
+  );
+}
+
+function SectionHeader({ label }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: space[2],
+      marginTop: space[3],
+      paddingBottom: space[1],
+      borderBottom: `2px solid ${color.navy}`,
+    }}>
+      <span style={{
+        fontSize: font.size.md,
+        fontWeight: font.weight.bold,
+        color: color.navy,
+        letterSpacing: font.letterSpacing.wide,
+      }}>{label}</span>
     </div>
   );
 }

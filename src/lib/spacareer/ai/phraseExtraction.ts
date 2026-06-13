@@ -1,7 +1,7 @@
 // ============================================================
 // §8.5 フレーズ抽出（あなたの原動力）
 // ----------------------------------------------------------------
-// 第1回事前課題の提出完了時に Claude Haiku 4.5 へ依頼し、
+// 第1回事後課題の提出完了時に Claude Haiku 4.5 へ依頼し、
 // 「自分に伝えたいフレーズ」を1〜2文で抽出。
 // 結果はマイページのヒーローエリアに表示。
 //
@@ -22,7 +22,7 @@ import { logSpacareerAiUsage, estimateClaudeHaikuCost } from './usageLog';
 export type { PhraseExtractionInput, PhraseExtractionResult } from './mock';
 
 /**
- * 第1回事前課題から「あなたの原動力」フレーズを抽出する。
+ * 第1回事後課題から「あなたの原動力」フレーズを抽出する。
  * Edge Function 経由で Claude Haiku 4.5 を呼び出す。
  * Edge Function 未配備時は mock にフォールバック。
  */

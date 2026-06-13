@@ -9,7 +9,7 @@ export default function PermissionsView() {
   const rows = [
     { area: '顧客一覧',        admin: '全顧客',    trainer: '担当顧客のみ', student: '不可' },
     { area: 'セッション管理',   admin: '全顧客',    trainer: '担当顧客のみ', student: '自分のみ閲覧' },
-    { area: '事前課題',         admin: '全顧客',    trainer: '担当顧客のみ', student: '自分のみ（回答）' },
+    { area: '事後課題',         admin: '全顧客',    trainer: '担当顧客のみ', student: '自分のみ（回答）' },
     { area: 'AI講座',           admin: '管理可',    trainer: '視聴可',       student: '視聴可' },
     { area: 'テンプレート管理', admin: '編集可',    trainer: '11種編集可',   student: '不可' },
     { area: '分析レポート',     admin: '可',        trainer: '担当顧客分のみ', student: '不可' },

@@ -132,8 +132,8 @@ function OverviewDashboard({ kpis, trend, trainer, videos, slackHm }) {
         />
       </Card>
 
-      {/* ── 事前課題 ── */}
-      <SectionTitle label="事前課題" hint="提出率／OK判定率／平均提出までの日数" />
+      {/* ── 事後課題 ── */}
+      <SectionTitle label="事後課題" hint="提出率／OK判定率／平均提出までの日数" />
       <GridKpi>
         <KpiCard label="提出率"             value={kpis.homeworkSubmissionRate} unit="%"   tone="navy" />
         <KpiCard label="OK判定率"           value={kpis.homeworkOkRate}         unit="%"   tone="success" />

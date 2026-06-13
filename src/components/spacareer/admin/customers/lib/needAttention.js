@@ -3,7 +3,7 @@
 // ----------------------------------------------------------------
 // 4 条件（優先順位は表示順と一致）：
 //   1. 未アサイン新規顧客（診断完了済みだが担当トレーナー未設定）
-//   2. 事前課題が未通知（セッション完了から1日超過）
+//   2. 事後課題が未通知（セッション完了から1日超過）
 //   3. 提出物締切3日前到達（未提出 or 部分提出のまま）
 //   4. セッション実施日を過ぎても完了が押されていない
 // ============================================================
@@ -16,7 +16,7 @@ export function isUnassigned(row) {
   return !!row?.member_id && !row.assigned_trainer_id;
 }
 
-/** 2. 事前課題が未通知（直近の完了セッションから1日超過しても通知が出ていない） */
+/** 2. 事後課題が未通知（直近の完了セッションから1日超過しても通知が出ていない） */
 export function isHomeworkUnnotifiedOverdue(row, now = new Date()) {
   const sessions = row?.sessions || [];
   const homework = row?.homework || [];
@@ -67,7 +67,7 @@ export function composeAttention(row, now = new Date()) {
 
 export const ATTENTION_LABEL = {
   unassigned: '未アサイン',
-  homework_unnotified: '事前課題未通知',
+  homework_unnotified: '事後課題未通知',
   homework_near_deadline: '締切3日前到達',
   session_overdue: 'セッション完了未押下',
 };

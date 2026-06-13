@@ -3,7 +3,7 @@ import { color, space, font, radius } from '../../../../../constants/design';
 import { Card, Badge, DataTable } from '../../../../ui';
 
 // ============================================================
-// 4. 事前課題タブ（個人ページ内サマリ）
+// 4. 事後課題タブ（個人ページ内サマリ）
 // 仕様書 §7.1 中央タブ#4
 // ============================================================
 const HW_STATUS_LABEL = {
@@ -44,7 +44,7 @@ export default function TabHomework({ detail }) {
 
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
-      <Card padding="md" title="事前課題 提出サマリ"
+      <Card padding="md" title="事後課題 提出サマリ"
         action={<Badge variant={submitted >= 4 ? 'success' : 'warn'} dot>{submitted}/8 提出済み</Badge>}>
         <DataTable
           columns={[
@@ -72,7 +72,7 @@ export default function TabHomework({ detail }) {
         fontSize: font.size.sm,
         color: color.textMid,
       }}>
-        詳細な編集・OK判定・AI再生成は「事前課題管理」メニュー（横断ビュー）で行います。
+        詳細な編集・OK判定・AI再生成は「事後課題管理」メニュー（横断ビュー）で行います。
       </div>
     </div>
   );

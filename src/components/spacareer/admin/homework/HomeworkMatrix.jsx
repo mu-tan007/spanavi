@@ -4,7 +4,7 @@ import { STATUS_INDEX, HOMEWORK_STATUSES } from './mockData';
 
 // 全顧客×第1〜8回の進捗マトリクス
 // 仕様書: §7.3 全顧客マトリクス
-// 色分け5段階+完了で計6種。第0回は事前課題なしのため対象外
+// 色分け5段階+完了で計6種。第0回は事後課題なしのため対象外
 const SESSIONS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function HomeworkMatrix({ customers, matrix, onCellClick, selectedCell }) {

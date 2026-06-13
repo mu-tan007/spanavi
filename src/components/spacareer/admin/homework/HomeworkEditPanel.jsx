@@ -105,7 +105,7 @@ export default function HomeworkEditPanel({ selected, customer, status, onClose,
             <div style={{ marginTop: 4, fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy }}>
               {customer?.name || selected.customerId}
               <span style={{ marginLeft: 8, fontWeight: font.weight.normal, color: color.textMid, fontSize: font.size.md }}>
-                第{selected.sessionNumber}回事前課題
+                第{selected.sessionNumber}回事後課題
               </span>
             </div>
             {statusMeta && (
@@ -310,7 +310,7 @@ function PreviewView({ items, customer, sessionNumber }) {
         受講生からの見え方（クライアントポータル）。これは確定前のプレビューです。
       </div>
       <h3 style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>
-        第{sessionNumber}回 事前課題
+        第{sessionNumber}回 事後課題
       </h3>
       <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: space[4] }}>
         {customer?.name || '受講生'}様、次回セッションをより有意義にするために、以下にご回答ください。
@@ -360,8 +360,8 @@ function AIGenerateView({ busy, lastGen, onGenerate, items }) {
           AIに30項目を自動生成させる
         </h4>
         <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: space[3], lineHeight: font.lineHeight.normal }}>
-          直近セッションの議事録・ヒアリングシート・過去事前課題・ソーシャルスタイル診断結果を入力として、
-          Claude が次回事前課題ドラフトを生成します。生成後、課題設定タブで手動編集できます。
+          直近セッションの議事録・ヒアリングシート・過去事後課題・ソーシャルスタイル診断結果を入力として、
+          Claude が次回事後課題ドラフトを生成します。生成後、課題設定タブで手動編集できます。
         </p>
         <Button variant="primary" loading={busy} onClick={onGenerate}>
           {items.length > 0 ? '再生成' : '30項目を生成'}
@@ -381,7 +381,7 @@ function AIGenerateView({ busy, lastGen, onGenerate, items }) {
         color: color.textMid,
         lineHeight: font.lineHeight.normal,
       }}>
-        AIプロンプトはテンプレート管理 &gt; 事前課題 &gt; AIプロンプト（運営のみ編集可）から変更できます。
+        AIプロンプトはテンプレート管理 &gt; 事後課題 &gt; AIプロンプト（運営のみ編集可）から変更できます。
       </div>
     </div>
   );
@@ -403,7 +403,7 @@ function EmptyHint() {
         左のマトリクスからセルを選択してください
       </div>
       <div style={{ fontSize: font.size.xs }}>
-        個別顧客×回の事前課題を編集・プレビュー・AI生成できます。
+        個別顧客×回の事後課題を編集・プレビュー・AI生成できます。
       </div>
     </div>
   );

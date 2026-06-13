@@ -17,7 +17,7 @@ import { getOrgId } from '../../orgContext';
 
 export type SpacareerSlackNotifyKey =
   | 'permission_granted'        // 診断完了→スパナビ権限付与
-  | 'homework_reminder'         // 事前課題未着手3日前
+  | 'homework_reminder'         // 事後課題未着手3日前
   | 'due_reminder'              // 締切当日
   | 'portal_published'          // クライアントポータル反映完了
   | 'feedback_request';         // セッション後の満足度アンケート案内

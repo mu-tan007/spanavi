@@ -24,11 +24,11 @@ function toDateTimeInput(v) {
 
 // 第1回向け ヒアリング/確認チェックリスト（運用に合わせて項目編集可）
 const CHECK_FIELDS = [
-  { key: 'check_homework_review',     label: '事前課題（宿題）の振り返り確認' },
+  { key: 'check_homework_review',     label: '事後課題（宿題）の振り返り確認' },
   { key: 'check_goal_alignment',      label: '今回のゴール／到達イメージのすり合わせ' },
   { key: 'check_values_review',       label: 'キャリアの方向性・価値観の再確認' },
   { key: 'check_next_schedule',       label: '次回（第2回）の日程確認' },
-  { key: 'check_next_homework_guide', label: '次回事前課題の提出方法・締切の説明' },
+  { key: 'check_next_homework_guide', label: '次回事後課題の提出方法・締切の説明' },
 ];
 
 export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {

@@ -8,7 +8,7 @@ import { supabase } from '../../../../lib/supabase';
 // 実装todo: tasks/spacareer-kickoff-hearing-todo.md Phase C
 //
 // 仕様要点:
-//  - 第1回前のみ起動する独立画面（既存「事前課題」とは別物）
+//  - 第1回前のみ起動する独立画面（既存「事後課題」とは別物）
 //  - 70問+ボーナス3問、セクションA〜J + BONUS の折りたたみUI
 //  - 初回回答から72時間期限（DB trigger で自動セット）
 //  - 途中保存可、blur で自動保存

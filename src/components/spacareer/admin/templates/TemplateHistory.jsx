@@ -40,7 +40,7 @@ export default function TemplateHistory({ history, templates, onSelectTemplate }
         color: color.textMid,
         lineHeight: font.lineHeight.normal,
       }}>
-        テンプレート変更履歴。配信済み事前課題は旧版のまま固定され、未配信のみ新版が適用されます。
+        テンプレート変更履歴。配信済み事後課題は旧版のまま固定され、未配信のみ新版が適用されます。
         ロールバック機能は運用開始後に必要に応じて追加します。
       </div>
       <DataTable

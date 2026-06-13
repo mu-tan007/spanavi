@@ -145,7 +145,7 @@ export default function SpacareerSessionsView({ isAdmin }) {
             render: (r) => fmtDate(r.scheduled_at), cellStyle: { fontFamily: font.family.mono } },
           { key: 'status', label: 'ステータス', width: 110, align: 'center',
             render: (r) => <Badge variant={STATUS_VARIANT[r.status]} dot>{STATUS_LABEL[r.status]}</Badge> },
-          { key: '_hw', label: '事前課題', width: 110, align: 'center',
+          { key: '_hw', label: '事後課題', width: 110, align: 'center',
             render: (r) => r.session_no === 0
               ? <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>
               : <Badge variant={HW_STATUS_VARIANT[r.homework?.status || 'unnotified']} dot>

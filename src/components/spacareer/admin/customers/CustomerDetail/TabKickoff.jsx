@@ -23,7 +23,7 @@ const CHECK_FIELDS = [
   { key: 'check_zoom_recording',          label: 'Zoom録画などについての説明' },
   { key: 'check_reschedule_rules',        label: '振替・キャンセル規定の説明' },
   { key: 'check_next_session_content',    label: '次回のセッション内容についての説明' },
-  { key: 'check_pre_assignment',          label: '事前課題についての説明' },
+  { key: 'check_pre_assignment',          label: '事後課題についての説明' },
   { key: 'check_session_feedback',        label: 'セッション感想についての説明' },
   { key: 'check_deadline',                label: '締め切りについての説明' },
   { key: 'check_first_session_confirmed', label: '第1回の開始日時の確定' },

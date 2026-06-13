@@ -7,10 +7,10 @@ import SidebarShell, { ActiveItem, SectionHeader } from '../../common/sidebars/S
 // 表示優先順位（未完了の項目をメニュー先頭に強制表示）:
 //   1. ソーシャルスタイル診断（30問）— ログイン直後の最初の関門
 //   2. キックオフヒアリング（70問）— 第1回前
-//   3. ベースメニュー（基本情報・事前課題・セッション感想・AI講座・履歴）
+//   3. ベースメニュー（基本情報・事後課題・セッション感想・AI講座・履歴）
 const BASE_MENU = [
   { id: 'mypage', label: '基本情報', sub: 'マイページ' },
-  { id: 'homework', label: '事前課題', sub: 'セッション前の課題' },
+  { id: 'homework', label: '事後課題', sub: 'セッション後の課題' },
   { id: 'feedback', label: 'セッション感想', sub: 'セッション後の振り返り' },
   { id: 'courses', label: 'AI講座', sub: '学習コンテンツ' },
   { id: 'history', label: 'セッション履歴', sub: 'Zoom URL・議事録' },
