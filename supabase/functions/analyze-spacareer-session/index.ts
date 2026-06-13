@@ -48,6 +48,16 @@ const COST_OUTPUT_PER_M = 15.0
 // 32kbps mono MP3 で約100分まで丸ごと文字起こしできるようにする。
 const SAFE_LIMIT = 24 * 1024 * 1024 // 24 MB（Whisper上限ギリギリ手前で truncate）
 
+// Whisper 並列文字起こし設定。
+// 80〜100分(18〜24MB)の音声を1回の Whisper 呼び出しで文字起こしすると、
+// OpenAI 側処理が 280s を超えて Edge Function の wall-clock 上限(Pro=400s)に
+// 収まらず「Signal timed out」で失敗していた。そこで MP3 をフレーム境界で
+// 約4MB(≒17分)ずつに分割し、並列(Promise.all)で文字起こしして結合する。
+// 並列なので全体の所要時間は「最も遅い1チャンク」分（概ね60〜120s）に収まる。
+const WHISPER_CHUNK_BYTES = 4 * 1024 * 1024  // 1チャンクの目安サイズ（≒17分）
+const WHISPER_CHUNK_TIMEOUT_MS = 150_000     // 1チャンクあたりのタイムアウト
+const WHISPER_SINGLE_TIMEOUT_MS = 200_000    // 非MP3(mp4等)の単発呼び出し用
+
 const EXT_ALIAS: Record<string, string> = {
   mov: 'mp4',
   aac: 'm4a',
@@ -176,6 +186,60 @@ function buildMinutesDraftText(ai: MinutesAI): string {
   return lines.join('\n')
 }
 
+// MP3 のフレーム同期語(0xFF 0xEx)を from 以降から探す。見つからなければ末尾。
+function findMp3FrameSync(buf: Uint8Array, from: number): number {
+  for (let i = Math.max(0, from); i < buf.length - 1; i++) {
+    if (buf[i] === 0xFF && (buf[i + 1] & 0xE0) === 0xE0) return i
+  }
+  return buf.length
+}
+
+// MP3 を「完全なフレーム列」で始まる複数チャンクに分割する。
+// 各チャンクは単体で Whisper に渡せる有効な MP3 ストリームになる。
+function splitMp3ByFrames(buffer: ArrayBuffer, targetBytes: number): ArrayBuffer[] {
+  const bytes = new Uint8Array(buffer)
+  if (bytes.length <= targetBytes) return [buffer]
+  const offsets: number[] = [0]
+  let pos = targetBytes
+  while (pos < bytes.length) {
+    const sync = findMp3FrameSync(bytes, pos)
+    if (sync >= bytes.length) break
+    // 直前の境界と同一/逆行は避ける（無限ループ防止）
+    if (sync <= offsets[offsets.length - 1]) { pos = sync + targetBytes; continue }
+    offsets.push(sync)
+    pos = sync + targetBytes
+  }
+  offsets.push(bytes.length)
+  const chunks: ArrayBuffer[] = []
+  for (let i = 0; i < offsets.length - 1; i++) {
+    if (offsets[i + 1] > offsets[i]) chunks.push(buffer.slice(offsets[i], offsets[i + 1]))
+  }
+  return chunks.length ? chunks : [buffer]
+}
+
+// 1チャンクを Whisper で文字起こし。失敗時は throw（上位の catch でまとめて処理）。
+async function whisperTranscribeChunk(
+  chunk: ArrayBuffer, idx: number, whisperExt: string, contentType: string,
+  openaiKey: string, timeoutMs: number,
+): Promise<string> {
+  const fd = new FormData()
+  fd.append('file', new Blob([chunk], { type: contentType }), `recording_${idx}.${whisperExt}`)
+  fd.append('model', 'whisper-1')
+  fd.append('language', 'ja')
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${openaiKey}` },
+    body: fd,
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(`Whisper chunk ${idx} HTTP ${res.status}: ${t.slice(0, 200)}`)
+  }
+  const data = await res.json()
+  return (data.text as string) || ''
+}
+
 // ── バックグラウンド処理 ──────────────────────────────────────
 async function processInBackground(
   session_id: string,
@@ -272,37 +336,40 @@ async function processInBackground(
       sizeNote = '（ファイル冒頭部分のみ分析）'
       console.log(`[analyze-spacareer-session] Truncated ${rawExt} (${audioBuffer.byteLength}B) → ${finalBuffer.byteLength}B`)
     }
-    const audioBlob = new Blob([finalBuffer], { type: contentType })
-
-    // ── 4. Whisper で文字起こし ──────────────────────────────
+    // ── 4. Whisper で文字起こし（MP3は分割して並列実行）──────
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) {
       await failVideo('OPENAI_API_KEY が設定されていません')
       return
     }
 
-    const formData = new FormData()
-    formData.append('file', audioBlob, `recording.${whisperExt}`)
-    formData.append('model', 'whisper-1')
-    formData.append('language', 'ja')
-
-    // SAFE_LIMIT=24MB(≒100分)の音声を丸ごと文字起こしするには 180s では足りず
-    // 「Signal timed out」で失敗していた。Pro プランの wall-clock 上限 400s 内で
-    // Whisper に最大の予算(280s)を割り当てる（download40s + whisper280s + claude70s = 390s）。
-    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${openaiKey}` },
-      body: formData,
-      signal: AbortSignal.timeout(280_000),
-    })
-    if (!whisperRes.ok) {
-      const errText = await whisperRes.text()
-      console.error('[analyze-spacareer-session] Whisper error:', errText)
-      await failVideo('文字起こしに失敗しました（Whisper）', errText.slice(0, 300))
+    // MP3 は約17分ごとに分割して並列文字起こし（長尺でも wall-clock 内に収める）。
+    // 非MP3(mp4等のフォールバック)は分割できないため単発(200s)で処理する。
+    let transcript = ''
+    try {
+      if (whisperExt === 'mp3' && finalBuffer.byteLength > WHISPER_CHUNK_BYTES) {
+        const chunks = splitMp3ByFrames(finalBuffer, WHISPER_CHUNK_BYTES)
+        console.log(`[analyze-spacareer-session] whisper parallel chunks=${chunks.length} totalBytes=${finalBuffer.byteLength}`)
+        const parts = await Promise.all(
+          chunks.map((c, i) => whisperTranscribeChunk(c, i, whisperExt, contentType, openaiKey, WHISPER_CHUNK_TIMEOUT_MS)),
+        )
+        transcript = parts.join('\n').trim()
+      } else {
+        transcript = (await whisperTranscribeChunk(finalBuffer, 0, whisperExt, contentType, openaiKey, WHISPER_SINGLE_TIMEOUT_MS)).trim()
+      }
+    } catch (we) {
+      const isTo = (we as Error)?.name === 'TimeoutError' || /timed out|aborted/i.test((we as Error)?.message || '')
+      console.error('[analyze-spacareer-session] Whisper error:', we)
+      await failVideo(
+        isTo ? '文字起こしがタイムアウトしました。再度お試しください。' : '文字起こしに失敗しました（Whisper）',
+        (we as Error)?.message || 'whisper failed',
+      )
       return
     }
-    const whisperData = await whisperRes.json()
-    const transcript: string = whisperData.text || ''
+    if (!transcript) {
+      await failVideo('文字起こし結果が空でした', 'whisper returned empty text')
+      return
+    }
 
     // ── 5. Claude で構造化議事録 ────────────────────────────
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
@@ -325,9 +392,10 @@ async function processInBackground(
         max_tokens: MINUTES_MAX_TOKENS,
         messages: [{ role: 'user', content: userPrompt }],
       }),
-      // Whisper に予算を寄せたため、議事録生成(構造化JSON出力)は 70s に圧縮。
-      // 議事録JSONは通常2〜4K tokens で完了するため十分。
-      signal: AbortSignal.timeout(70_000),
+      // Whisper を並列分割化して実時間を短縮（約120s）したぶん、議事録生成には
+      // 余裕を持たせる。長尺文字起こしの構造化＋最大8K出力でも収まる 200s。
+      // 想定 wall-clock: download40s + whisper(並列)〜150s + claude200s ≦ 400s(Pro上限)。
+      signal: AbortSignal.timeout(200_000),
     })
 
     if (!claudeRes.ok) {
