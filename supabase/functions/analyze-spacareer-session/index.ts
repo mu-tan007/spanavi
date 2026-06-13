@@ -235,7 +235,7 @@ async function processInBackground(
         return
       }
       const storageRes = await fetch(signedUrlData.signedUrl, {
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(40_000),
       })
       if (!storageRes.ok) {
         await failVideo('ストレージからのダウンロードに失敗しました', `HTTP ${storageRes.status}`)
@@ -286,11 +286,14 @@ async function processInBackground(
     formData.append('model', 'whisper-1')
     formData.append('language', 'ja')
 
+    // SAFE_LIMIT=24MB(≒100分)の音声を丸ごと文字起こしするには 180s では足りず
+    // 「Signal timed out」で失敗していた。Pro プランの wall-clock 上限 400s 内で
+    // Whisper に最大の予算(280s)を割り当てる（download40s + whisper280s + claude70s = 390s）。
     const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${openaiKey}` },
       body: formData,
-      signal: AbortSignal.timeout(180_000),
+      signal: AbortSignal.timeout(280_000),
     })
     if (!whisperRes.ok) {
       const errText = await whisperRes.text()
@@ -322,9 +325,9 @@ async function processInBackground(
         max_tokens: MINUTES_MAX_TOKENS,
         messages: [{ role: 'user', content: userPrompt }],
       }),
-      // 長尺transcript + 8K出力のため余裕を持たせる（Whisper180s + ここ180sでも
-      // Edge Function の wall clock 400s 以内に収まる）
-      signal: AbortSignal.timeout(180_000),
+      // Whisper に予算を寄せたため、議事録生成(構造化JSON出力)は 70s に圧縮。
+      // 議事録JSONは通常2〜4K tokens で完了するため十分。
+      signal: AbortSignal.timeout(70_000),
     })
 
     if (!claudeRes.ok) {
@@ -424,7 +427,12 @@ async function processInBackground(
     console.log(`[analyze-spacareer-session] done session_video_id=${session_video_id}`)
   } catch (err) {
     console.error('[analyze-spacareer-session] unhandled:', err)
-    await failVideo('AI 議事録生成中に予期しないエラーが発生しました', (err as Error).message)
+    const isTimeout = (err as Error)?.name === 'TimeoutError'
+      || /timed out|aborted/i.test((err as Error)?.message || '')
+    const message = isTimeout
+      ? 'AI 議事録の生成がタイムアウトしました（動画が長すぎる可能性があります）。再度お試しください。'
+      : 'AI 議事録生成中に予期しないエラーが発生しました'
+    await failVideo(message, (err as Error).message)
   }
 }
 
