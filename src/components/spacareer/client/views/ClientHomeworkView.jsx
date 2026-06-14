@@ -100,10 +100,16 @@ export default function ClientHomeworkView() {
     [homeworks, selectedHomeworkId],
   );
 
+  // 回答済み判定。ファイル提出形式(item_type='file')は添付があれば回答済みとみなす。
+  const isAnswered = (it) =>
+    it.item_type === 'file'
+      ? (files[it.id] || []).length > 0
+      : (answers[it.id] || '').trim().length > 0;
+
   const totalItems = items.length;
   const answeredItems = useMemo(() => {
-    return items.filter(it => (answers[it.id] || '').trim().length > 0).length;
-  }, [items, answers]);
+    return items.filter(isAnswered).length;
+  }, [items, answers, files]);
   const progressPct = totalItems ? Math.round((answeredItems / totalItems) * 100) : 0;
 
   const deadlineWarning = useMemo(() => {
@@ -131,7 +137,7 @@ export default function ClientHomeworkView() {
   };
 
   const recomputeHomeworkStatus = async () => {
-    const submittedCount = items.filter(it => (answers[it.id] || '').trim().length > 0).length;
+    const submittedCount = items.filter(isAnswered).length;
     let newStatus = 'unsubmitted';
     if (submittedCount === 0) newStatus = 'unsubmitted';
     else if (submittedCount < totalItems) newStatus = 'partial';
@@ -168,9 +174,9 @@ export default function ClientHomeworkView() {
     if (!window.confirm('回答を提出します。提出後も修正・再提出はいつでもできます。よろしいですか？')) return;
     setSubmitting(true);
     try {
-      const submitIds = items.filter(it => (answers[it.id] || '').trim().length > 0).map(it => it.id);
+      const submitIds = items.filter(isAnswered).map(it => it.id);
       await saveAnswers(submitIds, { setSubmitted: true });
-      const nonSubmit = items.filter(it => !((answers[it.id] || '').trim().length > 0)).map(it => it.id);
+      const nonSubmit = items.filter(it => !isAnswered(it)).map(it => it.id);
       if (nonSubmit.length) await saveAnswers(nonSubmit, { setSubmitted: false });
       await recomputeHomeworkStatus();
     } catch (e) {
@@ -307,7 +313,7 @@ export default function ClientHomeworkView() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 320, overflowY: 'auto', borderTop: `1px solid ${color.borderLight}`, paddingTop: space[2] }}>
               {items.map((it, idx) => {
-                const done = (answers[it.id] || '').trim().length > 0;
+                const done = isAnswered(it);
                 return (
                   <a
                     key={it.id}
@@ -398,6 +404,7 @@ function Centered({ children }) {
 function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, onFileRemove, onTempSave, saving }) {
   const len = (answer || '').length;
   const max = item.max_length || null;
+  const isFile = item.item_type === 'file';
   return (
     <Card padding="md" style={{ scrollMarginTop: 80 }}>
       <div id={`hw-q-${item.id}`} style={{ display: 'flex', alignItems: 'flex-start', gap: space[3], marginBottom: space[3] }}>
@@ -418,37 +425,91 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
               {item.question_hint}
             </div>
           )}
+          {item.template_url && (
+            <a
+              href={item.template_url}
+              download={item.template_name || ''}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: space[2],
+                padding: `${space[2]}px ${space[3]}px`,
+                background: color.navy,
+                color: color.white,
+                borderRadius: radius.md,
+                fontSize: font.size.sm,
+                fontWeight: font.weight.semibold,
+                textDecoration: 'none',
+                marginBottom: space[2],
+              }}
+            >
+              ↓ テンプレートをダウンロード（{item.template_name || 'ファイル'}）
+            </a>
+          )}
         </div>
       </div>
 
-      <textarea
-        value={answer}
-        onChange={e => onAnswerChange(e.target.value)}
-        placeholder="ここに回答を入力してください"
-        rows={6}
-        style={{
-          width: '100%',
-          padding: `${space[3]}px ${space[3]}px`,
-          fontSize: font.size.md,
-          color: color.textDark,
-          fontFamily: font.family.sans,
-          border: `1px solid ${color.border}`,
+      {isFile ? (
+        <div style={{
+          border: `1px dashed ${color.border}`,
           borderRadius: radius.md,
-          outline: 'none',
-          resize: 'vertical',
-          minHeight: 120,
-          boxSizing: 'border-box',
-        }}
-      />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: space[2] }}>
-        <FileAttachArea files={files} onAdd={onFileAdd} onRemove={onFileRemove} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
-          <span style={{ fontSize: font.size.xs, color: max && len > max ? color.danger : color.textLight }}>
-            {len}{max ? ` / ${max}` : ''} 文字
-          </span>
-          <Button size="sm" variant="ghost" onClick={onTempSave} loading={saving}>この設問を保存</Button>
+          padding: space[3],
+          background: color.cream,
+        }}>
+          <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark, marginBottom: space[2] }}>
+            完成したファイルをアップロード
+          </div>
+          <FileAttachArea files={files} onAdd={onFileAdd} onRemove={onFileRemove} />
+          <textarea
+            value={answer}
+            onChange={e => onAnswerChange(e.target.value)}
+            placeholder="補足メモ（任意）"
+            rows={2}
+            style={{
+              width: '100%', marginTop: space[2],
+              padding: `${space[2]}px ${space[3]}px`,
+              fontSize: font.size.sm,
+              color: color.textDark,
+              fontFamily: font.family.sans,
+              border: `1px solid ${color.border}`,
+              borderRadius: radius.md,
+              outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: space[2] }}>
+            <Button size="sm" variant="ghost" onClick={onTempSave} loading={saving}>この設問を保存</Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <textarea
+            value={answer}
+            onChange={e => onAnswerChange(e.target.value)}
+            placeholder="ここに回答を入力してください"
+            rows={6}
+            style={{
+              width: '100%',
+              padding: `${space[3]}px ${space[3]}px`,
+              fontSize: font.size.md,
+              color: color.textDark,
+              fontFamily: font.family.sans,
+              border: `1px solid ${color.border}`,
+              borderRadius: radius.md,
+              outline: 'none',
+              resize: 'vertical',
+              minHeight: 120,
+              boxSizing: 'border-box',
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: space[2] }}>
+            <FileAttachArea files={files} onAdd={onFileAdd} onRemove={onFileRemove} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+              <span style={{ fontSize: font.size.xs, color: max && len > max ? color.danger : color.textLight }}>
+                {len}{max ? ` / ${max}` : ''} 文字
+              </span>
+              <Button size="sm" variant="ghost" onClick={onTempSave} loading={saving}>この設問を保存</Button>
+            </div>
+          </div>
+        </>
+      )}
     </Card>
   );
 }

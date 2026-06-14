@@ -239,6 +239,9 @@ export default function SessionCompleteFlow({
       question_hint: it.question_hint || null,
       is_required: it.is_required ?? false,
       max_length: it.max_length || null,
+      item_type: it.item_type || 'text',
+      template_url: it.template_url || null,
+      template_name: it.template_name || null,
     }));
     const { error: insErr } = await supabase.from('spacareer_homework_items').insert(payload);
     if (insErr) return { ok: false, reason: `事後課題項目の作成に失敗: ${insErr.message || insErr}` };

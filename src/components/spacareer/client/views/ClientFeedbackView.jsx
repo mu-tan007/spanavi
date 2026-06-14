@@ -98,19 +98,28 @@ export default function ClientFeedbackView() {
     ];
   }, [template]);
 
+  // 満足度(rating_5)はハードコードのスコアボタンで扱うため、設問ループからは除外する。
+  // テンプレ設問は key ではなく id を識別子に持つ（key 参照だと全設問が responses[undefined]
+  // を共有し、1つ入力すると全項目が同じ値で上書きされるバグになる）。
+  const fieldQuestions = useMemo(
+    () => questions.filter(q => q.id !== 'satisfaction' && q.type !== 'rating_5'),
+    [questions],
+  );
+  const qid = (q, i) => q.id || q.key || `q_${i}`;
+
   const totalRequired = useMemo(() => {
-    return 1 + 1 + questions.filter(q => q.required).length;
-  }, [questions]);
+    return 1 + 1 + fieldQuestions.filter(q => q.required).length;
+  }, [fieldQuestions]);
 
   const answeredRequired = useMemo(() => {
     let n = 0;
     if (score) n += 1;
     if ((freeComment || '').trim()) n += 1;
-    questions.forEach(q => {
-      if (q.required && (responses[q.key] || '').trim()) n += 1;
+    fieldQuestions.forEach((q, i) => {
+      if (q.required && (responses[qid(q, i)] || '').trim()) n += 1;
     });
     return n;
-  }, [score, freeComment, responses, questions]);
+  }, [score, freeComment, responses, fieldQuestions]);
 
   const handleTempSave = async () => {
     if (!selectedFeedbackId) return;
@@ -133,8 +142,9 @@ export default function ClientFeedbackView() {
     if (!selectedFeedbackId) return;
     if (!score) { alert('満足度を選択してください'); return; }
     if (!(freeComment || '').trim()) { alert('感想・気づきをご記入ください'); return; }
-    for (const q of questions) {
-      if (q.required && !(responses[q.key] || '').trim()) {
+    for (let i = 0; i < fieldQuestions.length; i++) {
+      const q = fieldQuestions[i];
+      if (q.required && !(responses[qid(q, i)] || '').trim()) {
         alert(`「${q.label}」をご記入ください`);
         return;
       }
@@ -278,17 +288,53 @@ export default function ClientFeedbackView() {
             </div>
           </Card>
 
-          {questions.map(q => (
-            <Card key={q.key} padding="md">
-              <Label required={q.required}>{q.label}</Label>
-              <textarea
-                value={responses[q.key] || ''}
-                onChange={e => setResponses(prev => ({ ...prev, [q.key]: e.target.value }))}
-                rows={4}
-                style={textareaStyle}
-              />
-            </Card>
-          ))}
+          {fieldQuestions.map((q, i) => {
+            const id = qid(q, i);
+            const val = responses[id] || '';
+            if (q.type === 'radio' && Array.isArray(q.options)) {
+              return (
+                <Card key={id} padding="md">
+                  <Label required={q.required}>{q.label}</Label>
+                  <div style={{ display: 'flex', gap: space[2], marginTop: space[2], flexWrap: 'wrap' }}>
+                    {q.options.map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setResponses(prev => ({ ...prev, [id]: opt }))}
+                        style={{
+                          padding: `${space[2]}px ${space[3]}px`,
+                          border: `1px solid ${val === opt ? color.navy : color.border}`,
+                          background: val === opt ? color.navy : color.white,
+                          color: val === opt ? color.white : color.textDark,
+                          borderRadius: radius.md,
+                          cursor: 'pointer',
+                          fontSize: font.size.sm,
+                          fontWeight: font.weight.semibold,
+                        }}
+                      >{opt}</button>
+                    ))}
+                  </div>
+                </Card>
+              );
+            }
+            return (
+              <Card key={id} padding="md">
+                <Label required={q.required}>{q.label}</Label>
+                <textarea
+                  value={val}
+                  onChange={e => setResponses(prev => ({ ...prev, [id]: e.target.value }))}
+                  rows={4}
+                  maxLength={q.max_length || undefined}
+                  style={textareaStyle}
+                />
+                {q.max_length ? (
+                  <div style={{ textAlign: 'right', fontSize: font.size.xs, color: color.textLight, marginTop: space[1] }}>
+                    {val.length} / {q.max_length} 文字
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
         </div>
 
         <Card title="回答の進捗" padding="md" style={{ alignSelf: 'flex-start', position: 'sticky', top: space[4] }}>
@@ -304,9 +350,12 @@ export default function ClientFeedbackView() {
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
             <ProgressRow done={!!score} label="満足度" />
             <ProgressRow done={!!(freeComment || '').trim()} label="自由記述" />
-            {questions.map(q => (
-              <ProgressRow key={q.key} done={!!(responses[q.key] || '').trim()} label={q.label} required={q.required} />
-            ))}
+            {fieldQuestions.map((q, i) => {
+              const id = qid(q, i);
+              return (
+                <ProgressRow key={id} done={!!(responses[id] || '').trim()} label={q.label} required={q.required} />
+              );
+            })}
           </ul>
         </Card>
       </div>
