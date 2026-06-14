@@ -3121,6 +3121,17 @@ export async function rpcPerfWeeklyTrend(weekStartStr, weeks = 8) {
   return { data: data || [], error }
 }
 
+// メンバー別パフォーマンス（架電/接続/アポ + シフト時間/実稼働時間）。
+// 旧 事業俯瞰のメンバーパフォーマンスと同じ business_overview_member_performance を使う。
+// p_from / p_to は YYYY-MM-DD。
+export async function fetchMemberPerformance(fromDate, toDate) {
+  const { data, error } = await supabase.rpc('business_overview_member_performance', {
+    p_from: fromDate, p_to: toDate,
+  })
+  if (error) console.error('[RPC] business_overview_member_performance error:', error)
+  return { data: data || [], error }
+}
+
 export async function fetchCallListsMeta() {
   const { data, error } = await supabase
     .from('call_lists')
