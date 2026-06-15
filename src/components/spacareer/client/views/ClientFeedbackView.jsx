@@ -22,6 +22,16 @@ const SATISFACTION_LABELS = [
   { score: 5, label: '満足' },
 ];
 
+// 「セッションを通じての感想・気づき」(ハードコード自由記述欄) の文字数下限
+const FREE_COMMENT_MIN = 100;
+
+// 設問が「回答済み」とみなせるか。min_length 指定があれば下限充足を要求する。
+function meetsMin(q, val) {
+  const v = (val || '').trim();
+  if (!v) return false;
+  return v.length >= (q?.min_length || 0);
+}
+
 export default function ClientFeedbackView() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -111,15 +121,17 @@ export default function ClientFeedbackView() {
     return 1 + 1 + fieldQuestions.filter(q => q.required).length;
   }, [fieldQuestions]);
 
+  const freeCommentOk = (freeComment || '').trim().length >= FREE_COMMENT_MIN;
+
   const answeredRequired = useMemo(() => {
     let n = 0;
     if (score) n += 1;
-    if ((freeComment || '').trim()) n += 1;
+    if (freeCommentOk) n += 1;
     fieldQuestions.forEach((q, i) => {
-      if (q.required && (responses[qid(q, i)] || '').trim()) n += 1;
+      if (q.required && meetsMin(q, responses[qid(q, i)])) n += 1;
     });
     return n;
-  }, [score, freeComment, responses, fieldQuestions]);
+  }, [score, freeCommentOk, responses, fieldQuestions]);
 
   const handleTempSave = async () => {
     if (!selectedFeedbackId) return;
@@ -142,10 +154,19 @@ export default function ClientFeedbackView() {
     if (!selectedFeedbackId) return;
     if (!score) { alert('満足度を選択してください'); return; }
     if (!(freeComment || '').trim()) { alert('感想・気づきをご記入ください'); return; }
+    if ((freeComment || '').trim().length < FREE_COMMENT_MIN) {
+      alert(`「セッションを通じての感想・気づき」は最低${FREE_COMMENT_MIN}文字以上ご記入ください`);
+      return;
+    }
     for (let i = 0; i < fieldQuestions.length; i++) {
       const q = fieldQuestions[i];
-      if (q.required && !(responses[qid(q, i)] || '').trim()) {
+      const val = (responses[qid(q, i)] || '').trim();
+      if (q.required && !val) {
         alert(`「${q.label}」をご記入ください`);
+        return;
+      }
+      if (val && q.min_length && val.length < q.min_length) {
+        alert(`「${q.label}」は最低${q.min_length}文字以上ご記入ください`);
         return;
       }
     }
@@ -211,6 +232,20 @@ export default function ClientFeedbackView() {
         {submitted && <Badge variant="success" dot>提出済み</Badge>}
       </div>
 
+      {submitted && (
+        <div style={{
+          padding: space[3],
+          background: alpha(color.success, 0.10),
+          border: `1px solid ${alpha(color.success, 0.35)}`,
+          borderRadius: radius.md,
+          fontSize: font.size.sm,
+          fontWeight: font.weight.semibold,
+          color: color.textDark,
+        }}>
+          提出完了しました。ご回答ありがとうございました。提出後の内容は編集できません。
+        </div>
+      )}
+
       <Card padding="md">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: space[3] }}>
           <div>
@@ -254,6 +289,7 @@ export default function ClientFeedbackView() {
                 <button
                   key={s.score}
                   type="button"
+                  disabled={submitted}
                   onClick={() => setScore(s.score)}
                   style={{
                     padding: `${space[2]}px ${space[4]}px`,
@@ -261,7 +297,8 @@ export default function ClientFeedbackView() {
                     background: score === s.score ? color.navy : color.white,
                     color: score === s.score ? color.white : color.textDark,
                     borderRadius: radius.md,
-                    cursor: 'pointer',
+                    cursor: submitted ? 'default' : 'pointer',
+                    opacity: submitted && score !== s.score ? 0.5 : 1,
                     fontSize: font.size.sm,
                     fontWeight: font.weight.semibold,
                     minWidth: 90,
@@ -281,10 +318,12 @@ export default function ClientFeedbackView() {
               onChange={e => setFreeComment(e.target.value)}
               placeholder="セッションを通じて感じたこと、気づきを自由にご記入ください。"
               rows={6}
-              style={textareaStyle}
+              readOnly={submitted}
+              style={submitted ? readonlyTextareaStyle : textareaStyle}
             />
-            <div style={{ textAlign: 'right', fontSize: font.size.xs, color: color.textLight, marginTop: space[1] }}>
-              {(freeComment || '').length} 文字
+            <div style={{ textAlign: 'right', fontSize: font.size.xs, marginTop: space[1],
+              color: freeCommentOk ? color.textLight : color.danger }}>
+              {(freeComment || '').length} 文字（最低{FREE_COMMENT_MIN}文字）
             </div>
           </Card>
 
@@ -300,6 +339,7 @@ export default function ClientFeedbackView() {
                       <button
                         key={opt}
                         type="button"
+                        disabled={submitted}
                         onClick={() => setResponses(prev => ({ ...prev, [id]: opt }))}
                         style={{
                           padding: `${space[2]}px ${space[3]}px`,
@@ -307,7 +347,8 @@ export default function ClientFeedbackView() {
                           background: val === opt ? color.navy : color.white,
                           color: val === opt ? color.white : color.textDark,
                           borderRadius: radius.md,
-                          cursor: 'pointer',
+                          cursor: submitted ? 'default' : 'pointer',
+                          opacity: submitted && val !== opt ? 0.5 : 1,
                           fontSize: font.size.sm,
                           fontWeight: font.weight.semibold,
                         }}
@@ -325,11 +366,13 @@ export default function ClientFeedbackView() {
                   onChange={e => setResponses(prev => ({ ...prev, [id]: e.target.value }))}
                   rows={4}
                   maxLength={q.max_length || undefined}
-                  style={textareaStyle}
+                  readOnly={submitted}
+                  style={submitted ? readonlyTextareaStyle : textareaStyle}
                 />
-                {q.max_length ? (
-                  <div style={{ textAlign: 'right', fontSize: font.size.xs, color: color.textLight, marginTop: space[1] }}>
-                    {val.length} / {q.max_length} 文字
+                {(q.max_length || q.min_length) ? (
+                  <div style={{ textAlign: 'right', fontSize: font.size.xs, marginTop: space[1],
+                    color: (!q.min_length || val.trim().length >= q.min_length) ? color.textLight : color.danger }}>
+                    {val.length}{q.max_length ? ` / ${q.max_length}` : ''} 文字{q.min_length ? `（最低${q.min_length}文字）` : ''}
                   </div>
                 ) : null}
               </Card>
@@ -349,21 +392,31 @@ export default function ClientFeedbackView() {
           </div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
             <ProgressRow done={!!score} label="満足度" />
-            <ProgressRow done={!!(freeComment || '').trim()} label="自由記述" />
+            <ProgressRow done={freeCommentOk} label="自由記述" />
             {fieldQuestions.map((q, i) => {
               const id = qid(q, i);
+              const done = q.required ? meetsMin(q, responses[id]) : !!(responses[id] || '').trim();
               return (
-                <ProgressRow key={id} done={!!(responses[id] || '').trim()} label={q.label} required={q.required} />
+                <ProgressRow key={id} done={done} label={q.label} required={q.required} />
               );
             })}
           </ul>
         </Card>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2] }}>
-        <Button variant="outline" onClick={handleTempSave} loading={saving}>一時保存する</Button>
-        <Button variant="primary" onClick={handleSubmit} loading={submitting}>回答を提出する</Button>
-      </div>
+      {submitted ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: space[2],
+          fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.success,
+        }}>
+          提出完了しました
+        </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2] }}>
+          <Button variant="outline" onClick={handleTempSave} loading={saving}>一時保存する</Button>
+          <Button variant="primary" onClick={handleSubmit} loading={submitting}>回答を提出する</Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -428,6 +481,15 @@ const textareaStyle = {
   boxSizing: 'border-box',
 };
 
+// 提出済み（読み取り専用）の textarea スタイル。編集不可を視覚的にも示す。
+const readonlyTextareaStyle = {
+  ...textareaStyle,
+  background: color.gray50,
+  color: color.textMid,
+  cursor: 'default',
+  resize: 'none',
+};
+
 function Donut({ pct }) {
   const r = 24;
   const c = 2 * Math.PI * r;
@@ -439,7 +501,7 @@ function Donut({ pct }) {
         cx="32" cy="32" r={r} fill="none"
         stroke={color.navyLight} strokeWidth="7"
         strokeDasharray={`${dash} ${c}`}
-        strokeDashoffset={c / 4}
+        strokeDashoffset={0}
         transform="rotate(-90 32 32)"
         strokeLinecap="round"
       />

@@ -583,7 +583,7 @@ function Donut({ pct }) {
         cx="32" cy="32" r={r} fill="none"
         stroke={color.navyLight} strokeWidth="7"
         strokeDasharray={`${dash} ${c}`}
-        strokeDashoffset={c / 4}
+        strokeDashoffset={0}
         transform="rotate(-90 32 32)"
         strokeLinecap="round"
       />
