@@ -81,27 +81,27 @@ export default function PerformanceTable({ range, groupBy, title }) {
 
   const columns = groupBy === 'client'
     ? [
-        { key: 'clientName', label: 'クライアント', width: 220, align: 'left',
+        { key: 'clientName', label: 'クライアント', width: 220, align: 'left', sortable: true, sortType: 'string',
           render: (r) => <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.clientName}</span> },
-        { key: 'calls', label: '架電', width: 80, align: 'right' },
-        { key: 'connect', label: '接続', width: 70, align: 'right' },
-        { key: 'connectRate', label: '接続率', width: 110, align: 'right', render: (r) => <RateBar value={r.connectRate} good={color.navyLight} /> },
-        { key: 'appo', label: 'アポ', width: 60, align: 'right', render: (r) => <span style={{ color: color.gold, fontWeight: font.weight.semibold }}>{r.appo}</span> },
-        { key: 'appoRate', label: 'アポ率', width: 110, align: 'right', render: (r) => <RateBar value={r.appoRate} good={color.gold} /> },
-        { key: 'lastDate', label: '最終架電', width: 100, align: 'right',
+        { key: 'calls', label: '架電', width: 80, align: 'right', sortable: true },
+        { key: 'connect', label: '接続', width: 70, align: 'right', sortable: true },
+        { key: 'connectRate', label: '接続率', width: 110, align: 'right', sortable: true, render: (r) => <RateBar value={r.connectRate} good={color.navyLight} /> },
+        { key: 'appo', label: 'アポ', width: 60, align: 'right', sortable: true, render: (r) => <span style={{ color: color.gold, fontWeight: font.weight.semibold }}>{r.appo}</span> },
+        { key: 'appoRate', label: 'アポ率', width: 110, align: 'right', sortable: true, render: (r) => <RateBar value={r.appoRate} good={color.gold} /> },
+        { key: 'lastDate', label: '最終架電', width: 100, align: 'right', sortable: true, sortType: 'string',
           render: (r) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid }}>{r.lastDate || '—'}</span> },
       ]
     : [
-        { key: 'clientName', label: 'クライアント', width: 180, align: 'left',
+        { key: 'clientName', label: 'クライアント', width: 180, align: 'left', sortable: true, sortType: 'string',
           render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.clientName}</span> },
-        { key: 'listName', label: 'リスト', width: 200, align: 'left',
+        { key: 'listName', label: 'リスト', width: 200, align: 'left', sortable: true, sortType: 'string',
           render: (r) => <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.listName}</span> },
-        { key: 'calls', label: '架電', width: 70, align: 'right' },
-        { key: 'connect', label: '接続', width: 60, align: 'right' },
-        { key: 'connectRate', label: '接続率', width: 105, align: 'right', render: (r) => <RateBar value={r.connectRate} good={color.navyLight} /> },
-        { key: 'appo', label: 'アポ', width: 55, align: 'right', render: (r) => <span style={{ color: color.gold, fontWeight: font.weight.semibold }}>{r.appo}</span> },
-        { key: 'appoRate', label: 'アポ率', width: 105, align: 'right', render: (r) => <RateBar value={r.appoRate} good={color.gold} /> },
-        { key: 'lastDate', label: '最終架電', width: 95, align: 'right',
+        { key: 'calls', label: '架電', width: 70, align: 'right', sortable: true },
+        { key: 'connect', label: '接続', width: 60, align: 'right', sortable: true },
+        { key: 'connectRate', label: '接続率', width: 105, align: 'right', sortable: true, render: (r) => <RateBar value={r.connectRate} good={color.navyLight} /> },
+        { key: 'appo', label: 'アポ', width: 55, align: 'right', sortable: true, render: (r) => <span style={{ color: color.gold, fontWeight: font.weight.semibold }}>{r.appo}</span> },
+        { key: 'appoRate', label: 'アポ率', width: 105, align: 'right', sortable: true, render: (r) => <RateBar value={r.appoRate} good={color.gold} /> },
+        { key: 'lastDate', label: '最終架電', width: 95, align: 'right', sortable: true, sortType: 'string',
           render: (r) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid }}>{r.lastDate || '—'}</span> },
       ];
 
@@ -112,6 +112,7 @@ export default function PerformanceTable({ range, groupBy, title }) {
       </div>
       <Card padding="none" style={{ overflow: 'hidden' }}>
         <DataTable columns={columns} rows={rows} rowKey="key" loading={loading}
+          defaultSort={{ key: 'calls', dir: 'desc' }}
           emptyMessage="この期間の架電がありません" fillWidth />
       </Card>
       <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 6 }}>

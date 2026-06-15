@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { color, radius, font, shadow, alpha } from '../../constants/design';
 
 /**
@@ -13,7 +13,11 @@ import { color, radius, font, shadow, alpha } from '../../constants/design';
  * 6. 件数表示
  * 7. モバイル横スクロール対応
  *
- * @prop columns: [{ key, label, width, align, render, cellStyle, headerStyle }]
+ * @prop columns: [{ key, label, width, align, render, cellStyle, headerStyle, sortable, sortType, sortValue }]
+ *   - sortable: true でその列をヘッダークリックでソート可能に
+ *   - sortType: 'string' なら初回クリックで昇順、それ以外(数値)は初回降順
+ *   - sortValue: (row) => 比較に使う値（省略時は row[key]）
+ * @prop defaultSort: { key, dir: 'asc'|'desc' } | null  初期ソート状態
  * @prop rows: any[]
  * @prop rowKey: string | (row, index) => string|number
  * @prop loading: boolean
@@ -59,6 +63,7 @@ export default function DataTable({
   className,
   style,
   ariaLabel,
+  defaultSort = null,
   // 行展開
   expandable,
   renderExpanded,
@@ -66,6 +71,36 @@ export default function DataTable({
   onToggleExpand,
 }) {
   const [hoverKey, setHoverKey] = useState(null);
+  const [sortState, setSortState] = useState(defaultSort);
+
+  const handleSort = (col) => {
+    if (!col || !col.sortable) return;
+    setSortState((prev) => {
+      if (!prev || prev.key !== col.key) {
+        return { key: col.key, dir: col.sortType === 'string' ? 'asc' : 'desc' };
+      }
+      return { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+    });
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!sortState || !sortState.key) return rows;
+    const col = columns.find((c) => c.key === sortState.key);
+    if (!col) return rows;
+    const accessor = typeof col.sortValue === 'function' ? col.sortValue : (r) => r[col.key];
+    const dir = sortState.dir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const va = accessor(a);
+      const vb = accessor(b);
+      const aNil = va === null || va === undefined || va === '';
+      const bNil = vb === null || vb === undefined || vb === '';
+      if (aNil && bNil) return 0;
+      if (aNil) return 1;   // 空は常に末尾
+      if (bNil) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'ja') * dir;
+    });
+  }, [rows, sortState, columns]);
   // 展開トグル列を表示するか（expandable プロップ指定時のみ）。
   // renderExpanded だけ指定された場合はトグル列なしで body のみ描画
   // （企業名タップ等、外部から toggle するパターンに対応）。
@@ -190,22 +225,36 @@ export default function DataTable({
               padding: '10px 16px',
             }}
           >
-            {effectiveColumns.map((col) => (
-              <span
-                key={col.key}
-                role="columnheader"
-                style={{
-                  textAlign: col.align || 'left',
-                  userSelect: 'none',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  ...(col.headerStyle || {}),
-                }}
-              >
-                {col.label}
-              </span>
-            ))}
+            {effectiveColumns.map((col) => {
+              const active = sortState && sortState.key === col.key;
+              const indicator = col.sortable
+                ? (active ? (sortState.dir === 'asc' ? '▲' : '▼') : '⇅')
+                : null;
+              return (
+                <span
+                  key={col.key}
+                  role="columnheader"
+                  aria-sort={active ? (sortState.dir === 'asc' ? 'ascending' : 'descending') : (col.sortable ? 'none' : undefined)}
+                  onClick={col.sortable ? () => handleSort(col) : undefined}
+                  style={{
+                    textAlign: col.align || 'left',
+                    userSelect: 'none',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    cursor: col.sortable ? 'pointer' : 'default',
+                    ...(col.headerStyle || {}),
+                  }}
+                >
+                  {col.label}
+                  {indicator && (
+                    <span style={{ marginLeft: 4, fontSize: 9, opacity: active ? 1 : 0.45, verticalAlign: 'middle' }}>
+                      {indicator}
+                    </span>
+                  )}
+                </span>
+              );
+            })}
           </div>
 
           {/* Body */}
@@ -216,7 +265,7 @@ export default function DataTable({
           ) : rows.length === 0 ? (
             <EmptyState message={emptyMessage} />
           ) : (
-            rows.map((row, idx) => {
+            sortedRows.map((row, idx) => {
               const key = getKey(row, idx);
               const isHover = hoverKey === key;
               const accent = rowAccent ? rowAccent(row, idx) : null;

@@ -21,6 +21,21 @@ const COLS = [
   { key: 'sales', label: '当社売上', w: 120, align: 'right', yen: true },
 ];
 
+// チーム/メンバー共通のソート比較値（name列はチーム名 or メンバー名）
+function sortValue(row, key, isTeam) {
+  if (key === 'name') return isTeam ? row.team : row.name;
+  return row[key];
+}
+function compareBy(key, dir, isTeam) {
+  const d = dir === 'asc' ? 1 : -1;
+  return (a, b) => {
+    const va = sortValue(a, key, isTeam);
+    const vb = sortValue(b, key, isTeam);
+    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * d;
+    return String(va ?? '').localeCompare(String(vb ?? ''), 'ja') * d;
+  };
+}
+
 function Cell({ col, v, bold }) {
   let disp = v;
   if (col.pct) disp = `${Number(v || 0).toFixed(1)}%`;
@@ -42,6 +57,13 @@ export default function TeamComparison({ appoData, range }) {
   const [perf, setPerf] = useState([]);
   const [loading, setLoading] = useState(false);
   const [openTeam, setOpenTeam] = useState(null);
+  const [sort, setSort] = useState({ key: 'sales', dir: 'desc' });
+
+  const onSort = (key) => {
+    setSort(prev => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: key === 'name' ? 'asc' : 'desc' });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -90,17 +112,23 @@ export default function TeamComparison({ appoData, range }) {
     });
     return [...map.values()]
       .map(o => ({ ...o, connectRate: o.calls ? (o.connect / o.calls) * 100 : 0 }))
-      .sort((a, b) => b.sales - a.sales || b.appo - a.appo);
-  }, [memberRows]);
+      .sort(compareBy(sort.key, sort.dir, true));
+  }, [memberRows, sort]);
 
   const HeaderRow = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderBottom: `1px solid ${color.border}`, background: color.gray50 }}>
       <span style={{ width: 18 }} />
-      {COLS.map(c => (
-        <span key={c.key} style={{ flex: c.flex, width: c.w, textAlign: c.align, fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, whiteSpace: 'nowrap' }}>
-          {c.label}
-        </span>
-      ))}
+      {COLS.map(c => {
+        const active = sort.key === c.key;
+        const indicator = active ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅';
+        return (
+          <span key={c.key} onClick={() => onSort(c.key)}
+            style={{ flex: c.flex, width: c.w, textAlign: c.align, fontSize: font.size.xs, color: active ? color.navy : color.textLight, fontWeight: font.weight.semibold, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
+            {c.label}
+            <span style={{ marginLeft: 3, fontSize: 9, opacity: active ? 1 : 0.45, verticalAlign: 'middle' }}>{indicator}</span>
+          </span>
+        );
+      })}
     </div>
   );
 
@@ -121,7 +149,7 @@ export default function TeamComparison({ appoData, range }) {
               const open = openTeam === t.team;
               const members = memberRows
                 .filter(m => m.team === t.team)
-                .sort((a, b) => b.sales - a.sales || b.appo - a.appo);
+                .sort(compareBy(sort.key, sort.dir, false));
               return (
                 <React.Fragment key={t.team}>
                   <div onClick={() => setOpenTeam(open ? null : t.team)}
