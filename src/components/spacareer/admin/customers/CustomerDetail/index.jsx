@@ -163,7 +163,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
       case 'strengths':   CenterContent = <TabStrengths detail={detail} />; break;
       case 'files':       CenterContent = <TabFiles detail={detail} />; break;
       case 'memo':        CenterContent = <TabMemo detail={detail} />; break;
-      case 'members':     CenterContent = <TabMembers detail={detail} isAdmin={isAdmin} onRefresh={refresh} />; break;
+      case 'members':     CenterContent = <TabMembers detail={detail} isAdmin={isAdmin} canAssign={canImpersonate} onRefresh={refresh} />; break;
       case 'video_logs':  CenterContent = <TabVideoLogs detail={detail} />; break;
       default:            CenterContent = null;
     }

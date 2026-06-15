@@ -262,7 +262,7 @@ export default function ClientFeedbackView() {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: font.size.xs, color: color.textLight }}>回答期限</div>
             <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.textDark }}>
-              {dueAt ? new Date(dueAt).toLocaleDateString('ja-JP') : '-'}
+              {dueAt ? new Date(dueAt).toLocaleString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' まで' : '-'}
             </div>
           </div>
         </div>

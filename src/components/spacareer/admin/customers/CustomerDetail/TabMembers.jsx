@@ -14,9 +14,12 @@ function fmtDate(v) {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export default function TabMembers({ detail, isAdmin, onRefresh }) {
+export default function TabMembers({ detail, isAdmin, canAssign, onRefresh }) {
   const { customer, trainer } = detail || {};
   const customerId = customer?.id;
+  // アサイン操作の表示可否。全体adminに加え、スパキャリ運営（小山）にも開放する。
+  // DB側の spacareer_is_admin()（admin もしくは koyama@ma-sp.co）と権限範囲を揃える。
+  const canAssignTrainer = isAdmin || canAssign;
   const trainers = useTrainers();
   const [pick, setPick] = useState(customer?.assigned_trainer_id || '');
   const [saving, setSaving] = useState(false);
@@ -74,7 +77,7 @@ export default function TabMembers({ detail, isAdmin, onRefresh }) {
         )}
       </Card>
 
-      {isAdmin && (
+      {canAssignTrainer && (
         <Card padding="md" title="アサイン操作（運営のみ）"
           description="トレーナーを変更すると、担当が即時切り替わります。">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: space[2], alignItems: 'end' }}>

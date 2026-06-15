@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { color, space, radius, font } from '../../../../../constants/design';
 import { Card, Badge, Button, DataTable } from '../../../../ui';
+import { supabase } from '../../../../../lib/supabase';
 import SessionCompleteFlow from './SessionCompleteFlow';
 
 // ============================================================
@@ -24,6 +25,9 @@ function fmtDateOnly(v) {
 export default function TabSessionHistory({ detail, onRefresh }) {
   const { customer, sessions = [], videos = [] } = detail || {};
   const [openId, setOpenId] = useState(null);
+  // 議事録の確定（受講生公開）用の編集状態
+  const [minutesText, setMinutesText] = useState('');
+  const [publishing, setPublishing] = useState(false);
 
   const videosBySession = new Map();
   videos.forEach((v) => {
@@ -41,6 +45,32 @@ export default function TabSessionHistory({ detail, onRefresh }) {
   }));
 
   const openSession = openId ? rows.find((r) => r.id === openId) : null;
+
+  // 行を開いたら、確定済み(minutes_final)があればそれを、無ければAIドラフトを編集欄に読み込む。
+  useEffect(() => {
+    setMinutesText(openSession ? (openSession.minutes_final || openSession.minutes_draft || '') : '');
+  }, [openId, openSession?.minutes_final, openSession?.minutes_draft]);
+
+  async function handlePublishMinutes() {
+    if (!openSession?.id) return;
+    if (!minutesText.trim()) { alert('議事録の内容が空です。'); return; }
+    if (!window.confirm('この内容を受講生のクライアントポータルに公開します。よろしいですか？')) return;
+    setPublishing(true);
+    try {
+      const { error } = await supabase
+        .from('spacareer_sessions')
+        .update({ minutes_final: minutesText })
+        .eq('id', openSession.id);
+      if (error) throw error;
+      alert('議事録を受講生に公開しました。');
+      onRefresh && onRefresh();
+    } catch (e) {
+      console.error('[TabSessionHistory] publish minutes error:', e);
+      alert(`公開に失敗しました: ${e.message || e}`);
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
@@ -102,17 +132,41 @@ export default function TabSessionHistory({ detail, onRefresh }) {
 
       {openSession && (
         <Card padding="md"
-          title={`${openSession._label} 議事録（AI生成ドラフト）`}
-          description="トレーナーが確認・修正してください。最終版は受講生のクライアントポータルにも反映されます。"
+          title={`${openSession._label} 議事録`}
+          description="AI生成ドラフトを確認・修正し、「受講生に公開する」を押すとクライアントポータルのセッション履歴に反映されます。トレーナー専用メモの節は公開前に削除してください。"
         >
           {openSession.minutes_final || openSession.minutes_draft ? (
-            <pre style={{
-              margin: 0, padding: space[3],
-              background: color.cream, borderRadius: radius.md,
-              fontSize: font.size.sm, fontFamily: font.family.sans,
-              color: color.textDark, whiteSpace: 'pre-wrap',
-              maxHeight: 360, overflow: 'auto',
-            }}>{openSession.minutes_final || openSession.minutes_draft}</pre>
+            <div style={{ display: 'grid', gap: space[3] }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                {openSession.minutes_final
+                  ? <Badge variant="success" dot>受講生に公開済み</Badge>
+                  : <Badge variant="warn" dot>未公開（AIドラフトのみ）</Badge>}
+                {openSession.minutes_draft && (
+                  <Button size="sm" variant="ghost"
+                    onClick={() => setMinutesText(openSession.minutes_draft || '')}>
+                    AIドラフトを読み込み直す
+                  </Button>
+                )}
+              </div>
+              <textarea
+                value={minutesText}
+                onChange={(e) => setMinutesText(e.target.value)}
+                rows={16}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: space[3], background: color.cream,
+                  border: `1px solid ${color.border}`, borderRadius: radius.md,
+                  fontSize: font.size.sm, fontFamily: font.family.sans,
+                  color: color.textDark, lineHeight: font.lineHeight.relaxed,
+                  resize: 'vertical', minHeight: 240,
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button variant="primary" loading={publishing} onClick={handlePublishMinutes}>
+                  受講生に公開する
+                </Button>
+              </div>
+            </div>
           ) : (
             <div style={{ color: color.textLight, fontSize: font.size.sm }}>
               議事録はまだ生成されていません

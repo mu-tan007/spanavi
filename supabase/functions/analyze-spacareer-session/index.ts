@@ -103,6 +103,7 @@ const SYSTEM_PROMPT = `あなたはキャリアコーチング「スパキャリ
     }
   ],
   "studentCondition": ["受講生の状態観察（モチベーションの高低、感情の動き、迷い・不安、前回からの変化）"],
+  "studentQuestions": ["セッション中に受講生（お客様）から出た質問・疑問・気になり事を、できるだけ原文のニュアンスを保って列挙する。質問への回答が出ていればその要旨も併記する。明確な質問が無ければ空配列"],
   "decisions": ["このセッションで決まったこと（方針・選択・合意事項）"],
   "openIssues": ["話し切れなかった・結論が出なかった持ち越し論点"],
   "nextActionsStudent": ["受講生が次回までにやること（期限・回数など数値があれば必ず含める）"],
@@ -126,6 +127,7 @@ type MinutesAI = {
   homeworkReview?: string[]
   topics?: Array<{ heading?: string; points?: string[]; quotes?: string[]; takeaways?: string[] }>
   studentCondition?: string[]
+  studentQuestions?: string[]
   decisions?: string[]
   openIssues?: string[]
   nextActionsStudent?: string[]
@@ -171,6 +173,7 @@ function buildMinutesDraftText(ai: MinutesAI): string {
     lines.push('')
   }
   pushList(lines, '受講生の状態', ai.studentCondition)
+  pushList(lines, 'セッション中にいただいたご質問', ai.studentQuestions)
   pushList(lines, '決定事項', ai.decisions)
   pushList(lines, '持ち越し論点', ai.openIssues)
   pushList(lines, '次回までのアクション（受講生）', ai.nextActionsStudent || ai.nextActions)

@@ -199,11 +199,10 @@ export default function SessionCompleteFlow({
     // 締切＝第2回セッション開始の3日前 23:59（取得できなければ7日後）
     const { data: sess2 } = await supabase.from('spacareer_sessions')
       .select('scheduled_at').eq('customer_id', customerId).eq('session_no', 2).maybeSingle();
+    // 締切＝第2回セッション実施予定の「72時間前」（取得できなければ7日後）
     let due = null;
     if (sess2?.scheduled_at) {
-      const d = new Date(sess2.scheduled_at);
-      d.setDate(d.getDate() - 3);
-      d.setHours(23, 59, 0, 0);
+      const d = new Date(new Date(sess2.scheduled_at).getTime() - 72 * 60 * 60 * 1000);
       if (d.getTime() > Date.now()) due = d;
     }
     if (!due) due = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);

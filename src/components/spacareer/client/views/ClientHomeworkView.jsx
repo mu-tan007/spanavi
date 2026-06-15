@@ -115,10 +115,13 @@ export default function ClientHomeworkView() {
   const deadlineWarning = useMemo(() => {
     if (!selectedHomework?.due_at) return null;
     const due = new Date(selectedHomework.due_at);
-    const diffDays = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return { level: 'danger', text: '提出期限を過ぎています' };
-    if (diffDays <= 3) return { level: 'warn', text: `提出期限まであと${diffDays}日` };
-    return { level: 'info', text: `提出期限：${due.toLocaleDateString('ja-JP')}` };
+    const dueStr = due.toLocaleString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const diffMs = due.getTime() - Date.now();
+    const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (diffMs < 0) return { level: 'danger', text: `提出期限を過ぎています（${dueStr}）` };
+    if (diffHours <= 72) return { level: 'warn', text: `提出期限：${dueStr}（あと約${diffHours}時間）` };
+    return { level: 'info', text: `提出期限：${dueStr}` };
   }, [selectedHomework]);
 
   const saveAnswers = async (itemIds, opts = { setSubmitted: false }) => {

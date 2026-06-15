@@ -165,7 +165,7 @@ export default function SpacareerSessionsView({ isAdmin }) {
             render: (r) => (
               <Button size="sm" variant={openRowId === r.id ? 'primary' : 'outline'}
                 onClick={(e) => { e.stopPropagation(); setOpenRowId(openRowId === r.id ? null : r.id); }}>
-                {openRowId === r.id ? '閉じる' : '完了'}
+                {openRowId === r.id ? '閉じる' : '完了する'}
               </Button>
             )},
         ]}
