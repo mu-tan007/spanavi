@@ -103,11 +103,19 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
   }, [thisWeekRows, prevCallRows, activeMember]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ③ 売上・インセンティブ（面談実施日ベース）
+  // 月モードは「その月の面談日すべて（将来の面談予定も含む・月末まで）」を対象にして、
+  // アポ一覧／アナリティクスの当社売上と完全一致させる（today/週は実績=今日まで）。
+  const inSalesPeriod = (meetDate) => {
+    if (!meetDate) return false;
+    const d = meetDate.slice(0, 10);
+    if (period === 'month') return d.slice(0, 7) === (monthStr || range.fromDate.slice(0, 7));
+    return d >= range.fromDate && d <= range.toDate;
+  };
   const moneyStats = useMemo(() => {
     const mine = (appoData || []).filter(a =>
       a.getter === activeMember &&
       SALES_STATUSES.includes(a.status) &&
-      a.meetDate && a.meetDate >= range.fromDate && a.meetDate <= range.toDate
+      inSalesPeriod(a.meetDate)
     );
     const sales = mine.filter(a => !a.isProspecting).reduce((s, a) => s + Number(a.sales || 0), 0);
     const incentive = mine.reduce((s, a) => s + Number(a.reward || 0), 0);
@@ -116,7 +124,7 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
       .sort((a, b) => (b.meetDate || '').localeCompare(a.meetDate || ''))
       .map(a => ({ company: a.company, reward: Number(a.reward || 0), meetDate: a.meetDate, id: a._supaId }));
     return { sales, incentive, breakdown };
-  }, [appoData, activeMember, range.fromDate, range.toDate]);
+  }, [appoData, activeMember, period, monthStr, range.fromDate, range.toDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ⑤ 直近アポ5件
   const recentAppos = useMemo(() =>
