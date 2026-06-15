@@ -66,15 +66,15 @@ Deno.serve(async (req) => {
 
     const callEntries = rankBy('calls', null) // 1件以上全員
     const lines = [
-      `本日の架電ランキング（${timeStr}時点）`,
+      `📊 本日の架電ランキング（${timeStr}時点）`,
       '',
-      `架電件数（全${callEntries.length}名）`,
+      `🔥 架電件数（全${callEntries.length}名）`,
       formatSection(callEntries, 'calls'),
       '',
-      'キーマン接続数 TOP3',
+      '📞 キーマン接続数 TOP3',
       formatSection(rankBy('keyman_connect', 3), 'keyman_connect'),
       '',
-      'アポ取得数 TOP3',
+      '🎯 アポ取得数 TOP3',
       formatSection(rankBy('appo', 3), 'appo'),
     ]
 
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       const monthLabel = `${parseInt(jstDateStr.slice(5, 7), 10)}月`
       const fmtYen = (n: number) => '¥' + Math.round(n).toLocaleString('ja-JP')
       lines.push('')
-      lines.push(`今月（${monthLabel}）面談実施分 売上ランキング TOP5`)
+      lines.push(`💰 今月（${monthLabel}）面談実施分 売上ランキング TOP5`)
       if (top5.length === 0) {
         lines.push('該当なし')
       } else {
