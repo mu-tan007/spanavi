@@ -27,6 +27,7 @@ const STATUS_VARIANT = {
 const EMPTY_DRAFT = {
   categoryId: null,
   engIds: [],
+  clientNames: [],
   industries: [],
   prefectures: [],
   statuses: [],
@@ -41,7 +42,8 @@ function isSameDraft(a, b) {
   if (a.daysMin !== b.daysMin || a.daysMax !== b.daysMax) return false;
   const arrEq = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
   return arrEq(a.engIds, b.engIds) && arrEq(a.industries, b.industries)
-      && arrEq(a.prefectures, b.prefectures) && arrEq(a.statuses, b.statuses);
+      && arrEq(a.prefectures, b.prefectures) && arrEq(a.statuses, b.statuses)
+      && arrEq(a.clientNames, b.clientNames);
 }
 
 export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [] }) {
@@ -61,9 +63,21 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
   const [page, setPage]       = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
 
+  // クライアント選択肢（検索前から出せるよう専用 RPC で一度だけ取得）
+  const { data: clientOptions = [] } = useQuery({
+    queryKey: ['smart_queue_client_options'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('smart_queue_client_options');
+      if (error) { console.warn('[DetailedQueryPanel] client options failed:', error); return []; }
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 5 * 60_000,
+  });
+
   // useQuery キャッシュ化（同じ条件・ページなら即時描画）
-  // 商材・タイプはサーバー側 filter （p_engagement_ids）に統一
+  // 商材・タイプ・クライアントはサーバー側 filter に統一
   const engagementIds = applied.engIds.length > 0 ? applied.engIds : null;
+  const clientNames = applied.clientNames.length > 0 ? applied.clientNames : null;
   const { data: pageData, isPending } = useQuery({
     queryKey: ['smart_queue_detailed_query', applied, page],
     enabled: hasSearched,
@@ -78,6 +92,7 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
         p_days_max:      applied.daysMax === '' ? null : Number(applied.daysMax),
         p_engagement_id: null,
         p_engagement_ids: engagementIds,
+        p_client_names:  clientNames,
         p_offset:        page * PAGE_SIZE,
         p_limit:         PAGE_SIZE,
       });
@@ -99,6 +114,31 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
       return eng?.category_id === draft.categoryId;
     });
   }, [draft.categoryId, salesAgencyEngagements, allEngagements]);
+
+  // 商材未選択時は同名 engagement (=商材違いで複数存在) を1ボタンに集約。
+  // 商材選択時は1商材1 engagement なのでそのまま。
+  // （特殊条件抽出の typeButtons と同一ロジック。「リード獲得」等の重複表示を防ぐ）
+  const typeButtons = useMemo(() => {
+    if (draft.categoryId) {
+      return visibleEngagements.map(e => ({ key: e.id, label: e.name, ids: [e.id] }));
+    }
+    const groups = new Map();
+    for (const e of visibleEngagements) {
+      if (!groups.has(e.name)) groups.set(e.name, { key: e.name, label: e.name, ids: [] });
+      groups.get(e.name).ids.push(e.id);
+    }
+    return Array.from(groups.values());
+  }, [visibleEngagements, draft.categoryId]);
+
+  const toggleEngGroup = (ids) => {
+    setDraft(d => {
+      const allSelected = ids.every(id => d.engIds.includes(id));
+      const next = allSelected
+        ? d.engIds.filter(x => !ids.includes(x))
+        : Array.from(new Set([...d.engIds, ...ids]));
+      return { ...d, engIds: next };
+    });
+  };
 
   // 商材変更でタイプ選択を不可視のものから除外
   useEffect(() => {
@@ -126,6 +166,7 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
         p_days_max:      applied.daysMax === '' ? null : Number(applied.daysMax),
         p_engagement_id: null,
         p_engagement_ids: engagementIds,
+        p_client_names:  clientNames,
       });
       const list = Array.isArray(ids) ? ids : [];
       const idx = list.findIndex(r => r.item_id === row.item_id);
@@ -214,9 +255,19 @@ export default function DetailedQueryPanel({ setCallFlowScreen, callListData = [
 
         <FilterRow label="タイプ">
           <FilterButton active={draft.engIds.length === 0} onClick={() => setDraftField('engIds', [])}>全て</FilterButton>
-          {visibleEngagements.map(e => (
-            <FilterButton key={e.id} active={draft.engIds.includes(e.id)} onClick={() => toggleArrayInDraft('engIds', e.id)}>{e.name}</FilterButton>
+          {typeButtons.map(opt => (
+            <FilterButton key={opt.key} active={opt.ids.some(id => draft.engIds.includes(id))} onClick={() => toggleEngGroup(opt.ids)}>{opt.label}</FilterButton>
           ))}
+        </FilterRow>
+
+        <FilterRow label="クライアント">
+          <MultiSelectDropdown
+            placeholder="クライアントを選択（複数可）"
+            options={clientOptions}
+            values={draft.clientNames}
+            onChange={v => setDraftField('clientNames', v)}
+            width={280}
+          />
         </FilterRow>
 
         <FilterRow label="業種">
