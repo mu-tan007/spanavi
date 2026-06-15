@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { color, space, radius, font } from '../../../constants/design';
 import { Button, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
-import { PanelHeader, KPI } from './smartQueueHelpers';
+import { PanelHeader, KPI, FilterBar } from './smartQueueHelpers';
+import MultiSelectDropdown from './MultiSelectDropdown';
 import { useCallQueue } from './useCallQueue';
 
 const PAGE_SIZE = 200;
@@ -58,6 +59,31 @@ function useEngFilter(rows, { categoryId, engIds, allEngagements, callListData }
   }, [rows, categoryId, engIds, allEngagements, callListData]);
 }
 
+// クライアント絞り込み（JS側 post-filter）。各 RPC 結果の client_name を使う。
+//   ①キーマン断り一覧と同じく「クライアント単位」で架電対象を絞れるようにする。
+function useClientOptions(rows) {
+  return useMemo(() => {
+    const set = new Set();
+    (rows || []).forEach(r => { if (r.client_name) set.add(r.client_name); });
+    return Array.from(set).sort();
+  }, [rows]);
+}
+function applyClientFilter(rows, clientFilter) {
+  if (!clientFilter || clientFilter.length === 0) return rows;
+  return rows.filter(r => clientFilter.includes(r.client_name));
+}
+
+// クライアント絞り込みバー（③④⑤共通）
+function ClientFilterBar({ options, values, onChange }) {
+  return (
+    <FilterBar>
+      <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>クライアント:</span>
+      <MultiSelectDropdown placeholder="クライアントを選択（複数可）" options={options} values={values}
+        onChange={onChange} width={240} />
+    </FilterBar>
+  );
+}
+
 // ダッシュボードから移管した3パネル: 受付再コール超過 / キーマン再コール超過 / 再アプローチ候補
 // 既存 RPC をそのまま流用
 
@@ -88,7 +114,10 @@ function useRpc(rpcName, args) {
 // ③ 受付再コール超過
 export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_overdue_reception_recalls');
-  const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const engRows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const [clientFilter, setClientFilter] = useState([]);
+  const clientOptions = useClientOptions(engRows);
+  const rows = useMemo(() => applyClientFilter(engRows, clientFilter), [engRows, clientFilter]);
   const { page, setPage, total, totalPages, pageRows } = usePagedRows(rows);
   const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
@@ -108,6 +137,7 @@ export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], ca
       <PanelHeader title="③ 受付再コール超過"
         leftKpi={<KPI label="表示中" value={`${pageRows.length} 件`} />}
         rightKpi={<KPI label="総数" value={`${total.toLocaleString()} 件`} muted />} />
+      <ClientFilterBar options={clientOptions} values={clientFilter} onChange={setClientFilter} />
       <DataTable columns={columns} rows={pageRows} rowKey={(r, i) => `${r.record_id}-${i}`} loading={loading}
         emptyMessage="受付再コール超過はありません。" height="calc(100vh - 380px)" fillWidth />
       <Pagination page={page} totalPages={totalPages} total={total} loading={loading} onChange={setPage} />
@@ -118,7 +148,10 @@ export function OverdueReceptionPanel({ setCallFlowScreen, callListData = [], ca
 // ④ キーマン再コール超過
 export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_overdue_recalls');
-  const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const engRows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const [clientFilter, setClientFilter] = useState([]);
+  const clientOptions = useClientOptions(engRows);
+  const rows = useMemo(() => applyClientFilter(engRows, clientFilter), [engRows, clientFilter]);
   const { page, setPage, total, totalPages, pageRows } = usePagedRows(rows);
   const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
@@ -138,6 +171,7 @@ export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categ
       <PanelHeader title="④ キーマン再コール超過"
         leftKpi={<KPI label="表示中" value={`${pageRows.length} 件`} />}
         rightKpi={<KPI label="総数" value={`${total.toLocaleString()} 件`} muted />} />
+      <ClientFilterBar options={clientOptions} values={clientFilter} onChange={setClientFilter} />
       <DataTable columns={columns} rows={pageRows} rowKey={(r, i) => `${r.record_id || r.id}-${i}`} loading={loading}
         emptyMessage="キーマン再コール超過はありません。" height="calc(100vh - 380px)" fillWidth />
       <Pagination page={page} totalPages={totalPages} total={total} loading={loading} onChange={setPage} />
@@ -148,7 +182,10 @@ export function OverdueKeymanPanel({ setCallFlowScreen, callListData = [], categ
 // ⑤ 再アプローチ候補（過去アポ取得企業が別リストで活きている）
 export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = [], categoryId = null, engIds = [], allEngagements = [] }) {
   const { rows: allRows, loading } = useRpc('dashboard_reapproach_candidates');
-  const rows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const engRows = useEngFilter(allRows, { categoryId, engIds, allEngagements, callListData });
+  const [clientFilter, setClientFilter] = useState([]);
+  const clientOptions = useClientOptions(engRows);
+  const rows = useMemo(() => applyClientFilter(engRows, clientFilter), [engRows, clientFilter]);
   const { page, setPage, total, totalPages, pageRows } = usePagedRows(rows);
   const handleCall = useQueueOpener(setCallFlowScreen, callListData, rows);
   const columns = [
@@ -170,6 +207,7 @@ export function ReapproachCandidatesPanel({ setCallFlowScreen, callListData = []
       <PanelHeader title="⑤ 再アプローチ候補"
         leftKpi={<KPI label="表示中" value={`${pageRows.length} 件`} />}
         rightKpi={<KPI label="総数" value={`${total.toLocaleString()} 件`} muted />} />
+      <ClientFilterBar options={clientOptions} values={clientFilter} onChange={setClientFilter} />
       <DataTable columns={columns} rows={pageRows} rowKey={(r, i) => `${r.item_id}-${i}`} loading={loading}
         emptyMessage="再アプローチ候補はありません。" height="calc(100vh - 380px)" fillWidth />
       <Pagination page={page} totalPages={totalPages} total={total} loading={loading} onChange={setPage} />
