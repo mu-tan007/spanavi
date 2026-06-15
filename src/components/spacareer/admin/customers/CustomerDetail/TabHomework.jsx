@@ -7,11 +7,11 @@ import { Card, Badge, DataTable } from '../../../../ui';
 // 仕様書 §7.1 中央タブ#4
 // ============================================================
 const HW_STATUS_LABEL = {
-  unnotified: '未通知', unsubmitted: '未提出', partial: '部分提出',
+  pending: 'セッション前', unnotified: '未通知', unsubmitted: '未提出', partial: '部分提出',
   submitted: '提出済み', completed: '完了',
 };
 const HW_STATUS_VARIANT = {
-  unnotified: 'danger', unsubmitted: 'warn', partial: 'warn',
+  pending: 'neutral', unnotified: 'danger', unsubmitted: 'warn', partial: 'warn',
   submitted: 'info', completed: 'success',
 };
 
@@ -29,10 +29,12 @@ export default function TabHomework({ detail }) {
   const rows = [1, 2, 3, 4, 5, 6, 7, 8].map((no) => {
     const h = homework.find((x) => x.session_no === no);
     const s = sessByNo[no];
+    // homework行が無い場合: セッション完了済なら本当の異常(未通知=赤)、未完了なら「セッション前」(中立)。
+    const status = h?.status || (s?.status === 'completed' ? 'unnotified' : 'pending');
     return {
       session_no: no,
       label: `第${no}回`,
-      status: h?.status || 'unnotified',
+      status,
       notified_at: h?.notified_at,
       due_at: h?.due_at,
       submitted_at: h?.submitted_at,

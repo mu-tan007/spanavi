@@ -146,16 +146,21 @@ export default function SpacareerSessionsView({ isAdmin }) {
           { key: 'status', label: 'ステータス', width: 110, align: 'center',
             render: (r) => <Badge variant={STATUS_VARIANT[r.status]} dot>{STATUS_LABEL[r.status]}</Badge> },
           { key: '_hw', label: '事後課題', width: 110, align: 'center',
-            render: (r) => r.session_no === 0
-              ? <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>
-              : <Badge variant={HW_STATUS_VARIANT[r.homework?.status || 'unnotified']} dot>
-                  {HW_STATUS_LABEL[r.homework?.status || 'unnotified']}
-                </Badge> },
+            render: (r) => {
+              if (r.session_no === 0) return <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>;
+              const hw = r.homework;
+              if (hw) return <Badge variant={HW_STATUS_VARIANT[hw.status]} dot>{HW_STATUS_LABEL[hw.status]}</Badge>;
+              // homework未作成: 完了済なら本当の未通知(赤)、未完了ならセッション前(—)
+              if (r.status === 'completed') return <Badge variant="danger" dot>未通知</Badge>;
+              return <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>;
+            } },
           { key: '_alert', label: 'アラート', width: 110, align: 'center',
             render: (r) => {
               const overdue = r.scheduled_at && new Date(r.scheduled_at) < new Date() && r.status !== 'completed';
               if (overdue) return <Badge variant="danger" dot>完了未押下</Badge>;
-              if (r.homework?.status === 'unnotified' && r.session_no >= 1) {
+              // 完了済なのに事後課題が公開されていない＝本当の異常のみ警告
+              if (r.session_no >= 1 && r.status === 'completed'
+                && (!r.homework || r.homework.status === 'unnotified')) {
                 return <Badge variant="warn" dot>未通知</Badge>;
               }
               return <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>;
