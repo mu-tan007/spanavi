@@ -37,10 +37,12 @@ export function useAllMembersWithEngagements() {
       supabase.from('members')
         .select('id, name, email, phone_number, position, rank, team, start_date, is_active, avatar_url')
         .eq('org_id', orgId)
-        .eq('is_active', true)
-        // スパキャリ受講生 (rank='student') は社内メンバー一覧に出さない。
-        // 受講生は members に登録されるが、MASP「メンバー」タブはあくまで社内スタッフの一覧。
-        .neq('rank', 'student'),
+        .eq('is_active', true),
+        // 注: スパキャリ受講生 (rank='student') の除外はここでは行わない。
+        // PostgREST の .neq('rank','student') は rank が NULL の行も巻き添えで除外してしまう
+        // (SQL 三値論理: NULL <> 'student' は NULL=非真 となり弾かれる)。
+        // 新規追加メンバーは rank=NULL で作られるため一覧から消える事故が起きた。
+        // 受講生の除外は取得後に JS 側で行う (下記 filter)。
       supabase.from('member_engagements')
         .select('member_id, engagement_id')
         .eq('org_id', orgId),
@@ -54,7 +56,13 @@ export function useAllMembersWithEngagements() {
         .eq('org_id', orgId)
         .is('left_at', null),
     ]);
-    if (!m.error) setMembers([...(m.data || [])].sort(sortByPositionThenStart));
+    if (!m.error) setMembers(
+      [...(m.data || [])]
+        // スパキャリ受講生 (rank='student') は社内メンバー一覧に出さない。
+        // JS の比較なら rank=NULL は 'student' と一致せず残るため、新規追加メンバーが消えない。
+        .filter(x => x.rank !== 'student')
+        .sort(sortByPositionThenStart)
+    );
     const map = {};
     (me.data || []).forEach(r => {
       if (!map[r.member_id]) map[r.member_id] = new Set();
