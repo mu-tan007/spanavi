@@ -16,7 +16,10 @@ export function isUnassigned(row) {
   return !!row?.member_id && !row.assigned_trainer_id;
 }
 
-/** 2. 事後課題が未通知（直近の完了セッションから1日超過しても通知が出ていない） */
+/** 2. 事後課題が未通知（直近の完了セッションの事後課題が、完了から1日超過しても通知されていない）
+ *  事後課題は「完了した回そのもの」に紐づき、完了時に自動公開される（publishHomework1 /
+ *  第2〜7回の自動公開と採番統一）。第0回(キックオフ)は事後課題なし、第8回(卒業)も次課題なし。
+ *  ＝ 直近の完了セッションが第1〜8回で、その回の事後課題が存在しない/未通知のまま1日超過した場合のみ要対応。 */
 export function isHomeworkUnnotifiedOverdue(row, now = new Date()) {
   const sessions = row?.sessions || [];
   const homework = row?.homework || [];
@@ -24,9 +27,10 @@ export function isHomeworkUnnotifiedOverdue(row, now = new Date()) {
     .filter((s) => s.status === 'completed' && s.completed_at)
     .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))[0];
   if (!lastCompleted) return false;
-  const nextNo = (lastCompleted.session_no ?? 0) + 1;
-  if (nextNo > 8) return false;
-  const target = homework.find((h) => h.session_no === nextNo);
+  const no = lastCompleted.session_no ?? 0;
+  // 第0回(キックオフ)は事後課題なし、第8回完了(卒業)も対象外
+  if (no < 1 || no > 8) return false;
+  const target = homework.find((h) => h.session_no === no);
   if (!target || target.status === 'unnotified') {
     const elapsed = +now - +new Date(lastCompleted.completed_at);
     return elapsed >= ONE_DAY_MS;
