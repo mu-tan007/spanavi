@@ -133,16 +133,24 @@ export default function ClientHomeworkView() {
 
   const saveAnswers = async (itemIds, opts = { setSubmitted: false }) => {
     if (!itemIds.length) return;
-    const updates = itemIds.map(id => ({
-      id,
-      answer_text: answers[id] ?? null,
-      attached_files: files[id] || [],
-      submitted_at: opts.setSubmitted ? new Date().toISOString() : (items.find(it => it.id === id)?.submitted_at || null),
+    // 設問行はトレーナー配信時に作成済みのため、受講生は常に UPDATE のみ。
+    // upsert(INSERT ON CONFLICT)にすると、行が既存でも Postgres が INSERT 用
+    // WITH CHECK を評価し、受講生に INSERT 権限が無いため RLS で弾かれる。
+    const nowIso = new Date().toISOString();
+    const results = await Promise.all(itemIds.map(id => {
+      const patch = {
+        answer_text: answers[id] ?? null,
+        attached_files: files[id] || [],
+      };
+      // setSubmitted 以外は submitted_at を触らない（既存値を保持）
+      if (opts.setSubmitted) patch.submitted_at = nowIso;
+      return supabase
+        .from('spacareer_homework_items')
+        .update(patch)
+        .eq('id', id);
     }));
-    const { error } = await supabase
-      .from('spacareer_homework_items')
-      .upsert(updates, { onConflict: 'id' });
-    if (error) throw error;
+    const firstError = results.find(r => r.error)?.error;
+    if (firstError) throw firstError;
     setSavedAt(new Date());
   };
 
