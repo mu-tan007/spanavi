@@ -25,7 +25,7 @@ function dateOnly(v) {
 
 export default function TabBasicInfo({ detail }) {
   if (!detail) return null;
-  const { customer, trainer, socialStyle } = detail;
+  const { customer, trainer, socialStyle, monetizationDiagnosis } = detail;
   const member = customer?.member || {};
 
   // キックオフヒアリングの記入率（目安）。全項目を対象に、下限文字数があれば文字数比で按分した平均。
@@ -96,6 +96,39 @@ export default function TabBasicInfo({ detail }) {
         ) : (
           <div style={{ color: color.textLight, fontSize: font.size.sm }}>
             診断未完了です。スパキャリ &gt; ソーシャルスタイル管理画面から診断招待を発行してください。
+          </div>
+        )}
+      </Card>
+
+      <Card padding="md" title="マネタイズ領域診断（第2回）"
+        description="受講生が回答した、どの領域×業界で勝つかの診断結果とAIレポート。">
+        {monetizationDiagnosis && monetizationDiagnosis.completed_at && monetizationDiagnosis.result?.primary ? (
+          <>
+            <Grid>
+              <Row label="最有力"
+                value={<Badge variant="success" dot>
+                  {monetizationDiagnosis.result.primary.domainLabel} × {monetizationDiagnosis.result.primary.industryLabel}（{monetizationDiagnosis.result.primary.score}）
+                </Badge>} />
+              <Row label="完了日時" value={dateOnly(monetizationDiagnosis.completed_at)} />
+              <Row label="次点候補"
+                value={(monetizationDiagnosis.result.topCombos || []).slice(1, 4)
+                  .map((c) => `${c.domainLabel}×${c.industryLabel}`).join(' / ') || '—'} />
+            </Grid>
+            {monetizationDiagnosis.report_text && (
+              <div style={{
+                marginTop: space[3], padding: space[3],
+                background: color.snow, border: `1px solid ${color.borderLight}`,
+                borderRadius: radius.md, fontSize: font.size.sm, color: color.textDark,
+                lineHeight: font.lineHeight.relaxed, whiteSpace: 'pre-wrap',
+                maxHeight: 320, overflowY: 'auto',
+              }}>
+                {monetizationDiagnosis.report_text}
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ color: color.textLight, fontSize: font.size.sm }}>
+            診断未完了です。受講生がクライアントポータルの「マネタイズ領域診断」から実施します。
           </div>
         )}
       </Card>

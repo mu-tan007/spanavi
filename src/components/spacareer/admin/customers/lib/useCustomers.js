@@ -104,7 +104,7 @@ export function useCustomerDetail(customerId) {
     try {
       const [
         customer, sessions, homework, kickoff, strength, sstyle, videos, slack,
-        khSession, khAi, khResponses, khQuestions,
+        khSession, khAi, khResponses, khQuestions, monetizationDiag,
       ] = await Promise.all([
         supabase.from('spacareer_customers')
           .select(`*, member:members!spacareer_customers_member_id_fkey ( id, name, email, user_id )`)
@@ -134,6 +134,8 @@ export function useCustomerDetail(customerId) {
           .eq('customer_id', customerId),
         supabase.from('spacareer_kickoff_hearing_questions')
           .select('*').eq('is_active', true).order('display_order'),
+        supabase.from('spacareer_monetization_diagnosis_responses')
+          .select('*').eq('customer_id', customerId).maybeSingle(),
       ]);
 
       const sessIds = new Set((sessions.data || []).map((s) => s.id));
@@ -160,6 +162,7 @@ export function useCustomerDetail(customerId) {
         kickoffHearingAi: khAi.data || [],
         kickoffHearingResponses: khResponses.data || [],
         kickoffHearingQuestions: khQuestions.data || [],
+        monetizationDiagnosis: monetizationDiag.data || null,
       });
     } catch (e) {
       console.error('[useCustomerDetail] error:', e);

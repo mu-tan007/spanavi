@@ -11,7 +11,8 @@ export type SpacareerAiFeature =
   | 'social_style'
   | 'strength_diagnosis'
   | 'phrase_extraction'
-  | 'daily_message';
+  | 'daily_message'
+  | 'monetization_diagnosis';
 
 export type AiUsageLogInput = {
   feature: SpacareerAiFeature;

@@ -1,5 +1,8 @@
 project_id = "baiiznjzvzhxwwqzsozn"
 
+[functions.generate-spacareer-monetization-report]
+verify_jwt = false
+
 [functions.get-zoom-recording]
 verify_jwt = false
 
