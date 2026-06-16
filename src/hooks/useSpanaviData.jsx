@@ -56,7 +56,11 @@ export function useSpanaviData(authOrgId) {
         supabase.from('call_lists').select('*').eq('org_id', orgId).order('sort_order'),
         // スパキャリ受講生(rank='student')は営業代行のメンバー集計に出さない。
         // 受講生は members に登録されるが本データセットは営業代行向け（ランキング・売上・KPI等の源流）。
-        supabase.from('members').select('*').eq('org_id', orgId).neq('is_active', false).neq('rank', 'student').order('sort_order'),
+        // 注: 除外(is_active/rank)は PostgREST の .neq() で行わない。
+        // .neq('rank','student') / .neq('is_active', false) は対象列が NULL の行も巻き添えで除外する
+        // (SQL 三値論理: NULL <> x は NULL=非真 で弾かれる)。新規追加メンバーは rank=NULL で作られるため
+        // シフト/名簿から消える事故が起きた(手嶋氏)。除外は取得後に JS 側で行う(下記 filter)。
+        supabase.from('members').select('*').eq('org_id', orgId).order('sort_order'),
         supabase.from('appointments').select('*').eq('org_id', orgId).order('appointment_date', { ascending: false }),
         supabase.from('reward_types').select('*').order('type_id'),
         supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),
@@ -113,7 +117,11 @@ export function useSpanaviData(authOrgId) {
 
       const clients = clientsRes.data || []
       const callLists = callListsRes.data || []
-      const members = membersRes.data || []
+      // 除外フィルタは JS 側で(PostgREST .neq() の NULL 巻き添え回避)。
+      // is_active === false は明示的に無効化された人だけ除外し、NULL/true は残す。
+      // rank === 'student' のスパキャリ受講生のみ除外し、rank=NULL の新規メンバーは残す。
+      const members = (membersRes.data || [])
+        .filter(m => m.is_active !== false && m.rank !== 'student')
       const appointments = appointmentsRes.data || []
       const rewardTypes = rewardTypesRes.data || []
       const clientContacts = clientContactsRes.data || []
