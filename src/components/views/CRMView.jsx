@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { updateClient, insertClient, deleteClient } from '../../lib/supabaseWrite';
+import { updateClient, insertClient, deleteClient, reorderClients } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
@@ -13,7 +13,6 @@ import ClientDetailPage from './contacts/ClientDetailPage';
 import { EmailFollowupModal } from './BusinessOverviewView';
 import BulkEmailModal from './crm/BulkEmailModal';
 import RewardTypeManager from './masp/RewardTypeManager';
-import ContractTemplateManager from './masp/ContractTemplateManager';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
 import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT, currentYearMonth } from './crm/utils';
@@ -89,6 +88,29 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       alert('お気に入り更新に失敗しました: ' + (error.message || ''));
     }
   }, [setClientData]);
+
+  // クライアント一覧のドラッグ並び替え。
+  // orderedSupaIds は「表示中(filtered)のクライアント」を新しい順に並べた _supaId 配列。
+  // 表示外(別ステータス等)のクライアントの相対位置は崩さず、表示中のものだけを並べ替える。
+  const handleReorderClients = useCallback(async (orderedSupaIds) => {
+    if (!setClientData) return;
+    const idSet = new Set(orderedSupaIds);
+    const newPos = new Map(orderedSupaIds.map((id, i) => [id, i]));
+    // 表示中クライアントを新しい順に並べ替え
+    const displayedSorted = clientData
+      .filter(c => idSet.has(c._supaId))
+      .sort((a, b) => newPos.get(a._supaId) - newPos.get(b._supaId));
+    let di = 0;
+    // 全体配列を再構築 (表示外はその場に固定、表示中スロットだけ差し替え) → sort_order 振り直し
+    const nextArr = clientData
+      .map(c => (idSet.has(c._supaId) ? displayedSorted[di++] : c))
+      .map((c, i) => ({ ...c, no: (i + 1) * 10 }));
+    setClientData(nextArr); // optimistic
+    const allIds = nextArr.map(c => c._supaId).filter(Boolean);
+    const { error } = await reorderClients(allIds);
+    if (error) alert('並び順の保存に失敗しました: ' + (error.message || ''));
+  }, [clientData, setClientData]);
+
   // 新規顧客追加で AI が抽出した「追加候補の担当者」をキューする
   const [pendingNewContacts, setPendingNewContacts] = useState([]);
   // 既存顧客の編集で AI が抽出した「追加候補の担当者」をキューする
@@ -264,7 +286,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   // 商材フィルタ ('all' or '商材名')
   const [productFilter, setProductFilter] = useUrlState('product', 'all');
   // CRM内サブセクション ('clients' = クライアント一覧 / 'rewards' = 報酬体系マスタ / 'contracts' = 契約書テンプレ)
-  const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'rewards', 'contracts'] });
+  const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'rewards'] });
 
   // クライアントが持つ商材一覧 (タブのカウント用)
   const productCounts = useMemo(() => {
@@ -425,6 +447,10 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     if (!rewardMap[r.id]) rewardMap[r.id] = { name: r.name, timing: r.timing, basis: r.basis, tax: r.tax, tiers: [] };
     rewardMap[r.id].tiers.push(r);
   });
+
+  // ドラッグ並び替えは「手動順」で表示しているときだけ有効化する。
+  // 文字検索・カラムソート・「面談予定」(独自ソート) 中は表示順と sort_order がズレるため無効。
+  const canDragClients = !!setClientData && !search.trim() && !sortState.key && statusFilter !== '面談予定';
 
   const crmDefaultCols = setClientData ? CRM_COLS_EDIT : CRM_COLS_BASE;
   const { columns: crmCols, gridTemplateColumns: crmGrid, contentMinWidth: crmMinW, onResizeStart: crmResize } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
@@ -635,7 +661,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           {[
             { key: 'clients',   label: 'クライアント一覧' },
             { key: 'rewards',   label: '報酬体系マスタ' },
-            { key: 'contracts', label: '契約書テンプレ' },
           ].map(t => {
             const active = crmSection === t.key;
             return (
@@ -659,11 +684,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       {/* 報酬体系マスタ画面 */}
       {view !== 'detail' && crmSection === 'rewards' && (
         <RewardTypeManager isAdmin={isAdmin} />
-      )}
-
-      {/* 契約書テンプレ画面 (クライアント向け固定) */}
-      {view !== 'detail' && crmSection === 'contracts' && (
-        <ContractTemplateManager isAdmin={isAdmin} lockedScope="client" />
       )}
 
       {/* 詳細ページモード */}
@@ -783,6 +803,8 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             onToggleSelect={handleToggleSelect}
             onToggleSelectAll={handleToggleSelectAll}
             onToggleFavorite={handleToggleFavorite}
+            canDrag={canDragClients}
+            onReorder={handleReorderClients}
           />
         </>
       )}

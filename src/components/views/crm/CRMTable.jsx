@@ -1,3 +1,12 @@
+import {
+  DndContext, PointerSensor, KeyboardSensor,
+  closestCenter, useSensor, useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { color, space, radius, font } from '../../../constants/design';
 import { Button } from '../../ui';
 import ColumnResizeHandle from '../../common/ColumnResizeHandle';
@@ -154,8 +163,26 @@ export default function CRMTable({
   onToggleSelect,
   onToggleSelectAll,
   onToggleFavorite,
+  canDrag = false,
+  onReorder,
 }) {
   const isMobile = useIsMobile();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ids = filtered.map(c => c._supaId);
+    const oldIndex = ids.indexOf(active.id);
+    const newIndex = ids.indexOf(over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const nextIds = arrayMove(ids, oldIndex, newIndex);
+    onReorder?.(nextIds);
+  };
 
   // モバイル: カード形式
   if (isMobile) {
@@ -189,6 +216,31 @@ export default function CRMTable({
       </div>
     );
   }
+
+  // 各行へ渡す共通 props (静的行 / ドラッグ行で共有)
+  const rowProps = (c, i) => ({
+    client: c,
+    rowIndex: i,
+    globalIdx: clientData.indexOf(c),
+    setClientData,
+    crmCols,
+    crmGrid,
+    isEditable,
+    lastTouchByClient,
+    lastMeetingAt: lastMeetingByClient[c._supaId],
+    listCount: listCountByClient[c._supaId] || 0,
+    contactsByClient,
+    monthAppoCountByClient,
+    monthTargetByClient,
+    maxMonthTarget,
+    rewards: rewardsByClient[c._supaId] || [],
+    rewardMaster,
+    onRowClick,
+    onComposeEmail,
+    isSelected: selectedIds.has(c._supaId),
+    onToggleSelect,
+    onToggleFavorite,
+  });
 
   return (
     <div style={{ border: '1px solid ' + GRAY_200, borderRadius: radius.md, overflowX: 'auto', overflowY: 'hidden' }}>
@@ -252,35 +304,45 @@ export default function CRMTable({
           <div style={{ padding: '30px 0', textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
             データがありません
           </div>
+        ) : canDrag ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={filtered.map(c => c._supaId)} strategy={verticalListSortingStrategy}>
+              {filtered.map((c, i) => (
+                <SortableCRMRow key={c._supaId || i} client={c} rowProps={rowProps(c, i)} />
+              ))}
+            </SortableContext>
+          </DndContext>
         ) : (
           filtered.map((c, i) => (
-            <CRMTableRow
-              key={c._supaId || i}
-              client={c}
-              rowIndex={i}
-              globalIdx={clientData.indexOf(c)}
-              setClientData={setClientData}
-              crmCols={crmCols}
-              crmGrid={crmGrid}
-              isEditable={isEditable}
-              lastTouchByClient={lastTouchByClient}
-              lastMeetingAt={lastMeetingByClient[c._supaId]}
-              listCount={listCountByClient[c._supaId] || 0}
-              contactsByClient={contactsByClient}
-              monthAppoCountByClient={monthAppoCountByClient}
-              monthTargetByClient={monthTargetByClient}
-              maxMonthTarget={maxMonthTarget}
-              rewards={rewardsByClient[c._supaId] || []}
-              rewardMaster={rewardMaster}
-              onRowClick={onRowClick}
-              onComposeEmail={onComposeEmail}
-              isSelected={selectedIds.has(c._supaId)}
-              onToggleSelect={onToggleSelect}
-              onToggleFavorite={onToggleFavorite}
-            />
+            <CRMTableRow key={c._supaId || i} {...rowProps(c, i)} />
           ))
         )}
       </div>
     </div>
+  );
+}
+
+// ドラッグ並び替え可能な 1 行 (useSortable を CRMTableRow に橋渡し)
+function SortableCRMRow({ client, rowProps }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: client._supaId });
+  const dragStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <CRMTableRow
+      {...rowProps}
+      dragRef={setNodeRef}
+      dragStyle={dragStyle}
+      dragAttributes={attributes}
+      dragListeners={listeners}
+      isDragging={isDragging}
+      showDragHandle
+    />
   );
 }

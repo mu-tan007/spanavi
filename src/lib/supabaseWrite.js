@@ -4613,6 +4613,19 @@ export async function fetchLastMeetingByClient() {
   return { data: map, error: null }
 }
 
+/** クライアント一覧の表示順を一括更新 (ドラッグ並び替え)
+ *  orderedIds: clients.id を表示順に並べた配列。10刻みで sort_order を再採番する。 */
+export async function reorderClients(orderedIds) {
+  if (!orderedIds || orderedIds.length === 0) return { error: null }
+  const ops = orderedIds.map((id, idx) =>
+    supabase.from('clients').update({ sort_order: (idx + 1) * 10 }).eq('id', id)
+  )
+  const results = await Promise.all(ops)
+  const err = results.find(r => r.error)?.error || null
+  if (err) console.error('[DB] reorderClients error:', err)
+  return { error: err }
+}
+
 /** 面談記録の表示順を一括更新 (ドラッグ並び替え) */
 export async function reorderClientMeetings(orderedIds) {
   if (!orderedIds || orderedIds.length === 0) return { error: null }

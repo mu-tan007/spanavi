@@ -191,6 +191,13 @@ export default function CRMTableRow({
   isSelected = false,
   onToggleSelect,
   onToggleFavorite,
+  // ドラッグ並び替え用 (CRMTable から useSortable 経由で渡す)
+  dragRef,
+  dragStyle,
+  dragAttributes,
+  dragListeners,
+  isDragging = false,
+  showDragHandle = false,
 }) {
   const c = client;
   const sc = statusStyle(c.status);
@@ -223,16 +230,36 @@ export default function CRMTableRow({
 
   return (
     <div
+      ref={dragRef}
+      {...(showDragHandle ? dragAttributes : {})}
       style={{
+        position: 'relative',
         display: 'grid', gridTemplateColumns: crmGrid,
         padding: '8px 16px', fontSize: font.size.sm, alignItems: 'center',
         borderBottom: `1px solid ${color.border}`,
-        background: altBg,
+        background: isDragging ? color.cream : altBg,
+        opacity: isDragging ? 0.5 : 1,
         transition: 'background 0.15s',
+        ...dragStyle,
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = '#F5F8FC'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = altBg; }}
+      onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = '#F5F8FC'; }}
+      onMouseLeave={e => { if (!isDragging) e.currentTarget.style.background = altBg; }}
     >
+      {/* ドラッグつまみ (左パディング内に配置、並び替え可能時のみ) */}
+      {showDragHandle && (
+        <span
+          {...dragListeners}
+          onClick={e => e.stopPropagation()}
+          title="ドラッグで並び替え"
+          style={{
+            position: 'absolute', left: 1, top: 0, bottom: 0, width: 14,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'grab', color: color.textLight, fontSize: 11, lineHeight: 1,
+            userSelect: 'none', touchAction: 'none',
+          }}
+        >⋮⋮</span>
+      )}
+
       {/* 0. 一括選択 checkbox */}
       <span style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
         <input
