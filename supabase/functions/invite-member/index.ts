@@ -32,13 +32,15 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await userClient.auth.getUser()
     if (authError || !user) return json(401, { error: '認証に失敗しました' })
 
-    const { data: callerMember } = await userClient
-      .from('members')
-      .select('rank')
-      .or(`email.eq.${user.email},user_id.eq.${user.id}`)
+    // 管理者判定は users.role === 'admin' で行う（アプリ本体の isAdmin と統一）。
+    // members.rank は売上連動の営業ランク（トレーニー/スパルタン等）であり権限とは無関係。
+    const { data: callerUser } = await userClient
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
       .single()
 
-    if (!callerMember || callerMember.rank !== 'admin') {
+    if (!callerUser || callerUser.role !== 'admin') {
       return json(403, { error: '管理者権限が必要です' })
     }
 
