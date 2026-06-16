@@ -3,6 +3,7 @@ import { color, space, font, radius, shadow, alpha } from '../../../../constants
 import { Button, Card, Badge, Select } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
+import ClientMonetizationDiagnosisView from './ClientMonetizationDiagnosisView';
 
 // 仕様書: tasks/spacareer-spec.md §6.2 事後課題
 // 参考: イメージ画像③
@@ -31,6 +32,9 @@ export default function ClientHomeworkView() {
   const [submitting, setSubmitting] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const [kickoffHearingStatus, setKickoffHearingStatus] = useState(null);
+  // マネタイズ領域診断（第2回事後課題内のタスク）
+  const [diagnosisDone, setDiagnosisDone] = useState(false);
+  const [diagnosisOpen, setDiagnosisOpen] = useState(false);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -40,9 +44,12 @@ export default function ClientHomeworkView() {
         .from('members').select('id').eq('user_id', profile.id).maybeSingle();
       if (!member) { setLoading(false); return; }
       const { data: cust } = await supabase
-        .from('spacareer_customers').select('id').eq('member_id', member.id).maybeSingle();
+        .from('spacareer_customers')
+        .select('id, monetization_diagnosis_completed_at')
+        .eq('member_id', member.id).maybeSingle();
       if (cancelled) return;
       setCustomer(cust);
+      if (cust) setDiagnosisDone(!!cust.monetization_diagnosis_completed_at);
 
       if (cust) {
         // 第0回（キックオフヒアリング）の提出状況。事後課題画面の先頭に表示する。
@@ -238,6 +245,21 @@ export default function ClientHomeworkView() {
     </Card>
   ) : null;
 
+  // マネタイズ領域診断を起動中は、事後課題本体の代わりに診断画面をインライン表示
+  if (diagnosisOpen) {
+    return (
+      <div style={{ padding: space[6], display: 'flex', flexDirection: 'column', gap: space[4] }}>
+        <Button variant="ghost" size="sm" onClick={() => setDiagnosisOpen(false)} style={{ alignSelf: 'flex-start' }}>
+          ← 事後課題に戻る
+        </Button>
+        <ClientMonetizationDiagnosisView
+          customerId={customer?.id}
+          onCompleted={() => setDiagnosisDone(true)}
+        />
+      </div>
+    );
+  }
+
   if (homeworks.length === 0) {
     return (
       <div style={{ padding: space[6] }}>
@@ -281,6 +303,9 @@ export default function ClientHomeworkView() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
+          {selectedHomework?.session_no === 2 && (
+            <DiagnosisTaskCard done={diagnosisDone} onOpen={() => setDiagnosisOpen(true)} />
+          )}
           {items.map((item, idx) => {
             const prevSection = idx > 0 ? items[idx - 1].section : null;
             const showSection = item.section && item.section !== prevSection;
@@ -367,6 +392,31 @@ export default function ClientHomeworkView() {
 
 function labelOfStatus(s) {
   return { unnotified: '未通知', unsubmitted: '未提出', partial: '部分提出', submitted: '提出済み', completed: '完了' }[s] || s;
+}
+
+// 第2回事後課題内に表示する「マネタイズ領域診断」タスクカード
+function DiagnosisTaskCard({ done, onOpen }) {
+  return (
+    <Card padding="md" style={{ border: `1px solid ${alpha(color.navy, 0.25)}`, background: alpha(color.navyLight, 0.04) }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: space[3], flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: 4 }}>
+            <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>
+              マネタイズ領域診断
+            </span>
+            <Badge variant={done ? 'success' : 'warn'} dot>{done ? '完了' : '未実施'}</Badge>
+          </div>
+          <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>
+            やりたいこと・興味・強み・業界経験から「どの領域 × どの業界で勝つか」を診断します（約40問・20〜40分）。
+            {done ? ' 診断結果はいつでも見返せます。' : ' 第2回をより有意義にするため、回答をお願いします。'}
+          </div>
+        </div>
+        <Button variant={done ? 'outline' : 'primary'} size="md" onClick={onOpen} style={{ whiteSpace: 'nowrap' }}>
+          {done ? '結果を見る' : '診断を始める'}
+        </Button>
+      </div>
+    </Card>
+  );
 }
 
 function Heading() {

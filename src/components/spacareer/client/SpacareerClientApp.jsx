@@ -35,7 +35,6 @@ import ClientCoursesView from './views/ClientCoursesView';
 import ClientHistoryView from './views/ClientHistoryView';
 import ClientKickoffHearingView from './views/ClientKickoffHearingView';
 import ClientSocialStyleView from './views/ClientSocialStyleView';
-import ClientMonetizationDiagnosisView from './views/ClientMonetizationDiagnosisView';
 
 // 受講生（rank='student'）向けのスパキャリ・クライアントポータル本体。
 // 仕様書: tasks/spacareer-spec.md §6 / §6.2A
@@ -98,7 +97,7 @@ export default function SpacareerClientApp() {
         if (!member) { if (!cancelled) setBootstrapped(true); return; }
         const { data: cust } = await supabase
           .from('spacareer_customers')
-          .select('id, social_style_completed_at, monetization_diagnosis_completed_at, current_session_no')
+          .select('id, social_style_completed_at, current_session_no')
           .eq('member_id', member.id)
           .maybeSingle();
         if (!cust) { if (!cancelled) setBootstrapped(true); return; }
@@ -107,9 +106,6 @@ export default function SpacareerClientApp() {
         // ソーシャルスタイル診断の状態
         const socialStyleDone = !!cust.social_style_completed_at;
         if (!cancelled) setSocialStyleActive(!socialStyleDone);
-
-        // マネタイズ領域診断（第2回向け）の状態
-        const monetizationDone = !!cust.monetization_diagnosis_completed_at;
 
         // キックオフヒアリングの状態
         const { data: sess } = await supabase
@@ -132,9 +128,6 @@ export default function SpacareerClientApp() {
         } else if (sess && !hearingSubmitted && !progressedPastKickoff
           && ['unnotified', 'unstarted', 'in_progress'].includes(sess.status)) {
           setCurrentTab('kickoff_hearing');
-        } else if (progressedPastKickoff && !monetizationDone) {
-          // 第1回到達後・マネタイズ領域診断 未実施なら診断へ誘導（ロックはしない）
-          setCurrentTab('monetization_diagnosis');
         }
       } catch (e) {
         console.error('[SpacareerClientApp] bootstrap error:', e);
@@ -265,9 +258,6 @@ export default function SpacareerClientApp() {
             />
           )}
           {currentTab === 'kickoff_hearing' && <ClientKickoffHearingView />}
-          {currentTab === 'monetization_diagnosis' && (
-            <ClientMonetizationDiagnosisView customerId={customerId} />
-          )}
           {currentTab === 'mypage' && <ClientMyPageView />}
           {currentTab === 'homework' && <ClientHomeworkView />}
           {currentTab === 'feedback' && <ClientFeedbackView />}

@@ -10,7 +10,6 @@ import SidebarShell, { ActiveItem, SectionHeader } from '../../common/sidebars/S
 //   3. ベースメニュー（基本情報・事後課題・セッション感想・AI講座・履歴）
 const BASE_MENU = [
   { id: 'mypage', label: '基本情報', sub: 'マイページ' },
-  { id: 'monetization_diagnosis', label: 'マネタイズ領域診断', sub: 'どの領域×業界で勝つか' },
   { id: 'homework', label: '事後課題', sub: 'セッション後の課題' },
   { id: 'feedback', label: 'セッション感想', sub: 'セッション後の振り返り' },
   { id: 'courses', label: 'AI講座', sub: '学習コンテンツ' },
