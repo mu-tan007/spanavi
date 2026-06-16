@@ -104,6 +104,23 @@ export default function GenerateContractModal({ member, onClose, onGenerated }) 
     const template = templates.find(t => t.id === templateId);
     if (!template) { setError('テンプレが見つかりません'); return; }
 
+    // 安全弁: 住所/口座が空のまま生成すると契約書の該当欄が空になるため、生成前に確認する
+    {
+      const missing = [];
+      if (!form.address.trim()) missing.push('住所');
+      const hasBank = form.bank_name || form.branch_name || form.account_number;
+      if (!hasBank) missing.push('口座情報');
+      if (missing.length > 0) {
+        const label = missing.join('・');
+        const ok = window.confirm(
+          `${label}が未入力です。\n` +
+          `このまま生成すると契約書の${label}欄が空になります。\n\n` +
+          `キャンセルして入力し直すことを推奨します。このまま続けますか？`
+        );
+        if (!ok) return;
+      }
+    }
+
     setGenerating(true);
 
     const bank = {

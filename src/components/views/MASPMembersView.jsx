@@ -304,6 +304,26 @@ export default function MASPMembersView({ isAdmin }) {
     setAddError(null);
     if (!addForm.name.trim()) { setAddError('氏名は必須です'); return; }
     if (addSendInvite && !addForm.email.trim()) { setAddError('招待メール送信時はメールアドレスが必須です'); return; }
+
+    // 安全弁: 契約書テンプレを選んでいるのに住所/口座が空のまま生成すると、
+    // 契約書の該当欄が空になる（過去に住所欄が空の契約書が生成された事故あり）。
+    // DB 書き込み前にここで確認し、中断できるようにする。
+    if (addTemplateId && addForm.start_date && addForm.contract_end_date) {
+      const missing = [];
+      if (!addForm.address.trim()) missing.push('住所');
+      const hasBank = addForm.bank_name || addForm.branch_name || addForm.account_number;
+      if (!hasBank) missing.push('口座情報');
+      if (missing.length > 0) {
+        const label = missing.join('・');
+        const ok = window.confirm(
+          `契約書テンプレが選択されていますが、${label}が未入力です。\n` +
+          `このまま生成すると契約書の${label}欄が空になります。\n\n` +
+          `キャンセルして入力し直すことを推奨します。このまま続けますか？`
+        );
+        if (!ok) return;
+      }
+    }
+
     setAdding(true);
     const orgId = getOrgId();
     let newMemberId = null;
