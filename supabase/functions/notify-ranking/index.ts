@@ -78,12 +78,11 @@ Deno.serve(async (req) => {
       formatSection(rankBy('appo', 3), 'appo'),
     ]
 
-    // 平日18時台（hourly cron の 09:00 UTC = JST 18:00）に今月の売上 TOP5 を追加
-    // cron 'notify-ranking-hourly' は平日のみ '0 0,3,6,9 * * 1-5' で発火するため曜日判定は不要
-    if (jstHour === 18) {
-      // 当社売上ランキング（当月）。スパナビ SalesRanking.jsx / salesPeriod.js と同一定義を
-      // notify_sales_ranking_org で再現する（面談実施日=meeting_date が当月、面談済/事前確認済/
-      // アポ取得、クライアント開拓リスト除外、月全体）。
+    // 今月の売上 TOP5 を毎回追加（架電件数 / キーマン接続数 / アポ取得数と同様に常時通知）。
+    // 当社売上ランキング（当月）。スパナビ SalesRanking.jsx / salesPeriod.js と同一定義を
+    // notify_sales_ranking_org で再現する（面談実施日=meeting_date が当月、面談済/事前確認済/
+    // アポ取得、クライアント開拓リスト除外、月全体）。
+    {
       const monthStr = jstDateStr.slice(0, 7) // 'YYYY-MM'
       type SalesRow = { getter_name: string; sales: number; appo: number }
       const { data: salesData, error: salesErr } = await supabase.rpc('notify_sales_ranking_org', {
