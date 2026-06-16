@@ -170,7 +170,7 @@ export default function ClientMonetizationDiagnosisView({ customerId, onComplete
   if (!response) return <Centered>診断データが見つかりません。運営にお問い合わせください。</Centered>;
 
   if (phase === 'intro') return <IntroView onStart={() => { setPhase('quiz'); setCurrentIdx(0); }} hasProgress={Object.keys(answersMap).length > 0} />;
-  if (phase === 'result') return <ResultView response={response} />;
+  if (phase === 'result') return <CompletionView />;
 
   const q = MONETIZATION_QUESTIONS[currentIdx];
   return (
@@ -219,7 +219,7 @@ function IntroView({ onStart, hasProgress }) {
           <strong>ご回答にあたって</strong><br />
           ・正解はありません。<strong>「面白そう」「やってみたい」という直感</strong>を大切にお答えください。<br />
           ・所要 20〜40分。途中で離脱しても続きから再開できます。<br />
-          ・結果は領域×業界の候補と、フォーム営業を前提とした入り方まで提示します。
+          ・回答内容はコーチが確認し、第2回セッションで方向性をお伝えします（結果はこの画面には表示されません）。
         </div>
         <div style={{ marginTop: space[5], display: 'flex', justifyContent: 'center' }}>
           <Button variant="primary" size="lg" onClick={onStart}>
@@ -338,120 +338,30 @@ function ChoiceButton({ active, disabled, num, label, check, onClick }) {
 }
 
 // ────────────────────────────────────────────────────────
-function ResultView({ response }) {
-  const result = response.result;
-  const report = response.report_text;
-  if (!result || !result.primary) {
-    return (
-      <div style={{ maxWidth: 760, margin: '0 auto' }}>
-        <Heading title="マネタイズ領域診断 結果" subtitle="結果を取得できませんでした" />
-        <Card padding="md"><p style={{ fontSize: font.size.sm, color: color.textMid }}>運営にお問い合わせください。</p></Card>
-      </div>
-    );
-  }
-  const p = result.primary;
-
+// 受講生には結果を表示しない。完了サンクスのみ（結果は運営の基本情報タブで確認）。
+function CompletionView() {
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space[4] }}>
-      <Heading title="マネタイズ領域診断 結果" subtitle="あなたの「やってみたい」と強み・経験から導きました" />
-
+    <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space[4] }}>
+      <Heading title="マネタイズ領域診断" subtitle="ご回答ありがとうございました" />
       <Card padding="lg">
-        <div style={{ fontSize: font.size.xs, color: color.textLight, letterSpacing: font.letterSpacing.wide, fontWeight: font.weight.semibold }}>
-          最有力の主戦場
+        <div style={{ marginBottom: space[3] }}>
+          <Badge variant="success" dot>回答完了</Badge>
         </div>
-        <div style={{ marginTop: space[2], display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
-          <span style={{ fontSize: font.size['2xl'], fontWeight: font.weight.bold, color: color.navy }}>{p.domainLabel}</span>
-          <span style={{ color: color.textLight }}>×</span>
-          <span style={{ fontSize: font.size.xl, fontWeight: font.weight.semibold, color: color.textDark }}>{p.industryLabel}</span>
-          <Badge variant="success" dot>適性スコア {p.score}</Badge>
-        </div>
-        <div style={{ marginTop: space[2], fontSize: font.size.sm, color: color.textMid }}>{p.rationale?.howToEnter}</div>
-      </Card>
-
-      <Card padding="md" title="他の有力候補">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
-          {result.topCombos.slice(1).map((c) => (
-            <div key={c.domainId} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: `${space[2]}px ${space[3]}px`, background: color.snow,
-              border: `1px solid ${color.borderLight}`, borderRadius: radius.md,
-            }}>
-              <span style={{ fontSize: font.size.md, color: color.textDark }}>
-                <strong>{c.domainLabel}</strong> × {c.industryLabel}
-              </span>
-              <Badge variant="neutral">スコア {c.score}</Badge>
-            </div>
-          ))}
+        <p style={{ fontSize: font.size.md, color: color.textDark, lineHeight: font.lineHeight.relaxed, margin: 0 }}>
+          診断へのご回答ありがとうございました。<br />
+          回答内容はコーチが確認し、あなたに合ったマネタイズの方向性を<strong>第2回セッション</strong>でお伝えします。
+        </p>
+        <div style={{
+          marginTop: space[4], padding: space[3],
+          background: color.cream, borderRadius: radius.md,
+          fontSize: font.size.sm, color: color.textMid, lineHeight: font.lineHeight.relaxed,
+        }}>
+          診断結果はこの画面には表示されません。セッションでのフィードバックをお待ちください。
         </div>
       </Card>
-
-      <Card padding="md" title="領域別の適性">
-        {result.domainRanking.slice(0, 8).map((d) => (
-          <ScoreBar key={d.domainId} label={d.domainLabel} value={d.score} active={d.domainId === p.domainId} />
-        ))}
-      </Card>
-
-      <Card padding="md" title="フォーム営業での見込み（概算）"
-        description="テレアポは行わず、問い合わせフォーム経由で接点を作る前提です。">
-        <div style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: space[3] }}>{result.funnel.note}</div>
-        <div style={{ display: 'grid', gap: space[2] }}>
-          {result.funnel.samples.map((s) => (
-            <div key={s.approaches} style={{
-              display: 'flex', justifyContent: 'space-between',
-              padding: `${space[2]}px ${space[3]}px`, background: color.snow,
-              borderRadius: radius.md, fontFamily: font.family.mono, fontSize: font.size.sm, color: color.textDark,
-            }}>
-              <span>送付 {s.approaches.toLocaleString()} 件</span>
-              <span>反応率 0.05% → 約 {s.expectedResponses} 件</span>
-            </div>
-          ))}
-        </div>
-        {result.funnel.unitPriceRange && (
-          <div style={{ marginTop: space[3], fontSize: font.size.sm, color: color.textMid }}>
-            想定単価: {result.funnel.unitPriceRange.min.toLocaleString()}〜{result.funnel.unitPriceRange.max.toLocaleString()}円 / {result.funnel.unitPriceRange.unit}
-          </div>
-        )}
-      </Card>
-
-      {report && (
-        <Card padding="lg" title="あなたへのアドバイス">
-          <ReportMarkdown text={report} />
-        </Card>
-      )}
     </div>
   );
 }
-
-// 簡易マークダウン描画（## 見出し / - 箇条書き / 段落）。外部依存なし。
-function ReportMarkdown({ text }) {
-  const lines = String(text).split('\n');
-  const blocks = [];
-  let list = [];
-  const flush = () => {
-    if (list.length) {
-      blocks.push(<ul key={`ul${blocks.length}`} style={{ margin: `${space[1]}px 0 ${space[2]}px`, paddingLeft: space[4] }}>
-        {list.map((li, i) => <li key={i} style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed, marginBottom: 2 }}>{li}</li>)}
-      </ul>);
-      list = [];
-    }
-  };
-  lines.forEach((raw, i) => {
-    const ln = raw.trim();
-    if (!ln) { flush(); return; }
-    if (ln.startsWith('## ')) {
-      flush();
-      blocks.push(<div key={`h${i}`} style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginTop: space[3], marginBottom: space[1] }}>{ln.slice(3)}</div>);
-    } else if (ln.startsWith('- ')) {
-      list.push(stripBold(ln.slice(2)));
-    } else {
-      flush();
-      blocks.push(<p key={`p${i}`} style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed, margin: `0 0 ${space[2]}px` }}>{stripBold(ln)}</p>);
-    }
-  });
-  flush();
-  return <div>{blocks}</div>;
-}
-function stripBold(s) { return s.replace(/\*\*(.+?)\*\*/g, '$1'); }
 
 // ────────────────────────────────────────────────────────
 function Heading({ title, subtitle }) {
@@ -464,18 +374,4 @@ function Heading({ title, subtitle }) {
 }
 function Centered({ children }) {
   return <div style={{ padding: space[6], color: color.textLight, fontSize: font.size.sm }}>{children}</div>;
-}
-function ScoreBar({ label, value, active }) {
-  const pct = Math.max(0, Math.min(100, value));
-  return (
-    <div style={{ marginBottom: space[2] }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: font.size.xs, color: active ? color.navy : color.textMid, marginBottom: 2, fontWeight: active ? font.weight.bold : font.weight.normal }}>
-        <span>{label}{active && ' ← おすすめ'}</span>
-        <span style={{ fontFamily: font.family.mono }}>{value}</span>
-      </div>
-      <div style={{ height: 6, background: color.gray100, borderRadius: radius.pill, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: active ? color.navy : color.navyLight, transition: 'width 0.3s ease' }} />
-      </div>
-    </div>
-  );
 }

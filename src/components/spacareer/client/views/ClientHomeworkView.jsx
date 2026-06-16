@@ -404,16 +404,20 @@ function DiagnosisTaskCard({ done, onOpen }) {
             <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>
               マネタイズ領域診断
             </span>
-            <Badge variant={done ? 'success' : 'warn'} dot>{done ? '完了' : '未実施'}</Badge>
+            <Badge variant={done ? 'success' : 'warn'} dot>{done ? '回答済み' : '未実施'}</Badge>
           </div>
           <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>
             やりたいこと・興味・強み・業界経験から「どの領域 × どの業界で勝つか」を診断します（約40問・20〜40分）。
-            {done ? ' 診断結果はいつでも見返せます。' : ' 第2回をより有意義にするため、回答をお願いします。'}
+            {done
+              ? ' ご回答ありがとうございました。内容はコーチが確認し、第2回セッションでお伝えします。'
+              : ' 第2回をより有意義にするため、回答をお願いします。'}
           </div>
         </div>
-        <Button variant={done ? 'outline' : 'primary'} size="md" onClick={onOpen} style={{ whiteSpace: 'nowrap' }}>
-          {done ? '結果を見る' : '診断を始める'}
-        </Button>
+        {!done && (
+          <Button variant="primary" size="md" onClick={onOpen} style={{ whiteSpace: 'nowrap' }}>
+            診断を始める
+          </Button>
+        )}
       </div>
     </Card>
   );

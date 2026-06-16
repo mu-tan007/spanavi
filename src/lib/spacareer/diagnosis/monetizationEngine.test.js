@@ -65,15 +65,43 @@ describe('monetizationEngine', () => {
   it('興味が低い領域は1位にならない', () => {
     const r = computeMonetizationResult(buildAnswers({
       interest_dev: 1,
-      interest_writing: 5,
+      interest_content_sales: 5,
     }));
     expect(r.primary.domainId).not.toBe('dev');
   });
 
   it('funnel には仮定値未設定の注記と単価レンジが含まれる', () => {
-    const r = computeMonetizationResult(buildAnswers({ interest_writing: 5 }));
+    const r = computeMonetizationResult(buildAnswers({ interest_content_sales: 5 }));
     expect(r.funnel.note).toContain('仮定値');
     expect(r.funnel.unitPriceRange).toBeTruthy();
     expect(r.funnel.samples).toHaveLength(3);
+  });
+
+  it('削除済み領域(ライティング/動画編集)と業種(AI特化)は存在しない', () => {
+    const domainIds = MONETIZATION_DOMAINS.map((d) => d.id);
+    expect(domainIds).not.toContain('writing');
+    expect(domainIds).not.toContain('video_edit');
+    expect(INDUSTRIES.map((i) => i.id)).not.toContain('ai_native');
+    // AIコンサルタントへの改称
+    expect(MONETIZATION_DOMAINS.find((d) => d.id === 'ai_enablement').label).toBe('AIコンサルタント');
+  });
+
+  it('商談したくない場合: 商談必須の領域(コンサル/受託/AIコンサル)は1位にならない', () => {
+    const r = computeMonetizationResult(buildAnswers({
+      interest_consulting: 5, interest_dev: 5, interest_ai_enablement: 5,
+      interest_affiliate: 5,
+      res_meeting: 'no',
+    }));
+    expect(['consulting', 'dev', 'ai_enablement']).not.toContain(r.primary.domainId);
+  });
+
+  it('商談意向で商談必須領域のスコアが変わる(yes > no)', () => {
+    const scoreOf = (meeting) => {
+      const r = computeMonetizationResult(buildAnswers({
+        interest_ai_enablement: 5, industry_care: 5, res_meeting: meeting,
+      }));
+      return r.domainRanking.find((d) => d.domainId === 'ai_enablement').score;
+    };
+    expect(scoreOf('yes')).toBeGreaterThan(scoreOf('no'));
   });
 });

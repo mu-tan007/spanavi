@@ -163,9 +163,7 @@ const resourceQuestions = [
     type: 'multi',
     text: '今、ある程度できることはどれですか？（複数選択可）',
     options: [
-      { value: 'writing', label: '文章を書く' },
       { value: 'design', label: 'デザイン/画像編集' },
-      { value: 'video', label: '動画編集' },
       { value: 'coding', label: 'プログラミング' },
       { value: 'marketing', label: 'マーケ/SNS運用' },
       { value: 'sales', label: '営業/コミュニケーション' },
@@ -173,6 +171,19 @@ const resourceQuestions = [
       { value: 'none', label: '特になし（これから身につける）' },
     ],
     dimension: { kind: 'resource', key: 'skills' },
+  },
+  {
+    id: 'res_meeting',
+    section: 'resource',
+    type: 'single',
+    text: 'オンラインでの商談（顔出しの打ち合わせ）について、近いのは？',
+    hint: 'ここで提案する稼ぎ方が大きく変わります。正直にお答えください。',
+    options: [
+      { value: 'yes', label: '顔出し・オンライン商談ができる／むしろやりたい' },
+      { value: 'no', label: '商談はしたくない（顔出しなしで進めたい）' },
+      { value: 'either', label: 'どちらでもよい' },
+    ],
+    dimension: { kind: 'resource', key: 'meeting' },
   },
   {
     id: 'res_risk',

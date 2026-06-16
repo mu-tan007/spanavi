@@ -27,8 +27,6 @@ const DOMAIN_STRENGTH_AXES = {
   consulting: ['strategic', 'relationship'],
   tool_sales: ['strategic', 'execution'],
   dev: ['execution', 'strategic'],
-  writing: ['influencing', 'execution'],
-  video_edit: ['execution', 'influencing'],
   design: ['execution', 'strategic'],
   web_production: ['execution', 'strategic'],
   online_assistant: ['relationship', 'execution'],
@@ -38,21 +36,33 @@ const DOMAIN_STRENGTH_AXES = {
 
 // 各領域の「見せ方」グループ
 const DOMAIN_PRESENTATION = {
-  content_sales: 'broadcast', affiliate: 'broadcast', writing: 'broadcast', video_edit: 'broadcast',
+  content_sales: 'broadcast', affiliate: 'broadcast',
   dev: 'handson', web_production: 'handson', design: 'handson', tool_sales: 'handson', ai_enablement: 'handson',
   consulting: 'advisory', online_assistant: 'advisory', form_sales_agency: 'advisory', ops_agency: 'advisory',
 };
 
 // 保有スキル → 親和性の高い領域
 const SKILL_TO_DOMAINS = {
-  writing: ['writing', 'content_sales', 'affiliate'],
+  writing: ['content_sales', 'affiliate'],
   design: ['design', 'web_production'],
-  video: ['video_edit'],
   coding: ['dev', 'web_production', 'tool_sales'],
   marketing: ['ops_agency', 'affiliate', 'form_sales_agency'],
   sales: ['form_sales_agency', 'consulting', 'ops_agency'],
   ai_tools: ['ai_enablement', 'tool_sales'],
 };
+
+// 商談意向(res_meeting)による領域スコア補正。提案が大きく変わるため強めに効かせる。
+const MEETING_MODIFIER = {
+  no:   { required: -0.12, light: -0.04, none: 0.04 }, // 商談したくない
+  yes:  { required: 0.05,  light: 0,     none: 0 },    // 商談できる/したい
+};
+function meetingModifier(domainId, meeting) {
+  if (!meeting || meeting === 'either') return 0;
+  const table = MEETING_MODIFIER[meeting];
+  if (!table) return 0;
+  const need = DOMAIN_BY_ID[domainId]?.meetingNeed || 'light';
+  return table[need] || 0;
+}
 
 // スコア重み（合計 1.0）。interest（感情）が最大。
 const WEIGHTS = {
@@ -109,6 +119,7 @@ export function parseAnswers(answers) {
     speed: map.res_speed || null,
     skills: Array.isArray(map.res_skill) ? map.res_skill : [],
     risk: map.res_risk || null,
+    meeting: map.res_meeting || null, // オンライン商談の意向（yes/no/either）
   };
 
   return { domainInterest, industryExpertise, strengthAxis, presentation, resource };
@@ -134,7 +145,7 @@ function domainModifier(domainId, parsed) {
   if (presentation.public === 'love' && presGroup === 'broadcast') mod += 0.015;
 
   if (presentation.stockflow === 'stock' && ['content_sales', 'affiliate', 'tool_sales'].includes(domainId)) mod += 0.02;
-  if (presentation.stockflow === 'flow' && ['ops_agency', 'dev', 'writing', 'video_edit', 'form_sales_agency', 'online_assistant'].includes(domainId)) mod += 0.02;
+  if (presentation.stockflow === 'flow' && ['ops_agency', 'dev', 'form_sales_agency', 'online_assistant'].includes(domainId)) mod += 0.02;
 
   // 保有スキルが直結する領域を後押し
   for (const sk of (resource.skills || [])) {
@@ -166,6 +177,7 @@ function scoreCombo(domainId, industryId, parsed) {
   let raw = 0;
   for (const k of Object.keys(WEIGHTS)) raw += WEIGHTS[k] * parts[k];
   raw += domainModifier(domainId, parsed);
+  raw += meetingModifier(domainId, parsed.resource.meeting); // 商談意向で大きく変動
   raw = clamp(raw, 0, 1);
 
   return { score: Math.round(raw * 100), parts };
