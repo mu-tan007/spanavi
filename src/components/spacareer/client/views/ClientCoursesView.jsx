@@ -47,15 +47,21 @@ export default function ClientCoursesView() {
       setCustomer(cust);
       if (!cust) { setLoading(false); return; }
 
-      const [{ data: cats }, { data: vids }, { data: viewRows }, { data: favRows }] = await Promise.all([
+      const [{ data: cats }, { data: vids }, { data: viewRows }, { data: favRows }, { data: asgRows }] = await Promise.all([
         supabase.from('spacareer_course_categories').select('*').eq('is_active', true).order('position', { ascending: true }),
         supabase.from('spacareer_course_videos').select('*').eq('is_active', true).order('position', { ascending: true }),
         supabase.from('spacareer_video_views').select('*').eq('customer_id', cust.id),
         supabase.from('spacareer_video_favorites').select('video_id').eq('customer_id', cust.id),
+        supabase.from('spacareer_video_assignments').select('video_id').eq('customer_id', cust.id),
       ]);
       if (cancelled) return;
       setCategories(cats || []);
-      setVideos(vids || []);
+      // 表示対象: 全員公開(audience='all' または未設定) ＋ 自分に個別配信された動画のみ
+      const assignedSet = new Set((asgRows || []).map(r => r.video_id));
+      const visibleVids = (vids || []).filter(
+        v => (v.audience || 'all') === 'all' || assignedSet.has(v.id)
+      );
+      setVideos(visibleVids);
       const vMap = {};
       (viewRows || []).forEach(v => { vMap[v.video_id] = v; });
       setViews(vMap);
@@ -94,6 +100,31 @@ export default function ClientCoursesView() {
       .from('spacareer_video_views')
       .upsert(payload, { onConflict: 'customer_id,video_id' });
     if (error) { console.warn('[Courses] progress save error:', error); return; }
+    setViews(prev => ({ ...prev, [video.id]: { ...prev[video.id], ...payload } }));
+  };
+
+  // 視聴後アウトプット（200文字程度）の保存。視聴記録(views)行に追記する。
+  const saveReflection = async (video, text) => {
+    if (!customer) return;
+    const current = views[video.id];
+    const nowIso = new Date().toISOString();
+    const payload = {
+      org_id: profile?.org_id,
+      customer_id: customer.id,
+      video_id: video.id,
+      // 既存の視聴ステータスは保持（未視聴のまま感想だけ書くケースは status を維持）
+      status: current?.status || 'watching',
+      progress_percent: current?.progress_percent ?? 0,
+      watched_seconds: current?.watched_seconds ?? 0,
+      first_viewed_at: current?.first_viewed_at || nowIso,
+      last_viewed_at: current?.last_viewed_at || nowIso,
+      reflection_text: text || null,
+      reflection_submitted_at: text ? nowIso : null,
+    };
+    const { error } = await supabase
+      .from('spacareer_video_views')
+      .upsert(payload, { onConflict: 'customer_id,video_id' });
+    if (error) throw error;
     setViews(prev => ({ ...prev, [video.id]: { ...prev[video.id], ...payload } }));
   };
 
@@ -241,8 +272,11 @@ export default function ClientCoursesView() {
         <VideoPlayerModal
           video={playingVideo}
           initialProgress={views[playingVideo.id]?.watched_seconds || 0}
+          initialReflection={views[playingVideo.id]?.reflection_text || ''}
+          reflectionSubmittedAt={views[playingVideo.id]?.reflection_submitted_at || null}
           onClose={() => setPlayingVideo(null)}
           onProgress={(s, d) => handleProgress(playingVideo, s, d)}
+          onSaveReflection={(text) => saveReflection(playingVideo, text)}
         />
       )}
     </div>
@@ -405,13 +439,31 @@ function formatDuration(seconds) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function VideoPlayerModal({ video, initialProgress, onClose, onProgress }) {
+const REFLECTION_TARGET = 200; // アウトプットの目安文字数
+
+function VideoPlayerModal({ video, initialProgress, initialReflection = '', reflectionSubmittedAt = null, onClose, onProgress, onSaveReflection }) {
   const videoRef = useRef(null);
+  const [reflection, setReflection] = useState(initialReflection);
+  const [savingReflection, setSavingReflection] = useState(false);
+  const [savedAt, setSavedAt] = useState(reflectionSubmittedAt);
   useEffect(() => {
     if (videoRef.current && initialProgress) {
       try { videoRef.current.currentTime = initialProgress; } catch { /* noop */ }
     }
   }, [initialProgress]);
+
+  const handleSaveReflection = async () => {
+    setSavingReflection(true);
+    try {
+      await onSaveReflection?.(reflection.trim());
+      setSavedAt(new Date().toISOString());
+      alert('アウトプットを保存しました。学んだことを言葉にすると定着率が上がります。お疲れさまでした！');
+    } catch (e) {
+      alert('保存に失敗しました: ' + (e.message || e));
+    } finally {
+      setSavingReflection(false);
+    }
+  };
 
   return (
     <div
@@ -459,11 +511,56 @@ function VideoPlayerModal({ video, initialProgress, onClose, onProgress }) {
             }}
           />
         </div>
-        {video.description && (
-          <div style={{ padding: space[4], fontSize: font.size.sm, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>
-            {video.description}
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+          {video.description && (
+            <div style={{ padding: `${space[4]}px ${space[4]}px 0`, fontSize: font.size.sm, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>
+              {video.description}
+            </div>
+          )}
+
+          {/* 視聴後アウトプット欄 */}
+          <div style={{ padding: space[4], display: 'flex', flexDirection: 'column', gap: space[2] }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap',
+            }}>
+              <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>
+                視聴後のアウトプット
+              </span>
+              {savedAt && <Badge variant="success" dot>保存済み</Badge>}
+            </div>
+            <div style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>
+              この動画を通じて<strong>理解したこと</strong>、そして<strong>今後ご自身で活かしてみたいこと</strong>を、200文字程度でご記入ください。学んだことを言葉にすると定着率が上がります。
+            </div>
+            <textarea
+              value={reflection}
+              onChange={e => setReflection(e.target.value)}
+              placeholder="例）この動画で〇〇の使い方が理解できた。今後は△△の業務で実際に試してみたい。"
+              rows={5}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: `${space[2]}px ${space[3]}px`,
+                fontSize: font.size.sm, fontFamily: font.family.sans,
+                color: color.textDark, border: `1px solid ${color.border}`,
+                borderRadius: radius.md, outline: 'none', resize: 'vertical',
+                lineHeight: font.lineHeight.relaxed,
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
+              <span style={{
+                fontSize: font.size.xs,
+                color: reflection.length >= REFLECTION_TARGET ? color.success : color.textLight,
+              }}>
+                {reflection.length} 文字（目安 {REFLECTION_TARGET} 文字）
+              </span>
+              <Button
+                size="sm" variant="primary"
+                loading={savingReflection}
+                disabled={!reflection.trim()}
+                onClick={handleSaveReflection}
+              >アウトプットを保存</Button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

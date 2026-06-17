@@ -28,6 +28,7 @@ export default function TabVideoLogs({ detail }) {
         .from('spacareer_video_views')
         .select(`
           id, progress_percent, watched_seconds, status, first_viewed_at, last_viewed_at,
+          reflection_text, reflection_submitted_at,
           video:spacareer_course_videos ( id, title, duration_seconds, category:spacareer_course_categories ( name ) )
         `)
         .eq('customer_id', customerId)
@@ -67,6 +68,16 @@ export default function TabVideoLogs({ detail }) {
               render: (r) => fmtDate(r.first_viewed_at), cellStyle: { fontFamily: font.family.mono } },
             { key: 'last_viewed_at', label: '最終視聴', width: 90, align: 'right',
               render: (r) => fmtDate(r.last_viewed_at), cellStyle: { fontFamily: font.family.mono } },
+            { key: '_reflection', label: '視聴後アウトプット', width: 'minmax(260px, 1.6fr)', align: 'left',
+              render: (r) => r.reflection_text
+                ? (
+                  <div style={{
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                    fontSize: font.size.xs, color: color.textDark,
+                    lineHeight: font.lineHeight.relaxed, padding: `${space[1]}px 0`,
+                  }}>{r.reflection_text}</div>
+                )
+                : <span style={{ color: color.textLight }}>—</span> },
           ]}
           rows={rows} rowKey="id" loading={loading} height="auto"
           emptyMessage="視聴履歴がありません"

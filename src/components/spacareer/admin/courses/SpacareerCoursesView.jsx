@@ -7,6 +7,7 @@ import SubTabs from '../_shared/SubTabs';
 import { supabase } from '../../../../lib/supabase';
 import { getOrgId } from '../../../../lib/orgContext';
 import VideoUploadModal from './VideoUploadModal';
+import VideoAssignModal from './VideoAssignModal';
 import CourseCategoryEditor from './CourseCategoryEditor';
 
 // ============================================================
@@ -48,6 +49,8 @@ export default function SpacareerCoursesView() {
   const [error, setError] = useState(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [assignTarget, setAssignTarget] = useState(null);
+  const [assignCounts, setAssignCounts] = useState({}); // video_id -> 配信人数
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
 
   const loadAll = useCallback(async () => {
@@ -55,13 +58,13 @@ export default function SpacareerCoursesView() {
     setError(null);
     try {
       const orgId = getOrgId();
-      const [catRes, vidRes, viewRes, favRes] = await Promise.all([
+      const [catRes, vidRes, viewRes, favRes, asgRes] = await Promise.all([
         supabase.from('spacareer_course_categories')
           .select('id, name, position, is_active')
           .eq('org_id', orgId)
           .order('position', { ascending: true }),
         supabase.from('spacareer_course_videos')
-          .select('id, title, description, duration_seconds, thumbnail_url, storage_path, video_url, category_id, position, is_active, created_at')
+          .select('id, title, description, duration_seconds, thumbnail_url, storage_path, video_url, category_id, position, is_active, audience, created_at')
           .eq('org_id', orgId)
           .order('position', { ascending: true }),
         supabase.from('spacareer_video_views')
@@ -70,15 +73,22 @@ export default function SpacareerCoursesView() {
         supabase.from('spacareer_video_favorites')
           .select('id, customer_id, video_id, created_at')
           .eq('org_id', orgId),
+        supabase.from('spacareer_video_assignments')
+          .select('video_id')
+          .eq('org_id', orgId),
       ]);
       if (catRes.error) throw catRes.error;
       if (vidRes.error) throw vidRes.error;
       if (viewRes.error) throw viewRes.error;
       if (favRes.error) throw favRes.error;
+      if (asgRes.error) throw asgRes.error;
       setCategories(catRes.data || []);
       setVideos(vidRes.data || []);
       setViews(viewRes.data || []);
       setFavorites(favRes.data || []);
+      const counts = {};
+      (asgRes.data || []).forEach(r => { counts[r.video_id] = (counts[r.video_id] || 0) + 1; });
+      setAssignCounts(counts);
     } catch (e) {
       console.error('[CoursesView] load error:', e);
       setError(e?.message || 'データ取得に失敗しました');
@@ -207,9 +217,11 @@ export default function SpacareerCoursesView() {
           loading={loading}
           activeCategories={activeCategories}
           videosByCategory={videosByCategory}
+          assignCounts={assignCounts}
           onMove={handleMoveVideo}
           onEdit={handleEdit}
           onDisable={handleDisableVideo}
+          onAssign={(v) => setAssignTarget(v)}
         />
       )}
 
@@ -229,6 +241,12 @@ export default function SpacareerCoursesView() {
         editTarget={editTarget}
         onUploaded={loadAll}
       />
+      <VideoAssignModal
+        open={!!assignTarget}
+        video={assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onSaved={loadAll}
+      />
       <CourseCategoryEditor
         open={categoryEditorOpen}
         onClose={() => setCategoryEditorOpen(false)}
@@ -240,7 +258,7 @@ export default function SpacareerCoursesView() {
 }
 
 // ────────────────────────────────────────────────────────────
-function VideosTab({ loading, activeCategories, videosByCategory, onMove, onEdit, onDisable }) {
+function VideosTab({ loading, activeCategories, videosByCategory, assignCounts = {}, onMove, onEdit, onDisable, onAssign }) {
   if (loading) {
     return (
       <Card padding="lg">
@@ -318,17 +336,23 @@ function VideosTab({ loading, activeCategories, videosByCategory, onMove, onEdit
           { key: 'duration', label: '所要時間', width: 110, align: 'right',
             cellStyle: { fontFamily: font.family.mono },
             render: (v) => formatDuration(v.duration_seconds) },
-          { key: 'status', label: 'ステータス', width: 110, align: 'center',
+          { key: 'status', label: 'ステータス', width: 100, align: 'center',
             render: (v) => v.video_url
               ? <Badge variant="success" dot>公開中</Badge>
               : <Badge variant="warn">未アップ</Badge> },
-          { key: '_actions', label: '操作', width: 220, align: 'center',
+          { key: '_audience', label: '配信先', width: 110, align: 'center',
+            render: (v) => v.audience === 'assigned'
+              ? <Badge variant="info" dot>指定 {assignCounts[v.id] || 0}名</Badge>
+              : <Badge variant="neutral">全員</Badge> },
+          { key: '_actions', label: '操作', width: 280, align: 'center',
             render: (v) => (
               <div style={{ display: 'inline-flex', gap: space[1], justifyContent: 'center' }}>
                 {v.video_url && (
                   <Button size="sm" variant="outline"
                     onClick={(e) => { e.stopPropagation(); window.open(v.video_url, '_blank'); }}>再生</Button>
                 )}
+                <Button size="sm" variant="primary"
+                  onClick={(e) => { e.stopPropagation(); onAssign(v); }}>配信</Button>
                 <Button size="sm" variant="outline"
                   onClick={(e) => { e.stopPropagation(); onEdit(v); }}>編集</Button>
                 <Button size="sm" variant="danger"
