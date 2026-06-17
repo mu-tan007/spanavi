@@ -4,6 +4,7 @@ import { Button, Card, Badge, Select } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
 import ClientMonetizationDiagnosisView from './ClientMonetizationDiagnosisView';
+import ClientSocialStyleView from './ClientSocialStyleView';
 
 // 仕様書: tasks/spacareer-spec.md §6.2 事後課題
 // 参考: イメージ画像③
@@ -35,6 +36,11 @@ export default function ClientHomeworkView() {
   // マネタイズ領域診断（第2回事後課題内のタスク）
   const [diagnosisDone, setDiagnosisDone] = useState(false);
   const [diagnosisOpen, setDiagnosisOpen] = useState(false);
+  // 強み診断（ソーシャルスタイル診断）（第1回事後課題内のタスク）
+  const [socialStyleDone, setSocialStyleDone] = useState(false);
+  const [socialStyleOpen, setSocialStyleOpen] = useState(false);
+  // 提出後ロック解除（「編集する」を押すと true）。提出するたびに再ロック。
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -45,11 +51,14 @@ export default function ClientHomeworkView() {
       if (!member) { setLoading(false); return; }
       const { data: cust } = await supabase
         .from('spacareer_customers')
-        .select('id, monetization_diagnosis_completed_at')
+        .select('id, monetization_diagnosis_completed_at, social_style_completed_at')
         .eq('member_id', member.id).maybeSingle();
       if (cancelled) return;
       setCustomer(cust);
-      if (cust) setDiagnosisDone(!!cust.monetization_diagnosis_completed_at);
+      if (cust) {
+        setDiagnosisDone(!!cust.monetization_diagnosis_completed_at);
+        setSocialStyleDone(!!cust.social_style_completed_at);
+      }
 
       if (cust) {
         // 第0回（キックオフヒアリング）の提出状況。事後課題画面の先頭に表示する。
@@ -62,7 +71,7 @@ export default function ClientHomeworkView() {
 
         const { data: hws } = await supabase
           .from('spacareer_homework')
-          .select('id, session_no, status, notified_at, due_at, submitted_at')
+          .select('id, session_no, status, notified_at, due_at, submitted_at, first_completed_at')
           .eq('customer_id', cust.id)
           .not('notified_at', 'is', null)
           .order('session_no', { ascending: true });
@@ -80,6 +89,7 @@ export default function ClientHomeworkView() {
   }, [profile?.id]);
 
   useEffect(() => {
+    setEditing(false); // 提出物を切り替えたら編集モードは解除
     if (!selectedHomeworkId) { setItems([]); setAnswers({}); setFiles({}); return; }
     let cancelled = false;
     (async () => {
@@ -119,6 +129,11 @@ export default function ClientHomeworkView() {
   }, [items, answers, files]);
   const progressPct = totalItems ? Math.round((answeredItems / totalItems) * 100) : 0;
 
+  // 一度でも提出した（submitted_at を持つ項目がある）課題は、提出後ロックの対象。
+  // 「編集する」(editing=true) を押すと全項目が解放される。
+  const hasSubmittedOnce = useMemo(() => items.some(it => it.submitted_at), [items]);
+  const locked = hasSubmittedOnce && !editing;
+
   const deadlineWarning = useMemo(() => {
     if (!selectedHomework?.due_at) return null;
     const due = new Date(selectedHomework.due_at);
@@ -151,6 +166,16 @@ export default function ClientHomeworkView() {
     }));
     const firstError = results.find(r => r.error)?.error;
     if (firstError) throw firstError;
+    // ローカルの items も更新（提出後ロック判定・表示の整合のため）
+    const idSet = new Set(itemIds);
+    setItems(prev => prev.map(it => idSet.has(it.id)
+      ? {
+          ...it,
+          answer_text: answers[it.id] ?? null,
+          attached_files: files[it.id] || [],
+          submitted_at: opts.setSubmitted ? nowIso : it.submitted_at,
+        }
+      : it));
     setSavedAt(new Date());
   };
 
@@ -161,7 +186,12 @@ export default function ClientHomeworkView() {
     else if (submittedCount < totalItems) newStatus = 'partial';
     else newStatus = 'submitted';
     const patch = { status: newStatus };
-    if (newStatus === 'submitted') patch.submitted_at = new Date().toISOString();
+    if (newStatus === 'submitted') {
+      const nowIso = new Date().toISOString();
+      patch.submitted_at = nowIso;
+      // 初回100%達成日時は一度だけ記録（提出期限内に到達したかの判定に使う）
+      if (!selectedHomework?.first_completed_at) patch.first_completed_at = nowIso;
+    }
     await supabase.from('spacareer_homework').update(patch).eq('id', selectedHomeworkId);
     setHomeworks(prev => prev.map(h => h.id === selectedHomeworkId ? { ...h, ...patch } : h));
   };
@@ -199,10 +229,11 @@ export default function ClientHomeworkView() {
       await recomputeHomeworkStatus();
       // 提出できたことが必ず分かるよう完了ポップアップを出す。
       // 全問回答なら「しっかり提出できました」、一部なら提出済み件数を案内する。
+      setEditing(false); // 提出したら再ロック
       if (submitIds.length >= totalItems) {
-        alert(`しっかり提出できました！（全${totalItems}問）\nお疲れさまでした。内容は提出後もいつでも修正・再提出できます。`);
+        alert(`しっかり提出できました！（全${totalItems}問）\nお疲れさまでした。内容は「編集する」を押すといつでも修正・再提出できます。`);
       } else {
-        alert(`${submitIds.length} / ${totalItems} 問を提出しました。\n残りの設問は回答後に再度「回答を提出」を押すと提出できます。`);
+        alert(`${submitIds.length} / ${totalItems} 問を提出しました。\n残りの設問は「編集する」から回答後、再度「回答を提出」を押すと提出できます。`);
       }
     } catch (e) {
       alert('提出に失敗しました: ' + (e.message || e));
@@ -275,6 +306,21 @@ export default function ClientHomeworkView() {
     );
   }
 
+  // 強み診断（ソーシャルスタイル診断）を起動中は、事後課題本体の代わりにインライン表示
+  if (socialStyleOpen) {
+    return (
+      <div style={{ padding: space[6], display: 'flex', flexDirection: 'column', gap: space[4] }}>
+        <Button variant="ghost" size="sm" onClick={() => setSocialStyleOpen(false)} style={{ alignSelf: 'flex-start' }}>
+          ← 事後課題に戻る
+        </Button>
+        <ClientSocialStyleView
+          customerId={customer?.id}
+          onCompleted={() => setSocialStyleDone(true)}
+        />
+      </div>
+    );
+  }
+
   if (homeworks.length === 0) {
     return (
       <div style={{ padding: space[6] }}>
@@ -318,6 +364,9 @@ export default function ClientHomeworkView() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
+          {selectedHomework?.session_no === 1 && (
+            <StrengthDiagnosisCard done={socialStyleDone} onOpen={() => setSocialStyleOpen(true)} />
+          )}
           {selectedHomework?.session_no === 2 && (
             <DiagnosisTaskCard done={diagnosisDone} onOpen={() => setDiagnosisOpen(true)} />
           )}
@@ -337,6 +386,7 @@ export default function ClientHomeworkView() {
                   onFileRemove={i => handleFileRemove(item.id, i)}
                   onTempSave={() => handleTempSave(item.id)}
                   saving={saving}
+                  readOnly={locked}
                 />
               </React.Fragment>
             );
@@ -394,12 +444,32 @@ export default function ClientHomeworkView() {
         background: color.white,
         borderTop: `1px solid ${color.border}`,
         boxShadow: shadow.md,
-        display: 'flex', justifyContent: 'flex-end', gap: space[2],
+        display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: space[2],
         zIndex: 50,
       }}>
-        <Button variant="outline" onClick={handleSaveAll} loading={saving}>一時保存</Button>
-        <Button variant="secondary" onClick={handleSaveAll} loading={saving}>全ての回答を保存</Button>
-        <Button variant="primary" onClick={handleSubmit} loading={submitting}>回答を提出</Button>
+        {locked ? (
+          <>
+            <span style={{
+              marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: space[2],
+              fontSize: font.size.sm, color: color.textMid,
+            }}>
+              <Badge variant="success" dot>提出済み</Badge>
+              提出済みのため編集できません。修正する場合は「編集する」を押してください。
+            </span>
+            <Button variant="primary" onClick={() => setEditing(true)}>編集する</Button>
+          </>
+        ) : (
+          <>
+            {hasSubmittedOnce && (
+              <span style={{ marginRight: 'auto', fontSize: font.size.sm, color: color.warn }}>
+                編集中です。修正後は「回答を提出」を押すと再提出され、ロックされます。
+              </span>
+            )}
+            <Button variant="outline" onClick={handleSaveAll} loading={saving}>一時保存</Button>
+            <Button variant="secondary" onClick={handleSaveAll} loading={saving}>全ての回答を保存</Button>
+            <Button variant="primary" onClick={handleSubmit} loading={submitting}>回答を提出</Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -426,6 +496,35 @@ function DiagnosisTaskCard({ done, onOpen }) {
             {done
               ? ' ご回答ありがとうございました。内容はコーチが確認し、第2回セッションでお伝えします。'
               : ' 第2回をより有意義にするため、回答をお願いします。'}
+          </div>
+        </div>
+        {!done && (
+          <Button variant="primary" size="md" onClick={onOpen} style={{ whiteSpace: 'nowrap' }}>
+            診断を始める
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// 第1回事後課題内に表示する「強み診断（ソーシャルスタイル診断）」タスクカード
+function StrengthDiagnosisCard({ done, onOpen }) {
+  return (
+    <Card padding="md" style={{ border: `1px solid ${alpha(color.navy, 0.25)}`, background: alpha(color.navyLight, 0.04) }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: space[3], flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: 4 }}>
+            <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>
+              強み診断（ソーシャルスタイル診断）
+            </span>
+            <Badge variant={done ? 'success' : 'warn'} dot>{done ? '回答済み' : '未実施'}</Badge>
+          </div>
+          <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>
+            30問の設問から、あなたのコミュニケーション傾向と強みのタイプを診断します（約10分）。
+            {done
+              ? ' ご回答ありがとうございました。結果はコーチが確認し、今後のセッションに活かします。'
+              : ' 第1回セッションを踏まえ、ご自身の強みを言語化するための診断です。ぜひご回答ください。'}
           </div>
         </div>
         {!done && (
@@ -473,7 +572,7 @@ function Centered({ children }) {
   );
 }
 
-function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, onFileRemove, onTempSave, saving }) {
+function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, onFileRemove, onTempSave, saving, readOnly = false }) {
   const len = (answer || '').length;
   const max = item.max_length || null;
   const isFile = item.item_type === 'file';
@@ -529,26 +628,30 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
           <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark, marginBottom: space[2] }}>
             完成したファイルをアップロード
           </div>
-          <FileAttachArea files={files} onAdd={onFileAdd} onRemove={onFileRemove} />
+          <FileAttachArea files={files} onAdd={onFileAdd} onRemove={onFileRemove} readOnly={readOnly} />
           <textarea
             value={answer}
             onChange={e => onAnswerChange(e.target.value)}
             placeholder="補足メモ（任意）"
             rows={2}
+            readOnly={readOnly}
             style={{
               width: '100%', marginTop: space[2],
               padding: `${space[2]}px ${space[3]}px`,
               fontSize: font.size.sm,
               color: color.textDark,
               fontFamily: font.family.sans,
+              background: readOnly ? color.gray50 : color.white,
               border: `1px solid ${color.border}`,
               borderRadius: radius.md,
               outline: 'none', resize: 'vertical', boxSizing: 'border-box',
             }}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: space[2] }}>
-            <Button size="sm" variant="ghost" onClick={onTempSave} loading={saving}>この設問を保存</Button>
-          </div>
+          {!readOnly && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: space[2] }}>
+              <Button size="sm" variant="ghost" onClick={onTempSave} loading={saving}>この設問を保存</Button>
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -557,12 +660,14 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
             onChange={e => onAnswerChange(e.target.value)}
             placeholder="ここに回答を入力してください"
             rows={6}
+            readOnly={readOnly}
             style={{
               width: '100%',
               padding: `${space[3]}px ${space[3]}px`,
               fontSize: font.size.md,
               color: color.textDark,
               fontFamily: font.family.sans,
+              background: readOnly ? color.gray50 : color.white,
               border: `1px solid ${color.border}`,
               borderRadius: radius.md,
               outline: 'none',
@@ -572,12 +677,14 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
             }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: space[2] }}>
-            <FileAttachArea files={files} onAdd={onFileAdd} onRemove={onFileRemove} />
+            <FileAttachArea files={files} onAdd={onFileAdd} onRemove={onFileRemove} readOnly={readOnly} />
             <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
               <span style={{ fontSize: font.size.xs, color: max && len > max ? color.danger : color.textLight }}>
                 {len}{max ? ` / ${max}` : ''} 文字
               </span>
-              <Button size="sm" variant="ghost" onClick={onTempSave} loading={saving}>この設問を保存</Button>
+              {!readOnly && (
+                <Button size="sm" variant="ghost" onClick={onTempSave} loading={saving}>この設問を保存</Button>
+              )}
             </div>
           </div>
         </>
@@ -586,7 +693,7 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
   );
 }
 
-function FileAttachArea({ files, onAdd, onRemove }) {
+function FileAttachArea({ files, onAdd, onRemove, readOnly = false }) {
   const inputId = 'fileinput-' + Math.random().toString(36).slice(2, 8);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
@@ -611,15 +718,17 @@ function FileAttachArea({ files, onAdd, onRemove }) {
           title={f.name}
         >
           {f.name}
-          <button
-            type="button"
-            onClick={(e) => { e.preventDefault(); onRemove(i); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: color.textLight, padding: 0 }}
-            aria-label="削除"
-          >×</button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); onRemove(i); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: color.textLight, padding: 0 }}
+              aria-label="削除"
+            >×</button>
+          )}
         </a>
       ))}
-      {files.length < MAX_FILES && (
+      {!readOnly && files.length < MAX_FILES && (
         <>
           <label htmlFor={inputId} style={{
             display: 'inline-flex', alignItems: 'center', gap: space[1],

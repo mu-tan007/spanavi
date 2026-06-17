@@ -21,6 +21,27 @@ function fmtDate(v) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+// 提出期限の時点で100%だったかを判定する。
+// first_completed_at（初回100%達成日時・上書きされない）と due_at を比較。
+//   on_time  : 期限内に100%到達
+//   late     : 100%到達したが期限後だった
+//   overdue  : 期限を過ぎても未達成（100%未満のまま）
+//   none     : まだ通知・対象外
+function deadlineState(h) {
+  if (!h) return 'none';
+  const completed = h.first_completed_at ? new Date(h.first_completed_at) : null;
+  const due = h.due_at ? new Date(h.due_at) : null;
+  if (completed) {
+    if (due && completed.getTime() > due.getTime()) return 'late';
+    return 'on_time';
+  }
+  // 未達成（100%未満）。期限を過ぎていれば overdue。
+  if (due && Date.now() > due.getTime() && (h.status && h.status !== 'pending' && h.status !== 'unnotified')) return 'overdue';
+  return 'none';
+}
+const DEADLINE_LABEL = { on_time: '期限内達成', late: '期限後達成', overdue: '期限内未達成', none: '—' };
+const DEADLINE_VARIANT = { on_time: 'success', late: 'warn', overdue: 'danger', none: 'neutral' };
+
 export default function TabHomework({ detail }) {
   const { homework = [], sessions = [] } = detail || {};
   const sessByNo = {};
@@ -38,7 +59,9 @@ export default function TabHomework({ detail }) {
       notified_at: h?.notified_at,
       due_at: h?.due_at,
       submitted_at: h?.submitted_at,
+      first_completed_at: h?.first_completed_at,
       scheduled_at: s?.scheduled_at,
+      _deadline: deadlineState(h ? { ...h, status } : null),
     };
   });
 
@@ -59,6 +82,10 @@ export default function TabHomework({ detail }) {
               render: (r) => fmtDate(r.due_at), cellStyle: { fontFamily: font.family.mono } },
             { key: 'submitted_at', label: '提出日', width: 80, align: 'right',
               render: (r) => fmtDate(r.submitted_at), cellStyle: { fontFamily: font.family.mono } },
+            { key: '_deadline', label: '期限内達成', width: 120, align: 'center',
+              render: (r) => r._deadline === 'none'
+                ? <span style={{ color: color.textLight }}>—</span>
+                : <Badge variant={DEADLINE_VARIANT[r._deadline]} dot>{DEADLINE_LABEL[r._deadline]}</Badge> },
             { key: 'scheduled_at', label: 'セッション予定', width: 110, align: 'right',
               render: (r) => fmtDate(r.scheduled_at), cellStyle: { fontFamily: font.family.mono } },
           ]}
