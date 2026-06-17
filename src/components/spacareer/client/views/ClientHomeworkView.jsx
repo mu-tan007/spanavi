@@ -197,6 +197,13 @@ export default function ClientHomeworkView() {
       const nonSubmit = items.filter(it => !isAnswered(it)).map(it => it.id);
       if (nonSubmit.length) await saveAnswers(nonSubmit, { setSubmitted: false });
       await recomputeHomeworkStatus();
+      // 提出できたことが必ず分かるよう完了ポップアップを出す。
+      // 全問回答なら「しっかり提出できました」、一部なら提出済み件数を案内する。
+      if (submitIds.length >= totalItems) {
+        alert(`しっかり提出できました！（全${totalItems}問）\nお疲れさまでした。内容は提出後もいつでも修正・再提出できます。`);
+      } else {
+        alert(`${submitIds.length} / ${totalItems} 問を提出しました。\n残りの設問は回答後に再度「回答を提出」を押すと提出できます。`);
+      }
     } catch (e) {
       alert('提出に失敗しました: ' + (e.message || e));
     } finally {
