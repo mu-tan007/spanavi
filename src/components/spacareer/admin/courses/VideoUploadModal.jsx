@@ -3,6 +3,7 @@ import { color, space, font, radius, alpha } from '../../../../constants/design'
 import { Button, Input, Select, Card } from '../../../ui';
 import { supabase } from '../../../../lib/supabase';
 import { getOrgId } from '../../../../lib/orgContext';
+import { uploadVideoResumable } from '../../../../lib/spacareer/integrations/videoUpload';
 
 // ============================================================
 // AI講座 動画アップロードモーダル
@@ -15,7 +16,9 @@ import { getOrgId } from '../../../../lib/orgContext';
 // - Storage バケット: spacareer-course-videos
 // ============================================================
 
-const MAX_BYTES = 24 * 1024 * 1024; // 24MB（既存ロープレ動画上限と同一）
+// Resumable Upload(TUS)経由のため bucket 側 file_size_limit(2GB)まで通る。
+// 標準 upload() の 50MB 制限には縛られない。
+const MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
 const STORAGE_BUCKET = 'spacareer-course-videos';
 
 function formatBytes(n) {
@@ -82,7 +85,7 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
     setError(null);
     if (!f) { setFile(null); return; }
     if (f.size > MAX_BYTES) {
-      setError(`動画サイズが上限24MBを超えています（${formatBytes(f.size)}）`);
+      setError(`動画サイズが上限2GBを超えています（${formatBytes(f.size)}）`);
       setFile(null);
       return;
     }
@@ -109,10 +112,18 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
         const newId = editTarget?.id || (crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
         const path = `${orgId}/${newId}.${ext}`;
 
-        setProgress('アップロード中...');
-        const { error: upErr } = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .upload(path, file, { contentType: file.type || 'video/mp4', upsert: true });
+        setProgress('アップロード中... 0%');
+        // Resumable Upload(TUS)。大容量(〜2GB)・回線断にも対応。
+        const { error: upErr } = await uploadVideoResumable({
+          bucket: STORAGE_BUCKET,
+          path,
+          file,
+          contentType: file.type || 'video/mp4',
+          upsert: true,
+          onProgress: (uploaded, total) => {
+            if (total > 0) setProgress(`アップロード中... ${Math.floor((uploaded / total) * 100)}%（大きい動画は数分かかります）`);
+          },
+        });
         if (upErr) throw upErr;
 
         const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
@@ -284,7 +295,7 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
                 </div>
               </div>
               <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: space[2] }}>
-                上限 24MB / 推奨形式 MP4(H.264) / 既存ロープレ動画基盤と同一ロジック
+                上限 2GB / 推奨形式 MP4(H.264) / 大きい動画は分割アップロード(再開対応)で送信します
               </div>
               {duration != null && (
                 <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: space[1] }}>

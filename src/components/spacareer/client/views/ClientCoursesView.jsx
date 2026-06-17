@@ -494,22 +494,29 @@ function VideoPlayerModal({ video, initialProgress, initialReflection = '', refl
           <div style={{ fontWeight: font.weight.semibold }}>{video.title}</div>
           <Button size="sm" variant="ghost" onClick={onClose} style={{ color: color.white }}>閉じる</Button>
         </div>
-        <div style={{ background: color.gray900, display: 'flex', justifyContent: 'center' }}>
-          <video
-            ref={videoRef}
-            src={video.video_url}
-            controls
-            style={{ width: '100%', maxHeight: '70vh', display: 'block' }}
-            onTimeUpdate={e => {
-              const t = e.currentTarget.currentTime;
-              const d = e.currentTarget.duration;
-              if (d) onProgress(t, d);
-            }}
-            onEnded={e => {
-              const d = e.currentTarget.duration;
-              if (d) onProgress(d, d);
-            }}
-          />
+        {/* 営業代行ページ(ライブラリ)と同じ 16:9 レスポンシブ枠のプレーヤー */}
+        <div style={{ padding: space[4], paddingBottom: 0 }}>
+          <div style={{
+            position: 'relative', width: '100%', paddingTop: '56.25%',
+            borderRadius: radius.md, overflow: 'hidden', background: '#000',
+          }}>
+            <video
+              ref={videoRef}
+              src={video.video_url}
+              controls
+              autoPlay
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              onTimeUpdate={e => {
+                const t = e.currentTarget.currentTime;
+                const d = e.currentTarget.duration;
+                if (d) onProgress(t, d);
+              }}
+              onEnded={e => {
+                const d = e.currentTarget.duration;
+                if (d) onProgress(d, d);
+              }}
+            />
+          </div>
         </div>
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {video.description && (
