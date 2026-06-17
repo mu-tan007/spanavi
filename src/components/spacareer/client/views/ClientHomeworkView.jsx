@@ -4,7 +4,6 @@ import { Button, Card, Badge, Select } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
 import ClientMonetizationDiagnosisView from './ClientMonetizationDiagnosisView';
-import ClientSocialStyleView from './ClientSocialStyleView';
 
 // 仕様書: tasks/spacareer-spec.md §6.2 事後課題
 // 参考: イメージ画像③
@@ -33,12 +32,9 @@ export default function ClientHomeworkView() {
   const [submitting, setSubmitting] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const [kickoffHearingStatus, setKickoffHearingStatus] = useState(null);
-  // マネタイズ領域診断（第2回事後課題内のタスク）
+  // マネタイズ領域診断（第1回事後課題内のタスク）
   const [diagnosisDone, setDiagnosisDone] = useState(false);
   const [diagnosisOpen, setDiagnosisOpen] = useState(false);
-  // 強み診断（ソーシャルスタイル診断）（第1回事後課題内のタスク）
-  const [socialStyleDone, setSocialStyleDone] = useState(false);
-  const [socialStyleOpen, setSocialStyleOpen] = useState(false);
   // 提出後ロック解除（「編集する」を押すと true）。提出するたびに再ロック。
   const [editing, setEditing] = useState(false);
 
@@ -51,14 +47,11 @@ export default function ClientHomeworkView() {
       if (!member) { setLoading(false); return; }
       const { data: cust } = await supabase
         .from('spacareer_customers')
-        .select('id, monetization_diagnosis_completed_at, social_style_completed_at')
+        .select('id, monetization_diagnosis_completed_at')
         .eq('member_id', member.id).maybeSingle();
       if (cancelled) return;
       setCustomer(cust);
-      if (cust) {
-        setDiagnosisDone(!!cust.monetization_diagnosis_completed_at);
-        setSocialStyleDone(!!cust.social_style_completed_at);
-      }
+      if (cust) setDiagnosisDone(!!cust.monetization_diagnosis_completed_at);
 
       if (cust) {
         // 第0回（キックオフヒアリング）の提出状況。事後課題画面の先頭に表示する。
@@ -306,21 +299,6 @@ export default function ClientHomeworkView() {
     );
   }
 
-  // 強み診断（ソーシャルスタイル診断）を起動中は、事後課題本体の代わりにインライン表示
-  if (socialStyleOpen) {
-    return (
-      <div style={{ padding: space[6], display: 'flex', flexDirection: 'column', gap: space[4] }}>
-        <Button variant="ghost" size="sm" onClick={() => setSocialStyleOpen(false)} style={{ alignSelf: 'flex-start' }}>
-          ← 事後課題に戻る
-        </Button>
-        <ClientSocialStyleView
-          customerId={customer?.id}
-          onCompleted={() => setSocialStyleDone(true)}
-        />
-      </div>
-    );
-  }
-
   if (homeworks.length === 0) {
     return (
       <div style={{ padding: space[6] }}>
@@ -365,9 +343,6 @@ export default function ClientHomeworkView() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
           {selectedHomework?.session_no === 1 && (
-            <StrengthDiagnosisCard done={socialStyleDone} onOpen={() => setSocialStyleOpen(true)} />
-          )}
-          {selectedHomework?.session_no === 2 && (
             <DiagnosisTaskCard done={diagnosisDone} onOpen={() => setDiagnosisOpen(true)} />
           )}
           {items.map((item, idx) => {
@@ -496,35 +471,6 @@ function DiagnosisTaskCard({ done, onOpen }) {
             {done
               ? ' ご回答ありがとうございました。内容はコーチが確認し、第2回セッションでお伝えします。'
               : ' 第2回をより有意義にするため、回答をお願いします。'}
-          </div>
-        </div>
-        {!done && (
-          <Button variant="primary" size="md" onClick={onOpen} style={{ whiteSpace: 'nowrap' }}>
-            診断を始める
-          </Button>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-// 第1回事後課題内に表示する「強み診断（ソーシャルスタイル診断）」タスクカード
-function StrengthDiagnosisCard({ done, onOpen }) {
-  return (
-    <Card padding="md" style={{ border: `1px solid ${alpha(color.navy, 0.25)}`, background: alpha(color.navyLight, 0.04) }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: space[3], flexWrap: 'wrap' }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: 4 }}>
-            <span style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>
-              強み診断（ソーシャルスタイル診断）
-            </span>
-            <Badge variant={done ? 'success' : 'warn'} dot>{done ? '回答済み' : '未実施'}</Badge>
-          </div>
-          <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: font.lineHeight.relaxed }}>
-            30問の設問から、あなたのコミュニケーション傾向と強みのタイプを診断します（約10分）。
-            {done
-              ? ' ご回答ありがとうございました。結果はコーチが確認し、今後のセッションに活かします。'
-              : ' 第1回セッションを踏まえ、ご自身の強みを言語化するための診断です。ぜひご回答ください。'}
           </div>
         </div>
         {!done && (

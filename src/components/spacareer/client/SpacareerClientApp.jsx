@@ -103,9 +103,9 @@ export default function SpacareerClientApp() {
         if (!cust) { if (!cancelled) setBootstrapped(true); return; }
         if (!cancelled) setCustomerId(cust.id);
 
-        // ソーシャルスタイル診断（＝強み診断）は第1回事後課題内のタスクへ移設したため、
-        // 受講開始前の強制表示・サイドバー表示は行わない。
-        if (!cancelled) setSocialStyleActive(false);
+        // ソーシャルスタイル診断の状態
+        const socialStyleDone = !!cust.social_style_completed_at;
+        if (!cancelled) setSocialStyleActive(!socialStyleDone);
 
         // キックオフヒアリングの状態
         const { data: sess } = await supabase
@@ -121,8 +121,11 @@ export default function SpacareerClientApp() {
         setHearingActive(!!sess);
 
         // 初回の軽いリダイレクトのみ（ロックはしないので、すぐ他タブへ移動できる）:
-        //   キックオフヒアリング 未提出かつ第1回未到達 → ヒアリングへ（誘導のみ）
-        if (sess && !hearingSubmitted && !progressedPastKickoff
+        //   1. ソーシャルスタイル診断 未完了 → 診断へ
+        //   2. キックオフヒアリング 未提出かつ第1回未到達 → ヒアリングへ（誘導のみ）
+        if (!socialStyleDone) {
+          setCurrentTab('social_style');
+        } else if (sess && !hearingSubmitted && !progressedPastKickoff
           && ['unnotified', 'unstarted', 'in_progress'].includes(sess.status)) {
           setCurrentTab('kickoff_hearing');
         }
