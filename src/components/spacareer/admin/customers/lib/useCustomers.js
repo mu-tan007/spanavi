@@ -105,6 +105,7 @@ export function useCustomerDetail(customerId) {
       const [
         customer, sessions, homework, kickoff, strength, sstyle, videos, slack,
         khSession, khAi, khResponses, khQuestions, monetizationDiag,
+        sessionFeedbacks, feedbackTemplate,
       ] = await Promise.all([
         supabase.from('spacareer_customers')
           .select(`*, member:members!spacareer_customers_member_id_fkey ( id, name, email, user_id )`)
@@ -136,6 +137,20 @@ export function useCustomerDetail(customerId) {
           .select('*').eq('is_active', true).order('display_order'),
         supabase.from('spacareer_monetization_diagnosis_responses')
           .select('*').eq('customer_id', customerId).maybeSingle(),
+        // §6.3 セッション感想（受講生回答）。管理画面「セッション感想」タブで一覧表示する。
+        supabase.from('spacareer_session_feedbacks')
+          .select('id, session_id, satisfaction_score, free_comment, responses, due_at, submitted_at, created_at, spacareer_sessions ( session_no, completed_at )')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: true }),
+        // 設問ID→ラベルの対応付け用（responses は設問IDキーで保存されているため）
+        supabase.from('spacareer_templates')
+          .select('content')
+          .eq('org_id', orgId)
+          .eq('template_type', 'session_feedback')
+          .eq('is_active', true)
+          .order('version', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       const sessIds = new Set((sessions.data || []).map((s) => s.id));
@@ -163,6 +178,8 @@ export function useCustomerDetail(customerId) {
         kickoffHearingResponses: khResponses.data || [],
         kickoffHearingQuestions: khQuestions.data || [],
         monetizationDiagnosis: monetizationDiag.data || null,
+        sessionFeedbacks: sessionFeedbacks.data || [],
+        feedbackTemplate: feedbackTemplate.data?.content || null,
       });
     } catch (e) {
       console.error('[useCustomerDetail] error:', e);

@@ -266,8 +266,12 @@ export default function SessionCompleteFlow({
     return { ok: true, count: payload.length, deadlineDisplay, notifyOk, notifyReason };
   }
 
-  async function handleComplete() {
-    if (!canComplete) return;
+  // force=true のときは動画/議事録/ヒアリングの必須ゲートを無視して完了させる
+  // （テスト用途や、録画なしで進めたいケース向け）。完了後の事後課題配信などの
+  // 連鎖処理は通常完了と同一。
+  async function handleComplete(force = false) {
+    if (!force && !canComplete) return;
+    if (status === 'completed') return;
     setCompleting(true); setErr(null);
     try {
       const now = new Date().toISOString();
@@ -472,8 +476,19 @@ export default function SessionCompleteFlow({
           AI議事録を生成
         </Button>
         <div style={{ flex: 1 }} />
+        {status !== 'completed' && (
+          <Button variant="ghost" size="sm" loading={completing}
+            onClick={() => {
+              if (window.confirm('動画アップロードとAI議事録生成をスキップして、このセッションを完了します。\n（テスト用途や録画なしで進めたい場合向け）\n\nよろしいですか？')) {
+                handleComplete(true);
+              }
+            }}
+            title="動画・議事録・ヒアリングの必須チェックを無視して完了します（テスト用）">
+            動画・議事録をスキップして完了
+          </Button>
+        )}
         <Button variant="primary" size="md" loading={completing}
-          disabled={!canComplete} onClick={handleComplete}>
+          disabled={!canComplete} onClick={() => handleComplete(false)}>
           {status === 'completed' ? '完了済み' : 'セッション完了'}
         </Button>
       </div>

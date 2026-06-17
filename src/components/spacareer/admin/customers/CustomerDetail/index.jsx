@@ -24,6 +24,7 @@ import TabKickoffHearing from './TabKickoffHearing';
 import TabKickoff from './TabKickoff';
 import TabSessionManage from './TabSessionManage';
 import TabSessionHistory from './TabSessionHistory';
+import TabSessionFeedback from './TabSessionFeedback';
 import TabHomework from './TabHomework';
 import TabStrengths from './TabStrengths';
 import TabFiles from './TabFiles';
@@ -41,6 +42,7 @@ const TABS = [
   { id: 'kickoff_hearing', label: 'キックオフヒアリング' }, // §6.2A 第1回前70問
   { id: 'kickoff',         label: 'キックオフ管理' },        // §5.2 第0回キックオフ
   { id: 'sessions',        label: 'セッション履歴' },
+  { id: 'feedback',        label: 'セッション感想' },
   { id: 'homework',        label: '事後課題' },
   { id: 'strengths',       label: '強み・価値観' },
   { id: 'files',           label: 'ファイル' },
@@ -159,6 +161,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
       case 'kickoff_hearing': CenterContent = <TabKickoffHearing detail={detail} onRefresh={refresh} />; break;
       case 'kickoff':         CenterContent = <TabKickoff detail={detail} onRefresh={refresh} />; break;
       case 'sessions':    CenterContent = <TabSessionHistory detail={detail} onRefresh={refresh} />; break;
+      case 'feedback':    CenterContent = <TabSessionFeedback detail={detail} />; break;
       case 'homework':    CenterContent = <TabHomework detail={detail} />; break;
       case 'strengths':   CenterContent = <TabStrengths detail={detail} />; break;
       case 'files':       CenterContent = <TabFiles detail={detail} />; break;
