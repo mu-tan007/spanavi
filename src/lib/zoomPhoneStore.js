@@ -17,6 +17,7 @@ const IFRAME_ID   = 'zoom-embeddable-phone-iframe';
 let _ready = false;
 let _activeCall = null;     // { callId, direction, caller, callee, status, startedAt, connectedAt }
 let _listeners = [];        // onChange callbacks
+let _callerId = null;       // 発信元番号(自分のZoom電話番号)。2026-03-16以降 zp-make-call で必須
 
 function postToZoom(msg) {
   const iframe = document.getElementById(IFRAME_ID);
@@ -37,10 +38,22 @@ export const zoomPhone = {
     console.log('[zoomPhone] ready:', val);
   },
 
+  // 発信元番号(callerId)を設定。Smart Embed発信で必須(2026-03-16〜)。
+  // ZoomはE.164形式(+81…)を期待するため、国内表記(03-xxxx-xxxx)を正規化する。
+  setCallerId(id) {
+    let v = id ? String(id).replace(/[-\s()]/g, '') : null;
+    if (v && v.startsWith('0')) v = '+81' + v.slice(1);
+    _callerId = v;
+    console.log('[zoomPhone] callerId set:', _callerId ?? '(なし)');
+  },
+
   makeCall(number) {
     if (!_ready) console.warn('[zoomPhone] makeCall — zp-ready 未受信（発信を試みます）');
-    console.log('[zoomPhone] makeCall:', number);
-    postToZoom({ type: 'zp-make-call', data: { number, autoDial: true } });
+    const data = { number, autoDial: true };
+    if (_callerId) data.callerId = _callerId; // 未指定だと "No available callerId" で発信失敗
+    else console.warn('[zoomPhone] makeCall — callerId 未設定。Zoom仕様で発信失敗の可能性');
+    console.log('[zoomPhone] makeCall:', number, '/ callerId:', _callerId ?? '(なし)');
+    postToZoom({ type: 'zp-make-call', data });
   },
 
   // 注: Zoomデスクトップアプリ(zoomphonecall://)で発信した進行中通話を
