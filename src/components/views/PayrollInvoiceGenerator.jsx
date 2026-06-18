@@ -6,6 +6,7 @@
 // ============================================================
 import { useEffect, useMemo, useState } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
+import { handleChunkLoadError } from '../../utils/chunkReload';
 import { Button, Card, Badge } from '../ui';
 import {
   uploadPayrollInvoice,
@@ -243,7 +244,11 @@ export default function PayrollInvoiceGenerator({
       await reloadInvoice();
     } catch (e) {
       console.error('[PayrollInvoiceGenerator]', e);
-      showError('生成に失敗しました: ' + (e.message || '不明なエラー'));
+      // PDF生成モジュールの遅延ロード失敗（新デプロイでchunk名が変わった等）は
+      // 更新リロードで救済する。それ以外は通常のエラー表示。
+      if (!handleChunkLoadError(e)) {
+        showError('生成に失敗しました: ' + (e.message || '不明なエラー'));
+      }
     } finally {
       if (root) root.unmount();
       if (container && container.parentNode) container.parentNode.removeChild(container);
