@@ -225,7 +225,10 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
   const markStatus = (idx, statusId, extraData) => {
     console.log('[test] ステータスボタン押下');
-    zoomPhone.hangUp();
+    // 発信者(本人)のzoom_user_idを渡し、サーバー側で進行中通話を特定して確実に切電
+    const _callerMember = members.find(m => (typeof m === 'string' ? m : m.name) === currentUser);
+    const _callerZoomUserId = typeof _callerMember === 'object' ? _callerMember?.zoomUserId : null;
+    zoomPhone.hangUp({ zoomUserId: _callerZoomUserId });
     const calledAt = new Date().toISOString();
     const statusLabel = getStatusDef(statusId).label;
 

@@ -45,22 +45,27 @@ export const zoomPhone = {
     postToZoom({ type: 'zp-make-call', data: { number, autoDial: true } });
   },
 
-  hangUp(callIdOverride) {
-    // 確実な切電は Zoom API（zoom-hangup Edge Function）経由で行う。
-    // postMessage(zp-end-call) は埋め込み画面が拾えないと切れないため、保険として併用する。
-    const callId = callIdOverride || _activeCall?.callId || null;
-    console.log('[zoomPhone] hangUp called — callId:', callId ?? '(未取得)');
+  // 確実な切電は Zoom API（zoom-hangup Edge Function）経由で行う。
+  // 発信はZoomデスクトップアプリ（zoomphonecall://）経由のため、iframeは
+  // call_id を持たない。そこで zoomUserId を渡し、サーバー側で active_calls
+  // （webhookがリアルタイム記録）から進行中通話を特定して切る。
+  // postMessage(zp-end-call) は埋め込み画面利用時の保険として併用する。
+  // opts: { zoomUserId?, callId? }
+  hangUp(opts = {}) {
+    const { zoomUserId = null } = opts;
+    const callId = opts.callId || _activeCall?.callId || null;
+    console.log('[zoomPhone] hangUp called — callId:', callId ?? '(未取得)', '/ zoomUserId:', zoomUserId ?? '(未指定)');
 
-    if (callId) {
+    if (callId || zoomUserId) {
       supabase.functions
-        .invoke('zoom-hangup', { body: { callId } })
+        .invoke('zoom-hangup', { body: { callId, zoomUserId } })
         .then(({ data, error }) => {
           if (error) console.warn('[zoomPhone] zoom-hangup error:', error);
           else console.log('[zoomPhone] zoom-hangup ok:', data);
         })
         .catch(e => console.warn('[zoomPhone] zoom-hangup invoke失敗:', e));
     } else {
-      console.warn('[zoomPhone] hangUp — callId未取得のためAPI切電をスキップ（postMessageのみで試行）');
+      console.warn('[zoomPhone] hangUp — callId/zoomUserId とも無くAPI切電をスキップ（postMessageのみで試行）');
     }
 
     // 保険: 埋め込み画面側にも終了指示を送る

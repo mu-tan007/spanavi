@@ -800,7 +800,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   const handleResult = async (result) => {
     console.log('[test] ステータスボタン押下');
-    zoomPhone.hangUp();
+    // 発信者(本人)のzoom_user_idを渡し、サーバー側で進行中通話を特定して確実に切電
+    const _callerMember = members.find(m => normName(typeof m === 'string' ? m : m.name) === normName(currentUser));
+    const _callerZoomUserId = typeof _callerMember === 'object' ? _callerMember?.zoomUserId : null;
+    zoomPhone.hangUp({ zoomUserId: _callerZoomUserId });
     if (!selectedRow || selectedRound === null) { console.warn('[handleResult] 早期リターン — selectedRow:', selectedRow, '/ selectedRound:', selectedRound); return; }
     if (result === 'アポ獲得') { setAppoModal(selectedRow); return; }
     if (result === '受付再コール' || result === 'キーマン再コール') {
