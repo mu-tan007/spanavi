@@ -312,6 +312,11 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           endNo: callFlowScreen.endNo ?? null,
           defaultItemId: callFlowScreen.defaultItemId ?? null,
           defaultListMode: callFlowScreen.defaultListMode ?? null,
+          // 絞り込み条件も保存（ハードリロードで解除されて全件表示になるのを防ぐ）
+          statusFilter: callFlowScreen.statusFilter ?? null,
+          revenueMin: callFlowScreen.revenueMin ?? null,
+          revenueMax: callFlowScreen.revenueMax ?? null,
+          prefFilter: callFlowScreen.prefFilter ?? null,
         }));
       } else if (callFlowRestoredRef.current) {
         // 復元処理が完了した後のみ削除（初回レンダリングで誤って削除しない）
@@ -350,7 +355,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             // restoreQueue が setCallFlowScreen を呼ぶので callFlowScreen 単独復元は不要
             restoreQueue(savedQueue.items, savedQueue.idx || 0);
           } else if (savedData) {
-            const { listSupaId, startNo, endNo, defaultItemId, defaultListMode } = savedData;
+            const { listSupaId, startNo, endNo, defaultItemId, defaultListMode, statusFilter, revenueMin, revenueMax, prefFilter } = savedData;
             const list = supabaseData.callLists.find(l => l._supaId === listSupaId);
             if (list) setCallFlowScreen({
               list,
@@ -358,6 +363,11 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
               endNo: endNo ?? null,
               defaultItemId: defaultItemId ?? null,
               defaultListMode: defaultListMode ?? null,
+              // 絞り込み条件を復元（リロードで全件表示に戻る不具合の修正）
+              statusFilter: statusFilter ?? null,
+              revenueMin: revenueMin ?? null,
+              revenueMax: revenueMax ?? null,
+              prefFilter: prefFilter ?? null,
             });
           }
         } catch(e) {}
