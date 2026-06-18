@@ -483,9 +483,8 @@ function VideoPlayerModal({ video, initialProgress, initialReflection = '', refl
   const [savingReflection, setSavingReflection] = useState(false);
   const [savedAt, setSavedAt] = useState(reflectionSubmittedAt);
   const [speed, setSpeed] = useState(1);
-  // 早送り(スキップ)防止: これまで実際に再生し到達した最大位置を記録し、
-  // それより先へのシークは戻す。巻き戻しは許可。視聴済みの動画は復習のため制限なし。
-  const lockSeek = !alreadyWatched;
+  // 早送り(スキップ)防止: これまで実際に再生し到達した最大位置(初期値=前回視聴位置)を
+  // 記録し、それより先へのシークは戻す。巻き戻しは許可。常時有効。
   const maxWatchedRef = useRef(initialProgress || 0);
   useEffect(() => {
     if (videoRef.current && initialProgress) {
@@ -564,17 +563,25 @@ function VideoPlayerModal({ video, initialProgress, initialReflection = '', refl
                 }
               }}
               onSeeking={e => {
-                if (!lockSeek) return;
-                const t = e.currentTarget.currentTime;
-                // 到達済みより1秒以上先へ飛ぼうとしたら戻す（巻き戻しはOK）
-                if (t > maxWatchedRef.current + 1) {
-                  e.currentTarget.currentTime = maxWatchedRef.current;
+                const v = e.currentTarget;
+                // 到達済みより0.5秒以上先へ飛ぼうとしたら戻す（巻き戻しはOK）
+                if (v.currentTime > maxWatchedRef.current + 0.5) {
+                  v.currentTime = maxWatchedRef.current;
+                }
+              }}
+              onSeeked={e => {
+                const v = e.currentTarget;
+                // seekedでも保険のため再クランプ（端末差吸収）
+                if (v.currentTime > maxWatchedRef.current + 0.5) {
+                  v.currentTime = maxWatchedRef.current;
                 }
               }}
               onTimeUpdate={e => {
-                const t = e.currentTarget.currentTime;
-                const d = e.currentTarget.duration;
-                if (t > maxWatchedRef.current) maxWatchedRef.current = t;
+                const v = e.currentTarget;
+                const t = v.currentTime;
+                const d = v.duration;
+                // 通常再生で前進したときだけ到達位置を伸ばす（シーク中のジャンプでは伸ばさない）
+                if (!v.seeking && t > maxWatchedRef.current) maxWatchedRef.current = t;
                 if (d) onProgress(t, d);
               }}
               onEnded={e => {
@@ -599,11 +606,9 @@ function VideoPlayerModal({ video, initialProgress, initialReflection = '', refl
                 {s}x
               </Button>
             ))}
-            {lockSeek && (
-              <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: 'auto' }}>
-                ※ この動画は早送り（スキップ）できません
-              </span>
-            )}
+            <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: 'auto' }}>
+              ※ この動画は早送り（スキップ）できません
+            </span>
           </div>
         </div>
         <div style={{ overflowY: 'auto', flex: 1 }}>

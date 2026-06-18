@@ -48,45 +48,65 @@ async function readVideoDuration(file) {
 // 動画の冒頭フレームをJPEGとして切り出す（自動サムネイル用）。
 // 真っ黒になりがちな先頭を避けるため、長さに応じて 1秒地点（短尺は0.1秒）を採用。
 // 戻り値: { blob, dataUrl } または null（失敗時はサムネなしで続行）。
+//
+// 堅牢化ポイント:
+//  - preload='auto' + 'loadeddata' で確実にフレームを描ける状態にしてからseek
+//  - seekedが返らない端末/コーデックでもハングしないよう12秒のタイムアウト
+//  - フレーム描画はrequestVideoFrameCallbackがあれば使い、無ければseekedで描く
 async function captureVideoThumbnail(file) {
   return new Promise((resolve) => {
+    let done = false;
+    let url;
+    const v = document.createElement('video');
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { v.removeAttribute('src'); v.load(); } catch { /* noop */ }
+      if (url) URL.revokeObjectURL(url);
+      resolve(result);
+    };
+    const timer = setTimeout(() => finish(null), 12000);
+
+    const grab = () => {
+      try {
+        const w = v.videoWidth, h = v.videoHeight;
+        if (!w || !h) { finish(null); return; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(v, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        canvas.toBlob(
+          (blob) => finish(blob ? { blob, dataUrl } : null),
+          'image/jpeg',
+          0.8,
+        );
+      } catch { finish(null); }
+    };
+
     try {
-      const url = URL.createObjectURL(file);
-      const v = document.createElement('video');
-      v.preload = 'metadata';
+      url = URL.createObjectURL(file);
+      v.preload = 'auto';
       v.muted = true;
       v.playsInline = true;
-      let done = false;
-      const finish = (result) => {
-        if (done) return;
-        done = true;
-        URL.revokeObjectURL(url);
-        resolve(result);
-      };
-      v.onloadedmetadata = () => {
-        const target = (v.duration && v.duration > 2) ? 1 : 0.1;
-        try { v.currentTime = target; } catch { finish(null); }
-      };
-      v.onseeked = () => {
-        try {
-          const w = v.videoWidth || 1280;
-          const h = v.videoHeight || 720;
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(v, 0, 0, w, h);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          canvas.toBlob(
-            (blob) => finish(blob ? { blob, dataUrl } : null),
-            'image/jpeg',
-            0.8,
-          );
-        } catch { finish(null); }
+      v.onloadeddata = () => {
+        const target = (v.duration && isFinite(v.duration) && v.duration > 2) ? 1 : 0.1;
+        // seek後、フレーム描画が確実なタイミングで切り出す
+        if (typeof v.requestVideoFrameCallback === 'function') {
+          v.addEventListener('seeked', () => {
+            v.requestVideoFrameCallback(() => grab());
+          }, { once: true });
+        } else {
+          v.addEventListener('seeked', () => grab(), { once: true });
+        }
+        try { v.currentTime = target; } catch { grab(); }
       };
       v.onerror = () => finish(null);
       v.src = url;
-    } catch { resolve(null); }
+      v.load();
+    } catch { finish(null); }
   });
 }
 
@@ -100,6 +120,7 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
   const [thumbPreview, setThumbPreview] = useState('');
   const [manualThumbFile, setManualThumbFile] = useState(null); // 管理者が手動アップした画像
   const [manualThumbPreview, setManualThumbPreview] = useState('');
+  const [thumbAutoFailed, setThumbAutoFailed] = useState(false); // 冒頭フレーム自動取得に失敗
   const [existingThumb, setExistingThumb] = useState(''); // 編集時の既存サムネ表示用
   const [duration, setDuration] = useState(null);
   const [progress, setProgress] = useState(null);
@@ -132,6 +153,7 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
       setThumbPreview('');
       setManualThumbFile(null);
       setManualThumbPreview('');
+      setThumbAutoFailed(false);
       setProgress(null);
       setError(null);
     }
@@ -146,6 +168,7 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
       return;
     }
     setFile(f);
+    setThumbAutoFailed(false);
     const dur = await readVideoDuration(f);
     if (dur) setDuration(dur);
     // 冒頭フレームを自動サムネイルとして切り出す
@@ -153,9 +176,12 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
     if (thumb) {
       setThumbBlob(thumb.blob);
       setThumbPreview(thumb.dataUrl);
+      setThumbAutoFailed(false);
     } else {
       setThumbBlob(null);
       setThumbPreview('');
+      // 自動取得できなかった場合は手動指定を促す（手動画像が未指定のときのみ）
+      setThumbAutoFailed(!manualThumbFile);
     }
   };
 
@@ -460,10 +486,12 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
                 <Button variant="outline" onClick={() => thumbInputRef.current?.click()} disabled={saving}>
                   画像を選択
                 </Button>
-                <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: space[2] }}>
+                <div style={{ fontSize: font.size.xs, color: thumbAutoFailed ? color.warn : color.textLight, marginTop: space[2] }}>
                   {manualThumbFile
                     ? `指定画像: ${manualThumbFile.name}`
-                    : (thumbPreview ? '動画の冒頭フレームを自動使用中（画像を選ぶと差し替え）' : 'ここに画像をドラッグ＆ドロップ / 未指定なら動画の冒頭フレームを自動使用')}
+                    : thumbAutoFailed
+                      ? '冒頭フレームを自動取得できませんでした。サムネイル画像を選択してください。'
+                      : (thumbPreview ? '動画の冒頭フレームを自動使用中（画像を選ぶと差し替え）' : 'ここに画像をドラッグ＆ドロップ / 未指定なら動画の冒頭フレームを自動使用')}
                 </div>
               </div>
             </div>
