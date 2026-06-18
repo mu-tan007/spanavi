@@ -1492,6 +1492,26 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       />
       {/* テストモード時のみ: 埋め込みZoom電話（発信＝デスクトップアプリ非起動、切電はこのウィジェット内で操作） */}
       {embedDial && <ZoomPhoneEmbed currentUser={displayUserName} />}
+      {/* 埋め込み電話 発信テストの切替ボタン（篠宮/管理者のみ・テスト用の暫定UI） */}
+      {(isAdmin || (displayUserName || '').includes('篠宮')) && (
+        <button
+          onClick={() => {
+            const next = !embedDial;
+            try { next ? localStorage.setItem('spanavi_embed_dial', '1') : localStorage.removeItem('spanavi_embed_dial'); } catch (_) {}
+            setEmbedDial(next);
+          }}
+          title="埋め込み電話(ブラウザ発信)テストの切替"
+          style={{
+            position: 'fixed', left: 12, bottom: 12, zIndex: 100001,
+            padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            fontSize: 12, fontWeight: 700, color: '#fff',
+            background: embedDial ? '#1a7f5a' : '#64748b',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          }}
+        >
+          {embedDial ? '発信: ブラウザ電話 ON（テスト中）' : '発信: アプリ（通常）'}
+        </button>
+      )}
     </div>
   );
 }
