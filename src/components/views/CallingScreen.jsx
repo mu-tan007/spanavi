@@ -230,7 +230,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
     try {
       const _callerMember = members.find(m => (typeof m === 'string' ? m : m.name) === currentUser);
       const _callerZoomUserId = typeof _callerMember === 'object' ? _callerMember?.zoomUserId : null;
-      zoomPhone.hangUp({ zoomUserId: _callerZoomUserId });
+      zoomPhone.hangUp({ zoomUserId: _callerZoomUserId, phone: csvData[idx]?.phone });
     } catch (e) {
       console.warn('[markStatus] 自動切電でエラー（ステータス処理は継続）:', e);
     }

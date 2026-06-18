@@ -8,6 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 async function getZoomToken(accountId: string, clientId: string, clientSecret: string): Promise<string | null> {
   const res = await fetch(
     `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${accountId}`,
@@ -27,13 +29,59 @@ async function getZoomToken(accountId: string, clientId: string, clientSecret: s
   return data.access_token
 }
 
-// zoom_user_id から「いま進行中の通話」の call_id を特定する。
-// 発信はZoomデスクトップアプリ経由（zoomphonecall://）で行われるため、
-// フロントのiframeは call_id を持たない。代わりに receive-zoom-webhook が
-// active_calls にリアルタイム記録した call_id を信頼の単一ソースとして使う。
-async function resolveActiveCallId(supabase: any, zoomUserId: string): Promise<string | null> {
-  // 直近120秒以内に開始され、まだ終了していない自分の発信を最大5件取得。
-  // 120秒の窓で「終了webhookを取りこぼした古いstuck行」を除外する。
+// 電話番号の表記揺れを吸収して active_calls.callee_number の候補を作る。
+// active_calls には +81 形式（例 +81946241862）で記録される。
+function phoneVariants(phone: string): string[] {
+  const d = String(phone || '').replace(/\D/g, '')
+  if (!d) return []
+  const noZero = d.replace(/^0/, '')
+  return Array.from(new Set([
+    d,                 // 0946241862
+    `+81${noZero}`,    // +81946241862
+    `81${noZero}`,     // 81946241862
+    `+${d}`,           // +0946241862（保険）
+  ]))
+}
+
+// 「いま架電している企業の番号」で進行中通話の call_id を特定する（最も確実）。
+// 発信はZoomデスクトップアプリ経由のためフロントは call_id を持たず、
+// receive-zoom-webhook が active_calls にリアルタイム記録した値を使う。
+// Webhook到達には数秒の遅延があるため、見つかるまで最大数秒リトライする。
+// 番号で一意に絞るので、次企業の通話を誤って切ることはない。
+async function resolveByPhone(supabase: any, zoomUserId: string, phone: string): Promise<string | null> {
+  const variants = phoneVariants(phone)
+  if (variants.length === 0) return null
+
+  const attempts = 4
+  for (let i = 0; i < attempts; i++) {
+    const since = new Date(Date.now() - 120_000).toISOString()
+    const { data, error } = await supabase
+      .from('active_calls')
+      .select('zoom_call_id, call_status, started_at')
+      .eq('caller_zoom_user_id', zoomUserId)
+      .is('ended_at', null)
+      .in('callee_number', variants)
+      .gte('started_at', since)
+      .order('started_at', { ascending: false })
+      .limit(1)
+
+    if (error) {
+      console.error('[zoom-hangup] active_calls 検索エラー:', error.message)
+      return null
+    }
+    if (data && data.length > 0) {
+      console.log('[zoom-hangup] 番号一致 対象通話:', data[0].zoom_call_id, '/ status:', data[0].call_status, '/ attempt:', i + 1)
+      return data[0].zoom_call_id ?? null
+    }
+    // まだWebhook未到達 → 少し待って再検索（最終回は待たない）
+    if (i < attempts - 1) await sleep(1200)
+  }
+  console.warn('[zoom-hangup] 番号一致の進行中通話が見つかりません phone:', phone, 'variants:', JSON.stringify(variants))
+  return null
+}
+
+// 番号が無い場合のフォールバック: 直近120秒で最も新しい進行中通話。
+async function resolveNewestActive(supabase: any, zoomUserId: string): Promise<string | null> {
   const since = new Date(Date.now() - 120_000).toISOString()
   const { data, error } = await supabase
     .from('active_calls')
@@ -42,24 +90,10 @@ async function resolveActiveCallId(supabase: any, zoomUserId: string): Promise<s
     .is('ended_at', null)
     .gte('started_at', since)
     .order('started_at', { ascending: false })
-    .limit(5)
-
-  if (error) {
-    console.error('[zoom-hangup] active_calls 検索エラー:', error.message)
-    return null
-  }
-  if (!data || data.length === 0) {
-    console.warn('[zoom-hangup] 進行中の通話が見つかりません zoomUserId:', zoomUserId)
-    return null
-  }
-
-  // 通話中(connected)を最優先。なければ最新の進行中(ringing等)。
-  // ステータス入力直後に次番号へ自動発信されるが、その新規発信の
-  // webhook到達には数秒かかるため、この時点では基本「今切りたい通話」のみがヒットする。
-  const connected = data.find((r: any) => r.call_status === 'connected')
-  const target = connected || data[0]
-  console.log('[zoom-hangup] 対象通話:', target.zoom_call_id, '/ status:', target.call_status)
-  return target.zoom_call_id ?? null
+    .limit(1)
+  if (error || !data || data.length === 0) return null
+  console.log('[zoom-hangup] フォールバック 最新通話:', data[0].zoom_call_id, '/ status:', data[0].call_status)
+  return data[0].zoom_call_id ?? null
 }
 
 serve(async (req) => {
@@ -68,24 +102,24 @@ serve(async (req) => {
   try {
     const body = await req.json()
     let { callId } = body
-    const { zoomUserId } = body
+    const { zoomUserId, phone } = body
 
-    console.log('[zoom-hangup] リクエスト受信 callId:', callId ?? '(未指定)', '/ zoomUserId:', zoomUserId ?? '(未指定)')
+    console.log('[zoom-hangup] 受信 callId:', callId ?? '(なし)', '/ zoomUserId:', zoomUserId ?? '(なし)', '/ phone:', phone ?? '(なし)')
 
-    // callId未指定なら zoomUserId から進行中通話を特定
+    // callId未指定なら zoomUserId（+ phone）から特定
     if (!callId && zoomUserId) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')
       const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
       if (supabaseUrl && serviceKey) {
         const supabase = createClient(supabaseUrl, serviceKey)
-        callId = await resolveActiveCallId(supabase, zoomUserId)
+        if (phone) callId = await resolveByPhone(supabase, zoomUserId, phone)
+        if (!callId) callId = await resolveNewestActive(supabase, zoomUserId)
       } else {
         console.error('[zoom-hangup] Supabase 認証情報が未設定 — active_calls 検索不可')
       }
     }
 
     if (!callId) {
-      // 切る対象が特定できない（=既に切れている/まだ繋がっていない等）。正常系として扱う。
       console.warn('[zoom-hangup] 切電対象なし — スキップ')
       return new Response(
         JSON.stringify({ ok: false, skipped: true, reason: 'no active call' }),

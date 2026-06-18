@@ -50,15 +50,16 @@ export const zoomPhone = {
   // call_id を持たない。そこで zoomUserId を渡し、サーバー側で active_calls
   // （webhookがリアルタイム記録）から進行中通話を特定して切る。
   // postMessage(zp-end-call) は埋め込み画面利用時の保険として併用する。
-  // opts: { zoomUserId?, callId? }
+  // opts: { zoomUserId?, phone?, callId? }
+  // phone = いま架電している企業の番号。これで対象通話を一意に特定する（最も確実）。
   hangUp(opts = {}) {
-    const { zoomUserId = null } = opts;
+    const { zoomUserId = null, phone = null } = opts;
     const callId = opts.callId || _activeCall?.callId || null;
-    console.log('[zoomPhone] hangUp called — callId:', callId ?? '(未取得)', '/ zoomUserId:', zoomUserId ?? '(未指定)');
+    console.log('[zoomPhone] hangUp called — callId:', callId ?? '(未取得)', '/ zoomUserId:', zoomUserId ?? '(未指定)', '/ phone:', phone ?? '(未指定)');
 
     if (callId || zoomUserId) {
       supabase.functions
-        .invoke('zoom-hangup', { body: { callId, zoomUserId } })
+        .invoke('zoom-hangup', { body: { callId, zoomUserId, phone } })
         .then(({ data, error }) => {
           if (error) console.warn('[zoomPhone] zoom-hangup error:', error);
           else console.log('[zoomPhone] zoom-hangup ok:', data);

@@ -806,7 +806,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const _norm = (s) => String(s || '').replace(/[\s　]/g, '');
       const _callerMember = members.find(m => _norm(typeof m === 'string' ? m : m.name) === _norm(currentUser));
       const _callerZoomUserId = typeof _callerMember === 'object' ? _callerMember?.zoomUserId : null;
-      zoomPhone.hangUp({ zoomUserId: _callerZoomUserId });
+      zoomPhone.hangUp({ zoomUserId: _callerZoomUserId, phone: lastDialedPhone || selectedRow?.phone });
     } catch (e) {
       console.warn('[handleResult] 自動切電でエラー（ステータス処理は継続）:', e);
     }
