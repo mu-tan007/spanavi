@@ -38,15 +38,6 @@ window.addEventListener('unhandledrejection', (e) => {
   promptReloadIfChunkError(e?.reason?.message || e?.reason)
 })
 
-// 埋め込み電話テストモードのフラグを最優先で取り込む。
-// react-router が / → /dashboard へ遷移する際に ?embeddial= が落ちるため、
-// ルーティングが動く前（ここ）で拾って localStorage に保存する。
-try {
-  const _ed = new URLSearchParams(window.location.search).get('embeddial')
-  if (_ed === '1') localStorage.setItem('spanavi_embed_dial', '1')
-  else if (_ed === '0') localStorage.removeItem('spanavi_embed_dial')
-} catch (_) { /* localStorage 不可環境は無視 */ }
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>

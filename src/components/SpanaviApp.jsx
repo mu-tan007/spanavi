@@ -57,9 +57,8 @@ import { updateCallList, insertCallList, deleteCallList, archiveCallList, restor
 import LiveStatusView from './views/LiveStatusView';
 import PreCheckView from './views/PreCheckView';
 import IncomingCallBanner from './views/IncomingCallBanner';
-// ZoomPhoneEmbed: ?embeddial=1 を付けた端末のみ有効化するテスト用埋め込み電話
-import ZoomPhoneEmbed from './ZoomPhoneEmbed';
-import { zoomPhone } from '../lib/zoomPhoneStore';
+// ZoomPhoneEmbed は Smart Embed 経由での架電が不可のため無効化
+// import ZoomPhoneEmbed from './ZoomPhoneEmbed';
 import IncomingCallsView from './views/IncomingCallsView';
 import RecallListView from './views/RecallListView';
 import ShiftManagementView from './views/ShiftManagementView';
@@ -387,22 +386,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   );
   const displayUserName = currentMemberDetail?.name || currentUser;
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
-
-  // ── 埋め込み電話(Smart Embed)テストモード ──────────────────────────
-  // ?embeddial=1 で有効化 / ?embeddial=0 で解除（端末ごと localStorage 保持）。
-  // 既定OFF。本番のデスクトップアプリ発信には一切影響しない。
-  const [embedDial, setEmbedDial] = useState(() => {
-    try { return localStorage.getItem('spanavi_embed_dial') === '1'; } catch { return false; }
-  });
-  useEffect(() => {
-    const v = new URLSearchParams(window.location.search).get('embeddial');
-    if (v === '1') { try { localStorage.setItem('spanavi_embed_dial', '1'); } catch {} setEmbedDial(true); }
-    else if (v === '0') { try { localStorage.removeItem('spanavi_embed_dial'); } catch {} setEmbedDial(false); }
-  }, []);
-  // 発信元番号(自分のZoom電話番号)を発信モジュールへ伝える。callerId未指定だと発信失敗。
-  useEffect(() => {
-    if (embedDial) zoomPhone.setCallerId(currentMemberDetail?.zoomPhoneNumber || null);
-  }, [embedDial, currentMemberDetail?.zoomPhoneNumber]);
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
   const _VALID_TABS = ["overview","dashboard","live","incoming","lists","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","firms","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","sessions","homework","social_style","ai_courses","templates","analytics","settings","all_members","admin_settings"];
@@ -1490,28 +1473,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         onNavigateToIncoming={() => setCurrentTab('incoming')}
         onOpenCompany={(itemId) => setCallFlowScreen({ list: { _supaId: null, id: null, company: '' }, defaultItemId: itemId, defaultListMode: false, singleItemMode: true })}
       />
-      {/* テストモード時のみ: 埋め込みZoom電話（発信＝デスクトップアプリ非起動、切電はこのウィジェット内で操作） */}
-      {embedDial && <ZoomPhoneEmbed currentUser={displayUserName} />}
-      {/* 埋め込み電話 発信テストの切替ボタン（篠宮/管理者のみ・テスト用の暫定UI） */}
-      {(isAdmin || (displayUserName || '').includes('篠宮')) && (
-        <button
-          onClick={() => {
-            const next = !embedDial;
-            try { next ? localStorage.setItem('spanavi_embed_dial', '1') : localStorage.removeItem('spanavi_embed_dial'); } catch (_) {}
-            setEmbedDial(next);
-          }}
-          title="埋め込み電話(ブラウザ発信)テストの切替"
-          style={{
-            position: 'fixed', left: 12, bottom: 12, zIndex: 100001,
-            padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-            fontSize: 12, fontWeight: 700, color: '#fff',
-            background: embedDial ? '#1a7f5a' : '#64748b',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-          }}
-        >
-          {embedDial ? '発信: ブラウザ電話 ON（テスト中）' : '発信: アプリ（通常）'}
-        </button>
-      )}
     </div>
   );
 }
