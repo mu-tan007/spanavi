@@ -202,17 +202,17 @@ export async function uploadCourseThumbnail(
   videoId: string,
   blob: Blob,
   contentType = 'image/jpeg',
-): Promise<string | null> {
-  if (!orgId || !videoId || !blob) return null;
+): Promise<{ path: string | null; error: unknown }> {
+  if (!orgId || !videoId || !blob) return { path: null, error: 'missing params' };
   const path = `${orgId}/${videoId}_thumb.jpg`;
   const { error } = await supabase.storage
     .from(COURSE_BUCKET)
     .upload(path, blob, { contentType: contentType || 'image/jpeg', upsert: true });
   if (error) {
     console.error('[DB] uploadCourseThumbnail error:', error);
-    return null;
+    return { path: null, error };
   }
-  return path;
+  return { path, error: null };
 }
 
 export const SPACAREER_BUCKETS = {

@@ -251,8 +251,13 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
         : (thumbBlob ? { blob: thumbBlob, ct: 'image/jpeg' } : null);
       if (thumbSource) {
         setProgress('サムネイルを保存中...');
-        const tp = await uploadCourseThumbnail(orgId, videoId, thumbSource.blob, thumbSource.ct);
-        if (tp) thumbnailPath = tp;
+        const { path: tp, error: tErr } = await uploadCourseThumbnail(orgId, videoId, thumbSource.blob, thumbSource.ct);
+        if (tp) {
+          thumbnailPath = tp;
+        } else if (manualThumbFile) {
+          // 手動指定した画像が保存できなかった場合は、保存を中断して原因を明示する
+          throw new Error('サムネイル画像の保存に失敗しました: ' + (tErr?.message || tErr || '不明なエラー'));
+        }
       }
 
       setProgress('メタデータを保存中...');
@@ -488,10 +493,14 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
                 </Button>
                 <div style={{ fontSize: font.size.xs, color: thumbAutoFailed ? color.warn : color.textLight, marginTop: space[2] }}>
                   {manualThumbFile
-                    ? `指定画像: ${manualThumbFile.name}`
+                    ? `指定画像: ${manualThumbFile.name}（保存すると反映されます）`
                     : thumbAutoFailed
                       ? '冒頭フレームを自動取得できませんでした。サムネイル画像を選択してください。'
-                      : (thumbPreview ? '動画の冒頭フレームを自動使用中（画像を選ぶと差し替え）' : 'ここに画像をドラッグ＆ドロップ / 未指定なら動画の冒頭フレームを自動使用')}
+                      : thumbPreview
+                        ? '動画の冒頭フレームを自動使用中（画像を選ぶと差し替え）'
+                        : existingThumb
+                          ? '現在のサムネイルを表示中（別の画像を選ぶと差し替え）'
+                          : 'ここに画像をドラッグ＆ドロップ / 未指定なら動画の冒頭フレームを自動使用'}
                 </div>
               </div>
             </div>
