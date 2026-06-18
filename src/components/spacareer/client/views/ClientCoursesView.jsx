@@ -270,6 +270,17 @@ export default function ClientCoursesView() {
                   {cat.is_personal && <Badge variant="info" dot size="sm">専用</Badge>}
                   <span style={{ fontSize: font.size.xs, color: color.textLight }}>{list.length}本</span>
                 </div>
+                {cat.is_personal && (
+                  <div style={{
+                    marginBottom: space[3], padding: space[3],
+                    background: alpha(color.info, 0.08),
+                    border: `1px solid ${alpha(color.info, 0.3)}`,
+                    borderRadius: radius.md,
+                    fontSize: font.size.sm, color: color.textDark, lineHeight: font.lineHeight.relaxed,
+                  }}>
+                    {memberName || 'あなた'}さん専用の配信です。必ず目を通して、アウトプットしてください。
+                  </div>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: space[4] }}>
                   {list.map(v => (
                     <VideoCard
@@ -295,6 +306,7 @@ export default function ClientCoursesView() {
           initialProgress={views[playingVideo.id]?.watched_seconds || 0}
           initialReflection={views[playingVideo.id]?.reflection_text || ''}
           reflectionSubmittedAt={views[playingVideo.id]?.reflection_submitted_at || null}
+          alreadyWatched={(views[playingVideo.id]?.status || '') === 'watched'}
           onClose={() => setPlayingVideo(null)}
           onProgress={(s, d) => handleProgress(playingVideo, s, d)}
           onSaveReflection={(text) => saveReflection(playingVideo, text)}
@@ -462,16 +474,31 @@ function formatDuration(seconds) {
 
 const REFLECTION_TARGET = 200; // アウトプットの目安文字数
 
-function VideoPlayerModal({ video, initialProgress, initialReflection = '', reflectionSubmittedAt = null, onClose, onProgress, onSaveReflection }) {
+const PLAYBACK_SPEEDS = [1, 1.25, 1.5]; // 最大1.5倍速まで
+const MAX_SPEED = 1.5;
+
+function VideoPlayerModal({ video, initialProgress, initialReflection = '', reflectionSubmittedAt = null, alreadyWatched = false, onClose, onProgress, onSaveReflection }) {
   const videoRef = useRef(null);
   const [reflection, setReflection] = useState(initialReflection);
   const [savingReflection, setSavingReflection] = useState(false);
   const [savedAt, setSavedAt] = useState(reflectionSubmittedAt);
+  const [speed, setSpeed] = useState(1);
+  // 早送り(スキップ)防止: これまで実際に再生し到達した最大位置を記録し、
+  // それより先へのシークは戻す。巻き戻しは許可。視聴済みの動画は復習のため制限なし。
+  const lockSeek = !alreadyWatched;
+  const maxWatchedRef = useRef(initialProgress || 0);
   useEffect(() => {
     if (videoRef.current && initialProgress) {
       try { videoRef.current.currentTime = initialProgress; } catch { /* noop */ }
     }
+    maxWatchedRef.current = initialProgress || 0;
   }, [initialProgress]);
+
+  const changeSpeed = (s) => {
+    const clamped = Math.min(s, MAX_SPEED);
+    setSpeed(clamped);
+    if (videoRef.current) videoRef.current.playbackRate = clamped;
+  };
 
   const handleSaveReflection = async () => {
     setSavingReflection(true);
@@ -526,17 +553,57 @@ function VideoPlayerModal({ video, initialProgress, initialReflection = '', refl
               src={video._playUrl || video.video_url}
               controls
               autoPlay
+              controlsList="nodownload noplaybackrate"
+              onContextMenu={e => e.preventDefault()}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              onLoadedMetadata={e => { e.currentTarget.playbackRate = speed; }}
+              onRateChange={e => {
+                // ネイティブUI等で1.5倍超に変えられても上限に戻す
+                if (e.currentTarget.playbackRate > MAX_SPEED) {
+                  e.currentTarget.playbackRate = MAX_SPEED;
+                }
+              }}
+              onSeeking={e => {
+                if (!lockSeek) return;
+                const t = e.currentTarget.currentTime;
+                // 到達済みより1秒以上先へ飛ぼうとしたら戻す（巻き戻しはOK）
+                if (t > maxWatchedRef.current + 1) {
+                  e.currentTarget.currentTime = maxWatchedRef.current;
+                }
+              }}
               onTimeUpdate={e => {
                 const t = e.currentTarget.currentTime;
                 const d = e.currentTarget.duration;
+                if (t > maxWatchedRef.current) maxWatchedRef.current = t;
                 if (d) onProgress(t, d);
               }}
               onEnded={e => {
                 const d = e.currentTarget.duration;
-                if (d) onProgress(d, d);
+                if (d) { maxWatchedRef.current = d; onProgress(d, d); }
               }}
             />
+          </div>
+          {/* 再生速度（最大1.5倍）＋早送り制限の案内 */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap',
+            marginTop: space[2],
+          }}>
+            <span style={{ fontSize: font.size.xs, color: color.textMid }}>再生速度</span>
+            {PLAYBACK_SPEEDS.map(s => (
+              <Button
+                key={s}
+                size="sm"
+                variant={speed === s ? 'primary' : 'outline'}
+                onClick={() => changeSpeed(s)}
+              >
+                {s}x
+              </Button>
+            ))}
+            {lockSeek && (
+              <span style={{ fontSize: font.size.xs, color: color.textLight, marginLeft: 'auto' }}>
+                ※ この動画は早送り（スキップ）できません
+              </span>
+            )}
           </div>
         </div>
         <div style={{ overflowY: 'auto', flex: 1 }}>
