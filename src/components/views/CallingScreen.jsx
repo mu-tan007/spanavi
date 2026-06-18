@@ -225,15 +225,7 @@ export default function CallingScreen({ listId, list, importedCSVs, setImportedC
 
   const markStatus = (idx, statusId, extraData) => {
     console.log('[test] ステータスボタン押下');
-    // 発信者(本人)のzoom_user_idを渡し、サーバー側で進行中通話を特定して確実に切電。
-    // ※切電が失敗してもステータス保存・次企業遷移は絶対に止めない（try/catchで隔離）。
-    try {
-      const _callerMember = members.find(m => (typeof m === 'string' ? m : m.name) === currentUser);
-      const _callerZoomUserId = typeof _callerMember === 'object' ? _callerMember?.zoomUserId : null;
-      zoomPhone.hangUp({ zoomUserId: _callerZoomUserId, phone: csvData[idx]?.phone });
-    } catch (e) {
-      console.warn('[markStatus] 自動切電でエラー（ステータス処理は継続）:', e);
-    }
+    zoomPhone.hangUp();
     const calledAt = new Date().toISOString();
     const statusLabel = getStatusDef(statusId).label;
 
