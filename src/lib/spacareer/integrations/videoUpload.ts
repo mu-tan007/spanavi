@@ -165,6 +165,53 @@ export async function createCourseVideoSignedUrl(
   return data?.signedUrl || null;
 }
 
+/**
+ * 複数の講座動画/サムネイルの署名付きURLを一括発行する。
+ * 一覧表示でサムネイル・再生URLをまとめて解決する用途。
+ * 戻り値: { storagePath: signedUrl } のマップ（失敗分は欠落）。
+ */
+export async function createCourseVideoSignedUrls(
+  paths: string[],
+  expiresSec = 3600,
+): Promise<Record<string, string>> {
+  const unique = Array.from(new Set((paths || []).filter(Boolean)));
+  if (!unique.length) return {};
+  const { data, error } = await supabase.storage
+    .from(COURSE_BUCKET)
+    .createSignedUrls(unique, expiresSec);
+  if (error) {
+    console.error('[DB] createCourseVideoSignedUrls error:', error);
+    return {};
+  }
+  const map: Record<string, string> = {};
+  (data || []).forEach((d) => {
+    if (d?.path && d?.signedUrl) map[d.path] = d.signedUrl;
+  });
+  return map;
+}
+
+/**
+ * 講座動画の自動サムネイル(冒頭フレームのJPEG)を非公開バケットに保存する。
+ * パス命名: `${orgId}/${videoId}_thumb.jpg`
+ * 戻り値: 保存した object path（失敗時 null）。
+ */
+export async function uploadCourseThumbnail(
+  orgId: string,
+  videoId: string,
+  blob: Blob,
+): Promise<string | null> {
+  if (!orgId || !videoId || !blob) return null;
+  const path = `${orgId}/${videoId}_thumb.jpg`;
+  const { error } = await supabase.storage
+    .from(COURSE_BUCKET)
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+  if (error) {
+    console.error('[DB] uploadCourseThumbnail error:', error);
+    return null;
+  }
+  return path;
+}
+
 export const SPACAREER_BUCKETS = {
   session: SESSION_BUCKET,
   course: COURSE_BUCKET,

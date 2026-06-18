@@ -3,6 +3,7 @@ import { color, space, font, radius, shadow, alpha } from '../../../../constants
 import { Button, Card, Badge } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
+import { createCourseVideoSignedUrls } from '../../../../lib/spacareer/integrations/videoUpload';
 
 // 仕様書: tasks/spacareer-spec.md §6.4 AI講座
 // 参考: イメージ画像①
@@ -61,7 +62,20 @@ export default function ClientCoursesView() {
       const visibleVids = (vids || []).filter(
         v => (v.audience || 'all') === 'all' || assignedSet.has(v.id)
       );
-      setVideos(visibleVids);
+      // 非公開バケットのため、再生URL・サムネイルは署名付きURLで一括解決する
+      const paths = [];
+      visibleVids.forEach(v => {
+        if (v.storage_path) paths.push(v.storage_path);
+        if (v.thumbnail_path) paths.push(v.thumbnail_path);
+      });
+      const urlMap = await createCourseVideoSignedUrls(paths, 7200); // 2時間有効
+      if (cancelled) return;
+      const vidsWithUrls = visibleVids.map(v => ({
+        ...v,
+        _playUrl: v.storage_path ? (urlMap[v.storage_path] || null) : null,
+        _thumbUrl: v.thumbnail_path ? (urlMap[v.thumbnail_path] || null) : null,
+      }));
+      setVideos(vidsWithUrls);
       const vMap = {};
       (viewRows || []).forEach(v => { vMap[v.video_id] = v; });
       setViews(vMap);
@@ -348,7 +362,7 @@ function VideoCard({ video, category, view, favorite, onToggleFavorite, onPlay }
         style={{
           position: 'relative',
           aspectRatio: '16 / 9',
-          background: video.thumbnail_url ? `center / cover no-repeat url(${video.thumbnail_url})` : color.navyDark,
+          background: (video.thumbnail_url || video._thumbUrl) ? `center / cover no-repeat url(${video.thumbnail_url || video._thumbUrl})` : color.navyDark,
           cursor: 'pointer',
         }}
       >
@@ -502,7 +516,7 @@ function VideoPlayerModal({ video, initialProgress, initialReflection = '', refl
           }}>
             <video
               ref={videoRef}
-              src={video.video_url}
+              src={video._playUrl || video.video_url}
               controls
               autoPlay
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}

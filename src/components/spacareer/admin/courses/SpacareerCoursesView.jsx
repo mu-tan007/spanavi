@@ -9,6 +9,7 @@ import { getOrgId } from '../../../../lib/orgContext';
 import VideoUploadModal from './VideoUploadModal';
 import VideoAssignModal from './VideoAssignModal';
 import CourseCategoryEditor from './CourseCategoryEditor';
+import { createCourseVideoSignedUrls } from '../../../../lib/spacareer/integrations/videoUpload';
 
 // ============================================================
 // AI講座管理 メインビュー
@@ -64,7 +65,7 @@ export default function SpacareerCoursesView() {
           .eq('org_id', orgId)
           .order('position', { ascending: true }),
         supabase.from('spacareer_course_videos')
-          .select('id, title, description, duration_seconds, thumbnail_url, storage_path, video_url, category_id, position, is_active, audience, created_at')
+          .select('id, title, description, duration_seconds, thumbnail_url, thumbnail_path, storage_path, video_url, category_id, position, is_active, audience, created_at')
           .eq('org_id', orgId)
           .order('position', { ascending: true }),
         supabase.from('spacareer_video_views')
@@ -82,8 +83,21 @@ export default function SpacareerCoursesView() {
       if (viewRes.error) throw viewRes.error;
       if (favRes.error) throw favRes.error;
       if (asgRes.error) throw asgRes.error;
+      // 非公開バケットのため、再生URL・サムネイルは署名付きURLで一括解決する
+      const rawVideos = vidRes.data || [];
+      const paths = [];
+      rawVideos.forEach(v => {
+        if (v.storage_path) paths.push(v.storage_path);
+        if (v.thumbnail_path) paths.push(v.thumbnail_path);
+      });
+      const urlMap = await createCourseVideoSignedUrls(paths, 7200); // 2時間有効
+      const videosWithUrls = rawVideos.map(v => ({
+        ...v,
+        _playUrl: v.storage_path ? (urlMap[v.storage_path] || null) : null,
+        _thumbUrl: v.thumbnail_path ? (urlMap[v.thumbnail_path] || null) : null,
+      }));
       setCategories(catRes.data || []);
-      setVideos(vidRes.data || []);
+      setVideos(videosWithUrls);
       setViews(viewRes.data || []);
       setFavorites(favRes.data || []);
       const counts = {};
@@ -313,8 +327,8 @@ function VideosTab({ loading, activeCategories, videosByCategory, assignCounts =
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: font.size.xs, color: color.textLight,
               }}>
-                {v.thumbnail_url
-                  ? <img src={v.thumbnail_url} alt={v.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(v.thumbnail_url || v._thumbUrl)
+                  ? <img src={v.thumbnail_url || v._thumbUrl} alt={v.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : 'No image'}
               </div>
             )},
@@ -337,7 +351,7 @@ function VideosTab({ loading, activeCategories, videosByCategory, assignCounts =
             cellStyle: { fontFamily: font.family.mono },
             render: (v) => formatDuration(v.duration_seconds) },
           { key: 'status', label: 'ステータス', width: 100, align: 'center',
-            render: (v) => v.video_url
+            render: (v) => v.storage_path
               ? <Badge variant="success" dot>公開中</Badge>
               : <Badge variant="warn">未アップ</Badge> },
           { key: '_audience', label: '配信先', width: 110, align: 'center',
@@ -347,9 +361,9 @@ function VideosTab({ loading, activeCategories, videosByCategory, assignCounts =
           { key: '_actions', label: '操作', width: 280, align: 'center',
             render: (v) => (
               <div style={{ display: 'inline-flex', gap: space[1], justifyContent: 'center' }}>
-                {v.video_url && (
-                  <Button size="sm" variant="outline"
-                    onClick={(e) => { e.stopPropagation(); window.open(v.video_url, '_blank'); }}>再生</Button>
+                {v.storage_path && (
+                  <Button size="sm" variant="outline" disabled={!v._playUrl}
+                    onClick={(e) => { e.stopPropagation(); if (v._playUrl) window.open(v._playUrl, '_blank'); }}>再生</Button>
                 )}
                 <Button size="sm" variant="primary"
                   onClick={(e) => { e.stopPropagation(); onAssign(v); }}>配信</Button>

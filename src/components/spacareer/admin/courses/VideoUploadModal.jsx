@@ -3,7 +3,7 @@ import { color, space, font, radius, alpha } from '../../../../constants/design'
 import { Button, Input, Select, Card } from '../../../ui';
 import { supabase } from '../../../../lib/supabase';
 import { getOrgId } from '../../../../lib/orgContext';
-import { uploadVideoResumable } from '../../../../lib/spacareer/integrations/videoUpload';
+import { uploadVideoResumable, uploadCourseThumbnail } from '../../../../lib/spacareer/integrations/videoUpload';
 
 // ============================================================
 // AI講座 動画アップロードモーダル
@@ -44,6 +44,51 @@ async function readVideoDuration(file) {
   });
 }
 
+// 動画の冒頭フレームをJPEGとして切り出す（自動サムネイル用）。
+// 真っ黒になりがちな先頭を避けるため、長さに応じて 1秒地点（短尺は0.1秒）を採用。
+// 戻り値: { blob, dataUrl } または null（失敗時はサムネなしで続行）。
+async function captureVideoThumbnail(file) {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.muted = true;
+      v.playsInline = true;
+      let done = false;
+      const finish = (result) => {
+        if (done) return;
+        done = true;
+        URL.revokeObjectURL(url);
+        resolve(result);
+      };
+      v.onloadedmetadata = () => {
+        const target = (v.duration && v.duration > 2) ? 1 : 0.1;
+        try { v.currentTime = target; } catch { finish(null); }
+      };
+      v.onseeked = () => {
+        try {
+          const w = v.videoWidth || 1280;
+          const h = v.videoHeight || 720;
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(v, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          canvas.toBlob(
+            (blob) => finish(blob ? { blob, dataUrl } : null),
+            'image/jpeg',
+            0.8,
+          );
+        } catch { finish(null); }
+      };
+      v.onerror = () => finish(null);
+      v.src = url;
+    } catch { resolve(null); }
+  });
+}
+
 export default function VideoUploadModal({ open, onClose, categories, onUploaded, editTarget = null }) {
   const isEdit = !!editTarget;
   const [title, setTitle] = useState('');
@@ -51,6 +96,8 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
   const [categoryId, setCategoryId] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [file, setFile] = useState(null);
+  const [thumbBlob, setThumbBlob] = useState(null);
+  const [thumbPreview, setThumbPreview] = useState('');
   const [duration, setDuration] = useState(null);
   const [progress, setProgress] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -74,6 +121,8 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
         setDuration(null);
         setFile(null);
       }
+      setThumbBlob(null);
+      setThumbPreview('');
       setProgress(null);
       setError(null);
     }
@@ -92,6 +141,15 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
     setFile(f);
     const dur = await readVideoDuration(f);
     if (dur) setDuration(dur);
+    // 冒頭フレームを自動サムネイルとして切り出す
+    const thumb = await captureVideoThumbnail(f);
+    if (thumb) {
+      setThumbBlob(thumb.blob);
+      setThumbPreview(thumb.dataUrl);
+    } else {
+      setThumbBlob(null);
+      setThumbPreview('');
+    }
   };
 
   const handleSubmit = async () => {
@@ -105,12 +163,13 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
       const orgId = getOrgId();
       let storagePath = editTarget?.storage_path || null;
       let videoUrl = editTarget?.video_url || null;
+      let thumbnailPath = editTarget?.thumbnail_path || null;
       let durationSeconds = duration ?? editTarget?.duration_seconds ?? null;
+      const videoId = editTarget?.id || (crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
       if (file) {
         const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
-        const newId = editTarget?.id || (crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-        const path = `${orgId}/${newId}.${ext}`;
+        const path = `${orgId}/${videoId}.${ext}`;
 
         setProgress('アップロード中... 0%');
         // Resumable Upload(TUS)。大容量(〜2GB)・回線断にも対応。
@@ -129,6 +188,13 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
         const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
         storagePath = path;
         videoUrl = urlData?.publicUrl || null;
+
+        // 冒頭フレームの自動サムネイルを保存（失敗してもアップロード自体は続行）
+        if (thumbBlob) {
+          setProgress('サムネイルを保存中...');
+          const tp = await uploadCourseThumbnail(orgId, videoId, thumbBlob);
+          if (tp) thumbnailPath = tp;
+        }
       }
 
       setProgress('メタデータを保存中...');
@@ -140,6 +206,7 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
             description: description.trim() || null,
             category_id: categoryId,
             thumbnail_url: thumbnailUrl.trim() || null,
+            thumbnail_path: thumbnailPath,
             duration_seconds: durationSeconds,
             storage_path: storagePath,
             video_url: videoUrl,
@@ -160,11 +227,13 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
         const { error: insErr } = await supabase
           .from('spacareer_course_videos')
           .insert({
+            id: videoId,
             org_id: orgId,
             category_id: categoryId,
             title: title.trim(),
             description: description.trim() || null,
             thumbnail_url: thumbnailUrl.trim() || null,
+            thumbnail_path: thumbnailPath,
             duration_seconds: durationSeconds,
             storage_path: storagePath,
             video_url: videoUrl,
@@ -267,8 +336,8 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
           />
 
           <Input
-            label="サムネイル URL（任意）"
-            placeholder="https://..."
+            label="サムネイル URL（任意・上書き用）"
+            placeholder="未入力なら動画の冒頭フレームを自動使用"
             value={thumbnailUrl}
             onChange={e => setThumbnailUrl(e.target.value)}
           />
@@ -300,6 +369,18 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
               {duration != null && (
                 <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: space[1] }}>
                   所要時間: {Math.floor(duration / 60)}分{duration % 60}秒
+                </div>
+              )}
+              {thumbPreview && (
+                <div style={{ marginTop: space[2] }}>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
+                    自動サムネイル（冒頭フレーム）
+                  </div>
+                  <img
+                    src={thumbPreview}
+                    alt="サムネイルプレビュー"
+                    style={{ width: 160, height: 90, objectFit: 'cover', borderRadius: radius.md, border: `1px solid ${color.border}` }}
+                  />
                 </div>
               )}
             </Card>
