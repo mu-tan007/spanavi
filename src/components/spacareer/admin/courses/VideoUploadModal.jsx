@@ -137,8 +137,6 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
     }
   }, [open, editTarget, isEdit, categories]);
 
-  if (!open) return null;
-
   const handleFile = async (f) => {
     setError(null);
     if (!f) { setFile(null); return; }
@@ -178,6 +176,9 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
   const { isOver: thumbOver, dropHandlers: thumbDrop } = useFileDrop(handleThumbFile, saving);
   // 表示するサムネプレビュー: 手動画像 > 自動冒頭フレーム > 既存サムネ
   const previewSrc = manualThumbPreview || thumbPreview || existingThumb;
+
+  // フック呼び出し後に早期return（フック順序を毎レンダー一定に保つ＝React error #310回避）
+  if (!open) return null;
 
   const handleSubmit = async () => {
     setError(null);
