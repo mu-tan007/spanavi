@@ -191,20 +191,23 @@ export async function createCourseVideoSignedUrls(
 }
 
 /**
- * 講座動画の自動サムネイル(冒頭フレームのJPEG)を非公開バケットに保存する。
- * パス命名: `${orgId}/${videoId}_thumb.jpg`
+ * 講座動画のサムネイル画像を非公開バケットに保存する。
+ * 冒頭フレームの自動JPEG・管理者が手動アップロードした画像の両方で使う。
+ * パス命名: `${orgId}/${videoId}_thumb.jpg`（upsertで上書き＝1動画1枚）
+ * contentType は実ファイルの種類（image/png 等）を渡せば配信時もその形式で返る。
  * 戻り値: 保存した object path（失敗時 null）。
  */
 export async function uploadCourseThumbnail(
   orgId: string,
   videoId: string,
   blob: Blob,
+  contentType = 'image/jpeg',
 ): Promise<string | null> {
   if (!orgId || !videoId || !blob) return null;
   const path = `${orgId}/${videoId}_thumb.jpg`;
   const { error } = await supabase.storage
     .from(COURSE_BUCKET)
-    .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    .upload(path, blob, { contentType: contentType || 'image/jpeg', upsert: true });
   if (error) {
     console.error('[DB] uploadCourseThumbnail error:', error);
     return null;

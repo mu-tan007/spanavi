@@ -56,7 +56,10 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
     setCallFlowScreen?.(null);
   }, [setCallFlowScreen]);
 
-  const openAtIdx = useCallback(async () => {
+  // autoDialNext: ステータス入力で「次へ」送られた時だけ true。
+  // 次企業の CallFlowView マウント時に（オートコール ON なら）自動発信させる。
+  // 初回起動・手動の前へ/次へでは false（勝手に架電しない）。
+  const openAtIdx = useCallback(async (autoDialNext = false) => {
     const q = queueRef.current;
     const cur = q.items[q.idx];
     if (!cur || !setCallFlowScreen) { finishQueue(); return; }
@@ -72,7 +75,7 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
         const nextIdx = q.idx + 1;
         if (nextIdx < q.items.length) {
           queueRef.current = { items: q.items, idx: nextIdx };
-          openAtIdx();
+          openAtIdx(autoDialNext);
         } else {
           alert('全件「アポ獲得/除外」済のためキューを終了します。');
           finishQueue();
@@ -131,9 +134,10 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
       onQueuePrev: goPrev,
       onQueueNext: goNext,
       queuePos: `${q.idx + 1} / ${q.items.length}件`,
+      autoDialOnLoad: autoDialNext,
       onResultSubmit: () => {
         queueRef.current = { items: q.items, idx: q.idx + 1 };
-        if (queueRef.current.idx < queueRef.current.items.length) openAtIdx();
+        if (queueRef.current.idx < queueRef.current.items.length) openAtIdx(true);
         else finishQueue();
       },
     });

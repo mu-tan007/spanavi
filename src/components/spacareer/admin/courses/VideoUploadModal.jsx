@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { color, space, font, radius, alpha } from '../../../../constants/design';
-import { Button, Input, Select, Card } from '../../../ui';
+import { Button, Input, Select } from '../../../ui';
 import { supabase } from '../../../../lib/supabase';
 import { getOrgId } from '../../../../lib/orgContext';
 import { uploadVideoResumable, uploadCourseThumbnail } from '../../../../lib/spacareer/integrations/videoUpload';
+import { useFileDrop } from '../../_shared/useFileDrop';
 
 // ============================================================
 // AI講座 動画アップロードモーダル
@@ -94,15 +95,21 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [file, setFile] = useState(null);
-  const [thumbBlob, setThumbBlob] = useState(null);
+  const [thumbBlob, setThumbBlob] = useState(null);      // 動画冒頭フレームの自動サムネ
   const [thumbPreview, setThumbPreview] = useState('');
+  const [manualThumbFile, setManualThumbFile] = useState(null); // 管理者が手動アップした画像
+  const [manualThumbPreview, setManualThumbPreview] = useState('');
+  const [existingThumb, setExistingThumb] = useState(''); // 編集時の既存サムネ表示用
   const [duration, setDuration] = useState(null);
   const [progress, setProgress] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  const thumbInputRef = useRef(null);
+
+  const selectedCat = (categories || []).find(c => c.id === categoryId);
+  const isPersonalCat = !!selectedCat?.is_personal;
 
   React.useEffect(() => {
     if (open) {
@@ -110,19 +117,21 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
         setTitle(editTarget.title || '');
         setDescription(editTarget.description || '');
         setCategoryId(editTarget.category_id || '');
-        setThumbnailUrl(editTarget.thumbnail_url || '');
         setDuration(editTarget.duration_seconds || null);
+        setExistingThumb(editTarget._thumbUrl || editTarget.thumbnail_url || '');
         setFile(null);
       } else {
         setTitle('');
         setDescription('');
         setCategoryId(categories?.[0]?.id || '');
-        setThumbnailUrl('');
         setDuration(null);
+        setExistingThumb('');
         setFile(null);
       }
       setThumbBlob(null);
       setThumbPreview('');
+      setManualThumbFile(null);
+      setManualThumbPreview('');
       setProgress(null);
       setError(null);
     }
@@ -151,6 +160,24 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
       setThumbPreview('');
     }
   };
+
+  // 管理者が手動でサムネイル画像を選択/ドロップしたとき
+  const handleThumbFile = (f) => {
+    setError(null);
+    if (!f) return;
+    if (!f.type?.startsWith('image/')) {
+      setError('サムネイルには画像ファイルを指定してください');
+      return;
+    }
+    setManualThumbFile(f);
+    const url = URL.createObjectURL(f);
+    setManualThumbPreview(url);
+  };
+
+  const { isOver: videoOver, dropHandlers: videoDrop } = useFileDrop(handleFile, saving);
+  const { isOver: thumbOver, dropHandlers: thumbDrop } = useFileDrop(handleThumbFile, saving);
+  // 表示するサムネプレビュー: 手動画像 > 自動冒頭フレーム > 既存サムネ
+  const previewSrc = manualThumbPreview || thumbPreview || existingThumb;
 
   const handleSubmit = async () => {
     setError(null);
@@ -188,29 +215,37 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
         const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
         storagePath = path;
         videoUrl = urlData?.publicUrl || null;
+      }
 
-        // 冒頭フレームの自動サムネイルを保存（失敗してもアップロード自体は続行）
-        if (thumbBlob) {
-          setProgress('サムネイルを保存中...');
-          const tp = await uploadCourseThumbnail(orgId, videoId, thumbBlob);
-          if (tp) thumbnailPath = tp;
-        }
+      // サムネイル: 手動アップ画像 > 動画冒頭フレームの自動サムネ。
+      // どちらか新しい指定があれば保存（編集で動画差し替えなしでも更新可能）。
+      const thumbSource = manualThumbFile
+        ? { blob: manualThumbFile, ct: manualThumbFile.type || 'image/jpeg' }
+        : (thumbBlob ? { blob: thumbBlob, ct: 'image/jpeg' } : null);
+      if (thumbSource) {
+        setProgress('サムネイルを保存中...');
+        const tp = await uploadCourseThumbnail(orgId, videoId, thumbSource.blob, thumbSource.ct);
+        if (tp) thumbnailPath = tp;
       }
 
       setProgress('メタデータを保存中...');
       if (isEdit) {
+        const updatePayload = {
+          title: title.trim(),
+          description: description.trim() || null,
+          category_id: categoryId,
+          thumbnail_path: thumbnailPath,
+          duration_seconds: durationSeconds,
+          storage_path: storagePath,
+          video_url: videoUrl,
+        };
+        // 専用配信カテゴリーに移したら個別配信へ切替（配信先は配信モーダルで指定）
+        if (isPersonalCat && editTarget?.audience !== 'assigned') {
+          updatePayload.audience = 'assigned';
+        }
         const { error: updErr } = await supabase
           .from('spacareer_course_videos')
-          .update({
-            title: title.trim(),
-            description: description.trim() || null,
-            category_id: categoryId,
-            thumbnail_url: thumbnailUrl.trim() || null,
-            thumbnail_path: thumbnailPath,
-            duration_seconds: durationSeconds,
-            storage_path: storagePath,
-            video_url: videoUrl,
-          })
+          .update(updatePayload)
           .eq('id', editTarget.id);
         if (updErr) throw updErr;
       } else {
@@ -232,13 +267,14 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
             category_id: categoryId,
             title: title.trim(),
             description: description.trim() || null,
-            thumbnail_url: thumbnailUrl.trim() || null,
             thumbnail_path: thumbnailPath,
             duration_seconds: durationSeconds,
             storage_path: storagePath,
             video_url: videoUrl,
             position: nextPos,
             is_active: true,
+            // 専用配信カテゴリーの動画は受講生ごとの個別配信が前提
+            audience: isPersonalCat ? 'assigned' : 'all',
           });
         if (insErr) throw insErr;
       }
@@ -332,22 +368,32 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
             label="カテゴリ" required
             value={categoryId}
             onChange={e => setCategoryId(e.target.value)}
-            options={(categories || []).map(c => ({ value: c.id, label: c.name }))}
+            options={(categories || []).map(c => ({ value: c.id, label: c.is_personal ? `${c.name}（専用配信）` : c.name }))}
           />
+          {isPersonalCat && (
+            <div style={{
+              padding: space[2],
+              background: alpha(color.info, 0.08),
+              border: `1px solid ${alpha(color.info, 0.3)}`,
+              borderRadius: radius.md, color: color.info, fontSize: font.size.xs,
+            }}>
+              専用配信カテゴリーです。アップロード後、「配信」から対象の受講生を指定してください。受講生画面では「(氏名)さん専用のAI講座」として表示されます。
+            </div>
+          )}
 
-          <Input
-            label="サムネイル URL（任意・上書き用）"
-            placeholder="未入力なら動画の冒頭フレームを自動使用"
-            value={thumbnailUrl}
-            onChange={e => setThumbnailUrl(e.target.value)}
-          />
-
-          {/* File picker */}
+          {/* 動画ファイル（クリック選択 ＋ ドラッグ＆ドロップ） */}
           <div>
             <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: space[1] }}>
               動画ファイル{isEdit ? '（差し替える場合のみ選択）' : ' (必須)'}
             </div>
-            <Card variant="subtle" padding="md">
+            <div
+              {...videoDrop}
+              style={{
+                background: videoOver ? alpha(color.navyLight, 0.08) : color.cream,
+                border: `2px dashed ${videoOver ? color.navy : color.border}`,
+                borderRadius: radius.md, padding: space[4],
+              }}
+            >
               <input
                 ref={fileInputRef}
                 type="file"
@@ -356,11 +402,11 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
                 style={{ display: 'none' }}
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
-                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={saving}>
                   ファイルを選択
                 </Button>
                 <div style={{ fontSize: font.size.sm, color: color.textDark, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {file ? `${file.name} (${formatBytes(file.size)})` : (isEdit ? '差し替えなし' : '未選択')}
+                  {file ? `${file.name} (${formatBytes(file.size)})` : (isEdit ? '差し替えなし' : 'ここに動画をドラッグ＆ドロップ')}
                 </div>
               </div>
               <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: space[2] }}>
@@ -371,19 +417,55 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
                   所要時間: {Math.floor(duration / 60)}分{duration % 60}秒
                 </div>
               )}
-              {thumbPreview && (
-                <div style={{ marginTop: space[2] }}>
-                  <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
-                    自動サムネイル（冒頭フレーム）
-                  </div>
-                  <img
-                    src={thumbPreview}
-                    alt="サムネイルプレビュー"
-                    style={{ width: 160, height: 90, objectFit: 'cover', borderRadius: radius.md, border: `1px solid ${color.border}` }}
-                  />
-                </div>
+            </div>
+          </div>
+
+          {/* サムネイル画像（クリック選択 ＋ ドラッグ＆ドロップ。未指定なら動画冒頭フレーム） */}
+          <div>
+            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, letterSpacing: font.letterSpacing.wide, marginBottom: space[1] }}>
+              サムネイル画像（任意）
+            </div>
+            <div
+              {...thumbDrop}
+              style={{
+                background: thumbOver ? alpha(color.navyLight, 0.08) : color.cream,
+                border: `2px dashed ${thumbOver ? color.navy : color.border}`,
+                borderRadius: radius.md, padding: space[4],
+                display: 'flex', alignItems: 'center', gap: space[4],
+              }}
+            >
+              <input
+                ref={thumbInputRef}
+                type="file"
+                accept="image/*"
+                onChange={e => handleThumbFile(e.target.files?.[0])}
+                style={{ display: 'none' }}
+              />
+              {previewSrc ? (
+                <img
+                  src={previewSrc}
+                  alt="サムネイルプレビュー"
+                  style={{ width: 160, height: 90, objectFit: 'cover', borderRadius: radius.md, border: `1px solid ${color.border}`, flexShrink: 0 }}
+                />
+              ) : (
+                <div style={{
+                  width: 160, height: 90, flexShrink: 0,
+                  background: color.gray100, borderRadius: radius.md,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: font.size.xs, color: color.textLight,
+                }}>No image</div>
               )}
-            </Card>
+              <div style={{ minWidth: 0 }}>
+                <Button variant="outline" onClick={() => thumbInputRef.current?.click()} disabled={saving}>
+                  画像を選択
+                </Button>
+                <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: space[2] }}>
+                  {manualThumbFile
+                    ? `指定画像: ${manualThumbFile.name}`
+                    : (thumbPreview ? '動画の冒頭フレームを自動使用中（画像を選ぶと差し替え）' : 'ここに画像をドラッグ＆ドロップ / 未指定なら動画の冒頭フレームを自動使用')}
+                </div>
+              </div>
+            </div>
           </div>
 
           {progress && (

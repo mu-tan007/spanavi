@@ -48,10 +48,16 @@ export default function CourseCategoryEditor({ open, onClose, categories, onChan
     setItems(next);
   };
 
+  const togglePersonal = (idx) => {
+    const next = [...items];
+    next[idx] = { ...next[idx], is_personal: !next[idx].is_personal };
+    setItems(next);
+  };
+
   const addNew = () => {
     const name = newName.trim();
     if (!name) return;
-    setItems([...items, { id: `new-${Date.now()}-${Math.random()}`, name, is_active: true, position: items.length, _new: true }]);
+    setItems([...items, { id: `new-${Date.now()}-${Math.random()}`, name, is_active: true, is_personal: false, position: items.length, _new: true }]);
     setNewName('');
   };
 
@@ -63,7 +69,7 @@ export default function CourseCategoryEditor({ open, onClose, categories, onChan
       // 既存更新 + 新規作成
       const updates = items.map((it, idx) => ({ ...it, position: idx }));
       const news = updates.filter(it => it._new).map(it => ({
-        org_id: orgId, name: it.name, position: it.position, is_active: it.is_active,
+        org_id: orgId, name: it.name, position: it.position, is_active: it.is_active, is_personal: !!it.is_personal,
       }));
       const olds = updates.filter(it => !it._new);
 
@@ -78,7 +84,7 @@ export default function CourseCategoryEditor({ open, onClose, categories, onChan
       for (const it of olds) {
         const { error: updErr } = await supabase
           .from('spacareer_course_categories')
-          .update({ name: it.name, position: it.position, is_active: it.is_active })
+          .update({ name: it.name, position: it.position, is_active: it.is_active, is_personal: !!it.is_personal })
           .eq('id', it.id);
         if (updErr) throw updErr;
       }
@@ -170,6 +176,14 @@ export default function CourseCategoryEditor({ open, onClose, categories, onChan
                     textDecoration: it.is_active ? 'none' : 'line-through',
                   }}
                 />
+                <Button
+                  size="sm"
+                  variant={it.is_personal ? 'primary' : 'outline'}
+                  onClick={() => togglePersonal(idx)}
+                  title="ONにすると受講生ごとの個別配信専用カテゴリーになり、受講生画面では「(氏名)さん専用のAI講座」として表示されます"
+                >
+                  専用配信
+                </Button>
                 <Button
                   size="sm"
                   variant={it.is_active ? 'outline' : 'secondary'}

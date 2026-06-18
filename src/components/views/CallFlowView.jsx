@@ -180,7 +180,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '' }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -692,6 +692,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setAppoModal(selectedRow);
     }
   }, [autoOpenAppoModal, selectedRow]);
+
+  // オートコール（スマートキュー経路）: ステータス入力で次企業へ送られた直後の
+  // マウントでのみ、オートコール ON なら自動発信する（一度だけ）。
+  // autoDialOnLoad は useCallQueue が「結果入力による前進」時のみ true で渡す。
+  // 初回起動・手動の前へ/次へでは false なので勝手に架電しない。
+  const _autoDialFiredRef = useRef(false);
+  useEffect(() => {
+    if (!autoDialOnLoad || !autoDial || _autoDialFiredRef.current) return;
+    if (selectedRow && selectedRow.id === defaultItemId && selectedRow.phone) {
+      _autoDialFiredRef.current = true;
+      dialPhone(selectedRow.phone);
+      setLastDialedPhone(selectedRow.phone);
+    }
+  }, [autoDialOnLoad, autoDial, selectedRow, defaultItemId]);
 
   // PiP: isMinimizedをrefで追跡
   const isMinimizedRef = useRef(false);

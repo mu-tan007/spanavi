@@ -61,7 +61,7 @@ export default function SpacareerCoursesView() {
       const orgId = getOrgId();
       const [catRes, vidRes, viewRes, favRes, asgRes] = await Promise.all([
         supabase.from('spacareer_course_categories')
-          .select('id, name, position, is_active')
+          .select('id, name, position, is_active, is_personal')
           .eq('org_id', orgId)
           .order('position', { ascending: true }),
         supabase.from('spacareer_course_videos')
@@ -327,8 +327,8 @@ function VideosTab({ loading, activeCategories, videosByCategory, assignCounts =
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: font.size.xs, color: color.textLight,
               }}>
-                {(v.thumbnail_url || v._thumbUrl)
-                  ? <img src={v.thumbnail_url || v._thumbUrl} alt={v.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(v._thumbUrl || v.thumbnail_url)
+                  ? <img src={v._thumbUrl || v.thumbnail_url} alt={v.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : 'No image'}
               </div>
             )},
@@ -379,7 +379,12 @@ function VideosTab({ loading, activeCategories, videosByCategory, assignCounts =
             key={cat.id}
             padding="none"
             title={cat.name}
-            action={<Badge variant="neutral">{list.length} 本</Badge>}
+            action={
+              <div style={{ display: 'inline-flex', gap: space[1], alignItems: 'center' }}>
+                {cat.is_personal && <Badge variant="info" dot>専用配信</Badge>}
+                <Badge variant="neutral">{list.length} 本</Badge>
+              </div>
+            }
           >
             <DataTable
               columns={columns}
