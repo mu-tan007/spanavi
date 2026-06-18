@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { color, space, radius, font } from '../../../../../constants/design';
+import { color, space, radius, font, alpha } from '../../../../../constants/design';
 import { Button, Card } from '../../../../ui';
+import { useFileDrop } from '../../../_shared/useFileDrop';
 import { supabase } from '../../../../../lib/supabase';
 import { getOrgId } from '../../../../../lib/orgContext';
 import { generateHomework30Items } from '../../../../../lib/spacareer/ai/mock';
@@ -42,6 +43,9 @@ export default function SessionCompleteFlow({
   const [lastResult, setLastResult] = useState(null);
   const [err, setErr] = useState(null);
 
+  // ドラッグ＆ドロップで動画アップロード（doUploadは完了済みセッションを内部でガード）
+  const { isOver: dropOver, dropHandlers } = useFileDrop((f) => { doUpload(f); }, uploading);
+
   if (!session) {
     return (
       <Card padding="md" style={{ border: `1px dashed ${color.border}` }}>
@@ -67,8 +71,12 @@ export default function SessionCompleteFlow({
     hasVideo && hasMinutes;
 
   async function handleUpload(e) {
-    const f = e.target.files?.[0];
+    await doUpload(e.target.files?.[0]);
+  }
+
+  async function doUpload(f) {
     if (!f) return;
+    if (status === 'completed') return;
     const BUCKET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
     if (f.size > BUCKET_LIMIT_BYTES) {
       setErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
@@ -467,10 +475,26 @@ export default function SessionCompleteFlow({
         paddingTop: space[3], borderTop: `1px solid ${color.borderLight}`,
       }}>
         <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: 'none' }} />
-        <Button variant="outline" size="sm" loading={uploading}
-          onClick={() => fileRef.current?.click()} disabled={status === 'completed'}>
-          動画アップロード
-        </Button>
+        <div
+          {...dropHandlers}
+          onClick={() => status !== 'completed' && !uploading && fileRef.current?.click()}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: space[2],
+            padding: `${space[1]}px ${space[3]}px`,
+            border: `2px dashed ${dropOver ? color.navy : color.border}`,
+            background: dropOver ? alpha(color.navyLight, 0.08) : 'transparent',
+            borderRadius: radius.md,
+            cursor: status === 'completed' || uploading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          <Button variant="outline" size="sm" loading={uploading}
+            onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }} disabled={status === 'completed'}>
+            動画アップロード
+          </Button>
+          <span style={{ fontSize: font.size.xs, color: color.textLight }}>
+            またはここにドラッグ＆ドロップ
+          </span>
+        </div>
         <Button variant="outline" size="sm" loading={generatingMinutes}
           onClick={handleGenerateMinutes} disabled={!hasVideo || status === 'completed'}>
           AI議事録を生成

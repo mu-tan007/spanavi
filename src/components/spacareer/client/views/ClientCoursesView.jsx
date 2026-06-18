@@ -28,6 +28,7 @@ export default function ClientCoursesView() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
+  const [memberName, setMemberName] = useState('');
   const [videos, setVideos] = useState([]);
   const [categories, setCategories] = useState([]);
   const [views, setViews] = useState({});
@@ -40,8 +41,9 @@ export default function ClientCoursesView() {
     let cancelled = false;
     (async () => {
       const { data: member } = await supabase
-        .from('members').select('id').eq('user_id', profile.id).maybeSingle();
+        .from('members').select('id, name').eq('user_id', profile.id).maybeSingle();
       if (!member) { setLoading(false); return; }
+      if (!cancelled) setMemberName(member.name || '');
       const { data: cust } = await supabase
         .from('spacareer_customers').select('id').eq('member_id', member.id).maybeSingle();
       if (cancelled) return;
@@ -250,6 +252,10 @@ export default function ClientCoursesView() {
           {[...categories, { id: '__uncategorized', name: 'その他' }].map(cat => {
             const list = videosByCategory.get(cat.id) || [];
             if (!list.length) return null;
+            // 専用配信カテゴリーは「(フルネーム)さん専用のAI講座」として表示
+            const headerName = cat.is_personal
+              ? `${memberName || 'あなた'}さん専用のAI講座`
+              : cat.name;
             return (
               <div key={cat.id}>
                 <div style={{
@@ -259,8 +265,9 @@ export default function ClientCoursesView() {
                   borderBottom: `1px solid ${color.borderLight}`,
                 }}>
                   <h2 style={{ margin: 0, fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy }}>
-                    {cat.name}
+                    {headerName}
                   </h2>
+                  {cat.is_personal && <Badge variant="info" dot size="sm">専用</Badge>}
                   <span style={{ fontSize: font.size.xs, color: color.textLight }}>{list.length}本</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: space[4] }}>
@@ -362,7 +369,7 @@ function VideoCard({ video, category, view, favorite, onToggleFavorite, onPlay }
         style={{
           position: 'relative',
           aspectRatio: '16 / 9',
-          background: (video.thumbnail_url || video._thumbUrl) ? `center / cover no-repeat url(${video.thumbnail_url || video._thumbUrl})` : color.navyDark,
+          background: (video._thumbUrl || video.thumbnail_url) ? `center / cover no-repeat url(${video._thumbUrl || video.thumbnail_url})` : color.navyDark,
           cursor: 'pointer',
         }}
       >
