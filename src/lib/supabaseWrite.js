@@ -2182,9 +2182,15 @@ export async function fetchCallRecordsByItemIds(itemIds) {
   // in() 自体の URL 長対策 + PostgREST max_rows (1000) 回避
   const IN_CHUNK = 200
   const PAGE = 1000
-  const all = []
-  for (let i = 0; i < itemIds.length; i += IN_CHUNK) {
-    const idsChunk = itemIds.slice(i, i + IN_CHUNK)
+  const CONCURRENCY = 6 // 直列だと数千件で30往復超→数秒。並列上限6で短縮しつつIOは抑制
+  // チャンク分割
+  const chunks = []
+  for (let i = 0; i < itemIds.length; i += IN_CHUNK) chunks.push(itemIds.slice(i, i + IN_CHUNK))
+
+  let firstError = null
+  // 1チャンク（ページング込み）を取得
+  const fetchChunk = async (idsChunk) => {
+    const out = []
     let from = 0
     while (true) {
       const { data, error } = await supabase
@@ -2195,12 +2201,23 @@ export async function fetchCallRecordsByItemIds(itemIds) {
         .range(from, from + PAGE - 1)
       if (error) {
         console.error('[DB] fetchCallRecordsByItemIds error:', error)
-        return { data: all, error }
+        if (!firstError) firstError = error
+        return out
       }
-      all.push(...(data || []))
+      out.push(...(data || []))
       if ((data || []).length < PAGE) break
       from += PAGE
     }
+    return out
+  }
+
+  const all = []
+  // CONCURRENCY 並列のバッチで順次実行
+  for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+    const batch = chunks.slice(i, i + CONCURRENCY)
+    const results = await Promise.all(batch.map(fetchChunk))
+    for (const r of results) all.push(...r)
+    if (firstError) return { data: all, error: firstError }
   }
   return { data: all, error: null }
 }

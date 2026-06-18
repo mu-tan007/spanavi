@@ -565,16 +565,33 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (closeRef) closeRef.current = handleClose;
   });
 
-  const getRecordsForItem = (itemId) => callRecords.filter(r => r.item_id === itemId);
+  // 架電記録を item_id でインデックス化。毎回の callRecords.filter / some を O(1) にし、
+  // 大規模リスト(数千件×数千記録)で filtered 内の項目別走査が O(n×m) に爆発するのを防ぐ。
+  const recordsByItem = useMemo(() => {
+    const m = new Map();
+    for (const r of callRecords) {
+      let arr = m.get(r.item_id);
+      if (!arr) { arr = []; m.set(r.item_id, arr); }
+      arr.push(r);
+    }
+    return m;
+  }, [callRecords]);
+  const excludedItemSet = useMemo(() => {
+    const s = new Set();
+    for (const r of callRecords) if (EXCLUDED_STATUSES.has(r.status)) s.add(r.item_id);
+    return s;
+  }, [callRecords, EXCLUDED_STATUSES]);
+
+  const getRecordsForItem = (itemId) => recordsByItem.get(itemId) || [];
   const getNextRound = (itemId) => {
     const recs = getRecordsForItem(itemId);
     return recs.length === 0 ? 1 : Math.max(...recs.map(r => r.round)) + 1;
   };
-  const isExcludedItem = (itemId) => callRecords.some(r => r.item_id === itemId && EXCLUDED_STATUSES.has(r.status));
+  const isExcludedItem = (itemId) => excludedItemSet.has(itemId);
   const isHiddenFromCallable = (itemId) => {
-    if (isExcludedItem(itemId)) return true;
-    const recs = getRecordsForItem(itemId);
-    if (recs.length === 0) return false;
+    if (excludedItemSet.has(itemId)) return true;
+    const recs = recordsByItem.get(itemId);
+    if (!recs || recs.length === 0) return false;
     const latestRec = recs.reduce((a, b) => (a.round || 0) >= (b.round || 0) ? a : b);
     return RECALL_STATUSES.has(latestRec.status);
   };
@@ -635,7 +652,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     return result;
   })();
 
-  const prefOptions = [...new Set(items.map(r => extractPref(r.address)).filter(Boolean))].sort();
+  const prefOptions = useMemo(() => [...new Set(items.map(r => extractPref(r.address)).filter(Boolean))].sort(), [items]);
 
   const COL_KEY_MAP = { 'No': 'no', '企業名': 'company', '事業内容': 'business', '代表者': 'representative', '電話番号': 'phone', '結果': 'call_status', '売上高': 'revenue', '当期純利益': 'net_income' };
   const NUMERIC_COLS = new Set(['no', 'revenue', 'net_income']);
