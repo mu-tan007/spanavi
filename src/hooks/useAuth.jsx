@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext, createContext } from 'react'
-import { supabase, isInviteFlow } from '../lib/supabase'
+import { supabase, isPasswordSetupFlow } from '../lib/supabase'
 import { setOrgId, clearOrgId } from '../lib/orgContext'
 
 const AuthContext = createContext(null)
@@ -24,8 +24,9 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(cachedProfile)
   // キャッシュがあればローディング不要（ページ復帰時に即表示）
   const [loading, setLoading] = useState(!cachedProfile)
-  // 招待リンク経由の初回ログインも recoveryMode 扱いでパスワード設定画面に飛ばす
-  const [recoveryMode, setRecoveryMode] = useState(isInviteFlow)
+  // 招待・パスワード再設定リンク経由の初回ログインを recoveryMode 扱いでパスワード設定画面に飛ばす。
+  // どちらもハッシュから同期捕捉する（PASSWORD_RECOVERY イベント頼みだとハッシュ消失レースに負ける）。
+  const [recoveryMode, setRecoveryMode] = useState(isPasswordSetupFlow)
 
   // プロフィール更新時にsessionStorageにもキャッシュ
   const updateProfile = (p) => {

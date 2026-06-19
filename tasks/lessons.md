@@ -163,3 +163,18 @@ const needRestoreClient = !loading && session && isClientRole && !inClientArea
 1. **ハンドラの先頭に処理を差し込む時、参照する関数/変数がそのスコープに実在するか必ず確認する**。同ファイルにある＝スコープ内、ではない（別関数内のローカル定義に注意）。grep で定義行が「どの関数の内側か」まで見る。
 2. **付随処理（切電・通知・録音URL取得等）は本体処理を絶対にblockしない**。本体（ステータス保存・遷移）の前に置く副作用は try/catch で隔離する。録音URL取得が「失敗してもステータス保存に影響しない」設計になっていたのと同じ原則を、切電にも最初から適用すべきだった。
 3. **本体フローに割り込むコードを足したら、ビルド成功だけでなく「その関数が最後まで走り切るか」を意識する**。ReferenceErrorはビルドを通る。
+
+---
+
+## 2026-06-20 招待/再設定リンクが通常ログイン画面に着地（recovery のハッシュ消失レース）
+
+**症状:** 新メンバー（鷲尾）が招待メール／パスワード再設定リンクを踏むと、パスワード設定画面ではなく通常のログイン画面に遷移。`auth.users` は `confirmed_at`・`last_sign_in_at` が更新済（＝サーバ側ではリンク消費成功）なのに `has_password=false` のまま＝一度もパスワード設定画面に到達できていない。
+
+**根因:** auth-js(2.95.3) は URL ハッシュ `#access_token...&type=recovery` を **Web Locks 取得後に非同期で** 読む(`GoTrueClient._initialize`)。一方この SPA は `main.jsx` で同期描画され、recovery リンク着地先 `/` は即 `App.jsx` の `<Navigate to="/login">` を描画して **ハッシュを消す**。auth-js がハッシュを読む頃にはトークンが消失 → セッション未確立・`PASSWORD_RECOVERY` 未発火 → 通常ログイン画面。invite 側は `isInviteFlow` を**モジュール読込時に同期捕捉**して耐性があったが、**recovery 側には同期捕捉が無く無防備**だった（非対称が真因）。
+
+**対処:** `supabase.js` に `isRecoveryFlow` / `isPasswordSetupFlow` / `isAuthCallbackError` を追加し同期捕捉。`App.jsx` 最上位で、パスワード設定コールバックと分かった時点では `Routes`(=ハッシュを消す Navigate)を一切描画せず、セッション確立まで `AuthCallbackLoader` で待ってから `ResetPasswordPage` を出す。期限切れ着地(`#error=...otp_expired`)は `ExpiredLinkNotice` で案内。
+
+**教訓（自分宛）:**
+1. **SPA の `<Navigate>` は URL ハッシュを消す。auth コールバック（access_token/code をハッシュ・クエリで受ける）が着地し得るルートでは、auth-js がトークンを読み終える前に絶対に Navigate させない**。「着地を同期検知 → 確立まで待つ」をルーティングの最優先ガードに置く。
+2. **auth-js の URL 処理は同期ではなく Web Locks 後の非同期**。`onAuthStateChange`/`getSession` のイベント頼みは、レンダー側がハッシュを消すと負ける。確実な着地検知は `window.location.hash` をモジュール読込時に同期で読む（`isInviteFlow` 方式）。
+3. **invite で効いている同期捕捉ガードは recovery/magiclink にも横展開する**。片方だけ守ると非対称バグになる。auth 経路を足したら全 type（invite/recovery/magiclink/error）で着地挙動を机上シミュレートする（lessons #2026-06-08 と同じ原則）。

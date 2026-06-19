@@ -8,8 +8,63 @@ import ClientPortalApp from './components/client/ClientPortalApp'
 import SpacareerClientApp from './components/spacareer/client/SpacareerClientApp'
 import SpacareerLoginPage from './components/spacareer/client/SpacareerLoginPage'
 import DesignPreview from './components/views/DesignPreview'
+import { isPasswordSetupFlow, isAuthCallbackError } from './lib/supabase'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+
+// 認証コールバック処理中のフルスクリーン待機表示。
+// ここで Routes(=Navigate to /login) を一切描画しないことで URL ハッシュを保持し、
+// auth-js が非同期でトークンを読み終えるのを待つ。
+function AuthCallbackLoader() {
+  // セッション確立が万一返ってこない場合の無限ローダー回避（12秒で案内に切替）。
+  const [stuck, setStuck] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setStuck(true), 12000)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)',
+      fontFamily: "'Noto Sans JP', sans-serif", padding: 20,
+    }}>
+      {stuck ? (
+        <div style={{ textAlign: 'center', maxWidth: 380 }}>
+          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 1.8, marginBottom: 20 }}>
+            認証の確認に時間がかかっています。<br />お手数ですが、もう一度リンクを開くか管理者に再送を依頼してください。
+          </p>
+          <button onClick={() => { window.location.href = '/login' }} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
+            ログイン画面へ
+          </button>
+        </div>
+      ) : (
+        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, letterSpacing: 1 }}>認証を確認しています...</p>
+      )}
+    </div>
+  )
+}
+
+// 招待/再設定リンクの期限切れ・使用済み着地の案内。
+function ExpiredLinkNotice() {
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)',
+      fontFamily: "'Noto Sans JP', sans-serif", padding: 20,
+    }}>
+      <div style={{ textAlign: 'center', maxWidth: 380 }}>
+        <p style={{ color: '#fff', fontSize: 15, fontWeight: 600, marginBottom: 10 }}>リンクの有効期限が切れています</p>
+        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 1.8, marginBottom: 24 }}>
+          招待 / パスワード再設定リンクは無効か、すでに使用済みです。<br />
+          管理者にメールの再送を依頼してください。
+        </p>
+        <button onClick={() => { window.location.href = '/login' }} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
+          ログイン画面へ
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function MainApp() {
   const { session, profile, loading, signOut, isAdmin, isStudent, recoveryMode, clearRecoveryMode, orgId } = useAuth()
@@ -157,6 +212,28 @@ export default function App() {
   // パスワードリカバリーは全ルートに優先
   // (Supabase recovery メールは Site URL "/" に着地するため、ルート要素より先に recoveryMode を捕捉する必要がある)
   const { recoveryMode, session, clearRecoveryMode } = useAuth()
+
+  // 招待 / パスワード再設定リンク着地ガード（最優先・Routes より前）。
+  // auth-js は URL ハッシュ(#access_token...&type=recovery)を Web Locks 取得後に
+  // 「非同期」で読む。一方この SPA は同期描画され、着地先 "/" は即
+  // <Navigate to="/login"> でハッシュを消すため、auth-js が読む前にトークンが
+  // 失われ、セッション未確立のまま通常ログイン画面に着地していた（鷲尾さん事例）。
+  // コールバックと分かった時点で Routes(=Navigate) を一切描画せず、ハッシュを保持し、
+  // セッション確立を待ってからパスワード設定画面を出す。
+  if (isAuthCallbackError) {
+    return <ExpiredLinkNotice />
+  }
+  if (isPasswordSetupFlow) {
+    if (session) {
+      return <ResetPasswordPage onComplete={() => {
+        clearRecoveryMode()
+        window.location.href = '/login'
+      }} />
+    }
+    // セッション確立待ち。ここで Navigate させない＝ハッシュを消さない。
+    return <AuthCallbackLoader />
+  }
+
   if (recoveryMode && session) {
     return <ResetPasswordPage onComplete={() => {
       clearRecoveryMode()

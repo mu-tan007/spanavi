@@ -6,6 +6,22 @@ import { createClient } from '@supabase/supabase-js'
 const _initialHash = typeof window !== 'undefined' ? window.location.hash : ''
 export const isInviteFlow = _initialHash.includes('type=invite')
 
+// パスワード再設定（recovery）リンクからの着地も招待と同様に同期捕捉する。
+// auth-js は URL ハッシュ(#access_token...&type=recovery)を Web Locks 取得後に
+// 「非同期」で読むため、React Router が同期的に <Navigate to="/login"> を描画して
+// ハッシュを消すと、auth-js がトークンを読む前に失われ、セッション未確立のまま
+// 通常ログイン画面に着地してしまう（recovery だけ isInviteFlow のような同期捕捉が
+// 無く無防備だったのが根因）。invite と同じく着地直後に同期で検知する。
+export const isRecoveryFlow = _initialHash.includes('type=recovery')
+
+// 招待 or パスワード再設定リンクからの着地（= パスワード設定画面へ誘導すべきコールバック）
+export const isPasswordSetupFlow = isInviteFlow || isRecoveryFlow
+
+// リンク期限切れ・使用済み等のエラー着地（#error=access_denied&error_code=otp_expired...）。
+// この場合ハッシュに type=invite/recovery は含まれないため別途検知する。
+export const isAuthCallbackError =
+  _initialHash.includes('error_code=') || _initialHash.includes('error=access_denied')
+
 // 代理ログイン（受講生ポータルを別タブで開く）タブの判定。
 // Supabase の認証セッションはタブ間共有の localStorage に保存されるため、
 // 代理ログインの magic link を通常クライアントで消費すると、共有セッションが
