@@ -38,15 +38,26 @@ export function isHomeworkUnnotifiedOverdue(row, now = new Date()) {
   return false;
 }
 
-/** 3. 提出物締切3日前到達（未提出 or 部分提出のまま） */
+/** 3. 提出物締切3日前到達（未提出 or 部分提出のまま）
+ *  「直近で完了したセッションの事後課題」だけを対象にする（isHomeworkUnnotifiedOverdue と同じスコープ）。
+ *  こうしないと、第1回課題が未提出のまま締切超過した状態が、第2回完了後もずっと
+ *  「締切3日前到達」として残り続け、本来追うべき第2回課題（→第3回締切）に切り替わらない。
+ *  第2回完了後は第2回課題、第3回完了後は第3回課題、と回ごとに自動で切り替わる。 */
 export function isHomeworkNearDeadline(row, now = new Date()) {
+  const sessions = row?.sessions || [];
   const homework = row?.homework || [];
-  return homework.some((h) => {
-    if (!h.due_at) return false;
-    if (h.status === 'completed' || h.status === 'submitted') return false;
-    if (h.status === 'unnotified') return false;
-    return +new Date(h.due_at) - +now <= 0;
-  });
+  const lastCompleted = [...sessions]
+    .filter((s) => s.status === 'completed' && s.completed_at)
+    .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))[0];
+  if (!lastCompleted) return false;
+  const no = lastCompleted.session_no ?? 0;
+  // 第0回(キックオフ)は事後課題なし、第8回完了(卒業)も対象外
+  if (no < 1 || no > 8) return false;
+  const h = homework.find((x) => x.session_no === no);
+  if (!h || !h.due_at) return false;
+  if (h.status === 'completed' || h.status === 'submitted') return false;
+  if (h.status === 'unnotified') return false;
+  return +new Date(h.due_at) - +now <= 0;
 }
 
 /** 4. セッション実施日を過ぎても完了が押されていない */
