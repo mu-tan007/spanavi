@@ -72,11 +72,14 @@ export default function ClientCoursesView() {
       });
       const urlMap = await createCourseVideoSignedUrls(paths, 7200); // 2時間有効
       if (cancelled) return;
-      const vidsWithUrls = visibleVids.map(v => ({
-        ...v,
-        _playUrl: v.storage_path ? (urlMap[v.storage_path] || null) : null,
-        _thumbUrl: v.thumbnail_path ? (urlMap[v.thumbnail_path] || null) : null,
-      }));
+      const vidsWithUrls = visibleVids
+        .map(v => ({
+          ...v,
+          _playUrl: v.storage_path ? (urlMap[v.storage_path] || null) : (v.video_url || null),
+          _thumbUrl: v.thumbnail_path ? (urlMap[v.thumbnail_path] || null) : null,
+        }))
+        // 再生URLを解決できなかった動画は表示しない（閲覧不可の幽霊動画を出さない）
+        .filter(v => !!v._playUrl);
       setVideos(vidsWithUrls);
       const vMap = {};
       (viewRows || []).forEach(v => { vMap[v.video_id] = v; });
