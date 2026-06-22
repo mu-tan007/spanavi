@@ -51,9 +51,18 @@
 - [x] C1 「マネタイズ領域診断（第2回）」→「（第1回事後課題）」表記修正
 
 ### Phase D: ② 公開フロー作り直し（最大）
-- [ ] D1 Edge Function: 30項目をモック→本物Claude生成
-- [ ] D2 セッション完了時はドラフト生成（notified_at 未設定・非公開）
-- [ ] D3 事後課題管理（横断ビュー）で項目編集＋「公開」ボタン（notified_at 付与）
+- [x] D1 Edge Function generate-spacareer-homework30: 本物Claude生成（本番deploy・実呼び出しで30項目検証済）
+- [x] D2 セッション完了時はドラフト生成（notified_at 未設定・非公開・Slack送らない／AI失敗時モックfallback）
+- [x] D3 顧客詳細「事後課題」タブに HomeworkDraftReview（項目編集＋AI再生成＋「受講生に公開」ボタン）
+  ※「事後課題管理」横断ビューは全モックのため、実装は実データ接続済の顧客詳細側に配置
+
+## レビュー
+- ③ 動画: RLS関数(user_id優先)＋course_videos RLS(配信先絞り)＋再生不可動画非表示。本番適用・検証済。
+- ①④a 提出履歴: 新テーブル＋トリガ＋RLS、受講生提出時スナップショット、基本情報タブに履歴表。今後分から蓄積。
+- ④b 診断ラベル: 第2回→「第1回事後課題」。表示UIは元々存在（データ完了で表示）。
+- ② フロー: 即公開→ドラフト生成→手動修正→公開へ。AIをモック→本物Claude化（fallback付き）。
+- 重要発見: 「事後課題管理」横断ビュー(SpacareerHomeworkView/HomeworkEditPanel)は全モック。実データ化は別タスク候補。
+- 全体: vite build 成功、Edge Function実呼び出し検証済、全migration本番適用済。
 
 ## レビュー
 （実装後に記入）

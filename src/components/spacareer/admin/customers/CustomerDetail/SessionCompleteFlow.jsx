@@ -20,12 +20,35 @@ const STEP_LABELS = [
   { id: 'minutes',  label: '2. AI議事録生成' },
   { id: 'hearing',  label: '3. ヒアリングシート確認' },
   { id: 'complete', label: '4. セッション完了' },
-  { id: 'homework', label: '5. 事後課題30項目を自動公開' },
+  { id: 'homework', label: '5. 事後課題30項目をAIドラフト生成（公開は手動）' },
 ];
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
 function formatJpDate(d) {
   return `${d.getFullYear()}年${pad(d.getMonth() + 1)}月${pad(d.getDate())}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// AI 30項目生成へ渡す文脈情報を detail から組み立てる（存在する項目だけを安全に拾う）。
+function buildHomeworkContext(detail, sessNo) {
+  if (!detail) return '';
+  const c = detail.customer || {};
+  const lines = [];
+  const name = c.member?.name || c.nickname;
+  if (name) lines.push(`氏名: ${name}`);
+  if (c.occupation) lines.push(`職業: ${c.occupation}`);
+  if (c.annual_income) lines.push(`年収帯: ${c.annual_income}`);
+  if (c.goal) lines.push(`目標: ${c.goal}`);
+  const ss = detail.socialStyle;
+  if (ss?.style_type || ss?.result_type) lines.push(`ソーシャルスタイル: ${ss.style_type || ss.result_type}`);
+  const md = detail.monetizationDiagnosis;
+  if (md?.result?.primary) {
+    lines.push(`マネタイズ診断の主戦場: ${md.result.primary.domainLabel} × ${md.result.primary.industryLabel}`);
+  }
+  // 直近（当該回）セッションのAI議事録があれば文脈として渡す。列名は環境差を考慮し複数候補を確認。
+  const sess = (detail.sessions || []).find((s) => s.session_no === sessNo);
+  const minutes = sess?.ai_minutes || sess?.minutes || sess?.minutes_text || sess?.summary;
+  if (minutes) lines.push(`第${sessNo}回セッションの議事録抜粋:\n${String(minutes).slice(0, 2500)}`);
+  return lines.join('\n');
 }
 
 export default function SessionCompleteFlow({
@@ -342,8 +365,9 @@ export default function SessionCompleteFlow({
           }
         }
       } else {
-        // 第2〜7回完了 → 「当該回の事後課題（AI30項目）」を生成し、第1回と同様に自動公開する。
-        // 事後課題は完了した回(session_no)に紐づく（第1回の publishHomework1 と採番を統一）。
+        // 第2〜7回完了 → 当該回の事後課題（AI30項目）を「ドラフト」生成する。
+        // 本来のフロー: AIが30項目生成 → トレーナーが事後課題タブで手動修正 → 「公開」で受講生へ配信。
+        // ここでは notified_at を付けず非公開のまま保存する（受講生にはまだ出さない）。
         // 締切は次回セッション開始の72時間前（取得不可なら7日後）。
         const sessNo = session.session_no;
         const { data: nextScheduled } = await supabase.from('spacareer_sessions')
@@ -356,60 +380,67 @@ export default function SessionCompleteFlow({
         if (!due) due = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         const nowIso2 = new Date().toISOString();
 
-        // homework ヘッダを upsert（当該回 session_no、自動公開＝notified_at セット）
+        // homework ヘッダを upsert（当該回 session_no、ドラフト＝notified_at は付けない）
         const { data: existing } = await supabase.from('spacareer_homework')
-          .select('id').eq('customer_id', customerId).eq('session_no', sessNo).maybeSingle();
+          .select('id, notified_at').eq('customer_id', customerId).eq('session_no', sessNo).maybeSingle();
         let homeworkId = existing?.id;
+        const alreadyPublished = !!existing?.notified_at;
         if (!homeworkId) {
           const { data: newHw, error: hwErr } = await supabase.from('spacareer_homework').insert({
             org_id: orgId, customer_id: customerId,
             session_id: session.id, session_no: sessNo,
-            status: 'unsubmitted',
-            notified_at: nowIso2,
+            status: 'unnotified',
             ai_generated_at: nowIso2,
             due_at: due.toISOString(),
           }).select('id').single();
           if (hwErr) throw hwErr;
           homeworkId = newHw.id;
-        } else {
+        } else if (!alreadyPublished) {
           await supabase.from('spacareer_homework').update({
-            status: 'unsubmitted', notified_at: nowIso2,
-            ai_generated_at: nowIso2, due_at: due.toISOString(),
+            status: 'unnotified', ai_generated_at: nowIso2, due_at: due.toISOString(),
           }).eq('id', homeworkId);
         }
 
-        const items = await generateHomework30Items({ customerId, nextSessionNo: sessNo });
-        const payload = items.map((it) => ({
-          org_id: orgId, homework_id: homeworkId,
-          position: it.position,
-          question_text: it.question_text,
-          question_hint: it.question_hint || null,
-          is_required: it.is_required,
-          max_length: it.max_length || null,
-        }));
-        await supabase.from('spacareer_homework_items').delete().eq('homework_id', homeworkId);
-        const { error: insErr } = await supabase.from('spacareer_homework_items').insert(payload);
-        if (insErr) throw insErr;
+        // 既に公開済みの課題は受講生の回答を壊さないよう、再生成・項目差し替えを行わない。
+        let count = 0, source = 'ai';
+        if (!alreadyPublished) {
+          // AI生成（前回議事録・プロフィール等を文脈として渡す）。失敗時はモックテンプレへフォールバック。
+          let items = null;
+          try {
+            const contextNotes = buildHomeworkContext(detail, sessNo);
+            const { data: gen, error: genErr } = await supabase.functions.invoke('generate-spacareer-homework30', {
+              body: {
+                customerName: detail?.customer?.member?.name || detail?.customer?.nickname || '受講生',
+                sessionNo: sessNo,
+                contextNotes,
+              },
+            });
+            if (!genErr && Array.isArray(gen?.items) && gen.items.length) items = gen.items;
+          } catch (e) {
+            console.error('[SessionCompleteFlow] homework30 AI error:', e);
+          }
+          if (!items) {
+            items = await generateHomework30Items({ customerId, nextSessionNo: sessNo });
+            source = 'mock';
+          }
 
-        // Slack通知（ベストエフォート。Slackチャンネル未作成でも課題自体は公開済み）
-        let notifyOk = true, notifyReason = null;
-        const deadlineDisplay = formatJpDate(due);
-        try {
-          const customerName = detail?.customer?.member?.name || detail?.customer?.nickname || '受講生';
-          const portalUrl = `${window.location.origin}/spacareer`;
-          const { data: nd, error: nErr } = await supabase.functions.invoke('spacareer-slack-notify', {
-            body: {
-              org_id: orgId, customer_id: customerId,
-              notify_key: 'portal_published',
-              vars: { 顧客名: customerName, セッション番号: String(sessNo), 締切日: deadlineDisplay, ポータルURL: portalUrl },
-            },
-          });
-          if (nErr || (nd && nd.ok === false)) { notifyOk = false; notifyReason = nErr?.message || nd?.error || 'unknown'; }
-        } catch (e) {
-          notifyOk = false; notifyReason = e.message || String(e);
+          const payload = items.map((it, i) => ({
+            org_id: orgId, homework_id: homeworkId,
+            position: it.position ?? i + 1,
+            question_text: it.question_text,
+            question_hint: it.question_hint || null,
+            is_required: it.is_required ?? false,
+            max_length: it.max_length || null,
+          }));
+          await supabase.from('spacareer_homework_items').delete().eq('homework_id', homeworkId);
+          const { error: insErr } = await supabase.from('spacareer_homework_items').insert(payload);
+          if (insErr) throw insErr;
+          count = payload.length;
         }
 
-        setLastResult({ kind: 'items_published', count: items.length, deadlineDisplay, notifyOk, notifyReason });
+        setLastResult(alreadyPublished
+          ? { kind: 'items_draft_skipped_published' }
+          : { kind: 'items_draft_generated', count, source, deadlineDisplay: formatJpDate(due) });
       }
 
       onCompleted && onCompleted({ event: 'completed', nextSessionNo: nextNo });
@@ -435,7 +466,7 @@ export default function SessionCompleteFlow({
       description={isKickoff
         ? '動画アップロード+AI議事録+9項目チェックを満たすと「セッション完了」が押せます。完了時にキックオフヒアリングが自動配信されます。'
         : generatesHomework
-          ? '必須ゲートを満たすと「セッション完了」が押せます。完了時に当該回の事後課題（AI30項目）を受講生ポータルへ自動公開します。'
+          ? '必須ゲートを満たすと「セッション完了」が押せます。完了時に当該回の事後課題（AI30項目）のドラフトを生成します。受講生への公開は「事後課題」タブで内容を確認・修正してから手動で行います。'
           : session.session_no === 1
             ? '必須ゲートを満たすと「セッション完了」が押せます。完了時に第1回事後課題（STEP1〜7・共通）を受講生ポータルへ自動配信します。'
             : '必須ゲートを満たすと「セッション完了」が押せます。'}
@@ -553,16 +584,26 @@ export default function SessionCompleteFlow({
           fontSize: font.size.sm, borderRadius: radius.md,
         }}>{err}</div>
       )}
-      {lastResult?.kind === 'items_published' && (
+      {lastResult?.kind === 'items_draft_generated' && (
+        <div style={{
+          marginTop: space[3], padding: space[3],
+          background: color.infoSoft, color: color.textDark,
+          fontSize: font.size.sm, borderRadius: radius.md,
+        }}>
+          事後課題（{lastResult.source === 'ai' ? 'AI生成' : 'AI生成に失敗したためテンプレ'} {lastResult.count} 項目）のドラフトを作成しました。
+          まだ受講生には公開されていません。「事後課題」タブで内容を確認・修正し、「受講生に公開」ボタンで配信してください。（締切目安：{lastResult.deadlineDisplay}）
+          {lastResult.source === 'mock' && (
+            <><br />※AI生成に失敗したため、テンプレ30問を仮置きしました。内容を確認・修正のうえ公開してください。</>
+          )}
+        </div>
+      )}
+      {lastResult?.kind === 'items_draft_skipped_published' && (
         <div style={{
           marginTop: space[3], padding: space[3],
           background: color.successSoft, color: '#1F6537',
           fontSize: font.size.sm, borderRadius: radius.md,
         }}>
-          事後課題（AI生成 {lastResult.count} 項目）を受講生ポータルに公開しました。提出期限：{lastResult.deadlineDisplay}
-          {lastResult.notifyOk === false && (
-            <><br />※Slack通知は送れませんでした（{lastResult.notifyReason || '理由不明'}）。課題自体は公開済みです。Slackチャンネル作成後、必要なら手動で連絡してください。</>
-          )}
+          この回の事後課題は既に公開済みのため、再生成はスキップしました（受講生の回答を保護）。
         </div>
       )}
       {lastResult?.kind === 'homework1_published' && (

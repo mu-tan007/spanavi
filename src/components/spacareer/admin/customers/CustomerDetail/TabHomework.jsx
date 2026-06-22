@@ -1,6 +1,7 @@
 import React from 'react';
 import { color, space, font, radius } from '../../../../../constants/design';
 import { Card, Badge, DataTable } from '../../../../ui';
+import HomeworkDraftReview from './HomeworkDraftReview';
 
 // ============================================================
 // 4. 事後課題タブ（個人ページ内サマリ）
@@ -42,7 +43,7 @@ function deadlineState(h) {
 const DEADLINE_LABEL = { on_time: '期限内達成', late: '期限後達成', overdue: '期限内未達成', none: '—' };
 const DEADLINE_VARIANT = { on_time: 'success', late: 'warn', overdue: 'danger', none: 'neutral' };
 
-export default function TabHomework({ detail }) {
+export default function TabHomework({ detail, customerId, onRefresh }) {
   const { homework = [], sessions = [] } = detail || {};
   const sessByNo = {};
   sessions.forEach((s) => { sessByNo[s.session_no] = s; });
@@ -69,6 +70,8 @@ export default function TabHomework({ detail }) {
 
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
+      <HomeworkDraftReview detail={detail} customerId={customerId} onRefresh={onRefresh} />
+
       <Card padding="md" title="事後課題 提出サマリ"
         action={<Badge variant={submitted >= 4 ? 'success' : 'warn'} dot>{submitted}/8 提出済み</Badge>}>
         <DataTable
@@ -101,7 +104,7 @@ export default function TabHomework({ detail }) {
         fontSize: font.size.sm,
         color: color.textMid,
       }}>
-        詳細な編集・OK判定・AI再生成は「事後課題管理」メニュー（横断ビュー）で行います。
+        第2〜7回の事後課題は、セッション完了時にAIがドラフト生成します。上の「事後課題ドラフト」で内容を確認・修正し「受講生に公開」すると、受講生のポータルに表示されます。
       </div>
     </div>
   );

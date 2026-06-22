@@ -162,7 +162,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
       case 'kickoff':         CenterContent = <TabKickoff detail={detail} onRefresh={refresh} />; break;
       case 'sessions':    CenterContent = <TabSessionHistory detail={detail} onRefresh={refresh} />; break;
       case 'feedback':    CenterContent = <TabSessionFeedback detail={detail} />; break;
-      case 'homework':    CenterContent = <TabHomework detail={detail} />; break;
+      case 'homework':    CenterContent = <TabHomework detail={detail} customerId={customerId} onRefresh={refresh} />; break;
       case 'strengths':   CenterContent = <TabStrengths detail={detail} />; break;
       case 'files':       CenterContent = <TabFiles detail={detail} />; break;
       case 'memo':        CenterContent = <TabMemo detail={detail} />; break;
