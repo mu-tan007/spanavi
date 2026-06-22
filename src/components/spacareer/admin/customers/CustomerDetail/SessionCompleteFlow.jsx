@@ -439,6 +439,11 @@ export default function SessionCompleteFlow({
           }
 
           // 固定課題（上）＋変動課題（下）を結合して30問にする。
+          // ※ 1回の bulk insert に渡す各行は「全く同じキー集合」にすること。
+          //    PostgREST はバルクinsertのカラムを全行キーの和集合で決め、
+          //    キーが欠けた行には DEFAULT ではなく明示 NULL を入れる。
+          //    item_type は NOT NULL のため、片方の行に item_type が無いと
+          //    "null value in column item_type" 制約違反になる（固定/変動混在時の根因）。
           let pos = 0;
           const fixedPayload = fixedItems.map((f) => ({
             org_id: orgId, homework_id: homeworkId,
@@ -447,6 +452,7 @@ export default function SessionCompleteFlow({
             question_text: f.question_text,
             question_hint: f.question_hint || null,
             is_required: f.is_required ?? true,
+            max_length: null,
             item_type: f.item_type || 'text',
             template_url: f.template_url || null,
             template_name: f.template_name || null,
@@ -454,10 +460,14 @@ export default function SessionCompleteFlow({
           const variablePayload = variable.map((it) => ({
             org_id: orgId, homework_id: homeworkId,
             position: ++pos,
+            section: null,
             question_text: it.question_text,
             question_hint: it.question_hint || null,
             is_required: it.is_required ?? false,
             max_length: it.max_length || null,
+            item_type: it.item_type || 'text',
+            template_url: null,
+            template_name: null,
           }));
           const payload = [...fixedPayload, ...variablePayload];
           await supabase.from('spacareer_homework_items').delete().eq('homework_id', homeworkId);

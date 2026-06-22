@@ -22,14 +22,22 @@ function toDateTimeInput(v) {
 // 既存の完了ゲート(SessionCompleteFlow)がそのbool値を参照する。
 // ============================================================
 
-// 第1回向け ヒアリング/確認チェックリスト（運用に合わせて項目編集可）
+// ヒアリング/確認チェックリスト（運用に合わせて項目編集可）。
+// 第2回以降は以下2項目を除外する（むー様指示 2026-06-23）:
+//   - check_values_review        キャリアの方向性・価値観の再確認
+//   - check_next_homework_guide  次回事後課題の提出方法・締切の説明
 const CHECK_FIELDS = [
   { key: 'check_homework_review',     label: '事後課題（宿題）の振り返り確認' },
   { key: 'check_goal_alignment',      label: '今回のゴール／到達イメージのすり合わせ' },
-  { key: 'check_values_review',       label: 'キャリアの方向性・価値観の再確認' },
-  { key: 'check_next_schedule',       label: '次回（第2回）の日程確認' },
-  { key: 'check_next_homework_guide', label: '次回事後課題の提出方法・締切の説明' },
+  { key: 'check_values_review',       label: 'キャリアの方向性・価値観の再確認', firstOnly: true },
+  { key: 'check_next_schedule',       label: '次回の日程確認' },
+  { key: 'check_next_homework_guide', label: '次回事後課題の提出方法・締切の説明', firstOnly: true },
 ];
+
+// 当該回で表示するチェック項目（第2回以降は firstOnly 項目を除外）
+function checkFieldsFor(sessionNo) {
+  return sessionNo >= 2 ? CHECK_FIELDS.filter((f) => !f.firstOnly) : CHECK_FIELDS;
+}
 
 export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const { customer, sessions, videos, kickoff } = detail || {};
@@ -65,8 +73,9 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id, targetSession?.hearing_sheet_json]);
   useEffect(() => { setNextStartAt(toDateTimeInput(nextSession?.scheduled_at)); }, [nextSession?.id, nextSession?.scheduled_at]);
 
-  const allChecked = CHECK_FIELDS.every((f) => !!form[f.key]);
-  const checkedCount = CHECK_FIELDS.filter((f) => !!form[f.key]).length;
+  const checkFields = useMemo(() => checkFieldsFor(sessionNo), [sessionNo]);
+  const allChecked = checkFields.every((f) => !!form[f.key]);
+  const checkedCount = checkFields.filter((f) => !!form[f.key]).length;
   const hasVideo = useMemo(
     () => (videos || []).some((v) => v.session?.session_no === sessionNo), [videos, sessionNo]);
   const hasMinutes = !!(targetSession?.minutes_draft || targetSession?.minutes_final);
@@ -282,13 +291,13 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
 
       <Card padding="md"
         title="ヒアリングシート"
-        description={`全${CHECK_FIELDS.length}項目チェック完了で「セッション完了」が押下可能になります（必須ゲート）。`}
+        description={`全${checkFields.length}項目チェック完了で「セッション完了」が押下可能になります（必須ゲート）。`}
         action={<Badge variant={allChecked ? 'success' : 'warn'} dot>
-          {checkedCount}/{CHECK_FIELDS.length} 項目チェック
+          {checkedCount}/{checkFields.length} 項目チェック
         </Badge>}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[1] }}>
-          {CHECK_FIELDS.map((f) => (
+          {checkFields.map((f) => (
             <label key={f.key} style={{
               display: 'flex', alignItems: 'center', gap: space[2],
               padding: `${space[2]}px ${space[2]}px`,
