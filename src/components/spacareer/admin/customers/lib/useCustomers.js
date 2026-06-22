@@ -105,7 +105,7 @@ export function useCustomerDetail(customerId) {
       const [
         customer, sessions, homework, kickoff, strength, sstyle, videos, slack,
         khSession, khAi, khResponses, khQuestions, monetizationDiag,
-        sessionFeedbacks, feedbackTemplate,
+        sessionFeedbacks, feedbackTemplate, homeworkSubmissions,
       ] = await Promise.all([
         supabase.from('spacareer_customers')
           .select(`*, member:members!spacareer_customers_member_id_fkey ( id, name, email, user_id )`)
@@ -151,6 +151,11 @@ export function useCustomerDetail(customerId) {
           .order('version', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        // 事後課題の提出スナップショット（提出回数ごとの達成率履歴）
+        supabase.from('spacareer_homework_submissions')
+          .select('*').eq('customer_id', customerId)
+          .order('session_no', { ascending: true })
+          .order('submitted_at', { ascending: true }),
       ]);
 
       const sessIds = new Set((sessions.data || []).map((s) => s.id));
@@ -180,6 +185,7 @@ export function useCustomerDetail(customerId) {
         monetizationDiagnosis: monetizationDiag.data || null,
         sessionFeedbacks: sessionFeedbacks.data || [],
         feedbackTemplate: feedbackTemplate.data?.content || null,
+        homeworkSubmissions: homeworkSubmissions.data || [],
       });
     } catch (e) {
       console.error('[useCustomerDetail] error:', e);

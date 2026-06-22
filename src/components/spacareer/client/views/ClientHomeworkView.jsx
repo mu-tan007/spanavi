@@ -220,6 +220,24 @@ export default function ClientHomeworkView() {
       const nonSubmit = items.filter(it => !isAnswered(it)).map(it => it.id);
       if (nonSubmit.length) await saveAnswers(nonSubmit, { setSubmitted: false });
       await recomputeHomeworkStatus();
+      // 提出のたびに、その時点の達成率スナップショットを1行記録する（提出回数ごとの履歴用）。
+      // 履歴記録の失敗で提出自体を止めないよう、エラーはログのみ。
+      try {
+        const pct = totalItems ? Math.round((submitIds.length / totalItems) * 100) : 0;
+        const { error: snapError } = await supabase.from('spacareer_homework_submissions').insert({
+          homework_id: selectedHomeworkId,
+          customer_id: customer?.id,
+          session_no: selectedHomework?.session_no,
+          due_at: selectedHomework?.due_at ?? null,
+          submitted_at: new Date().toISOString(),
+          percentage: pct,
+          answered_items: submitIds.length,
+          total_items: totalItems,
+        });
+        if (snapError) console.error('[ClientHomework] submission snapshot error:', snapError);
+      } catch (snapErr) {
+        console.error('[ClientHomework] submission snapshot error:', snapErr);
+      }
       // 提出できたことが必ず分かるよう完了ポップアップを出す。
       // 全問回答なら「しっかり提出できました」、一部なら提出済み件数を案内する。
       setEditing(false); // 提出したら再ロック

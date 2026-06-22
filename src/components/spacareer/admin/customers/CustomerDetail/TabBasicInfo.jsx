@@ -1,6 +1,6 @@
 import React from 'react';
 import { color, space, font, radius } from '../../../../../constants/design';
-import { Card, Badge } from '../../../../ui';
+import { Card, Badge, DataTable } from '../../../../ui';
 import { SOCIAL_STYLE_DESCRIPTIONS } from '../../social-style/socialStyleQuestions';
 
 // ============================================================
@@ -23,10 +23,36 @@ function dateOnly(v) {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+function dateTime(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export default function TabBasicInfo({ detail }) {
   if (!detail) return null;
   const { customer, trainer, socialStyle, monetizationDiagnosis } = detail;
   const member = customer?.member || {};
+
+  // 事後課題の提出履歴（提出回数ごとの達成率スナップショット）。
+  // useCustomerDetail で session_no昇順→submitted_at昇順に取得済み。回ごとに「N回目」を採番する。
+  const submissionRows = (() => {
+    const counter = {};
+    return (detail.homeworkSubmissions || []).map((s) => {
+      counter[s.session_no] = (counter[s.session_no] || 0) + 1;
+      const onTime = s.due_at ? new Date(s.submitted_at).getTime() <= new Date(s.due_at).getTime() : null;
+      return {
+        id: s.id,
+        session_label: `第${s.session_no}回`,
+        attempt_label: `${counter[s.session_no]}回目`,
+        due_at: s.due_at,
+        submitted_at: s.submitted_at,
+        percentage: s.percentage,
+        on_time: onTime,
+      };
+    });
+  })();
 
   // キックオフヒアリングの記入率（目安）。全項目を対象に、下限文字数があれば文字数比で按分した平均。
   const hearingQs = detail.kickoffHearingQuestions || [];
@@ -100,7 +126,7 @@ export default function TabBasicInfo({ detail }) {
         )}
       </Card>
 
-      <Card padding="md" title="マネタイズ領域診断（第2回）"
+      <Card padding="md" title="マネタイズ領域診断（第1回事後課題）"
         description="受講生が回答した、どの領域×業界で勝つかの診断結果とAIレポート。">
         {monetizationDiagnosis && monetizationDiagnosis.completed_at && monetizationDiagnosis.result?.primary ? (
           <>
@@ -149,6 +175,30 @@ export default function TabBasicInfo({ detail }) {
             担当トレーナー未アサイン。上部の「メンバー」タブから手動でアサインしてください。
           </div>
         )}
+      </Card>
+
+      <Card padding="md" title="事後課題 提出履歴"
+        description="受講生が「回答を提出」した各回の、提出日時とその時点の達成率。同じ回で複数回提出した場合は提出回数ごとに記録されます。">
+        <DataTable
+          columns={[
+            { key: 'session_label', label: '回', width: 70, align: 'left' },
+            { key: 'attempt_label', label: '提出回数', width: 90, align: 'center' },
+            { key: 'due_at', label: '締切日', width: 110, align: 'right',
+              render: (r) => dateOnly(r.due_at), cellStyle: { fontFamily: font.family.mono } },
+            { key: 'submitted_at', label: '提出日時', width: 150, align: 'right',
+              render: (r) => dateTime(r.submitted_at), cellStyle: { fontFamily: font.family.mono } },
+            { key: 'on_time', label: '期限', width: 90, align: 'center',
+              render: (r) => r.on_time == null
+                ? <span style={{ color: color.textLight }}>—</span>
+                : <Badge variant={r.on_time ? 'success' : 'warn'} dot>{r.on_time ? '期限内' : '期限後'}</Badge> },
+            { key: 'percentage', label: '達成率', width: 90, align: 'right',
+              render: (r) => <Badge variant={r.percentage >= 100 ? 'success' : r.percentage > 0 ? 'info' : 'neutral'} dot>{r.percentage}%</Badge> },
+          ]}
+          rows={submissionRows}
+          rowKey="id"
+          height="auto"
+          emptyMessage="まだ提出履歴がありません（本機能の追加後の提出から記録されます）。"
+        />
       </Card>
     </div>
   );
