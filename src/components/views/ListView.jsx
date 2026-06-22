@@ -837,13 +837,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         border: `1px solid ${color.border}`,
       }}>
         <input type="text" placeholder="企業名・リスト名・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={inputStyle}>
-          <option value="all">全種別</option>
-          <option value="M&A仲介">M&A仲介</option>
-          <option value="IFA">IFA</option>
-          <option value="ファンド">ファンド</option>
-          <option value="売り手FA">売り手FA</option>
-        </select>
+        {/* 旧「全種別」セレクト(call_lists.list_type の遺物)は撤去。商材→タイプ+アーカイブの軸に集約。 */}
         <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={inputStyle}>
           <option value="date">日付順</option>
           <option value="manager">担当者別</option>
