@@ -837,31 +837,6 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         border: `1px solid ${color.border}`,
       }}>
         <input type="text" placeholder="企業名・リスト名・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
-        {(() => {
-          const STATUS_OPTIONS = ['架電可能', '架電停止'];
-          const isAll = filterStatus.length === 0;
-          const toggleStatus = (label) => {
-            if (label === '全ステータス') { setFilterStatus([]); return; }
-            setFilterStatus(prev => prev.includes(label) ? prev.filter(s => s !== label) : [...prev, label]);
-          };
-          return (
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              {['全ステータス', ...STATUS_OPTIONS].map(label => {
-                const isActive = label === '全ステータス' ? isAll : filterStatus.includes(label);
-                return (
-                  <button key={label} onClick={() => toggleStatus(label)} style={{
-                    padding: '5px 10px', borderRadius: radius.md, cursor: 'pointer',
-                    fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
-                    background: isActive ? color.navy : color.cream,
-                    color: isActive ? color.white : color.textMid,
-                    border: `1px solid ${isActive ? color.navy : color.border}`,
-                    transition: 'all 0.12s', whiteSpace: 'nowrap',
-                  }}>{label}</button>
-                );
-              })}
-            </div>
-          );
-        })()}
         <select value={filterType} onChange={e => setFilterType(e.target.value)} style={inputStyle}>
           <option value="all">全種別</option>
           <option value="M&A仲介">M&A仲介</option>

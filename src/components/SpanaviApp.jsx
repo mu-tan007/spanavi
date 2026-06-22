@@ -486,7 +486,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         }
       });
   }, []);
-  const [filterStatus, setFilterStatus] = useState(["架電可能"]);
+  // 架電可能/架電停止 のステータスフィルタは撤去済み（商材→タイプ＋アーカイブの2軸に集約）。
+  // 既定は空配列＝全ステータス表示。停止リストも一覧に出る（行は薄いグレー＋■で表示される）。
+  const [filterStatus, setFilterStatus] = useState([]);
   const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedList, setSelectedList] = useState(null);
