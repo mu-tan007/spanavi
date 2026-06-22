@@ -404,34 +404,62 @@ export default function SessionCompleteFlow({
         // 既に公開済みの課題は受講生の回答を壊さないよう、再生成・項目差し替えを行わない。
         let count = 0, source = 'ai';
         if (!alreadyPublished) {
-          // AI生成（前回議事録・プロフィール等を文脈として渡す）。失敗時はモックテンプレへフォールバック。
-          let items = null;
-          try {
-            const contextNotes = buildHomeworkContext(detail, sessNo);
-            const { data: gen, error: genErr } = await supabase.functions.invoke('generate-spacareer-homework30', {
-              body: {
-                customerName: detail?.customer?.member?.name || detail?.customer?.nickname || '受講生',
-                sessionNo: sessNo,
-                contextNotes,
-              },
-            });
-            if (!genErr && Array.isArray(gen?.items) && gen.items.length) items = gen.items;
-          } catch (e) {
-            console.error('[SessionCompleteFlow] homework30 AI error:', e);
-          }
-          if (!items) {
-            items = await generateHomework30Items({ customerId, nextSessionNo: sessNo });
-            source = 'mock';
+          // 固定課題（全員共通）を読み込む。第3〜8回など未登録の回は固定0件＝全てAI変動。
+          const { data: fixedRows } = await supabase.from('spacareer_homework_fixed_items')
+            .select('*').eq('session_no', sessNo).eq('is_active', true).order('position', { ascending: true });
+          const fixedItems = fixedRows || [];
+          const variableCount = Math.max(0, 30 - fixedItems.length);
+
+          // 変動課題をAI生成（固定課題と重複しないよう共有）。失敗時はモックテンプレへフォールバック。
+          let variable = [];
+          if (variableCount > 0) {
+            let gen = null;
+            try {
+              const contextNotes = buildHomeworkContext(detail, sessNo);
+              const { data, error: genErr } = await supabase.functions.invoke('generate-spacareer-homework30', {
+                body: {
+                  customerName: detail?.customer?.member?.name || detail?.customer?.nickname || '受講生',
+                  sessionNo: sessNo,
+                  contextNotes,
+                  count: variableCount,
+                  fixedItems: fixedItems.map((f) => f.question_text),
+                },
+              });
+              if (!genErr && Array.isArray(data?.items) && data.items.length) gen = data.items;
+            } catch (e) {
+              console.error('[SessionCompleteFlow] homework30 AI error:', e);
+            }
+            if (gen) {
+              variable = gen;
+            } else {
+              const mock = await generateHomework30Items({ customerId, nextSessionNo: sessNo });
+              variable = mock.slice(0, variableCount);
+              source = 'mock';
+            }
           }
 
-          const payload = items.map((it, i) => ({
+          // 固定課題（上）＋変動課題（下）を結合して30問にする。
+          let pos = 0;
+          const fixedPayload = fixedItems.map((f) => ({
             org_id: orgId, homework_id: homeworkId,
-            position: it.position ?? i + 1,
+            position: ++pos,
+            section: f.section || null,
+            question_text: f.question_text,
+            question_hint: f.question_hint || null,
+            is_required: f.is_required ?? true,
+            item_type: f.item_type || 'text',
+            template_url: f.template_url || null,
+            template_name: f.template_name || null,
+          }));
+          const variablePayload = variable.map((it) => ({
+            org_id: orgId, homework_id: homeworkId,
+            position: ++pos,
             question_text: it.question_text,
             question_hint: it.question_hint || null,
             is_required: it.is_required ?? false,
             max_length: it.max_length || null,
           }));
+          const payload = [...fixedPayload, ...variablePayload];
           await supabase.from('spacareer_homework_items').delete().eq('homework_id', homeworkId);
           const { error: insErr } = await supabase.from('spacareer_homework_items').insert(payload);
           if (insErr) throw insErr;
@@ -590,7 +618,7 @@ export default function SessionCompleteFlow({
           background: color.infoSoft, color: color.textDark,
           fontSize: font.size.sm, borderRadius: radius.md,
         }}>
-          事後課題（{lastResult.source === 'ai' ? 'AI生成' : 'AI生成に失敗したためテンプレ'} {lastResult.count} 項目）のドラフトを作成しました。
+          事後課題（固定課題＋AI変動課題、計 {lastResult.count} 項目）のドラフトを作成しました。
           まだ受講生には公開されていません。「事後課題」タブで内容を確認・修正し、「受講生に公開」ボタンで配信してください。（締切目安：{lastResult.deadlineDisplay}）
           {lastResult.source === 'mock' && (
             <><br />※AI生成に失敗したため、テンプレ30問を仮置きしました。内容を確認・修正のうえ公開してください。</>

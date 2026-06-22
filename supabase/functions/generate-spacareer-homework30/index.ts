@@ -1,14 +1,17 @@
 // ============================================================
 // generate-spacareer-homework30
 // ----------------------------------------------------------------
-// 第2〜7回セッション完了時の「事後課題30項目」ドラフトを Claude で生成する。
-// 入力: { customerName, sessionNo, contextNotes }
+// 第2〜7回セッション完了時の事後課題のうち「変動課題」を Claude で生成する。
+// 入力: { customerName, sessionNo, contextNotes, count, fixedItems }
 //   - sessionNo    : 完了した回（この回の事後課題を生成）
 //   - contextNotes : 受講生のプロフィール/前回議事録/目標などの要約（任意）
+//   - count        : 生成する変動課題の数（既定30。固定課題と結合するため30未満になる）
+//   - fixedItems   : 既に確定している固定課題の文字列配列（重複回避のためAIに共有）
 // 出力: { items: [{position, question_text, question_hint, is_required, max_length}], usage }
 //
+// 呼び出し側で「固定課題 + 本関数の変動課題」を結合して30問にし、ドラフト保存する。
 // 生成後はトレーナーが管理画面で手動修正し、「公開」ボタンで受講生に配信する。
-// 生成失敗時はフロント側がモックテンプレ30問へフォールバックする。
+// 生成失敗時はフロント側がモックテンプレへフォールバックする。
 // ============================================================
 
 const corsHeaders = {
@@ -45,26 +48,39 @@ Deno.serve(async (req) => {
   const customerName: string = (payload?.customerName || '受講生').toString().slice(0, 80)
   const sessionNo: number = Number(payload?.sessionNo) || 2
   const contextNotes: string = (payload?.contextNotes || '').toString().slice(0, 6000)
+  // 生成する「変動課題」の数（固定課題を別途結合するため、30未満になることがある）。
+  const count: number = Math.max(1, Math.min(30, Number(payload?.count) || 30))
+  // 既に確定している固定課題（重複回避のためAIに共有する）。
+  const fixedItems: string[] = Array.isArray(payload?.fixedItems)
+    ? payload.fixedItems.map((x: any) => (typeof x === 'string' ? x : x?.question_text || '')).filter(Boolean).slice(0, 30)
+    : []
+
+  const fixedBlock = fixedItems.length
+    ? `# 既に確定している固定課題（これらは別途出題済み。重複しない補完的な問いを作ること）
+${fixedItems.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+`
+    : ''
 
   const prompt = `あなたはキャリアコーチング「スパキャリ」のトレーナーです。
 受講生「${customerName}」さんの第${sessionNo}回セッションが終わりました。
-次回（第${sessionNo + 1}回）セッションをより有意義にするための「事後課題」を、ちょうど30問作成してください。
+次回（第${sessionNo + 1}回）セッションをより有意義にするための「事後課題（変動課題）」を、ちょうど${count}問作成してください。
 
 # 受講生の状況（参考情報。空の場合は一般的な内容で構成すること）
 ${contextNotes || '（特記事項なし。第' + sessionNo + '回までの一般的な振り返りと次回への準備を中心に構成すること）'}
 
-# 設計方針
-- 構成の目安: 前半=前回セッションの振り返りと実行アクションの評価、中盤=自己理解（強み・価値観・感情）、後半=次回に向けた目標設定と具体的な行動計画。
+${fixedBlock}# 設計方針
+- 上記「固定課題」は別途必ず出題されるため、それと重複しない、補完的な問いを作ること。
+- 構成の目安: 前回セッションの振り返りと実行アクションの評価 / 自己理解（強み・価値観・感情） / 次回に向けた目標設定と具体的な行動計画。
 - 受講生が内省を深め、次回セッションで議論が弾むような、具体的で答えやすい問いにすること。
 - 上記「受講生の状況」に固有の論点があれば、それを踏まえた問いを必ず数問含めること。
-- 重要な問い（振り返り・目標・行動計画など）は is_required=true、補足的な問いは false にする。必須は15〜22問程度。
+- 全員一律で重ための内省課題とする。重要な問いは is_required=true、補足的な問いは false。必須は半数以上。
 - max_length は記述量の目安（文字数）。短い決意表明は300、通常の内省は500〜600、詳述が必要なものは800程度。
 
 # 出力形式（厳守）
 - 説明文・前置き・マークダウンは一切付けず、JSON配列のみを出力すること。
-- 配列はちょうど30要素。各要素は次のキーを持つオブジェクト:
-  { "position": 1〜30の整数, "question_text": "設問文(日本語)", "question_hint": "回答のヒント or null", "is_required": true/false, "max_length": 整数 }
-- position は1から30まで連番。絵文字は使わない。
+- 配列はちょうど${count}要素。各要素は次のキーを持つオブジェクト:
+  { "position": 1〜${count}の整数, "question_text": "設問文(日本語)", "question_hint": "回答のヒント or null", "is_required": true/false, "max_length": 整数 }
+- position は1から${count}まで連番。絵文字は使わない。
 
 JSON配列だけを出力してください。`
 
@@ -110,12 +126,12 @@ JSON配列だけを出力してください。`
     return json({ error: 'failed to parse Claude output' }, 502)
   }
 
-  // 正規化（position連番・型の安全化・最大30件）
-  const normalized = items.slice(0, 30).map((it: any, idx: number) => ({
+  // 正規化（position連番・型の安全化・要求された count 件まで）
+  const normalized = items.slice(0, count).map((it: any, idx: number) => ({
     position: idx + 1,
     question_text: String(it?.question_text || '').trim() || `設問${idx + 1}`,
     question_hint: it?.question_hint ? String(it.question_hint).trim() : null,
-    is_required: it?.is_required === undefined ? idx < 18 : !!it.is_required,
+    is_required: it?.is_required === undefined ? true : !!it.is_required,
     max_length: Number.isFinite(Number(it?.max_length)) ? Number(it.max_length) : 500,
   }))
 

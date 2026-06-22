@@ -74,9 +74,13 @@ export default function HomeworkDraftReview({ detail, customerId, onRefresh }) {
       org_id: orgId,
       homework_id: selected.id,
       position: i + 1,
+      section: it.section || null,
       question_text: (it.question_text || '').trim() || `設問${i + 1}`,
       question_hint: it.question_hint ? String(it.question_hint).trim() : null,
       is_required: !!it.is_required,
+      item_type: it.item_type || 'text',
+      template_url: it.template_url || null,
+      template_name: it.template_name || null,
       max_length: it.max_length || null,
     }));
     const { error: delErr } = await supabase.from('spacareer_homework_items').delete().eq('homework_id', selected.id);
@@ -100,24 +104,53 @@ export default function HomeworkDraftReview({ detail, customerId, onRefresh }) {
   }
 
   async function handleRegenerate() {
-    if (!window.confirm('AIで30項目を再生成します。現在の編集内容は上書きされます。よろしいですか？')) return;
+    if (!window.confirm('AIで変動課題を再生成します。固定課題はマスターから取り直し、現在の編集内容は上書きされます。よろしいですか？')) return;
     setRegenerating(true); setMsg(null);
     try {
-      const { data: gen, error: genErr } = await supabase.functions.invoke('generate-spacareer-homework30', {
-        body: { customerName, sessionNo: selected.session_no, contextNotes: '' },
-      });
-      if (genErr || !Array.isArray(gen?.items) || !gen.items.length) {
-        throw new Error(genErr?.message || 'AI生成に失敗しました');
+      // 固定課題をマスターから取り直し、変動分だけAI再生成して結合する。
+      const { data: fixedRows } = await supabase.from('spacareer_homework_fixed_items')
+        .select('*').eq('session_no', selected.session_no).eq('is_active', true).order('position', { ascending: true });
+      const fixedItems = fixedRows || [];
+      const variableCount = Math.max(0, 30 - fixedItems.length);
+
+      let variable = [];
+      if (variableCount > 0) {
+        const { data: gen, error: genErr } = await supabase.functions.invoke('generate-spacareer-homework30', {
+          body: {
+            customerName,
+            sessionNo: selected.session_no,
+            contextNotes: '',
+            count: variableCount,
+            fixedItems: fixedItems.map((f) => f.question_text),
+          },
+        });
+        if (genErr || !Array.isArray(gen?.items) || !gen.items.length) {
+          throw new Error(genErr?.message || 'AI生成に失敗しました');
+        }
+        variable = gen.items;
       }
-      setItems(gen.items.map((it, i) => ({
+
+      const fixedEditable = fixedItems.map((f, i) => ({
+        _key: `fix_${i}`,
+        position: i + 1,
+        section: f.section || null,
+        question_text: f.question_text || '',
+        question_hint: f.question_hint || null,
+        is_required: f.is_required ?? true,
+        item_type: f.item_type || 'text',
+        template_url: f.template_url || null,
+        template_name: f.template_name || null,
+      }));
+      const variableEditable = variable.map((it, i) => ({
         _key: `gen_${i}`,
-        position: it.position ?? i + 1,
+        position: fixedItems.length + i + 1,
         question_text: it.question_text || '',
         question_hint: it.question_hint || null,
         is_required: !!it.is_required,
         max_length: it.max_length || 500,
-      })));
-      setMsg({ kind: 'ok', text: 'AIで再生成しました。内容を確認・修正のうえ「下書き保存」または「受講生に公開」してください。' });
+      }));
+      setItems([...fixedEditable, ...variableEditable]);
+      setMsg({ kind: 'ok', text: 'AIで再生成しました（固定課題＋AI変動）。内容を確認・修正のうえ「下書き保存」または「受講生に公開」してください。' });
     } catch (e) {
       setMsg({ kind: 'err', text: `再生成に失敗しました: ${e.message || e}` });
     } finally {
