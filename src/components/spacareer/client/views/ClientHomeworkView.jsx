@@ -90,6 +90,7 @@ export default function ClientHomeworkView() {
         .from('spacareer_homework_items')
         .select('*')
         .eq('homework_id', selectedHomeworkId)
+        .eq('is_published', true) // 変動課題のドラフト(is_published=false)は受講生に見せない
         .order('position', { ascending: true });
       if (cancelled) return;
       if (error) { console.error('[ClientHomework] items error:', error); return; }

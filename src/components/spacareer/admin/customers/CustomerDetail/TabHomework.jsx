@@ -1,7 +1,7 @@
 import React from 'react';
 import { color, space, font, radius } from '../../../../../constants/design';
 import { Card, Badge, DataTable } from '../../../../ui';
-import HomeworkDraftReview from './HomeworkDraftReview';
+import HomeworkVariableEditor from './HomeworkVariableEditor';
 
 // ============================================================
 // 4. 事後課題タブ（個人ページ内サマリ）
@@ -70,7 +70,7 @@ export default function TabHomework({ detail, customerId, onRefresh }) {
 
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
-      <HomeworkDraftReview detail={detail} customerId={customerId} onRefresh={onRefresh} />
+      <HomeworkVariableEditor detail={detail} customerId={customerId} onRefresh={onRefresh} />
 
       <Card padding="md" title="事後課題 提出サマリ"
         action={<Badge variant={submitted >= 4 ? 'success' : 'warn'} dot>{submitted}/8 提出済み</Badge>}>
@@ -104,7 +104,7 @@ export default function TabHomework({ detail, customerId, onRefresh }) {
         fontSize: font.size.sm,
         color: color.textMid,
       }}>
-        第2〜7回の事後課題は、セッション完了時にAIがドラフト生成します。上の「事後課題ドラフト」で内容を確認・修正し「受講生に公開」すると、受講生のポータルに表示されます。
+        固定の事後課題とセッション感想は、各回の予定日時を過ぎると自動でポータルに公開されます。第2〜7回の変動課題は、上の「変動課題」で議事録等を踏まえてAI生成・修正し「追加公開」すると受講生のポータルに追記されます。
       </div>
     </div>
   );
