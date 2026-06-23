@@ -322,8 +322,8 @@ export default function ClientFeedbackView() {
               style={submitted ? readonlyTextareaStyle : textareaStyle}
             />
             <div style={{ textAlign: 'right', fontSize: font.size.xs, marginTop: space[1],
-              color: freeCommentOk ? color.textLight : color.danger }}>
-              {(freeComment || '').length} 文字（最低{FREE_COMMENT_MIN}文字）
+              color: color.textLight }}>
+              {(freeComment || '').length} 文字
             </div>
           </Card>
 
@@ -369,10 +369,10 @@ export default function ClientFeedbackView() {
                   readOnly={submitted}
                   style={submitted ? readonlyTextareaStyle : textareaStyle}
                 />
-                {(q.max_length || q.min_length) ? (
+                {q.max_length ? (
                   <div style={{ textAlign: 'right', fontSize: font.size.xs, marginTop: space[1],
-                    color: (!q.min_length || val.trim().length >= q.min_length) ? color.textLight : color.danger }}>
-                    {val.length}{q.max_length ? ` / ${q.max_length}` : ''} 文字{q.min_length ? `（最低${q.min_length}文字）` : ''}
+                    color: color.textLight }}>
+                    {val.length} / {q.max_length} 文字
                   </div>
                 ) : null}
               </Card>

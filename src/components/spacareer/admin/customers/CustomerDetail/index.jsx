@@ -26,7 +26,6 @@ import TabSessionManage from './TabSessionManage';
 import TabSessionHistory from './TabSessionHistory';
 import TabSessionFeedback from './TabSessionFeedback';
 import TabHomework from './TabHomework';
-import TabStrengths from './TabStrengths';
 import TabFiles from './TabFiles';
 import TabMemo from './TabMemo';
 import TabMembers from './TabMembers';
@@ -44,7 +43,6 @@ const TABS = [
   { id: 'sessions',        label: 'セッション履歴' },
   { id: 'feedback',        label: 'セッション感想' },
   { id: 'homework',        label: '事後課題' },
-  { id: 'strengths',       label: '強み・価値観' },
   { id: 'files',           label: 'ファイル' },
   { id: 'memo',            label: 'メモ' },
   { id: 'members',         label: 'メンバー' },
@@ -163,8 +161,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
       case 'sessions':    CenterContent = <TabSessionHistory detail={detail} onRefresh={refresh} />; break;
       case 'feedback':    CenterContent = <TabSessionFeedback detail={detail} />; break;
       case 'homework':    CenterContent = <TabHomework detail={detail} customerId={customerId} onRefresh={refresh} />; break;
-      case 'strengths':   CenterContent = <TabStrengths detail={detail} />; break;
-      case 'files':       CenterContent = <TabFiles detail={detail} />; break;
+      case 'files':       CenterContent = <TabFiles detail={detail} onRefresh={refresh} />; break;
       case 'memo':        CenterContent = <TabMemo detail={detail} />; break;
       case 'members':     CenterContent = <TabMembers detail={detail} isAdmin={isAdmin} canAssign={canImpersonate} onRefresh={refresh} />; break;
       case 'video_logs':  CenterContent = <TabVideoLogs detail={detail} />; break;

@@ -62,6 +62,8 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
 
   const [form, setForm] = useState(() => buildForm(targetSession));
   const [nextStartAt, setNextStartAt] = useState(() => toDateTimeInput(nextSession?.scheduled_at));
+  const [nextSavedAt, setNextSavedAt] = useState(null);
+  const nextSaveTimer = useRef(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -71,7 +73,30 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const videoFileRef = useRef(null);
 
   useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id, targetSession?.hearing_sheet_json]);
-  useEffect(() => { setNextStartAt(toDateTimeInput(nextSession?.scheduled_at)); }, [nextSession?.id, nextSession?.scheduled_at]);
+  // 次回日時はセッション切替時(id変化)のみ初期化する。scheduled_at の変化では上書きしない
+  // （入力中に動画アップロード等でリフレッシュが走っても入力値が消えないようにするため）。
+  useEffect(() => { setNextStartAt(toDateTimeInput(nextSession?.scheduled_at)); }, [nextSession?.id]);
+
+  // 次回（第N+1回）開始日時を入力即時で自動保存する（保存ボタン押し忘れ・リフレッシュでの消失対策）。
+  function handleNextStartAtChange(value) {
+    setNextStartAt(value);
+    setNextSavedAt(null);
+    if (!nextSession) return;
+    if (nextSaveTimer.current) clearTimeout(nextSaveTimer.current);
+    nextSaveTimer.current = setTimeout(async () => {
+      try {
+        const iso = value ? new Date(value).toISOString() : null;
+        const { error } = await supabase.from('spacareer_sessions')
+          .update({ scheduled_at: iso }).eq('id', nextSession.id);
+        if (error) throw error;
+        setNextSavedAt(new Date());
+        onRefresh && onRefresh();
+      } catch (e) {
+        console.error('[TabSessionManage] next datetime autosave error:', e);
+      }
+    }, 600);
+  }
+  useEffect(() => () => { if (nextSaveTimer.current) clearTimeout(nextSaveTimer.current); }, []);
 
   const checkFields = useMemo(() => checkFieldsFor(sessionNo), [sessionNo]);
   const allChecked = checkFields.every((f) => !!form[f.key]);
@@ -338,11 +363,16 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
 
       {nextSession && (
         <Card padding="md" title={`次回（第${sessionNo + 1}回）開始日時`}
-          description="次回セッションの開始日時を確定します。セッション履歴・受講生ポータルにも反映されます。">
+          description="入力するとその場で自動保存され、セッション履歴・受講生ポータルに反映されます。この日時を過ぎると固定の事後課題とセッション感想が自動公開されます。">
           <Input size="sm" label={`第${sessionNo + 1}回 開始日時（日付＋時間）`} type="datetime-local"
             value={nextStartAt}
-            onChange={(e) => setNextStartAt(e.target.value)}
-            hint="保存すると次回セッションのスケジュールに反映されます。" />
+            onChange={(e) => handleNextStartAtChange(e.target.value)}
+            hint="入力した瞬間に自動保存されます（保存ボタン不要）。" />
+          {nextSavedAt && (
+            <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.success }}>
+              自動保存しました（{nextSavedAt.toLocaleTimeString()}）
+            </div>
+          )}
         </Card>
       )}
 

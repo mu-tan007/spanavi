@@ -62,14 +62,16 @@ export default function ClientHomeworkView() {
           .maybeSingle();
         if (!cancelled) setKickoffHearingStatus(kh?.status || null);
 
+        // 最新の回を先頭に出す（session_no 降順）。公開済み(notified_at)のみ表示。
         const { data: hws } = await supabase
           .from('spacareer_homework')
           .select('id, session_no, status, notified_at, due_at, submitted_at, first_completed_at')
           .eq('customer_id', cust.id)
           .not('notified_at', 'is', null)
-          .order('session_no', { ascending: true });
+          .order('session_no', { ascending: false });
         if (cancelled) return;
         setHomeworks(hws || []);
+        // 先頭(最新回)から見て未完了の最初を選択。全完了なら最新回を選択。
         const target = (hws || []).find(h => h.status !== 'completed') || (hws || [])[0];
         setSelectedHomeworkId(target?.id || '');
       }
