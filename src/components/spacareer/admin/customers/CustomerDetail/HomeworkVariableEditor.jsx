@@ -262,8 +262,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
 
   return (
     <Card padding="md"
-      title="事後課題：変動課題（AI生成・第2〜7回）"
-      description="固定の事後課題は予定日時に自動公開済みです。ここでは議事録等を踏まえた変動課題をAI生成→修正し「追加公開」で受講生に追記します。"
+      title={`事後課題：変動課題（第${selected?.session_no}回・AI生成）`}
+      description="固定の事後課題は予定日時に自動公開済みです。ここでは議事録等を踏まえた変動課題をAI生成→修正し「追加公開」で受講生に追記します。記述/ファイル提出を切り替えられます。"
       action={targets.length > 1
         ? <Select size="sm" fullWidth={false} value={selected?.id || ''}
             onChange={(e) => setSelectedId(e.target.value)}
