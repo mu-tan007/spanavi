@@ -80,6 +80,18 @@
 5. 事後課題タブ：変動生成ボタン＋ドラフト編集拡張＋手動停止/再公開。
 6. E2E 検証（scheduled_at を過去にして cron 手動 invoke → ポータル確認）。
 
+## 実装状況（2026-06-23 完了・本番反映済み）
+- [x] フェーズ1 マイグレーション 20260623100000（items.source/is_published、homework.fixed_published_at＋既存バックフィル）
+- [x] フェーズ2/3 公開関数＋cron 20260623110000（fn_spacareer_publish_due_fixed、毎時25分 jobid=35）
+      ※ DBのみで実装（Edge Function不使用）。Slack通知は未実装（ポータル表示で代替。必要なら後追い）。
+- [x] フェーズ4 クライアント is_published フィルタ＋SessionCompleteFlow簡素化
+- [x] フェーズ5 事後課題タブ HomeworkVariableEditor（変動AI生成→修正→追加公開、固定公開の停止/再公開）
+- [x] 検証: 関数手動実行で第2回固定マスター9項目＋感想を公開（テスト太郎/福原）、既存ドラフト保護を確認
+
+## 残（任意・後追い）
+- 自動公開時のSlack通知（cronから spacareer-slack-notify を pg_net で発火）。現状はポータル表示のみ。
+- 変動課題AIプロンプトの本実装（設計書 spacareer-homework-engine-design.md の4階層分解）。現状はEdge Function既存版＋モックfallback。
+
 ## 検証時の注意（過去メモ）
 - pg_cron からの Edge Function 呼び出しは Authorization+apikey 必須、config の verify_jwt は信用しない。
 - Edge Function I/F 変更は main マージだけで終わらず本番 deploy＋1件検証。
