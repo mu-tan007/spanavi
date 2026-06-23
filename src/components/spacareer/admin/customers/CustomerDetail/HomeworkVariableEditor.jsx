@@ -24,13 +24,15 @@ function fmtDateTime(v) {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-export default function HomeworkVariableEditor({ detail, customerId, onRefresh }) {
-  // 固定公開済み（fixed_published_at あり）の第2〜7回が変動課題の対象。
+export default function HomeworkVariableEditor({ detail, customerId, sessionNo = null, onRefresh }) {
+  // 固定公開済み（fixed_published_at あり）の第2〜8回が変動課題の対象。
+  // sessionNo 指定時はその回のみ（セッション管理タブ埋め込み用）。
   const targets = useMemo(
     () => (detail?.homework || [])
-      .filter((h) => h.session_no >= 2 && h.session_no <= 7 && h.fixed_published_at)
+      .filter((h) => h.session_no >= 2 && h.session_no <= 8 && h.fixed_published_at
+        && (sessionNo ? h.session_no === sessionNo : true))
       .sort((a, b) => a.session_no - b.session_no),
-    [detail?.homework],
+    [detail?.homework, sessionNo],
   );
   const [selectedId, setSelectedId] = useState('');
   const [fixedItems, setFixedItems] = useState([]);       // source='fixed'（読取専用）
@@ -76,7 +78,20 @@ export default function HomeworkVariableEditor({ detail, customerId, onRefresh }
     return () => { cancelled = true; };
   }, [selected?.id]);
 
-  if (!targets.length) return null;
+  if (!targets.length) {
+    // セッション管理タブ埋め込み時は、未公開でも案内を出す（第2〜7回のみ対象）。
+    if (sessionNo && sessionNo >= 2 && sessionNo <= 8) {
+      return (
+        <Card padding="md" title="事後課題：変動課題（AI生成）">
+          <div style={{ fontSize: font.size.sm, color: color.textMid }}>
+            この回の固定事後課題はまだ自動公開されていません。第{sessionNo}回の予定日時を過ぎると
+            固定事後課題＋セッション感想が自動公開され、ここで変動課題を生成・追加公開できるようになります。
+          </div>
+        </Card>
+      );
+    }
+    return null;
+  }
 
   const lockedCount = fixedItems.length + publishedVar.length;
   const variableTarget = Math.max(1, TARGET_TOTAL - fixedItems.length - publishedVar.length);
@@ -85,7 +100,7 @@ export default function HomeworkVariableEditor({ detail, customerId, onRefresh }
   const remove = (key) => setDrafts((prev) => prev.filter((it) => it._key !== key));
   const add = () => setDrafts((prev) => [
     ...prev,
-    { _key: `new_${prev.length}_${Date.now()}`, question_text: '', question_hint: null, is_required: false, max_length: 500 },
+    { _key: `new_${prev.length}_${Date.now()}`, question_text: '', question_hint: null, is_required: false, max_length: 500, item_type: 'text' },
   ]);
 
   // 議事録など、AIへ渡す当該回の文脈メモを組み立てる。
@@ -129,7 +144,8 @@ export default function HomeworkVariableEditor({ detail, customerId, onRefresh }
         question_text: it.question_text || '',
         question_hint: it.question_hint || null,
         is_required: !!it.is_required,
-        max_length: it.max_length || 500,
+        item_type: it.item_type === 'file' ? 'file' : 'text',
+        max_length: it.item_type === 'file' ? null : (it.max_length || 500),
       })));
       setMsg({ kind: 'ok', text: source === 'mock'
         ? 'AI生成に失敗したため、テンプレを仮置きしました。内容を確認・修正のうえ「追加公開」してください。'
@@ -154,8 +170,8 @@ export default function HomeworkVariableEditor({ detail, customerId, onRefresh }
       question_text: (it.question_text || '').trim() || `設問${base + i + 1}`,
       question_hint: it.question_hint ? String(it.question_hint).trim() : null,
       is_required: !!it.is_required,
-      max_length: it.max_length || null,
-      item_type: 'text',
+      max_length: it.item_type === 'file' ? null : (it.max_length || null),
+      item_type: it.item_type === 'file' ? 'file' : 'text',
       template_url: null,
       template_name: null,
       source: 'variable',
@@ -295,13 +311,31 @@ export default function HomeworkVariableEditor({ detail, customerId, onRefresh }
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
-          {/* 固定＋公開済み変動（読取専用） */}
-          {(fixedItems.length > 0 || publishedVar.length > 0) && (
+          {/* 固定課題（読取専用・内容表示）。何が固定課題かを確認できるようにする。 */}
+          {fixedItems.length > 0 && (
+            <div style={{
+              padding: space[3], background: color.cream, borderRadius: radius.md,
+              fontSize: font.size.xs, color: color.textMid,
+            }}>
+              <div style={{ fontWeight: font.weight.semibold, color: color.textDark, marginBottom: space[1] }}>
+                固定課題（全員共通・公開済み・編集不可）{fixedItems.length}項目
+              </div>
+              <ol style={{ margin: 0, paddingLeft: space[4], display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {fixedItems.map((f) => (
+                  <li key={f.id} style={{ color: color.textMid }}>
+                    {f.item_type === 'file' && <span style={{ color: color.navy }}>[ファイル提出] </span>}
+                    {f.question_text}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {publishedVar.length > 0 && (
             <div style={{
               padding: space[2], background: color.cream, borderRadius: radius.md,
               fontSize: font.size.xs, color: color.textMid,
             }}>
-              固定課題 {fixedItems.length} 項目・公開済み変動 {publishedVar.length} 項目は公開済み（回答保護のため編集不可）。
+              公開済みの変動課題 {publishedVar.length} 項目（回答保護のため編集不可）。
             </div>
           )}
 
@@ -319,6 +353,19 @@ export default function HomeworkVariableEditor({ detail, customerId, onRefresh }
                 <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textLight, minWidth: 40 }}>
                   #{String(lockedCount + idx + 1).padStart(2, '0')}
                 </span>
+                {/* 提出形式トグル: text=記述 / file=ファイル添付（スクショ等の行動エビデンス） */}
+                <div style={{ display: 'inline-flex', border: `1px solid ${color.border}`, borderRadius: radius.sm, overflow: 'hidden' }}>
+                  {['text', 'file'].map((t) => (
+                    <button key={t} type="button"
+                      onClick={() => update(it._key, { item_type: t, max_length: t === 'file' ? null : (it.max_length || 500) })}
+                      style={{
+                        border: 'none', cursor: 'pointer',
+                        padding: `2px ${space[2]}px`, fontSize: font.size.xs,
+                        background: (it.item_type || 'text') === t ? color.navy : color.white,
+                        color: (it.item_type || 'text') === t ? color.white : color.textMid,
+                      }}>{t === 'text' ? '記述' : 'ファイル'}</button>
+                  ))}
+                </div>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: font.size.xs, color: color.textMid, cursor: 'pointer', marginLeft: 'auto' }}>
                   <input type="checkbox" checked={!!it.is_required} onChange={(e) => update(it._key, { is_required: e.target.checked })} />
                   必須

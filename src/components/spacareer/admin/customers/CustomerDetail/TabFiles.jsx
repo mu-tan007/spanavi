@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { color, space, font } from '../../../../../constants/design';
 import { Card, Badge, DataTable } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
+import HomeworkFileLink from './HomeworkFileLink';
 
 // ============================================================
 // 6. ファイルタブ
@@ -33,6 +34,7 @@ export default function TabFiles({ detail }) {
         .from('spacareer_homework_items')
         .select('id, homework_id, position, question_text, attached_files, submitted_at')
         .in('homework_id', ids)
+        .eq('is_published', true)
         .not('attached_files', 'is', null);
       setItems(data || []);
       setLoading(false);
@@ -50,7 +52,7 @@ export default function TabFiles({ detail }) {
         question_text: it.question_text,
         filename: f.name || f.filename || `添付${idx + 1}`,
         size: f.size || null,
-        url: f.url || null,
+        file: f,
         submitted_at: it.submitted_at,
       });
     });
@@ -72,13 +74,8 @@ export default function TabFiles({ detail }) {
             render: (r) => fmtSize(r.size), cellStyle: { fontFamily: font.family.mono } },
           { key: 'submitted_at', label: '提出日', width: 90, align: 'right',
             render: (r) => fmtDate(r.submitted_at), cellStyle: { fontFamily: font.family.mono } },
-          { key: '_dl', label: 'DL', width: 60, align: 'center',
-            render: (r) => r.url ? (
-              <a href={r.url} target="_blank" rel="noopener noreferrer"
-                style={{ color: color.navyLight, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
-                開く
-              </a>
-            ) : '—' },
+          { key: '_dl', label: '閲覧', width: 70, align: 'center',
+            render: (r) => <HomeworkFileLink file={r.file} compact /> },
         ]}
         rows={rows}
         rowKey="id"

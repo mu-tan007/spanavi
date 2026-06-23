@@ -4,6 +4,7 @@ import { Button, Input, Card, Badge } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { uploadSessionVideoWithAudio, generateSessionMinutes } from '../../../../../lib/spacareer/sessionMinutes';
 import SessionCompleteFlow from './SessionCompleteFlow';
+import HomeworkVariableEditor from './HomeworkVariableEditor';
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
 function toDateTimeInput(v) {
@@ -389,6 +390,11 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
         hearingSheetChecked={allChecked}
         hasVideo={hasVideo} hasMinutes={hasMinutes}
         onCompleted={onRefresh} />
+
+      {/* この回(第2〜8回)の変動事後課題をここで生成・修正・追加公開する。固定課題の内容もここで確認できる。 */}
+      {sessionNo >= 2 && (
+        <HomeworkVariableEditor detail={detail} customerId={customerId} sessionNo={sessionNo} onRefresh={onRefresh} />
+      )}
     </div>
   );
 }

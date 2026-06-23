@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { color, space, font, radius } from '../../../../../constants/design';
-import { Card, Badge, DataTable } from '../../../../ui';
-import HomeworkVariableEditor from './HomeworkVariableEditor';
+import { Card, Badge, DataTable, Select } from '../../../../ui';
+import { supabase } from '../../../../../lib/supabase';
+import HomeworkFileLink from './HomeworkFileLink';
 
 // ============================================================
-// 4. 事後課題タブ（個人ページ内サマリ）
+// 4. 事後課題タブ（提出サマリ＋回答内容ビューア）
 // 仕様書 §7.1 中央タブ#4
+//   変動課題の生成・追加公開は各回の「セッション管理」タブへ移設（むー様 2026-06-23）。
+//   本タブは提出状況サマリと、受講生の回答内容（テキスト/添付ファイル）の確認に専念する。
 // ============================================================
 const HW_STATUS_LABEL = {
   pending: 'セッション前', unnotified: '未通知', unsubmitted: '未提出', partial: '部分提出',
@@ -23,11 +26,6 @@ function fmtDate(v) {
 }
 
 // 提出期限の時点で100%だったかを判定する。
-// first_completed_at（初回100%達成日時・上書きされない）と due_at を比較。
-//   on_time  : 期限内に100%到達
-//   late     : 100%到達したが期限後だった
-//   overdue  : 期限を過ぎても未達成（100%未満のまま）
-//   none     : まだ通知・対象外
 function deadlineState(h) {
   if (!h) return 'none';
   const completed = h.first_completed_at ? new Date(h.first_completed_at) : null;
@@ -36,7 +34,6 @@ function deadlineState(h) {
     if (due && completed.getTime() > due.getTime()) return 'late';
     return 'on_time';
   }
-  // 未達成（100%未満）。期限を過ぎていれば overdue。
   if (due && Date.now() > due.getTime() && (h.status && h.status !== 'pending' && h.status !== 'unnotified')) return 'overdue';
   return 'none';
 }
@@ -51,7 +48,6 @@ export default function TabHomework({ detail, customerId, onRefresh }) {
   const rows = [1, 2, 3, 4, 5, 6, 7, 8].map((no) => {
     const h = homework.find((x) => x.session_no === no);
     const s = sessByNo[no];
-    // homework行が無い場合: セッション完了済なら本当の異常(未通知=赤)、未完了なら「セッション前」(中立)。
     const status = h?.status || (s?.status === 'completed' ? 'unnotified' : 'pending');
     return {
       session_no: no,
@@ -68,10 +64,44 @@ export default function TabHomework({ detail, customerId, onRefresh }) {
 
   const submitted = rows.filter((r) => r.status === 'submitted' || r.status === 'completed').length;
 
+  // ---- 回答内容ビューア ----
+  // 公開済み(notified_at あり)の課題を選んで、受講生の回答（テキスト/添付）を確認する。
+  const answerable = useMemo(
+    () => (homework || []).filter((h) => h.notified_at).sort((a, b) => b.session_no - a.session_no),
+    [homework],
+  );
+  const [selId, setSelId] = useState('');
+  const [items, setItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const selected = useMemo(
+    () => answerable.find((h) => h.id === selId) || answerable[0] || null,
+    [answerable, selId],
+  );
+
+  useEffect(() => {
+    if (answerable.length && !answerable.find((h) => h.id === selId)) setSelId(answerable[0].id);
+  }, [answerable, selId]);
+
+  useEffect(() => {
+    if (!selected?.id) { setItems([]); return; }
+    let cancelled = false;
+    setLoadingItems(true);
+    (async () => {
+      const { data } = await supabase
+        .from('spacareer_homework_items')
+        .select('*')
+        .eq('homework_id', selected.id)
+        .eq('is_published', true)
+        .order('position', { ascending: true });
+      if (cancelled) return;
+      setItems(data || []);
+      setLoadingItems(false);
+    })();
+    return () => { cancelled = true; };
+  }, [selected?.id]);
+
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
-      <HomeworkVariableEditor detail={detail} customerId={customerId} onRefresh={onRefresh} />
-
       <Card padding="md" title="事後課題 提出サマリ"
         action={<Badge variant={submitted >= 4 ? 'success' : 'warn'} dot>{submitted}/8 提出済み</Badge>}>
         <DataTable
@@ -96,16 +126,73 @@ export default function TabHomework({ detail, customerId, onRefresh }) {
         />
       </Card>
 
-      <div style={{
-        padding: space[3],
-        background: color.cream,
-        border: `1px dashed ${color.border}`,
-        borderRadius: radius.md,
-        fontSize: font.size.sm,
-        color: color.textMid,
-      }}>
-        固定の事後課題とセッション感想は、各回の予定日時を過ぎると自動でポータルに公開されます。第2〜7回の変動課題は、上の「変動課題」で議事録等を踏まえてAI生成・修正し「追加公開」すると受講生のポータルに追記されます。
+      {/* 回答内容ビューア */}
+      <Card padding="md" title="事後課題の回答内容"
+        description="受講生が提出したテキスト回答・添付ファイルを確認できます。"
+        action={answerable.length ? (
+          <Select size="sm" fullWidth={false} value={selected?.id || ''}
+            onChange={(e) => setSelId(e.target.value)}
+            options={answerable.map((h) => ({ value: h.id, label: `第${h.session_no}回` }))} />
+        ) : null}
+      >
+        {!answerable.length ? (
+          <div style={{ fontSize: font.size.sm, color: color.textLight, padding: space[3], textAlign: 'center' }}>
+            公開済みの事後課題はまだありません。
+          </div>
+        ) : loadingItems ? (
+          <div style={{ fontSize: font.size.sm, color: color.textLight, padding: space[3], textAlign: 'center' }}>
+            読み込み中...
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
+            {items.map((it, idx) => (
+              <AnswerRow key={it.id} index={idx + 1} item={it} />
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// 1設問の回答表示。テキストは answer_text、ファイル提出は attached_files を署名URLで開ける。
+function AnswerRow({ index, item }) {
+  const files = Array.isArray(item.attached_files) ? item.attached_files : [];
+  const answered = item.item_type === 'file' ? files.length > 0 : !!(item.answer_text || '').trim();
+  return (
+    <div style={{
+      border: `1px solid ${color.borderLight}`, borderRadius: radius.md,
+      padding: space[3], background: color.white,
+    }}>
+      <div style={{ display: 'flex', gap: space[2], alignItems: 'center', marginBottom: space[2] }}>
+        <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textLight, minWidth: 28 }}>
+          #{String(index).padStart(2, '0')}
+        </span>
+        {item.item_type === 'file' && <Badge variant="info" dot>ファイル提出</Badge>}
+        {item.is_required && <Badge variant="neutral">必須</Badge>}
+        <span style={{ marginLeft: 'auto' }}>
+          {answered ? <Badge variant="success" dot>回答あり</Badge> : <Badge variant="warn" dot>未回答</Badge>}
+        </span>
       </div>
+      <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold, marginBottom: space[2] }}>
+        {item.question_text}
+      </div>
+      {item.item_type === 'file' ? (
+        files.length ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space[1] }}>
+            {files.map((f, i) => <HomeworkFileLink key={i} file={f} />)}
+          </div>
+        ) : (
+          <div style={{ fontSize: font.size.xs, color: color.textLight }}>未提出</div>
+        )
+      ) : (
+        <div style={{
+          fontSize: font.size.sm, color: answered ? color.textDark : color.textLight,
+          whiteSpace: 'pre-wrap', background: color.snow, borderRadius: radius.sm, padding: space[2],
+        }}>
+          {item.answer_text || '（未記入）'}
+        </div>
+      )}
     </div>
   );
 }
