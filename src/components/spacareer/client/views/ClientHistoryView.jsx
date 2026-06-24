@@ -3,6 +3,7 @@ import { color, space, font, radius, alpha } from '../../../../constants/design'
 import { Button, Card, Badge, DataTable } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
+import { resolveSessionSchedule, getSession1At } from '../../../../lib/spacareer/sessionSchedule';
 
 // 仕様書: tasks/spacareer-spec.md §6.5 セッション履歴
 //
@@ -75,6 +76,9 @@ export default function ClientHistoryView() {
     return <Centered>受講情報が見つかりません。運営にお問い合わせください。</Centered>;
   }
 
+  // 第1回の開始日時。第2〜8回の未確定回はこれを基準に毎週仮置き表示する。
+  const session1At = getSession1At(sessions);
+
   const columns = [
     {
       key: 'session_no',
@@ -97,12 +101,21 @@ export default function ClientHistoryView() {
         // 完了済みは実施日、それ以外は予定日時を表示。
         // 実施日は「実際に実施した日時(started_at)」を最優先（キックオフは管理画面で設定した実施日時）。
         // started_at が無ければ completed_at（完了ボタン時刻）→ 予定日時の順でフォールバック。
+        // 未完了の第2〜8回は scheduled_at（確定）を優先し、未確定なら第1回基準で毎週自動仮置き。
         // 管理画面と揃え、キックオフ・第1回と完了済みは時刻まで、第2〜8回の予定は日付のみ＋「仮決め」。
         const isCompleted = row.status === 'completed' || !!row.completed_at;
-        const raw = isCompleted ? (row.started_at || row.completed_at || row.scheduled_at) : row.scheduled_at;
-        if (!raw) return <span style={{ color: color.textLight }}>未確定</span>;
-        const d = new Date(raw);
-        const provisional = !isCompleted && row.session_no >= 2;
+        let d, provisional;
+        if (isCompleted) {
+          const raw = row.started_at || row.completed_at || row.scheduled_at;
+          if (!raw) return <span style={{ color: color.textLight }}>未確定</span>;
+          d = new Date(raw);
+          provisional = false;
+        } else {
+          const resolved = resolveSessionSchedule(row, session1At);
+          if (!resolved) return <span style={{ color: color.textLight }}>未確定</span>;
+          d = resolved.date;
+          provisional = resolved.provisional;
+        }
         const withTime = isCompleted || row.session_no <= 1;
         const dateStr = withTime
           ? `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`

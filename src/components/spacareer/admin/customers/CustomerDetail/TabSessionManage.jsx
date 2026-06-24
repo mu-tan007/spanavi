@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { color, space, radius, font, alpha } from '../../../../../constants/design';
 import { Button, Input, Card, Badge } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
-import { uploadSessionVideoWithAudio, generateSessionMinutes } from '../../../../../lib/spacareer/sessionMinutes';
 import SessionCompleteFlow from './SessionCompleteFlow';
 import HomeworkVariableEditor from './HomeworkVariableEditor';
+import { useSessionJobs } from './SessionJobsContext';
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
 function toDateTimeInput(v) {
@@ -23,21 +23,20 @@ function toDateTimeInput(v) {
 // 既存の完了ゲート(SessionCompleteFlow)がそのbool値を参照する。
 // ============================================================
 
-// ヒアリング/確認チェックリスト（運用に合わせて項目編集可）。
-// 第2回以降は以下2項目を除外する（むー様指示 2026-06-23）:
-//   - check_values_review        キャリアの方向性・価値観の再確認
-//   - check_next_homework_guide  次回事後課題の提出方法・締切の説明
+// ヒアリング/確認チェックリスト（第1〜8回 全回共通・むー様指示 2026-06-24）:
+//   - check_values_review（キャリアの方向性・価値観の再確認）を削除
+//   - check_next_homework_guide（次回事後課題の提出方法・締切の説明）を削除
+//   - check_unclear_points（不明点の洗い出し）を全回共通で追加
 const CHECK_FIELDS = [
-  { key: 'check_homework_review',     label: '事後課題（宿題）の振り返り確認' },
-  { key: 'check_goal_alignment',      label: '今回のゴール／到達イメージのすり合わせ' },
-  { key: 'check_values_review',       label: 'キャリアの方向性・価値観の再確認', firstOnly: true },
-  { key: 'check_next_schedule',       label: '次回の日程確認' },
-  { key: 'check_next_homework_guide', label: '次回事後課題の提出方法・締切の説明', firstOnly: true },
+  { key: 'check_homework_review',  label: '事後課題（宿題）の振り返り確認' },
+  { key: 'check_goal_alignment',   label: '今回のゴール／到達イメージのすり合わせ' },
+  { key: 'check_unclear_points',   label: '不明点の洗い出し' },
+  { key: 'check_next_schedule',    label: '次回の日程確認' },
 ];
 
-// 当該回で表示するチェック項目（第2回以降は firstOnly 項目を除外）
+// 当該回で表示するチェック項目（全回共通）
 function checkFieldsFor(sessionNo) {
-  return sessionNo >= 2 ? CHECK_FIELDS.filter((f) => !f.firstOnly) : CHECK_FIELDS;
+  return CHECK_FIELDS;
 }
 
 export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
@@ -67,11 +66,15 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const nextSaveTimer = useRef(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadPct, setUploadPct] = useState(null);
-  const [generatingMinutes, setGeneratingMinutes] = useState(false);
-  const [videoErr, setVideoErr] = useState(null);
   const videoFileRef = useRef(null);
+
+  // 動画アップロード/AI議事録は常駐ジョブProvider側で実行（タブ移動しても継続）
+  const { jobs, startUpload, startMinutes } = useSessionJobs();
+  const job = targetSession ? jobs[targetSession.id] : null;
+  const uploading = job?.phase === 'uploading' || job?.phase === 'extracting';
+  const uploadPct = job?.phase === 'uploading' ? (job.pct ?? 0) : null;
+  const generatingMinutes = job?.phase === 'minutes';
+  const videoErr = job?.phase === 'error' ? job.error : null;
 
   useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id, targetSession?.hearing_sheet_json]);
   // 次回日時はセッション切替時(id変化)のみ初期化する。scheduled_at の変化では上書きしない
@@ -107,60 +110,17 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const hasMinutes = !!(targetSession?.minutes_draft || targetSession?.minutes_final);
   const sessionStatus = targetSession?.status;
 
-  async function handleVideoUpload(e) {
+  function handleVideoUpload(e) {
     const f = e.target.files?.[0];
+    if (videoFileRef.current) videoFileRef.current.value = '';
     if (!f || !targetSession) return;
-    const BUCKET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
-    if (f.size > BUCKET_LIMIT_BYTES) {
-      setVideoErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
-      if (videoFileRef.current) videoFileRef.current.value = '';
-      return;
-    }
-    setUploading(true); setVideoErr(null); setUploadPct(0);
-    let uploadedVideoId = null;
-    try {
-      const { videoId, audioWarning, error: upErr } = await uploadSessionVideoWithAudio({
-        customerId,
-        sessionId: targetSession.id,
-        file: f,
-        onVideoProgress: setUploadPct,
-      });
-      if (upErr) throw upErr;
-      uploadedVideoId = videoId;
-      if (audioWarning) setVideoErr(audioWarning);
-      onRefresh && (await onRefresh());
-    } catch (e2) {
-      console.error('[TabSessionManage] video upload error:', e2);
-      setVideoErr(`アップロードに失敗しました: ${e2.message || e2}`);
-    } finally {
-      setUploading(false);
-      setUploadPct(null);
-      if (videoFileRef.current) videoFileRef.current.value = '';
-    }
-    // アップロード完了後、そのままAI議事録生成を自動起動（再生成はボタンから）
-    if (uploadedVideoId) await runGenerateMinutes(uploadedVideoId);
-  }
-
-  async function runGenerateMinutes(videoId) {
-    if (!targetSession) return;
-    setGeneratingMinutes(true); setVideoErr(null);
-    try {
-      await generateSessionMinutes({
-        sessionId: targetSession.id,
-        customerId,
-        videoId,
-      });
-      onRefresh && (await onRefresh());
-    } catch (e) {
-      console.error('[TabSessionManage] minutes error:', e);
-      setVideoErr(`議事録生成に失敗しました: ${e.message || e}`);
-    } finally {
-      setGeneratingMinutes(false);
-    }
+    // 常駐Provider側でアップロード→AI議事録まで実行。タブ移動しても継続する。
+    startUpload(targetSession, f);
   }
 
   function handleGenerateMinutes() {
-    return runGenerateMinutes(null);
+    if (!targetSession) return;
+    startMinutes(targetSession, null);
   }
 
   async function handleSave() {
@@ -263,11 +223,11 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
         <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap', alignItems: 'center' }}>
           <input ref={videoFileRef} type="file" accept="video/*" onChange={handleVideoUpload} style={{ display: 'none' }} />
           <Button variant="primary" size="md" loading={uploading}
-            onClick={() => videoFileRef.current?.click()} disabled={sessionStatus === 'completed'}>
+            onClick={() => videoFileRef.current?.click()}>
             {hasVideo ? '動画を差し替える' : '動画をアップロード'}
           </Button>
           <Button variant="outline" size="md" loading={generatingMinutes}
-            onClick={handleGenerateMinutes} disabled={!hasVideo || sessionStatus === 'completed'}>
+            onClick={handleGenerateMinutes} disabled={!hasVideo}>
             AI議事録を生成
           </Button>
           {hasMinutes && (

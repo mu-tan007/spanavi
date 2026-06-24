@@ -3,6 +3,8 @@ import { color, space, font, radius, alpha } from '../../../../constants/design'
 import { Button, Card, Badge, Select } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
+import { loadDraft, saveDraft, clearDraft } from '../../../../lib/spacareer/draftCache';
+import { saveWithAuthRetry } from '../../../../lib/spacareer/saveWithRetry';
 
 // 仕様書: tasks/spacareer-spec.md §6.3 セッション感想
 // 参考: イメージ画像②
@@ -89,15 +91,40 @@ export default function ClientFeedbackView() {
   useEffect(() => {
     const fb = feedbacks.find(f => f.id === selectedFeedbackId);
     if (!fb) { setScore(null); setFreeComment(''); setResponses({}); return; }
-    setScore(fb.satisfaction_score ?? null);
-    setFreeComment(fb.free_comment || '');
-    setResponses(fb.responses || {});
-  }, [selectedFeedbackId, feedbacks]);
+    let nextScore = fb.satisfaction_score ?? null;
+    let nextComment = fb.free_comment || '';
+    let nextResponses = fb.responses || {};
+    // 端末ローカルの下書きを復元（保存失敗・ログアウトで未送信の入力を取り戻す）。
+    // 提出済みは編集不可なので復元しない。
+    if (customer?.id && !fb.submitted_at) {
+      const draft = loadDraft(`feedback:${customer.id}:${fb.id}`);
+      if (draft?.data && typeof draft.data === 'object') {
+        if (draft.data.score != null) nextScore = draft.data.score;
+        if (typeof draft.data.freeComment === 'string' && draft.data.freeComment.length > 0) nextComment = draft.data.freeComment;
+        if (draft.data.responses && typeof draft.data.responses === 'object') {
+          nextResponses = { ...nextResponses, ...draft.data.responses };
+        }
+      }
+    }
+    setScore(nextScore);
+    setFreeComment(nextComment);
+    setResponses(nextResponses);
+  }, [selectedFeedbackId, feedbacks, customer?.id]);
 
   const selectedFb = useMemo(
     () => feedbacks.find(f => f.id === selectedFeedbackId) || null,
     [feedbacks, selectedFeedbackId],
   );
+
+  // 下書きの保存キー（受講生×感想で一意）
+  const draftKey = customer?.id && selectedFeedbackId
+    ? `feedback:${customer.id}:${selectedFeedbackId}` : null;
+
+  // 入力が変わるたび端末ローカルに退避（提出済みは退避しない）
+  useEffect(() => {
+    if (!draftKey || selectedFb?.submitted_at) return;
+    saveDraft(draftKey, { score, freeComment, responses });
+  }, [score, freeComment, responses, draftKey, selectedFb?.submitted_at]);
 
   const questions = useMemo(() => {
     if (template?.questions && Array.isArray(template.questions)) return template.questions;
@@ -137,14 +164,15 @@ export default function ClientFeedbackView() {
     if (!selectedFeedbackId) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('spacareer_session_feedbacks').update({
+      const { error } = await saveWithAuthRetry(() => supabase.from('spacareer_session_feedbacks').update({
         satisfaction_score: score ?? null,
         free_comment: freeComment || null,
         responses,
-      }).eq('id', selectedFeedbackId);
+      }).eq('id', selectedFeedbackId));
       if (error) throw error;
     } catch (e) {
-      alert('保存に失敗しました: ' + (e.message || e));
+      console.error('[ClientFeedback] tempSave error:', e);
+      alert('保存に失敗しましたが、入力内容は端末に保存されています（再ログイン後に自動復元されます）。');
     } finally {
       setSaving(false);
     }
@@ -173,17 +201,20 @@ export default function ClientFeedbackView() {
     if (!window.confirm('回答を提出します。よろしいですか？')) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('spacareer_session_feedbacks').update({
+      const { error } = await saveWithAuthRetry(() => supabase.from('spacareer_session_feedbacks').update({
         satisfaction_score: score,
         free_comment: freeComment,
         responses,
         submitted_at: new Date().toISOString(),
-      }).eq('id', selectedFeedbackId);
+      }).eq('id', selectedFeedbackId));
       if (error) throw error;
       setFeedbacks(prev => prev.map(f => f.id === selectedFeedbackId ? { ...f, submitted_at: new Date().toISOString(), satisfaction_score: score, free_comment: freeComment, responses } : f));
+      // 提出が確定したので端末の下書きは破棄
+      if (draftKey) clearDraft(draftKey);
       alert('ご回答ありがとうございました。');
     } catch (e) {
-      alert('提出に失敗しました: ' + (e.message || e));
+      console.error('[ClientFeedback] submit error:', e);
+      alert('提出に失敗しましたが、入力内容は端末に保存されています（再ログイン後に自動復元されます）。');
     } finally {
       setSubmitting(false);
     }

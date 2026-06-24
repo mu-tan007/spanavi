@@ -3,7 +3,7 @@ import { color, space, radius, font, alpha } from '../../../../../constants/desi
 import { Button, Card } from '../../../../ui';
 import { useFileDrop } from '../../../_shared/useFileDrop';
 import { supabase } from '../../../../../lib/supabase';
-import { uploadSessionVideoWithAudio, generateSessionMinutes } from '../../../../../lib/spacareer/sessionMinutes';
+import { useSessionJobs } from './SessionJobsContext';
 
 // ============================================================
 // セッション完了フロー
@@ -36,15 +36,20 @@ export default function SessionCompleteFlow({
   onCompleted,
 }) {
   const fileRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadPct, setUploadPct] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState(null);
-  const [generatingMinutes, setGeneratingMinutes] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [lastResult, setLastResult] = useState(null);
   const [err, setErr] = useState(null);
 
-  // ドラッグ＆ドロップで動画アップロード（doUploadは完了済みセッションを内部でガード）
+  // 動画アップロード/AI議事録は常駐ジョブProvider側で実行（タブ移動しても継続）
+  const { jobs, startUpload, startMinutes } = useSessionJobs();
+  const job = session ? jobs[session.id] : null;
+  const uploading = job?.phase === 'uploading' || job?.phase === 'extracting';
+  const uploadPct = job?.phase === 'uploading' ? (job.pct ?? 0) : null;
+  const uploadStatus = job?.status || job?.warning || null;
+  const generatingMinutes = job?.phase === 'minutes';
+  const jobErr = job?.phase === 'error' ? job.error : null;
+
+  // ドラッグ＆ドロップで動画アップロード
   const { isOver: dropOver, dropHandlers } = useFileDrop((f) => { doUpload(f); }, uploading);
 
   if (!session) {
@@ -65,65 +70,23 @@ export default function SessionCompleteFlow({
     hearingSheetChecked &&
     hasVideo && hasMinutes;
 
-  async function handleUpload(e) {
-    await doUpload(e.target.files?.[0]);
+  function handleUpload(e) {
+    const f = e.target.files?.[0];
+    if (fileRef.current) fileRef.current.value = '';
+    doUpload(f);
   }
 
-  async function doUpload(f) {
+  function doUpload(f) {
     if (!f) return;
-    if (status === 'completed') return;
-    const BUCKET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
-    if (f.size > BUCKET_LIMIT_BYTES) {
-      setErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
-      return;
-    }
-    setUploading(true); setErr(null); setUploadPct(0); setUploadStatus(null);
-    let uploadedVideoId = null;
-    try {
-      const { videoId, audioWarning, error: upErr } = await uploadSessionVideoWithAudio({
-        customerId,
-        sessionId: session.id,
-        file: f,
-        onVideoProgress: setUploadPct,
-        onStatus: setUploadStatus,
-      });
-      if (upErr) throw upErr;
-      uploadedVideoId = videoId;
-      if (audioWarning) setUploadStatus(audioWarning);
-      onCompleted && onCompleted({ event: 'video_uploaded' });
-    } catch (e2) {
-      console.error('[SessionCompleteFlow] upload error:', e2);
-      setErr(`アップロードに失敗しました: ${e2.message || e2}`);
-    } finally {
-      setUploading(false);
-      setUploadPct(null);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-    // アップロード完了後、そのままAI議事録生成を自動起動（再生成はボタンから）
-    if (uploadedVideoId) await runGenerateMinutes(uploadedVideoId);
-  }
-
-  async function runGenerateMinutes(videoId) {
-    setGeneratingMinutes(true); setErr(null);
-    try {
-      await generateSessionMinutes({
-        sessionId: session.id,
-        customerId,
-        videoId,
-      });
-      setUploadStatus(null);
-      setLastResult({ kind: 'minutes' });
-      onCompleted && onCompleted({ event: 'minutes_generated' });
-    } catch (e) {
-      console.error('[SessionCompleteFlow] minutes error:', e);
-      setErr(`議事録生成に失敗しました: ${e.message || e}`);
-    } finally {
-      setGeneratingMinutes(false);
-    }
+    setErr(null);
+    // 完了済みでも動画アップロード・議事録生成は可能（スキップ完了後の後追いアップロードに対応）。
+    // 常駐Provider側でアップロード→AI議事録まで実行。タブ移動しても継続する。
+    startUpload(session, f);
   }
 
   function handleGenerateMinutes() {
-    return runGenerateMinutes(null);
+    setErr(null);
+    startMinutes(session, null);
   }
 
   // キックオフ完了時にキックオフヒアリング(70問) を受講生に配信する。
@@ -284,18 +247,18 @@ export default function SessionCompleteFlow({
         <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: 'none' }} />
         <div
           {...dropHandlers}
-          onClick={() => status !== 'completed' && !uploading && fileRef.current?.click()}
+          onClick={() => !uploading && fileRef.current?.click()}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: space[2],
             padding: `${space[1]}px ${space[3]}px`,
             border: `2px dashed ${dropOver ? color.navy : color.border}`,
             background: dropOver ? alpha(color.navyLight, 0.08) : 'transparent',
             borderRadius: radius.md,
-            cursor: status === 'completed' || uploading ? 'not-allowed' : 'pointer',
+            cursor: uploading ? 'not-allowed' : 'pointer',
           }}
         >
           <Button variant="outline" size="sm" loading={uploading}
-            onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }} disabled={status === 'completed'}>
+            onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>
             動画アップロード
           </Button>
           <span style={{ fontSize: font.size.xs, color: color.textLight }}>
@@ -303,7 +266,7 @@ export default function SessionCompleteFlow({
           </span>
         </div>
         <Button variant="outline" size="sm" loading={generatingMinutes}
-          onClick={handleGenerateMinutes} disabled={!hasVideo || status === 'completed'}>
+          onClick={handleGenerateMinutes} disabled={!hasVideo}>
           AI議事録を生成
         </Button>
         <div style={{ flex: 1 }} />
@@ -353,12 +316,12 @@ export default function SessionCompleteFlow({
           AI議事録ドラフトを生成しました。セッション履歴タブで内容を確認・編集してください。
         </div>
       )}
-      {err && (
+      {(err || jobErr) && (
         <div style={{
           marginTop: space[3], padding: space[3],
           background: color.dangerSoft, color: '#A20018',
           fontSize: font.size.sm, borderRadius: radius.md,
-        }}>{err}</div>
+        }}>{err || jobErr}</div>
       )}
       {lastResult?.kind === 'session_completed' && (
         <div style={{

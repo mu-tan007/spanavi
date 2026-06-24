@@ -1,68 +1,74 @@
-# スパキャリ タブ改修（4点）
+# スパキャリ修正タスク（2026-06-24）
 
-## 調査で判明した現状（本番DB + コード確認済み）
+むー様指示の4領域。全て推奨案で確定済み。
 
-### ① 顧客詳細に「事後課題の提出履歴」を表形式表示（担当者の下）
-- 現状、顧客詳細の「事後課題」タブに **回ごと1行のサマリ**（ステータス/通知日/締切/提出日/期限内達成）は存在。
-- ただし **「1回目80%→2回目90%→3回目100%」のような提出回数ごとの履歴は保存していない**。
-  事後課題の回答は同じ行を上書き更新（`spacareer_homework_items` を UPDATE）しており、提出スナップショットが残らない。
-- → 提出回数ごとの達成率履歴を出すには **提出イベントを記録する新テーブルが必須**（過去分は復元不可・今後分から）。
+## #1 動画アップロード・議事録生成
 
-### ② 事後課題の自動公開フロー
-- 現状：セッション完了ボタンを押すと **その場で「生成＋即公開」**（`SessionCompleteFlow.jsx`）。手動修正ステップは無い。
-- 第2〜7回の30項目AI生成は **本物のClaudeではなくモック（固定30問）**（`src/lib/spacareer/ai/mock.ts`）。
-- 本番DB：事後課題は **9顧客中1顧客分(8回)しか存在しない**。他8顧客は0件。
-  → 大半の顧客で自動公開が走っていない／失敗している疑い（要追加確認）。
-- 「反映されない」候補：受講生側の閲覧RLS解決 or 公開処理の途中失敗。
+### #1a スキップ後も動画/議事録ができる
+- [ ] `SessionCompleteFlow.jsx`: 「スキップして完了」後も動画アップロード/議事録生成ボタンを有効化
+  - `disabled={status === 'completed'}` を撤廃（アップロード・議事録ボタン・ドロップゾーン）
+  - `doUpload` 冒頭の `if (status === 'completed') return;` を撤廃
+- [ ] `TabKickoff.jsx` / `TabSessionManage.jsx`: 同様に完了後もアップロード/議事録ボタンを有効化
 
-### ③ 動画配信の不具合（配信してない動画が出る・再生不可・2重表示）
-- **根本原因：`spacareer_course_videos` のSELECT RLSが `org_id` のみで、audience/割当の絞り込みが無い** → 全動画がクライアントに渡る。
-- 本番DB：動画3本すべて `audience='assigned'`（全体公開0本）。本来は割当顧客だけに出すはず。
-- 唯一の防御がフロントのJSフィルタのみ → 受講生本人ログイン時に割当解決が崩れると配信外動画が漏れ、署名付きURL生成失敗で「再生不可の幽霊動画」になる。
+### #1b 画面移動でも処理が止まらない
+- [ ] 新規 `SessionJobsContext.jsx`（CustomerDetail階層に常駐）を作成
+  - アップロード+音声抽出+議事録ポーリングを Provider 側で実行 → タブ切替でアンマウントされない
+  - `jobsBySession` でセッション毎の phase/進捗/エラーを保持
+  - 完了時に `refresh()` 呼び出し
+  - フローティング進捗インジケータを表示
+  - mount時に ai_status が pending/processing の動画を検出して議事録ポーリング再開
+- [ ] `CustomerDetail/index.jsx`: タブ群を `<SessionJobsProvider>` でラップ
+- [ ] `SessionCompleteFlow` / `TabKickoff` / `TabSessionManage`: ローカルstateの代わりに context を利用
 
-### ④ 履歴・診断の管理画面反映
-- (a) 回ごとの事後課題履歴：①と同件。回ごとサマリは存在するが提出回数履歴は未保存。
-- (b) マネタイズ領域診断：**コード上は管理画面「基本情報」タブに表示済み**（ただしラベルは「第2回」）。本番に完了データ3件あり。
-  → 「見れない」のはUI欠落でなく、ラベル/配置の不一致 or 対象顧客が未完了の可能性。要確認。
+## #2 保存エラー・強制ログアウト改善（受講生 全入力画面）
+- [ ] 新規 `src/lib/spacareer/draftCache.js`: localStorage 下書き保存/復元/破棄
+- [ ] 新規 `src/lib/spacareer/saveWithRetry.js`: 認証エラー時に refreshSession→1回リトライ
+- [ ] `ClientKickoffHearingView.jsx`: 入力毎に下書き保存、ロード時に新しい下書きを復元、保存をリトライ化、失敗してもログアウトせず下書き保持
+- [ ] `ClientHomeworkView.jsx`: 同上（answers/files）
+- [ ] `ClientFeedbackView.jsx`: 同上（score/freeComment/responses）
+- [ ] 失敗時メッセージを「端末に保存済み・再ログインで復元」に変更（データ消失の不安を解消）
 
-## 確定した根本原因（本番DBで確認）
-- `spacareer_current_member_id()` が `members.user_id = auth.uid()` で照合しておらず**メール一致頼み**。
-  `get_user_org_id()` は user_id 優先に改修済みなのにこの関数だけ旧実装 → メアドズレの受講生で本人特定失敗 →
-  動画割当判定・事後課題閲覧RLSが崩れる（③幽霊動画・②未反映の共通根）。
-- `spacareer_course_videos` SELECT RLS が `org_id` のみで audience/割当を絞らない。
-- ストレージ側RLSは user_id 照合で堅牢（署名URLは組織メンバーなら通る）。
+## #3 キックオフ管理の日程
+### #3a/#3b TabKickoff
+- [ ] 「第1〜第8回 大枠日程」カード（8日付入力）を削除、第1回開始日時のみ残す
+- [ ] `handleSave` の session_2〜8 scheduled_at 一括書込ループを削除（第1回 scheduled_at は維持）
+- [ ] `buildForm` から session_2〜8_date を削除
 
-## 実装方針（むー様承認済み）
-② → 本来の「AI生成→手動修正→公開」フローに作り直し（AI本物化＋反映バグ修正）
-④(b) → マネタイズ診断のラベルを「第2回」→「第1回」に修正
-① → 提出スナップショット記録を新設（今後分から）
+### #3c 顧客側 毎週自動仮置き（確定優先）
+- [ ] 新規 `src/lib/spacareer/sessionSchedule.js`: 第1回基準で `第1回 + 7日×(n-1)` を算出。scheduled_at があればそれを優先
+- [ ] `ClientHistoryView.jsx`: 第2〜8回で scheduled_at が無ければ毎週自動算出日を「仮決め」表示
+- [ ] `ClientMyPageView.jsx`: 次回セッションの scheduled_at が無ければ自動算出日を表示
 
-### Phase A: 共通根治 + ③ 動画（最優先）
-- [x] A1 migration: `spacareer_current_member_id()` を user_id 優先に改修（本番適用済・検証済）
-- [x] A2 migration: `spacareer_course_videos` SELECT RLS を audience/割当ベースに是正（本番適用済・検証済）
-- [x] A3 受講生動画一覧: 再生URL未解決(_playUrl=null)の動画を非表示（再生不可動画を出さない）
+## #4 ヒアリングシート項目変更
+### TabSessionManage（第1〜8回）
+- [ ] `check_values_review`（キャリアの方向性・価値観の再確認）を削除 #4d
+- [ ] `check_next_homework_guide`（次回事後課題の提出方法・締切の説明）を削除 #4c
+- [ ] `check_unclear_points`（不明点の洗い出し）を全回共通で追加 #4b
+- [ ] firstOnly 機構が不要になるので整理
 
-### Phase B: ① + ④(a) 提出履歴
-- [x] B1 migration: `spacareer_homework_submissions`（提出スナップショット）＋RLS（本番適用・トリガ検証済）
-- [x] B2 受講生「回答を提出」時にスナップショット記録
-- [x] B3 顧客詳細 基本情報タブ「担当トレーナー」の下に提出履歴テーブル
+### TabKickoff（第0回）
+- [ ] `check_all_sessions_dated`（第2〜8回 全回の仮日程の確定）を削除 #4a
+- [ ] 「事後課題についての説明」「締め切りについての説明」は残す（#4c は第1〜8回のみ）
 
-### Phase C: ④(b) マネタイズ診断ラベル
-- [x] C1 「マネタイズ領域診断（第2回）」→「（第1回事後課題）」表記修正
+## 検証
+- [ ] `npm run build` でビルド通過
+- [ ] RightSidebar/needAttention の check キー参照が壊れないか確認
+- [ ] 影響範囲レビュー（既存完了セッション・既存scheduled_atへの後方互換）
 
-### Phase D: ② 公開フロー作り直し（最大）
-- [x] D1 Edge Function generate-spacareer-homework30: 本物Claude生成（本番deploy・実呼び出しで30項目検証済）
-- [x] D2 セッション完了時はドラフト生成（notified_at 未設定・非公開・Slack送らない／AI失敗時モックfallback）
-- [x] D3 顧客詳細「事後課題」タブに HomeworkDraftReview（項目編集＋AI再生成＋「受講生に公開」ボタン）
-  ※「事後課題管理」横断ビューは全モックのため、実装は実データ接続済の顧客詳細側に配置
+## レビュー（実装後記入）
 
-## レビュー
-- ③ 動画: RLS関数(user_id優先)＋course_videos RLS(配信先絞り)＋再生不可動画非表示。本番適用・検証済。
-- ①④a 提出履歴: 新テーブル＋トリガ＋RLS、受講生提出時スナップショット、基本情報タブに履歴表。今後分から蓄積。
-- ④b 診断ラベル: 第2回→「第1回事後課題」。表示UIは元々存在（データ完了で表示）。
-- ② フロー: 即公開→ドラフト生成→手動修正→公開へ。AIをモック→本物Claude化（fallback付き）。
-- 重要発見: 「事後課題管理」横断ビュー(SpacareerHomeworkView/HomeworkEditPanel)は全モック。実データ化は別タスク候補。
-- 全体: vite build 成功、Edge Function実呼び出し検証済、全migration本番適用済。
+実装完了（2026-06-24）。`npm run build` 通過。
 
-## レビュー
-（実装後に記入）
+### 変更ファイル
+- 新規 `src/lib/spacareer/draftCache.js` / `saveWithRetry.js` / `sessionSchedule.js`
+- 新規 `.../CustomerDetail/SessionJobsContext.jsx`（常駐ジョブProvider＋右下フローティング進捗）
+- `SessionCompleteFlow.jsx` / `TabKickoff.jsx` / `TabSessionManage.jsx`: 動画/議事録を常駐Provider経由に。完了後も操作可（#1a/#1b）
+- `TabKickoff.jsx`: 大枠日程カード削除→第1回開始日時のみ、check_all_sessions_dated削除（#3a/b, #4a）
+- `TabSessionManage.jsx`: check項目を整理（不明点の洗い出し追加／価値観・次回課題提出方法削除）（#4b/c/d）
+- `ClientHistoryView.jsx` / `ClientMyPageView.jsx`: 第1回基準の毎週自動仮置き（確定優先）（#3c）
+- `ClientKickoffHearingView.jsx` / `ClientHomeworkView.jsx` / `ClientFeedbackView.jsx`: localStorage下書き＋トークン更新リトライ＋非破壊メッセージ（#2）
+- `CustomerDetail/index.jsx`: SessionJobsProvider でラップ
+
+### 既知の範囲外
+- #1b の「ページ完全リロード後の処理復帰」は対象外（SPA内のタブ/画面移動での継続のみ実装）。Edge Function側の議事録生成はサーバーで継続するため、再読込後は ai_status 反映で結果は取得される。
+- 既存顧客で旧一括入力済みの第2〜8回 scheduled_at は「確定」扱い（確定優先のため仕様通り）。

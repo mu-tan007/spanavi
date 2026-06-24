@@ -31,6 +31,7 @@ import TabMemo from './TabMemo';
 import TabMembers from './TabMembers';
 import TabVideoLogs from './TabVideoLogs';
 import RightSidebar from './RightSidebar';
+import { SessionJobsProvider } from './SessionJobsContext';
 
 // ============================================================
 // 個人ページ（中央＋右カラム）
@@ -170,6 +171,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
   }
 
   return (
+    <SessionJobsProvider customerId={customerId} refresh={refresh}>
     <div style={{
       display: 'grid', gridTemplateColumns: '1fr 300px',
       gap: space[3], height: '100%', minHeight: 0,
@@ -281,5 +283,6 @@ export default function CustomerDetail({ customerId, isAdmin }) {
         <RightSidebar detail={detail} activeTab={tab} />
       </div>
     </div>
+    </SessionJobsProvider>
   );
 }

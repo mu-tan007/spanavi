@@ -4,6 +4,7 @@ import { Button, Card, Badge } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
 import { generateDailyMessage } from '../../../../lib/spacareer/ai/mock';
+import { resolveSessionSchedule } from '../../../../lib/spacareer/sessionSchedule';
 
 // マイページ「あなたの目標」3カードは、キックオフヒアリングの Q33/Q34/Q35 の回答を引用する。
 //   Q33: 今回のスパキャリで「絶対に手に入れたい」ものを3つ
@@ -34,6 +35,7 @@ export default function ClientMyPageView() {
   const [customer, setCustomer] = useState(null);
   const [memberRow, setMemberRow] = useState(null);
   const [nextSession, setNextSession] = useState(null);
+  const [session1At, setSession1At] = useState(null); // 第1回開始日時（未確定回の毎週仮置き基準）
   const [latestFeedback, setLatestFeedback] = useState(null);
   const [videoStats, setVideoStats] = useState({ watched: 0, watching: 0, notWatched: 0 });
   const [dailyMessage, setDailyMessage] = useState(null);
@@ -72,6 +74,15 @@ export default function ClientMyPageView() {
         .order('session_no', { ascending: true })
         .limit(1);
       if (!cancelled) setNextSession(nextRows?.[0] || null);
+
+      // 第1回の開始日時（未確定の第2〜8回を毎週仮置き表示する基準）
+      const { data: s1Rows } = await supabase
+        .from('spacareer_sessions')
+        .select('scheduled_at')
+        .eq('customer_id', cust.id)
+        .eq('session_no', 1)
+        .limit(1);
+      if (!cancelled) setSession1At(s1Rows?.[0]?.scheduled_at || null);
 
       const { data: feedbackRows } = await supabase
         .from('spacareer_session_feedbacks')
@@ -212,7 +223,7 @@ export default function ClientMyPageView() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
-          <NextSessionCard nextSession={nextSession} />
+          <NextSessionCard nextSession={nextSession} session1At={session1At} />
           <FeedbackPromptCard latestFeedback={latestFeedback} />
           <DailyMessageCard message={dailyMessage?.message} />
         </div>
@@ -358,7 +369,7 @@ function Donut({ pct, color: stroke }) {
   );
 }
 
-function NextSessionCard({ nextSession }) {
+function NextSessionCard({ nextSession, session1At }) {
   if (!nextSession) {
     return (
       <Card title="次回のセッション" padding="md">
@@ -368,6 +379,8 @@ function NextSessionCard({ nextSession }) {
       </Card>
     );
   }
+  // 確定済み(scheduled_at)があればそれを、未確定の第2〜8回は第1回基準で毎週自動仮置き。
+  const resolved = resolveSessionSchedule(nextSession, session1At);
   return (
     <Card title="次回のセッション" padding="md">
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
@@ -375,8 +388,9 @@ function NextSessionCard({ nextSession }) {
           第{nextSession.session_no}回
         </div>
         <div style={{ fontSize: font.size.sm, color: color.textMid }}>
-          {nextSession.scheduled_at
-            ? new Date(nextSession.scheduled_at).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          {resolved
+            ? resolved.date.toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+              + (resolved.provisional ? '（仮）' : '')
             : '日程調整中'}
         </div>
         <div style={{

@@ -3,8 +3,8 @@ import { color, space, radius, font, alpha } from '../../../../../constants/desi
 import { Button, Input, Card, Badge } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { getOrgId } from '../../../../../lib/orgContext';
-import { uploadSessionVideoWithAudio, generateSessionMinutes } from '../../../../../lib/spacareer/sessionMinutes';
 import SessionCompleteFlow from './SessionCompleteFlow';
+import { useSessionJobs } from './SessionJobsContext';
 
 // ============================================================
 // 2. キックオフ管理タブ
@@ -27,7 +27,6 @@ const CHECK_FIELDS = [
   { key: 'check_session_feedback',        label: 'セッション感想についての説明' },
   { key: 'check_deadline',                label: '締め切りについての説明' },
   { key: 'check_first_session_confirmed', label: '第1回の開始日時の確定' },
-  { key: 'check_all_sessions_dated',      label: '第2回〜第8回 全回の仮日程の確定' },
 ];
 
 // 右サイドバー等で進捗計算に使うための、現行チェックリストのキー一覧。
@@ -35,11 +34,6 @@ const CHECK_FIELDS = [
 export const KICKOFF_CHECK_KEYS = CHECK_FIELDS.map((f) => f.key);
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
-function toDateInput(v) {
-  if (!v) return '';
-  const d = new Date(v);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 function toDateTimeInput(v) {
   if (!v) return '';
   const d = new Date(v);
@@ -52,14 +46,18 @@ export default function TabKickoff({ detail, onRefresh }) {
   const [form, setForm] = useState(() => buildForm(kickoff));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadPct, setUploadPct] = useState(null);
-  const [generatingMinutes, setGeneratingMinutes] = useState(false);
-  const [videoErr, setVideoErr] = useState(null);
   const videoFileRef = useRef(null);
+
+  // 動画アップロード/AI議事録は常駐ジョブProvider側で実行（タブ移動しても継続）
+  const { jobs, startUpload, startMinutes } = useSessionJobs();
 
   const kickoffSession = useMemo(
     () => (sessions || []).find((s) => s.session_no === 0) || null, [sessions]);
+  const job = kickoffSession ? jobs[kickoffSession.id] : null;
+  const uploading = job?.phase === 'uploading' || job?.phase === 'extracting';
+  const uploadPct = job?.phase === 'uploading' ? (job.pct ?? 0) : null;
+  const generatingMinutes = job?.phase === 'minutes';
+  const videoErr = job?.phase === 'error' ? job.error : null;
   // キックオフMTGの実際の実施日時。完了ボタン押下時刻(completed_at)とはズレるため
   // 管理者がここで明示設定し、session(第0回)の started_at に保存。受講生のセッション履歴に反映される。
   const [kickoffHeldAt, setKickoffHeldAt] = useState(() => toDateTimeInput(kickoffSession?.started_at));
@@ -74,60 +72,17 @@ export default function TabKickoff({ detail, onRefresh }) {
   const hasMinutes = !!(kickoffSession?.minutes_draft || kickoffSession?.minutes_final);
   const kickoffStatus = kickoffSession?.status;
 
-  async function handleVideoUpload(e) {
+  function handleVideoUpload(e) {
     const f = e.target.files?.[0];
+    if (videoFileRef.current) videoFileRef.current.value = '';
     if (!f || !kickoffSession) return;
-    const BUCKET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024;
-    if (f.size > BUCKET_LIMIT_BYTES) {
-      setVideoErr(`動画サイズ ${(f.size / 1024 / 1024).toFixed(1)} MB はバケット上限の 2 GB を超えています。動画を分割してください。`);
-      if (videoFileRef.current) videoFileRef.current.value = '';
-      return;
-    }
-    setUploading(true); setVideoErr(null); setUploadPct(0);
-    let uploadedVideoId = null;
-    try {
-      const { videoId, audioWarning, error: upErr } = await uploadSessionVideoWithAudio({
-        customerId,
-        sessionId: kickoffSession.id,
-        file: f,
-        onVideoProgress: setUploadPct,
-      });
-      if (upErr) throw upErr;
-      uploadedVideoId = videoId;
-      if (audioWarning) setVideoErr(audioWarning);
-      onRefresh && (await onRefresh());
-    } catch (e2) {
-      console.error('[TabKickoff] video upload error:', e2);
-      setVideoErr(`アップロードに失敗しました: ${e2.message || e2}`);
-    } finally {
-      setUploading(false);
-      setUploadPct(null);
-      if (videoFileRef.current) videoFileRef.current.value = '';
-    }
-    // アップロード完了後、そのままAI議事録生成を自動起動（再生成はボタンから）
-    if (uploadedVideoId) await runGenerateMinutes(uploadedVideoId);
-  }
-
-  async function runGenerateMinutes(videoId) {
-    if (!kickoffSession) return;
-    setGeneratingMinutes(true); setVideoErr(null);
-    try {
-      await generateSessionMinutes({
-        sessionId: kickoffSession.id,
-        customerId,
-        videoId,
-      });
-      onRefresh && (await onRefresh());
-    } catch (e) {
-      console.error('[TabKickoff] minutes error:', e);
-      setVideoErr(`議事録生成に失敗しました: ${e.message || e}`);
-    } finally {
-      setGeneratingMinutes(false);
-    }
+    // 常駐Provider側でアップロード→AI議事録まで実行。タブ移動しても継続する。
+    startUpload(kickoffSession, f);
   }
 
   function handleGenerateMinutes() {
-    return runGenerateMinutes(null);
+    if (!kickoffSession) return;
+    startMinutes(kickoffSession, null);
   }
 
   async function handleSave() {
@@ -151,19 +106,14 @@ export default function TabKickoff({ detail, onRefresh }) {
         .upsert(payload, { onConflict: 'customer_id' });
       if (error) throw error;
 
-      const sessByNo = {};
-      (sessions || []).forEach((s) => { sessByNo[s.session_no] = s; });
-      for (let i = 1; i <= 8; i++) {
-        const dateKey = `session_${i}_date`;
-        const v = form[dateKey];
-        if (!v) continue;
-        const target = sessByNo[i];
-        if (!target) continue;
-        const scheduledAt = i === 1 && form.session_1_start_at
-          ? new Date(form.session_1_start_at).toISOString()
-          : new Date(`${v}T10:00:00`).toISOString();
+      // 第1回の開始日時のみ scheduled_at に反映する。
+      // 第2〜8回は受講生ポータル側で第1回基準の毎週仮置き表示にするため、ここでは書き込まない
+      // （各回の実日時は「第N回セッション管理」タブの『次回開始日時』で個別確定する）。
+      const session1 = (sessions || []).find((s) => s.session_no === 1);
+      if (session1 && form.session_1_start_at) {
         await supabase.from('spacareer_sessions')
-          .update({ scheduled_at: scheduledAt }).eq('id', target.id);
+          .update({ scheduled_at: new Date(form.session_1_start_at).toISOString() })
+          .eq('id', session1.id);
       }
 
       // キックオフMTGの実施日時を第0回 session の started_at に保存（受講生履歴の実施日に反映）。
@@ -202,11 +152,11 @@ export default function TabKickoff({ detail, onRefresh }) {
         <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap', alignItems: 'center' }}>
           <input ref={videoFileRef} type="file" accept="video/*" onChange={handleVideoUpload} style={{ display: 'none' }} />
           <Button variant="primary" size="md" loading={uploading}
-            onClick={() => videoFileRef.current?.click()} disabled={kickoffStatus === 'completed'}>
+            onClick={() => videoFileRef.current?.click()}>
             {hasVideo ? '動画を差し替える' : '動画をアップロード'}
           </Button>
           <Button variant="outline" size="md" loading={generatingMinutes}
-            onClick={handleGenerateMinutes} disabled={!hasVideo || kickoffStatus === 'completed'}>
+            onClick={handleGenerateMinutes} disabled={!hasVideo}>
             AI議事録を生成
           </Button>
           {hasMinutes && (
@@ -309,21 +259,12 @@ export default function TabKickoff({ detail, onRefresh }) {
         />
       </Card>
 
-      <Card padding="md" title="第1〜第8回 大枠日程"
-        description="第1〜第8回の日付を確定します。第1回のみ時間まで入力。">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: space[3] }}>
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-            <Input key={n} size="sm" label={`第${n}回`} type="date"
-              value={toDateInput(form[`session_${n}_date`])}
-              onChange={(e) => setForm((p) => ({ ...p, [`session_${n}_date`]: e.target.value }))} />
-          ))}
-        </div>
-        <div style={{ marginTop: space[3] }}>
-          <Input size="sm" label="第1回 開始日時（日付＋時間）" type="datetime-local"
-            value={toDateTimeInput(form.session_1_start_at)}
-            onChange={(e) => setForm((p) => ({ ...p, session_1_start_at: e.target.value }))}
-            hint="第1回の開始日時を確定すると、自動的にスケジュールに反映されます。" />
-        </div>
+      <Card padding="md" title="第1回 開始日時"
+        description="第1回の開始日時のみ入力します。第2〜8回は、この日時を基準に毎週同じ曜日・時刻で受講生ポータルに自動仮置き表示されます（各回の実日時は「第N回セッション管理」タブの『次回開始日時』で確定できます）。">
+        <Input size="sm" label="第1回 開始日時（日付＋時間）" type="datetime-local"
+          value={toDateTimeInput(form.session_1_start_at)}
+          onChange={(e) => setForm((p) => ({ ...p, session_1_start_at: e.target.value }))}
+          hint="第1回の開始日時を確定すると、自動的にスケジュールに反映されます。" />
       </Card>
 
       <div style={{ display: 'flex', gap: space[2], alignItems: 'center' }}>
@@ -346,8 +287,6 @@ export default function TabKickoff({ detail, onRefresh }) {
 function buildForm(k) {
   const base = {
     customer_questions_log: '',
-    session_1_date: null, session_2_date: null, session_3_date: null, session_4_date: null,
-    session_5_date: null, session_6_date: null, session_7_date: null, session_8_date: null,
     session_1_start_at: null,
   };
   CHECK_FIELDS.forEach((f) => { base[f.key] = false; });

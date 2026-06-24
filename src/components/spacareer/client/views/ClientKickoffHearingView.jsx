@@ -3,6 +3,8 @@ import { color, space, font, radius, shadow, alpha } from '../../../../constants
 import { Button, Card, Badge, Input } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
+import { loadDraft, saveDraft, clearDraft } from '../../../../lib/spacareer/draftCache';
+import { saveWithAuthRetry } from '../../../../lib/spacareer/saveWithRetry';
 
 // 仕様書: tasks/spacareer-spec.md §6.2A 第1回前ヒアリングシート（キックオフ専用・70問固定）
 // 実装todo: tasks/spacareer-kickoff-hearing-todo.md Phase C
@@ -89,7 +91,21 @@ export default function ClientKickoffHearingView() {
 
         const respMap = {};
         (rRes.data || []).forEach(r => { respMap[r.question_id] = r.answer_text || ''; });
+
+        // 端末ローカルの下書きを復元（前回ログアウト・保存失敗で未送信の回答を取り戻す）。
+        // サーバー値の上に、下書きで非空の回答だけを重ねる（消失防止を最優先）。
+        const draft = loadDraft(`kickoff_hearing:${cust.id}`);
+        let restored = false;
+        if (draft?.data && typeof draft.data === 'object') {
+          Object.entries(draft.data).forEach(([qid, val]) => {
+            if (typeof val === 'string' && val.length > 0 && val !== respMap[qid]) {
+              respMap[qid] = val;
+              restored = true;
+            }
+          });
+        }
         setResponses(respMap);
+        if (restored) setToast({ message: '未送信の下書きを復元しました' });
 
         setLoading(false);
       } catch (e) {
@@ -177,7 +193,8 @@ export default function ClientKickoffHearingView() {
     if (!customer) return;
     setSavingMap(prev => ({ ...prev, [questionId]: true }));
     try {
-      const { error: e } = await supabase
+      // トークン期限切れでも refreshSession 後に1回再試行してから判定する。
+      const { error: e } = await saveWithAuthRetry(() => supabase
         .from('spacareer_kickoff_hearing_responses')
         .upsert({
           org_id: customer.org_id,
@@ -186,7 +203,7 @@ export default function ClientKickoffHearingView() {
           answer_text: answerText ?? null,
           is_draft: true,
           answered_at: new Date().toISOString(),
-        }, { onConflict: 'customer_id,question_id' });
+        }, { onConflict: 'customer_id,question_id' }));
       if (e) throw e;
       setSavedAt(new Date());
       // セッション状態の再フェッチ（初回回答時に first_accessed_at/deadline_at が trigger でセットされる）
@@ -199,15 +216,21 @@ export default function ClientKickoffHearingView() {
         if (s) setSession(s);
       }
     } catch (e) {
+      // 失敗してもログアウトさせず、端末の下書きを保持する（再ログインで自動復元）。
       console.error('[ClientKickoffHearing] save error:', e);
-      alert('保存に失敗しました: ' + (e.message || e));
+      setToast({ message: '保存に失敗しましたが、入力内容は端末に保存済みです（再ログイン後に自動復元されます）' });
     } finally {
       setSavingMap(prev => ({ ...prev, [questionId]: false }));
     }
   };
 
   const handleAnswerChange = (questionId, val) => {
-    setResponses(prev => ({ ...prev, [questionId]: val }));
+    setResponses(prev => {
+      const next = { ...prev, [questionId]: val };
+      // 入力のたびに端末ローカルへ即時退避（保存失敗・ログアウトでも消えない）
+      if (customer?.id) saveDraft(`kickoff_hearing:${customer.id}`, next);
+      return next;
+    });
     // debounce
     if (saveTimers.current[questionId]) clearTimeout(saveTimers.current[questionId]);
     saveTimers.current[questionId] = setTimeout(() => {
@@ -231,15 +254,17 @@ export default function ClientKickoffHearingView() {
         is_draft: true,
         answered_at: new Date().toISOString(),
       }));
-      const { error: e } = await supabase
+      const { error: e } = await saveWithAuthRetry(() => supabase
         .from('spacareer_kickoff_hearing_responses')
-        .upsert(rows, { onConflict: 'customer_id,question_id' });
+        .upsert(rows, { onConflict: 'customer_id,question_id' }));
       if (e) throw e;
       setSavedAt(new Date());
+      // サーバーへ全件保存できたので端末の下書きは破棄（以降はサーバー値が正）
+      clearDraft(`kickoff_hearing:${customer.id}`);
       setToast({ message: '回答内容を保存しました' });
     } catch (e) {
       console.error('[ClientKickoffHearing] saveAll error:', e);
-      alert('一時保存に失敗しました: ' + (e.message || e));
+      setToast({ message: '保存に失敗しましたが、入力内容は端末に保存済みです（再ログイン後に自動復元されます）' });
     } finally {
       setSavingMap(prev => {
         const m = { ...prev };
@@ -266,9 +291,9 @@ export default function ClientKickoffHearingView() {
         is_draft: false,
         answered_at: new Date().toISOString(),
       }));
-      const { error: upErr } = await supabase
+      const { error: upErr } = await saveWithAuthRetry(() => supabase
         .from('spacareer_kickoff_hearing_responses')
-        .upsert(rows, { onConflict: 'customer_id,question_id' });
+        .upsert(rows, { onConflict: 'customer_id,question_id' }));
       if (upErr) throw upErr;
 
       // 「あなたの原動力」(K セクション 1問) の回答を customer.driving_phrase に書き写す。
@@ -294,6 +319,9 @@ export default function ClientKickoffHearingView() {
         .maybeSingle();
       if (sErr) throw sErr;
       if (sess) setSession(sess);
+      // 提出が確定したので端末の下書きは破棄
+      clearDraft(`kickoff_hearing:${customer.id}`);
+      setToast({ message: '回答を提出しました' });
 
       // AI抽出 Edge Function をバックグラウンドで起動（結果待ちはしない）
       // 失敗してもユーザー体験は止めない。運営側で再実行可能。
@@ -304,7 +332,7 @@ export default function ClientKickoffHearingView() {
       });
     } catch (e) {
       console.error('[ClientKickoffHearing] submit error:', e);
-      alert('提出に失敗しました: ' + (e.message || e));
+      setToast({ message: '提出に失敗しましたが、入力内容は端末に保存済みです（再ログイン後に自動復元されます）' });
     } finally {
       setSubmitting(false);
     }

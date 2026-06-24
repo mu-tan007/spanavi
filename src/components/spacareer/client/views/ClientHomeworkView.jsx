@@ -3,6 +3,8 @@ import { color, space, font, radius, shadow, alpha } from '../../../../constants
 import { Button, Card, Badge, Select } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
+import { loadDraft, saveDraft, clearDraft } from '../../../../lib/spacareer/draftCache';
+import { saveWithAuthRetry } from '../../../../lib/spacareer/saveWithRetry';
 import ClientMonetizationDiagnosisView from './ClientMonetizationDiagnosisView';
 
 // 仕様書: tasks/spacareer-spec.md §6.2 事後課題
@@ -102,6 +104,20 @@ export default function ClientHomeworkView() {
         a[r.id] = r.answer_text || '';
         f[r.id] = Array.isArray(r.attached_files) ? r.attached_files : [];
       });
+      // 端末ローカルの下書きを復元（保存失敗・ログアウトで未送信の回答を取り戻す）
+      const draft = customer?.id ? loadDraft(`homework:${customer.id}:${selectedHomeworkId}`) : null;
+      if (draft?.data && typeof draft.data === 'object') {
+        const dA = draft.data.answers || {};
+        Object.entries(dA).forEach(([id, val]) => {
+          if (typeof val === 'string' && val.length > 0 && val !== a[id]) a[id] = val;
+        });
+        const dF = draft.data.files || {};
+        Object.entries(dF).forEach(([id, list]) => {
+          if (Array.isArray(list) && list.length > 0 && (f[id] || []).length === 0) {
+            f[id] = list;
+          }
+        });
+      }
       setAnswers(a);
       setFiles(f);
     })();
@@ -112,6 +128,10 @@ export default function ClientHomeworkView() {
     () => homeworks.find(h => h.id === selectedHomeworkId) || null,
     [homeworks, selectedHomeworkId],
   );
+
+  // 下書きの保存キー（受講生×課題で一意）
+  const draftKey = customer?.id && selectedHomeworkId
+    ? `homework:${customer.id}:${selectedHomeworkId}` : null;
 
   // 回答済み判定。ファイル提出形式(item_type='file')は添付があれば回答済みとみなす。
   const isAnswered = (it) =>
@@ -155,10 +175,11 @@ export default function ClientHomeworkView() {
       };
       // setSubmitted 以外は submitted_at を触らない（既存値を保持）
       if (opts.setSubmitted) patch.submitted_at = nowIso;
-      return supabase
+      // トークン期限切れでも refreshSession 後に1回再試行する
+      return saveWithAuthRetry(() => supabase
         .from('spacareer_homework_items')
         .update(patch)
-        .eq('id', id);
+        .eq('id', id));
     }));
     const firstError = results.find(r => r.error)?.error;
     if (firstError) throw firstError;
@@ -188,7 +209,9 @@ export default function ClientHomeworkView() {
       // 初回100%達成日時は一度だけ記録（提出期限内に到達したかの判定に使う）
       if (!selectedHomework?.first_completed_at) patch.first_completed_at = nowIso;
     }
-    await supabase.from('spacareer_homework').update(patch).eq('id', selectedHomeworkId);
+    const { error: stErr } = await saveWithAuthRetry(() =>
+      supabase.from('spacareer_homework').update(patch).eq('id', selectedHomeworkId));
+    if (stErr) throw stErr;
     setHomeworks(prev => prev.map(h => h.id === selectedHomeworkId ? { ...h, ...patch } : h));
   };
 
@@ -197,7 +220,8 @@ export default function ClientHomeworkView() {
     try {
       await saveAnswers([itemId], { setSubmitted: false });
     } catch (e) {
-      alert('保存に失敗しました: ' + (e.message || e));
+      console.error('[ClientHomework] tempSave error:', e);
+      alert('保存に失敗しましたが、入力内容は端末に保存されています（再ログイン後に自動復元されます）。');
     } finally {
       setSaving(false);
     }
@@ -207,8 +231,11 @@ export default function ClientHomeworkView() {
     setSaving(true);
     try {
       await saveAnswers(items.map(it => it.id), { setSubmitted: false });
+      // 全件サーバー保存できたので端末の下書きは破棄
+      if (draftKey) clearDraft(draftKey);
     } catch (e) {
-      alert('保存に失敗しました: ' + (e.message || e));
+      console.error('[ClientHomework] saveAll error:', e);
+      alert('保存に失敗しましたが、入力内容は端末に保存されています（再ログイン後に自動復元されます）。');
     } finally {
       setSaving(false);
     }
@@ -223,6 +250,8 @@ export default function ClientHomeworkView() {
       const nonSubmit = items.filter(it => !isAnswered(it)).map(it => it.id);
       if (nonSubmit.length) await saveAnswers(nonSubmit, { setSubmitted: false });
       await recomputeHomeworkStatus();
+      // 全件サーバー保存できたので端末の下書きは破棄
+      if (draftKey) clearDraft(draftKey);
       // 提出のたびに、その時点の達成率スナップショットを1行記録する（提出回数ごとの履歴用）。
       // 履歴記録の失敗で提出自体を止めないよう、エラーはログのみ。
       try {
@@ -250,7 +279,8 @@ export default function ClientHomeworkView() {
         alert(`${submitIds.length} / ${totalItems} 問を提出しました。\n残りの設問は「編集する」から回答後、再度「回答を提出」を押すと提出できます。`);
       }
     } catch (e) {
-      alert('提出に失敗しました: ' + (e.message || e));
+      console.error('[ClientHomework] submit error:', e);
+      alert('提出に失敗しましたが、入力内容は端末に保存されています（再ログイン後に自動復元されます）。');
     } finally {
       setSubmitting(false);
     }
@@ -274,10 +304,11 @@ export default function ClientHomeworkView() {
       return;
     }
     const { data: urlData } = supabase.storage.from(HOMEWORK_BUCKET).getPublicUrl(path);
-    setFiles(prev => ({
-      ...prev,
-      [itemId]: [...current, { name: file.name, path, url: urlData.publicUrl, size: file.size }],
-    }));
+    setFiles(prev => {
+      const next = { ...prev, [itemId]: [...current, { name: file.name, path, url: urlData.publicUrl, size: file.size }] };
+      if (draftKey) saveDraft(draftKey, { answers, files: next });
+      return next;
+    });
   };
 
   const handleFileRemove = async (itemId, idx) => {
@@ -287,7 +318,11 @@ export default function ClientHomeworkView() {
     if (target.path) {
       await supabase.storage.from(HOMEWORK_BUCKET).remove([target.path]);
     }
-    setFiles(prev => ({ ...prev, [itemId]: list.filter((_, i) => i !== idx) }));
+    setFiles(prev => {
+      const next = { ...prev, [itemId]: list.filter((_, i) => i !== idx) };
+      if (draftKey) saveDraft(draftKey, { answers, files: next });
+      return next;
+    });
   };
 
   if (loading) return <Centered>読み込み中...</Centered>;
@@ -376,7 +411,11 @@ export default function ClientHomeworkView() {
                   index={idx + 1}
                   item={item}
                   answer={answers[item.id] || ''}
-                  onAnswerChange={v => setAnswers(prev => ({ ...prev, [item.id]: v }))}
+                  onAnswerChange={v => setAnswers(prev => {
+                    const next = { ...prev, [item.id]: v };
+                    if (draftKey) saveDraft(draftKey, { answers: next, files });
+                    return next;
+                  })}
                   files={files[item.id] || []}
                   onFileAdd={f => handleFileAdd(item.id, f)}
                   onFileRemove={i => handleFileRemove(item.id, i)}
