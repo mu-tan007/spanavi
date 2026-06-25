@@ -582,6 +582,28 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
   const len = (answer || '').length;
   const max = item.max_length || null;
   const isFile = item.item_type === 'file';
+
+  // テンプレートのダウンロード。<a download> 直リンクは Content-Disposition: inline や
+  // SPA フォールバックの影響でファイルが開かず別ページに遷移することがあるため、
+  // 議事録ダウンロード(downloadMinutes)と同じく blob 経由で確実にダウンロードさせる。
+  const downloadTemplate = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(item.template_url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.template_name || 'template.pptx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('テンプレートのダウンロードに失敗しました。時間をおいて再度お試しください。');
+    }
+  };
   return (
     <Card padding="md" style={{ scrollMarginTop: 80 }}>
       <div id={`hw-q-${item.id}`} style={{ display: 'flex', alignItems: 'flex-start', gap: space[3], marginBottom: space[3] }}>
@@ -606,6 +628,7 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
             <a
               href={item.template_url}
               download={item.template_name || ''}
+              onClick={downloadTemplate}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: space[2],
                 padding: `${space[2]}px ${space[3]}px`,
