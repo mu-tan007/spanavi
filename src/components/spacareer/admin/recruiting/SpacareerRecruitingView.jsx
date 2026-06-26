@@ -305,7 +305,6 @@ export default function SpacareerRecruitingView() {
 // ============================================================
 function AddApplicantModal({ orgId, onClose, onAdded }) {
   const [fullName, setFullName] = useState('');
-  const [furigana, setFurigana] = useState('');
   const [jobType, setJobType] = useState('sales');
   const [jobTitle, setJobTitle] = useState('');
   const [profileText, setProfileText] = useState('');
@@ -325,7 +324,6 @@ function AddApplicantModal({ orgId, onClose, onAdded }) {
     try {
       await addApplicantManual(orgId, {
         full_name: fullName.trim(),
-        furigana: furigana.trim() || null,
         job_type: jobType,
         job_title: jobTitle.trim() || null,
         profile_text: profileText.trim() || null,
@@ -353,15 +351,9 @@ function AddApplicantModal({ orgId, onClose, onAdded }) {
           候補者を追加
         </h2>
 
-        <div style={{ display: 'flex', gap: space[3] }}>
-          <div style={{ flex: 1 }}>
-            <label style={lbl}>氏名 <span style={{ color: color.danger }}>*</span></label>
-            <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="例: 茜 真悟" style={field} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={lbl}>ふりがな</label>
-            <input value={furigana} onChange={e => setFurigana(e.target.value)} placeholder="例: あかね しんご" style={field} />
-          </div>
+        <div>
+          <label style={lbl}>氏名 <span style={{ color: color.danger }}>*</span></label>
+          <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="例: 茜 真悟" style={field} />
         </div>
 
         <div style={{ display: 'flex', gap: space[3], marginTop: space[3] }}>
