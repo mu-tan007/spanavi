@@ -136,12 +136,7 @@ export default function SpacareerRecruitingView() {
     {
       key: 'full_name', label: '氏名', width: 170, align: 'left',
       render: (r) => (
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: font.weight.semibold, color: color.textDark }}>{r.full_name}</div>
-          {r.furigana && (
-            <div style={{ fontSize: font.size.xs, color: color.textLight }}>{r.furigana}</div>
-          )}
-        </div>
+        <div style={{ minWidth: 0, fontWeight: font.weight.semibold, color: color.textDark }}>{r.full_name}</div>
       ),
     },
     {

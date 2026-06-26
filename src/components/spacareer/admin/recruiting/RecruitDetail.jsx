@@ -120,9 +120,6 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
               </Badge>
             )}
           </div>
-          {applicant.furigana && (
-            <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>{applicant.furigana}</div>
-          )}
           {applicant.job_title && (
             <div style={{ fontSize: font.size.sm, color: color.textDark, marginTop: space[1] }}>
               応募求人: {applicant.job_title}
