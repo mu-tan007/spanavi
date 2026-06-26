@@ -38,6 +38,7 @@ export const PAGE_REGISTRY = {
   ],
   spartia_career: [
     { key: 'customers', label: '顧客一覧', group: 'CUSTOMERS' },
+    { key: 'recruiting', label: '採用管理', group: 'RECRUITING' },
     { key: 'sessions', label: 'セッション管理', group: 'OPERATIONS' },
     { key: 'homework', label: '事後課題管理', group: 'OPERATIONS' },
     { key: 'social_style', label: 'ソーシャルスタイル診断', group: 'DIAGNOSIS' },

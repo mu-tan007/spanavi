@@ -6,6 +6,7 @@ import { useAccessControl } from '../../../hooks/useAccessControl';
 // 仕様書: tasks/spacareer-spec.md §3.2 B. 運営ダッシュボード
 const ACTIVE_IDS = new Set([
   'customers',
+  'recruiting',
   'sessions',
   'homework',
   'social_style',
@@ -29,6 +30,9 @@ export default function SpacareerAdminSidebar({
   const rawSections = [
     { label: 'CUSTOMERS', items: [
       { id: 'customers', label: '顧客一覧' },
+    ]},
+    { label: 'RECRUITING', items: [
+      { id: 'recruiting', label: '採用管理' },
     ]},
     { label: 'OPERATIONS', items: [
       { id: 'sessions', label: 'セッション管理' },

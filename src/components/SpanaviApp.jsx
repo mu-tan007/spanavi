@@ -22,6 +22,7 @@ import { RecordingPlayerProvider } from './common/RecordingPlayerProvider';
 import MASPSidebar from './common/sidebars/MASPSidebar';
 import SpacareerAdminSidebar from './spacareer/admin/SpacareerAdminSidebar';
 import SpacareerCustomersView from './spacareer/admin/customers/SpacareerCustomersView';
+import SpacareerRecruitingView from './spacareer/admin/recruiting/SpacareerRecruitingView';
 import SpacareerSessionsView from './spacareer/admin/sessions/SpacareerSessionsView';
 import SpacareerSocialStyleView from './spacareer/admin/social-style/SpacareerSocialStyleView';
 import SpacareerCoursesView from './spacareer/admin/courses/SpacareerCoursesView';
@@ -757,7 +758,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         return null;
       }
       if (engSlug === 'spartia_career') {
-        return ['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings'].find(k => canViewPage('spartia_career', k));
+        return ['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings'].find(k => canViewPage('spartia_career', k));
       }
       return null;
     })();
@@ -823,7 +824,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         tabs.push('mypage');
         cycle(tabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_career') {
-        cycle(['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'], currentTab, e.key, setCurrentTab);
+        cycle(['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'], currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_capital') {
         const paths = ['/dashboard', '/deals', '/needs', '/partners', '/documents', '/members'];
         const cur = getCapitalPathname();
@@ -1381,6 +1382,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         )}
         {/* スパキャリ運営ダッシュボード 8画面（Phase 3 並列実装で全画面の中身を構築完了） */}
         {engSlug === 'spartia_career' && currentTab === 'customers' && <SpacareerCustomersView isAdmin={isAdmin} />}
+        {engSlug === 'spartia_career' && currentTab === 'recruiting' && <SpacareerRecruitingView />}
         {engSlug === 'spartia_career' && currentTab === 'sessions' && <SpacareerSessionsView isAdmin={isAdmin} />}
         {engSlug === 'spartia_career' && currentTab === 'social_style' && <SpacareerSocialStyleView />}
         {engSlug === 'spartia_career' && currentTab === 'ai_courses' && <SpacareerCoursesView />}
@@ -1388,7 +1390,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_career' && currentTab === 'settings' && <SpacareerSettingsView />}
         {engSlug === 'spartia_career' && currentTab === 'homework' && <SpacareerHomeworkView />}
         {engSlug === 'spartia_career' && currentTab === 'templates' && <SpacareerTemplatesView />}
-        {engSlug === 'spartia_career' && !['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'].includes(currentTab) && (
+        {engSlug === 'spartia_career' && !['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は実装中です" />
         )}
         {engSlug === 'spartia_capital' && <CapitalApp isAdmin={isAdmin} />}
