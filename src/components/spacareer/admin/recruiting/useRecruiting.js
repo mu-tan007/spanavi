@@ -23,7 +23,7 @@ export function useRecruitApplicants() {
     try {
       const { data, error: e } = await supabase
         .from('recruit_applicants')
-        .select('id, full_name, furigana, job_type, job_title, profile_text, photo_path, status, pipeline_status, interview_at, staff_memo, applied_at, source, created_at')
+        .select('id, full_name, furigana, job_type, job_title, profile_text, photo_path, status, pipeline_status, interview_at, interviewer, staff_memo, applied_at, source, created_at')
         .eq('org_id', orgId)
         .order('applied_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
@@ -139,6 +139,13 @@ export const STATUS_LABELS = STATUS_OPTIONS.reduce((a, o) => (a[o.value] = o.lab
 export const STATUS_BADGE = {
   new: 'info', screening: 'warn', interview: 'primary', passed: 'success', rejected: 'neutral',
 };
+
+// 面接担当者の選択肢
+export const INTERVIEWER_OPTIONS = [
+  { value: '', label: '—' },
+  { value: '篠宮', label: '篠宮' },
+  { value: '小山', label: '小山' },
+];
 
 // 採用パイプラインのステータス（一覧でインライン編集）
 export const PIPELINE_STATUS_OPTIONS = [

@@ -7,7 +7,7 @@ import { useAuth } from '../../../../hooks/useAuth';
 import {
   useRecruitApplicants, updateApplicant,
   JOB_TYPE_LABELS, JOB_TYPE_BADGE,
-  PIPELINE_STATUS_OPTIONS,
+  PIPELINE_STATUS_OPTIONS, INTERVIEWER_OPTIONS,
 } from './useRecruiting';
 
 function fmtDate(iso) {
@@ -43,6 +43,10 @@ const cellInput = {
   fontSize: font.size.xs, color: color.textDark, background: color.white,
   fontFamily: font.family.base,
 };
+// コンパクトな日時入力（横幅を抑える）
+const cellDate = { ...cellInput, padding: `3px ${space[1]}px`, fontSize: font.size.xs - 1 };
+// セル内セレクトの極小化
+const cellSelectStyle = { fontSize: font.size.xs, minHeight: 26, paddingTop: 3, paddingBottom: 3 };
 
 function InlineDateTime({ value, onSave }) {
   const [v, setV] = useState(toLocalInput(value));
@@ -55,7 +59,7 @@ function InlineDateTime({ value, onSave }) {
         setV(e.target.value);
         onSave(e.target.value ? new Date(e.target.value).toISOString() : null);
       }}
-      style={cellInput}
+      style={cellDate}
     />
   );
 }
@@ -133,7 +137,7 @@ export default function SpacareerRecruitingView() {
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{fmtDate(r.applied_at)}</span>,
     },
     {
-      key: 'interview_at', label: '面接日', width: 190, align: 'left',
+      key: 'interview_at', label: '面接日', width: 156, align: 'left',
       render: (r) => (
         <div onClick={stop} style={{ cursor: 'default' }}>
           <InlineDateTime value={r.interview_at} onSave={(iso) => save(r.id, { interview_at: iso })} />
@@ -141,10 +145,26 @@ export default function SpacareerRecruitingView() {
       ),
     },
     {
-      key: 'pipeline_status', label: 'ステータス', width: 130, align: 'center',
+      key: 'interviewer', label: '面接担当者', width: 110, align: 'center',
       render: (r) => (
         <div onClick={stop} style={{ cursor: 'default' }}>
           <Select
+            size="sm"
+            style={cellSelectStyle}
+            options={INTERVIEWER_OPTIONS}
+            value={r.interviewer || ''}
+            onChange={(e) => save(r.id, { interviewer: e.target.value || null })}
+          />
+        </div>
+      ),
+    },
+    {
+      key: 'pipeline_status', label: 'ステータス', width: 120, align: 'center',
+      render: (r) => (
+        <div onClick={stop} style={{ cursor: 'default' }}>
+          <Select
+            size="sm"
+            style={cellSelectStyle}
             options={PIPELINE_STATUS_OPTIONS}
             value={r.pipeline_status || 'scheduling'}
             onChange={(e) => save(r.id, { pipeline_status: e.target.value })}
@@ -180,11 +200,11 @@ export default function SpacareerRecruitingView() {
 
       {/* フィルタ（小型） */}
       <div style={{ display: 'flex', gap: space[2], alignItems: 'center', marginBottom: space[2] }}>
-        <div style={{ width: 150 }}>
-          <Select options={JOB_FILTERS} value={jobFilter} onChange={e => setJobFilter(e.target.value)} />
+        <div style={{ width: 130 }}>
+          <Select size="sm" style={cellSelectStyle} options={JOB_FILTERS} value={jobFilter} onChange={e => setJobFilter(e.target.value)} />
         </div>
-        <div style={{ width: 168 }}>
-          <Select options={STATUS_FILTERS} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} />
+        <div style={{ width: 150 }}>
+          <Select size="sm" style={cellSelectStyle} options={STATUS_FILTERS} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} />
         </div>
         <div style={{ fontSize: font.size.xs, color: color.textMid, marginLeft: space[1] }}>
           {loading ? '読み込み中…' : `${filtered.length} 名`}

@@ -4,7 +4,7 @@ import { Button, Select, Badge } from '../../../ui';
 import {
   updateApplicant, getPhotoSignedUrl,
   JOB_TYPE_LABELS, JOB_TYPE_BADGE,
-  PIPELINE_STATUS_OPTIONS,
+  PIPELINE_STATUS_OPTIONS, INTERVIEWER_OPTIONS,
 } from './useRecruiting';
 
 const FUKUGYO_URL = 'https://cl.aw-anotherworks.com/';
@@ -41,12 +41,14 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
   const [photoUrl, setPhotoUrl] = useState(null);
   const [pipeline, setPipeline] = useState(applicant?.pipeline_status || 'scheduling');
   const [interviewAt, setInterviewAt] = useState(toLocalInput(applicant?.interview_at));
+  const [interviewer, setInterviewer] = useState(applicant?.interviewer || '');
   const [memo, setMemo] = useState(applicant?.staff_memo || '');
   const [savingMemo, setSavingMemo] = useState(false);
 
   useEffect(() => {
     setPipeline(applicant?.pipeline_status || 'scheduling');
     setInterviewAt(toLocalInput(applicant?.interview_at));
+    setInterviewer(applicant?.interviewer || '');
     setMemo(applicant?.staff_memo || '');
     setPhotoUrl(null);
     let alive = true;
@@ -54,7 +56,7 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
       getPhotoSignedUrl(applicant.photo_path).then(u => { if (alive) setPhotoUrl(u); });
     }
     return () => { alive = false; };
-  }, [applicant?.id, applicant?.photo_path, applicant?.pipeline_status, applicant?.interview_at, applicant?.staff_memo]);
+  }, [applicant?.id, applicant?.photo_path, applicant?.pipeline_status, applicant?.interview_at, applicant?.interviewer, applicant?.staff_memo]);
 
   const persist = useCallback(async (patch) => {
     try {
@@ -66,6 +68,7 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
   }, [applicant, onChanged]);
 
   const onChangePipeline = (e) => { setPipeline(e.target.value); persist({ pipeline_status: e.target.value }); };
+  const onChangeInterviewer = (e) => { setInterviewer(e.target.value); persist({ interviewer: e.target.value || null }); };
   const onChangeInterview = (e) => {
     setInterviewAt(e.target.value);
     persist({ interview_at: e.target.value ? new Date(e.target.value).toISOString() : null });
@@ -121,15 +124,19 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
         </div>
       </div>
 
-      {/* 面接日 + ステータス */}
-      <div style={{ marginTop: space[4], display: 'flex', gap: space[3] }}>
-        <div style={{ flex: 1 }}>
+      {/* 面接日 + 面接担当者 + ステータス */}
+      <div style={{ marginTop: space[4], display: 'flex', gap: space[3], flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 160px' }}>
           <label style={labelStyle}>面接日</label>
           <input type="datetime-local" value={interviewAt} onChange={onChangeInterview} style={fieldStyle} />
         </div>
-        <div style={{ width: 160 }}>
+        <div style={{ width: 120 }}>
+          <label style={labelStyle}>面接担当者</label>
+          <Select size="sm" options={INTERVIEWER_OPTIONS} value={interviewer} onChange={onChangeInterviewer} />
+        </div>
+        <div style={{ width: 140 }}>
           <label style={labelStyle}>ステータス</label>
-          <Select options={PIPELINE_STATUS_OPTIONS} value={pipeline} onChange={onChangePipeline} />
+          <Select size="sm" options={PIPELINE_STATUS_OPTIONS} value={pipeline} onChange={onChangePipeline} />
         </div>
       </div>
 
