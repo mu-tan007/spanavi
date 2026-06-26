@@ -7,7 +7,7 @@ import {
   PIPELINE_STATUS_OPTIONS, INTERVIEWER_OPTIONS,
 } from './useRecruiting';
 
-const FUKUGYO_URL = 'https://cl.aw-anotherworks.com/';
+const FUKUGYO_URL = 'https://client.aw-anotherworks.com/';
 
 function fmtDateTime(iso) {
   if (!iso) return '—';
