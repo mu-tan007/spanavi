@@ -44,7 +44,7 @@ const cellInput = {
   fontFamily: font.family.base,
 };
 // コンパクトな日時入力（横幅を抑える）
-const cellDate = { ...cellInput, padding: `3px ${space[1]}px`, fontSize: font.size.xs - 1 };
+const cellDate = { ...cellInput, padding: '2px 4px', fontSize: font.size.xs - 2, letterSpacing: '-0.2px' };
 // セル内セレクトの極小化
 const cellSelectStyle = { fontSize: font.size.xs, minHeight: 26, paddingTop: 3, paddingBottom: 3 };
 
@@ -137,7 +137,7 @@ export default function SpacareerRecruitingView() {
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{fmtDate(r.applied_at)}</span>,
     },
     {
-      key: 'interview_at', label: '面接日', width: 156, align: 'left',
+      key: 'interview_at', label: '面接日', width: 132, align: 'right',
       render: (r) => (
         <div onClick={stop} style={{ cursor: 'default' }}>
           <InlineDateTime value={r.interview_at} onSave={(iso) => save(r.id, { interview_at: iso })} />
