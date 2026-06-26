@@ -43,8 +43,13 @@ const cellInput = {
   fontSize: font.size.xs, color: color.textDark, background: color.white,
   fontFamily: font.family.base,
 };
-// コンパクトな日時入力（横幅を抑える）
-const cellDate = { ...cellInput, padding: '2px 4px', fontSize: font.size.xs - 2, letterSpacing: '-0.2px' };
+// コンパクトな日時入力（文字サイズは保ち、枠を固定幅で短く）
+const cellDate = {
+  ...cellInput,
+  width: 138, maxWidth: '100%',
+  padding: `${space[1]}px ${space[1]}px`,
+  fontSize: font.size.xs,
+};
 // セル内セレクトの極小化
 const cellSelectStyle = { fontSize: font.size.xs, minHeight: 26, paddingTop: 3, paddingBottom: 3 };
 
@@ -128,16 +133,22 @@ export default function SpacareerRecruitingView() {
     },
     {
       key: 'job_type', label: '職種', width: 90, align: 'center',
+      sortable: true, sortType: 'string',
+      sortValue: (r) => JOB_TYPE_LABELS[r.job_type] || r.job_type || '',
       render: (r) => JOB_TYPE_LABELS[r.job_type]
         ? <Badge variant={JOB_TYPE_BADGE[r.job_type]} dot>{JOB_TYPE_LABELS[r.job_type]}</Badge>
         : <span style={{ color: color.textLight }}>—</span>,
     },
     {
       key: 'applied_at', label: '応募日', width: 110, align: 'right',
+      sortable: true,
+      sortValue: (r) => (r.applied_at ? new Date(r.applied_at).getTime() : 0),
       render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{fmtDate(r.applied_at)}</span>,
     },
     {
       key: 'interview_at', label: '面接日', width: 132, align: 'right',
+      sortable: true,
+      sortValue: (r) => (r.interview_at ? new Date(r.interview_at).getTime() : null),
       render: (r) => (
         <div onClick={stop} style={{ cursor: 'default' }}>
           <InlineDateTime value={r.interview_at} onSave={(iso) => save(r.id, { interview_at: iso })} />
@@ -160,6 +171,11 @@ export default function SpacareerRecruitingView() {
     },
     {
       key: 'pipeline_status', label: 'ステータス', width: 120, align: 'center',
+      sortable: true, sortType: 'string',
+      sortValue: (r) => {
+        const i = PIPELINE_STATUS_OPTIONS.findIndex(o => o.value === (r.pipeline_status || 'scheduling'));
+        return i < 0 ? 99 : i;
+      },
       render: (r) => (
         <div onClick={stop} style={{ cursor: 'default' }}>
           <Select
