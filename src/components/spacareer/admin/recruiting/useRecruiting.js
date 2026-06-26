@@ -23,7 +23,7 @@ export function useRecruitApplicants() {
     try {
       const { data, error: e } = await supabase
         .from('recruit_applicants')
-        .select('id, full_name, furigana, job_type, job_title, profile_text, photo_path, status, staff_memo, applied_at, source, created_at')
+        .select('id, full_name, furigana, job_type, job_title, profile_text, photo_path, status, pipeline_status, interview_at, staff_memo, applied_at, source, created_at')
         .eq('org_id', orgId)
         .order('applied_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
@@ -39,7 +39,12 @@ export function useRecruitApplicants() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { rows, loading, error, refresh };
+  // インライン編集の即時反映（再取得せずローカル行を上書き）
+  const patchRow = useCallback((id, patch) => {
+    setRows(rs => rs.map(r => (r.id === id ? { ...r, ...patch } : r)));
+  }, []);
+
+  return { rows, loading, error, refresh, patchRow };
 }
 
 /** 候補者のステータス／メモ更新 */
@@ -133,6 +138,19 @@ export const STATUS_OPTIONS = [
 export const STATUS_LABELS = STATUS_OPTIONS.reduce((a, o) => (a[o.value] = o.label, a), {});
 export const STATUS_BADGE = {
   new: 'info', screening: 'warn', interview: 'primary', passed: 'success', rejected: 'neutral',
+};
+
+// 採用パイプラインのステータス（一覧でインライン編集）
+export const PIPELINE_STATUS_OPTIONS = [
+  { value: 'scheduling', label: '日程調整中' },
+  { value: 'scheduled', label: '調整済' },
+  { value: 'hired', label: '採用' },
+  { value: 'rejected', label: '不採用' },
+  { value: 'hold', label: '保留' },
+];
+export const PIPELINE_STATUS_LABELS = PIPELINE_STATUS_OPTIONS.reduce((a, o) => (a[o.value] = o.label, a), {});
+export const PIPELINE_STATUS_BADGE = {
+  scheduling: 'warn', scheduled: 'info', hired: 'success', rejected: 'neutral', hold: 'default',
 };
 
 export const INTERVIEW_RESULT_OPTIONS = [

@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { color, space, radius, font, shadow, alpha, z } from '../../../../constants/design';
 import PageHeader from '../../../common/PageHeader';
 import { Badge, DataTable, Select } from '../../../ui';
 import RecruitDetail from './RecruitDetail';
 import { useAuth } from '../../../../hooks/useAuth';
 import {
-  useRecruitApplicants,
-  JOB_TYPE_LABELS, JOB_TYPE_BADGE, STATUS_LABELS, STATUS_BADGE,
+  useRecruitApplicants, updateApplicant,
+  JOB_TYPE_LABELS, JOB_TYPE_BADGE,
+  PIPELINE_STATUS_OPTIONS,
 } from './useRecruiting';
 
 function fmtDate(iso) {
@@ -16,34 +17,78 @@ function fmtDate(iso) {
     + ' ' + d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 }
 
+// ISO → datetime-local input 値 (ローカル時刻 YYYY-MM-DDTHH:mm)
+function toLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 const JOB_FILTERS = [
   { value: 'all', label: 'すべての職種' },
   { value: 'sales', label: '営業' },
   { value: 'trainer', label: 'トレーナー' },
 ];
 const STATUS_FILTERS = [
-  { value: 'all', label: 'すべての選考状況' },
-  { value: 'new', label: '新規' },
-  { value: 'screening', label: '書類選考' },
-  { value: 'interview', label: '面接' },
-  { value: 'passed', label: '合格' },
-  { value: 'rejected', label: '見送り' },
+  { value: 'all', label: 'すべてのステータス' },
+  ...PIPELINE_STATUS_OPTIONS,
 ];
+
+// token化したインライン入力スタイル
+const cellInput = {
+  width: '100%', boxSizing: 'border-box',
+  padding: `${space[1]}px ${space[2]}px`,
+  border: `1px solid ${color.border}`, borderRadius: radius.md,
+  fontSize: font.size.xs, color: color.textDark, background: color.white,
+  fontFamily: font.family.base,
+};
+
+function InlineDateTime({ value, onSave }) {
+  const [v, setV] = useState(toLocalInput(value));
+  useEffect(() => { setV(toLocalInput(value)); }, [value]);
+  return (
+    <input
+      type="datetime-local"
+      value={v}
+      onChange={(e) => {
+        setV(e.target.value);
+        onSave(e.target.value ? new Date(e.target.value).toISOString() : null);
+      }}
+      style={cellInput}
+    />
+  );
+}
+
+function InlineMemo({ value, onSave }) {
+  const [v, setV] = useState(value || '');
+  useEffect(() => { setV(value || ''); }, [value]);
+  return (
+    <input
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => { if ((value || '') !== v) onSave(v || null); }}
+      placeholder="メモを入力"
+      style={cellInput}
+    />
+  );
+}
 
 // ============================================================
 // スパキャリ 採用管理（複業クラウド）
-//   全幅の候補者一覧。行クリックで右からプロフィールがドロワー表示。
+//   全幅の候補者一覧（面接日/ステータス/メモはインライン編集）。
+//   氏名など編集列以外をクリックで右からプロフィールがドロワー表示。
 // ============================================================
 export default function SpacareerRecruitingView() {
   const { orgId } = useAuth();
-  const { rows, loading, refresh } = useRecruitApplicants();
+  const { rows, loading, refresh, patchRow } = useRecruitApplicants();
   const [selectedId, setSelectedId] = useState(null);
   const [jobFilter, setJobFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const filtered = useMemo(() => rows.filter(r =>
     (jobFilter === 'all' || r.job_type === jobFilter) &&
-    (statusFilter === 'all' || r.status === statusFilter)
+    (statusFilter === 'all' || (r.pipeline_status || 'scheduling') === statusFilter)
   ), [rows, jobFilter, statusFilter]);
 
   const selected = useMemo(
@@ -51,43 +96,69 @@ export default function SpacareerRecruitingView() {
     [rows, selectedId]
   );
 
+  // インライン保存（楽観更新 → DB）
+  const save = useCallback(async (id, patch) => {
+    patchRow(id, patch);
+    try {
+      await updateApplicant(id, patch);
+    } catch (e) {
+      alert('保存に失敗しました: ' + e.message);
+      refresh();
+    }
+  }, [patchRow, refresh]);
+
+  // 編集セルはクリックでドロワーを開かない
+  const stop = (e) => e.stopPropagation();
+
   const columns = [
     {
-      key: 'full_name', label: '氏名', width: 180, align: 'left',
+      key: 'full_name', label: '氏名', width: 170, align: 'left',
       render: (r) => (
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: font.weight.semibold, color: color.textDark }}>
-            {r.full_name}
-          </div>
+          <div style={{ fontWeight: font.weight.semibold, color: color.textDark }}>{r.full_name}</div>
           {r.furigana && (
-            <div style={{ fontSize: font.size.xs, color: color.textLight }}>
-              {r.furigana}
-            </div>
+            <div style={{ fontSize: font.size.xs, color: color.textLight }}>{r.furigana}</div>
           )}
         </div>
       ),
     },
     {
-      key: 'job_type', label: '職種', width: 100, align: 'center',
+      key: 'job_type', label: '職種', width: 90, align: 'center',
       render: (r) => JOB_TYPE_LABELS[r.job_type]
         ? <Badge variant={JOB_TYPE_BADGE[r.job_type]} dot>{JOB_TYPE_LABELS[r.job_type]}</Badge>
         : <span style={{ color: color.textLight }}>—</span>,
     },
     {
-      key: 'job_title', label: '応募求人', width: 260, align: 'left',
+      key: 'applied_at', label: '応募日', width: 110, align: 'right',
+      render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{fmtDate(r.applied_at)}</span>,
+    },
+    {
+      key: 'interview_at', label: '面接日', width: 190, align: 'left',
       render: (r) => (
-        <span style={{ fontSize: font.size.sm, color: color.textMid }}>
-          {r.job_title || '—'}
-        </span>
+        <div onClick={stop} style={{ cursor: 'default' }}>
+          <InlineDateTime value={r.interview_at} onSave={(iso) => save(r.id, { interview_at: iso })} />
+        </div>
       ),
     },
     {
-      key: 'status', label: '選考', width: 100, align: 'center',
-      render: (r) => <Badge variant={STATUS_BADGE[r.status] || 'neutral'}>{STATUS_LABELS[r.status] || r.status}</Badge>,
+      key: 'pipeline_status', label: 'ステータス', width: 130, align: 'center',
+      render: (r) => (
+        <div onClick={stop} style={{ cursor: 'default' }}>
+          <Select
+            options={PIPELINE_STATUS_OPTIONS}
+            value={r.pipeline_status || 'scheduling'}
+            onChange={(e) => save(r.id, { pipeline_status: e.target.value })}
+          />
+        </div>
+      ),
     },
     {
-      key: 'applied_at', label: '応募日', width: 120, align: 'right',
-      render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{fmtDate(r.applied_at)}</span>,
+      key: 'staff_memo', label: 'メモ', width: 220, align: 'left',
+      render: (r) => (
+        <div onClick={stop} style={{ cursor: 'default' }}>
+          <InlineMemo value={r.staff_memo} onSave={(t) => save(r.id, { staff_memo: t })} />
+        </div>
+      ),
     },
   ];
 
@@ -107,12 +178,12 @@ export default function SpacareerRecruitingView() {
         style={{ marginBottom: space[3] }}
       />
 
-      {/* フィルタ */}
+      {/* フィルタ（小型） */}
       <div style={{ display: 'flex', gap: space[2], alignItems: 'center', marginBottom: space[2] }}>
-        <div style={{ width: 200 }}>
+        <div style={{ width: 150 }}>
           <Select options={JOB_FILTERS} value={jobFilter} onChange={e => setJobFilter(e.target.value)} />
         </div>
-        <div style={{ width: 220 }}>
+        <div style={{ width: 168 }}>
           <Select options={STATUS_FILTERS} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} />
         </div>
         <div style={{ fontSize: font.size.xs, color: color.textMid, marginLeft: space[1] }}>
@@ -135,7 +206,7 @@ export default function SpacareerRecruitingView() {
         />
       </div>
 
-      {/* 右からのドロワー */}
+      {/* 右からのドロワー（プロフィール表示） */}
       {selected && (
         <>
           <div
