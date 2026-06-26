@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { color, space, radius, font } from '../../../../constants/design';
 import { Button, Select, Badge } from '../../../ui';
 import {
-  updateApplicant, getPhotoSignedUrl,
+  updateApplicant, deleteApplicant, getPhotoSignedUrl,
   JOB_TYPE_LABELS, JOB_TYPE_BADGE,
   PIPELINE_STATUS_OPTIONS, INTERVIEWER_OPTIONS,
 } from './useRecruiting';
@@ -77,6 +77,16 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
     setSavingMemo(true);
     await persist({ staff_memo: memo || null });
     setSavingMemo(false);
+  };
+  const onDelete = async () => {
+    if (!window.confirm(`「${applicant.full_name}」を削除します。よろしいですか？\nこの操作は取り消せません。`)) return;
+    try {
+      await deleteApplicant(applicant.id);
+      onChanged && onChanged();
+      onClose && onClose();
+    } catch (err) {
+      alert('削除に失敗しました: ' + err.message);
+    }
   };
 
   if (!applicant) return null;
@@ -171,6 +181,11 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
         <div style={{ marginTop: space[2] }}>
           <Button variant="secondary" size="sm" loading={savingMemo} onClick={onSaveMemo}>メモを保存</Button>
         </div>
+      </div>
+
+      {/* 削除 */}
+      <div style={{ marginTop: space[6], paddingTop: space[4], borderTop: `1px solid ${color.border}`, textAlign: 'right' }}>
+        <Button variant="danger" size="sm" onClick={onDelete}>この候補者を削除</Button>
       </div>
     </div>
   );

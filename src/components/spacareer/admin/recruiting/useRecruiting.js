@@ -56,6 +56,15 @@ export async function updateApplicant(id, patch) {
   if (error) throw error;
 }
 
+/** 候補者を削除 */
+export async function deleteApplicant(id) {
+  const { error } = await supabase
+    .from('recruit_applicants')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
 /** 顔写真の署名付きURL（非公開バケットのため必須） */
 export async function getPhotoSignedUrl(photoPath, expiresSec = 3600) {
   if (!photoPath) return null;

@@ -157,6 +157,8 @@ export default function SpacareerRecruitingView() {
     },
     {
       key: 'interviewer', label: '面接担当者', width: 110, align: 'center',
+      sortable: true, sortType: 'string',
+      sortValue: (r) => r.interviewer || '',
       render: (r) => (
         <div onClick={stop} style={{ cursor: 'default' }}>
           <Select
