@@ -437,7 +437,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     _prevEngSlugRef.current = engSlug;
     const MASP_TABS = ['database', 'firms', 'all_members', 'admin_settings', 'mypage'];
     const SOURCING_TABS = ['dashboard','live','incoming','lists','scripts','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
-    const CAREER_TABS = ['customers','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'];
+    const CAREER_TABS = ['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'];
     if (engSlug === 'masp') {
       if (!MASP_TABS.includes(currentTab)) setCurrentTab('database');
     } else if (engSlug === 'seller_sourcing') {
