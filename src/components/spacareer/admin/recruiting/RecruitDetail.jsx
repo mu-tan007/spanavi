@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { color, space, radius, font, shadow, alpha } from '../../../../constants/design';
+import { color, space, radius, font, alpha } from '../../../../constants/design';
 import { Button, Select, Badge } from '../../../ui';
 import {
   updateApplicant, getPhotoSignedUrl,
@@ -32,7 +32,7 @@ const labelStyle = {
   color: color.textMid, marginBottom: space[1],
 };
 
-export default function RecruitDetail({ applicant, orgId, onChanged }) {
+export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [status, setStatus] = useState(applicant?.status || 'new');
   const [memo, setMemo] = useState(applicant?.staff_memo || '');
@@ -89,9 +89,12 @@ export default function RecruitDetail({ applicant, orgId, onChanged }) {
   return (
     <div style={{
       height: '100%', overflowY: 'auto', background: color.white,
-      border: `1px solid ${color.border}`, borderRadius: radius.lg,
-      boxShadow: shadow.sm, padding: space[5],
+      padding: space[5],
     }}>
+      {/* 閉じるバー */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: space[2] }}>
+        <Button variant="ghost" size="sm" onClick={onClose}>✕ 閉じる</Button>
+      </div>
       {/* ヘッダー: 写真 + 氏名 */}
       <div style={{ display: 'flex', gap: space[4], alignItems: 'flex-start' }}>
         <div style={{

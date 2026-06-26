@@ -120,8 +120,8 @@ export async function deleteInterview(id) {
 }
 
 // ---- 表示用ラベル定義 ----
-export const JOB_TYPE_LABELS = { sales: '営業マン', trainer: 'トレーナー', unknown: '未判定' };
-export const JOB_TYPE_BADGE = { sales: 'primary', trainer: 'info', unknown: 'neutral' };
+export const JOB_TYPE_LABELS = { sales: '営業', trainer: 'トレーナー' };
+export const JOB_TYPE_BADGE = { sales: 'primary', trainer: 'info' };
 
 export const STATUS_OPTIONS = [
   { value: 'new', label: '新規' },
