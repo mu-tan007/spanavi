@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { color, space, radius, font, shadow, alpha, z } from '../../../../constants/design';
 import PageHeader from '../../../common/PageHeader';
-import { Badge, DataTable, Select } from '../../../ui';
+import { Badge, Button, DataTable, Select } from '../../../ui';
 import RecruitDetail from './RecruitDetail';
 import { useAuth } from '../../../../hooks/useAuth';
 import {
-  useRecruitApplicants, updateApplicant,
+  useRecruitApplicants, updateApplicant, addApplicantManual,
   JOB_TYPE_LABELS, JOB_TYPE_BADGE,
   PIPELINE_STATUS_OPTIONS, INTERVIEWER_OPTIONS,
 } from './useRecruiting';
+
+const SORT_KEY = 'recruit_sort_v1';
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -94,6 +96,17 @@ export default function SpacareerRecruitingView() {
   const [selectedId, setSelectedId] = useState(null);
   const [jobFilter, setJobFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showAdd, setShowAdd] = useState(false);
+
+  // 並び順の永続化（ハードリロードしても直前のソートを維持）
+  const [defaultSort] = useState(() => {
+    try { const s = localStorage.getItem(SORT_KEY); return s ? JSON.parse(s) : null; }
+    catch { return null; }
+  });
+  const onSortChange = useCallback((s) => {
+    try { s ? localStorage.setItem(SORT_KEY, JSON.stringify(s)) : localStorage.removeItem(SORT_KEY); }
+    catch { /* noop */ }
+  }, []);
 
   const filtered = useMemo(() => rows.filter(r =>
     (jobFilter === 'all' || r.job_type === jobFilter) &&
@@ -227,6 +240,9 @@ export default function SpacareerRecruitingView() {
         <div style={{ fontSize: font.size.xs, color: color.textMid, marginLeft: space[1] }}>
           {loading ? '読み込み中…' : `${filtered.length} 名`}
         </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <Button variant="primary" size="sm" onClick={() => setShowAdd(true)}>＋ 候補者を追加</Button>
+        </div>
       </div>
 
       {/* 全幅の一覧 */}
@@ -241,6 +257,8 @@ export default function SpacareerRecruitingView() {
           onRowClick={(row) => setSelectedId(row.id)}
           rowAccent={(row) => row.id === selectedId ? 'primary' : null}
           height="calc(100vh - 200px)"
+          defaultSort={defaultSort}
+          onSortChange={onSortChange}
         />
       </div>
 
@@ -269,6 +287,113 @@ export default function SpacareerRecruitingView() {
           </div>
         </>
       )}
+
+      {/* 候補者を手動追加 */}
+      {showAdd && (
+        <AddApplicantModal
+          orgId={orgId}
+          onClose={() => setShowAdd(false)}
+          onAdded={() => { setShowAdd(false); refresh(); }}
+        />
+      )}
     </div>
+  );
+}
+
+// ============================================================
+// 手動追加モーダル（スカウト返信など通知メールが来ないケース用）
+// ============================================================
+function AddApplicantModal({ orgId, onClose, onAdded }) {
+  const [fullName, setFullName] = useState('');
+  const [furigana, setFurigana] = useState('');
+  const [jobType, setJobType] = useState('sales');
+  const [jobTitle, setJobTitle] = useState('');
+  const [profileText, setProfileText] = useState('');
+  const [interviewer, setInterviewer] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const field = {
+    width: '100%', boxSizing: 'border-box', padding: `${space[2]}px ${space[2]}px`,
+    border: `1px solid ${color.border}`, borderRadius: radius.md,
+    fontSize: font.size.sm, color: color.textDark, background: color.white, fontFamily: font.family.base,
+  };
+  const lbl = { display: 'block', fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[1] };
+
+  const submit = async () => {
+    if (!fullName.trim()) { alert('氏名を入力してください'); return; }
+    setSaving(true);
+    try {
+      await addApplicantManual(orgId, {
+        full_name: fullName.trim(),
+        furigana: furigana.trim() || null,
+        job_type: jobType,
+        job_title: jobTitle.trim() || null,
+        profile_text: profileText.trim() || null,
+        interviewer: interviewer || null,
+        applied_at: new Date().toISOString(),
+      });
+      onAdded();
+    } catch (e) {
+      alert('追加に失敗しました: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.45), zIndex: z.modal, animation: 'fadeIn 0.18s ease' }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: 'min(520px, 94vw)', maxHeight: '90vh', overflowY: 'auto',
+        background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl,
+        zIndex: z.modal + 1, padding: space[5],
+      }}>
+        <h2 style={{ margin: `0 0 ${space[4]}px`, fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy }}>
+          候補者を追加
+        </h2>
+
+        <div style={{ display: 'flex', gap: space[3] }}>
+          <div style={{ flex: 1 }}>
+            <label style={lbl}>氏名 <span style={{ color: color.danger }}>*</span></label>
+            <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="例: 茜 真悟" style={field} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={lbl}>ふりがな</label>
+            <input value={furigana} onChange={e => setFurigana(e.target.value)} placeholder="例: あかね しんご" style={field} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: space[3], marginTop: space[3] }}>
+          <div style={{ width: 160 }}>
+            <label style={lbl}>職種</label>
+            <Select
+              options={[{ value: 'sales', label: '営業' }, { value: 'trainer', label: 'トレーナー' }]}
+              value={jobType} onChange={e => setJobType(e.target.value)}
+            />
+          </div>
+          <div style={{ width: 140 }}>
+            <label style={lbl}>面接担当者</label>
+            <Select options={INTERVIEWER_OPTIONS} value={interviewer} onChange={e => setInterviewer(e.target.value)} />
+          </div>
+        </div>
+
+        <div style={{ marginTop: space[3] }}>
+          <label style={lbl}>応募求人（任意）</label>
+          <input value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="例: AI活用経験を活かす研修トレーナー" style={field} />
+        </div>
+
+        <div style={{ marginTop: space[3] }}>
+          <label style={lbl}>自己PR / プロフィール（任意・複業クラウドからコピペ可）</label>
+          <textarea value={profileText} onChange={e => setProfileText(e.target.value)} rows={5}
+            placeholder="複業クラウドのプロフィール本文を貼り付けてください" style={{ ...field, resize: 'vertical' }} />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2], marginTop: space[4] }}>
+          <Button variant="outline" size="sm" onClick={onClose}>キャンセル</Button>
+          <Button variant="primary" size="sm" loading={saving} onClick={submit}>追加する</Button>
+        </div>
+      </div>
+    </>
   );
 }

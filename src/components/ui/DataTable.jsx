@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { color, radius, font, shadow, alpha } from '../../constants/design';
 
 /**
@@ -64,6 +64,7 @@ export default function DataTable({
   style,
   ariaLabel,
   defaultSort = null,
+  onSortChange,
   // 行展開
   expandable,
   renderExpanded,
@@ -72,6 +73,12 @@ export default function DataTable({
 }) {
   const [hoverKey, setHoverKey] = useState(null);
   const [sortState, setSortState] = useState(defaultSort);
+
+  // ソート状態の変化を親に通知（永続化等に利用）
+  useEffect(() => {
+    if (onSortChange) onSortChange(sortState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortState]);
 
   const handleSort = (col) => {
     if (!col || !col.sortable) return;

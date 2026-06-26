@@ -56,6 +56,20 @@ export async function updateApplicant(id, patch) {
   if (error) throw error;
 }
 
+/** 候補者を手動で追加（スカウト返信など通知メールが来ないケース用） */
+export async function addApplicantManual(orgId, payload) {
+  const { error } = await supabase
+    .from('recruit_applicants')
+    .insert({
+      org_id: orgId,
+      source: 'manual',
+      status: 'new',
+      pipeline_status: 'scheduling',
+      ...payload,
+    });
+  if (error) throw error;
+}
+
 /** 候補者を削除 */
 export async function deleteApplicant(id) {
   const { error } = await supabase
