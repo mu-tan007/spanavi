@@ -23,7 +23,7 @@ export function useRecruitApplicants() {
     try {
       const { data, error: e } = await supabase
         .from('recruit_applicants')
-        .select('id, full_name, furigana, job_type, job_title, profile_text, photo_path, status, pipeline_status, interview_at, interviewer, staff_memo, applied_at, source, created_at')
+        .select('id, full_name, furigana, job_type, job_title, profile_text, photo_path, status, pipeline_status, interview_at, interviewer, staff_memo, applied_at, source, created_at, ai_overall_score, ai_axis_scores, ai_reason, ai_info_insufficient, ai_labeled_at')
         .eq('org_id', orgId)
         .order('applied_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
@@ -77,6 +77,16 @@ export async function deleteApplicant(id) {
     .delete()
     .eq('id', id);
   if (error) throw error;
+}
+
+/** 候補者をAIで再判定（Edge Function 経由。完了後に呼び出し元で refresh する） */
+export async function reassessApplicant(applicantId) {
+  const { data, error } = await supabase.functions.invoke('analyze-recruit-applicant', {
+    body: { applicant_id: applicantId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
 }
 
 /** 顔写真の署名付きURL（非公開バケットのため必須） */
@@ -150,6 +160,20 @@ export async function deleteInterview(id) {
 // ---- 表示用ラベル定義 ----
 export const JOB_TYPE_LABELS = { sales: '営業', trainer: 'トレーナー' };
 export const JOB_TYPE_BADGE = { sales: 'primary', trainer: 'info' };
+
+// ---- AI「イケてる判定」用 ----
+// 総合スコア(1-5)の色分けと意味
+export const AI_SCORE_BADGE = { 5: 'success', 4: 'primary', 3: 'info', 2: 'warn', 1: 'danger' };
+export const AI_SCORE_MEANING = {
+  5: '非常に有望', 4: '有望', 3: '要検討', 2: 'やや弱い', 1: '見送り寄り',
+};
+// 軸キー → 日本語ラベル（職種別）
+export const AI_AXIS_LABELS = {
+  experience: '営業経験',
+  achievement: '実績インパクト',
+  ai_knowledge: 'AI知見',
+  mentoring: '指導・育成',
+};
 
 export const STATUS_OPTIONS = [
   { value: 'new', label: '新規' },

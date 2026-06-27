@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { color, space, radius, font } from '../../../../constants/design';
 import { Button, Select, Badge } from '../../../ui';
 import {
-  updateApplicant, deleteApplicant, getPhotoSignedUrl,
+  updateApplicant, deleteApplicant, getPhotoSignedUrl, reassessApplicant,
   JOB_TYPE_LABELS, JOB_TYPE_BADGE,
+  AI_SCORE_BADGE, AI_SCORE_MEANING, AI_AXIS_LABELS,
   PIPELINE_STATUS_OPTIONS, INTERVIEWER_OPTIONS,
 } from './useRecruiting';
 
@@ -44,6 +45,7 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
   const [interviewer, setInterviewer] = useState(applicant?.interviewer || '');
   const [memo, setMemo] = useState(applicant?.staff_memo || '');
   const [savingMemo, setSavingMemo] = useState(false);
+  const [reassessing, setReassessing] = useState(false);
 
   useEffect(() => {
     setPipeline(applicant?.pipeline_status || 'scheduling');
@@ -77,6 +79,17 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
     setSavingMemo(true);
     await persist({ staff_memo: memo || null });
     setSavingMemo(false);
+  };
+  const onReassess = async () => {
+    setReassessing(true);
+    try {
+      await reassessApplicant(applicant.id);
+      onChanged && onChanged();
+    } catch (err) {
+      alert('AI再判定に失敗しました: ' + err.message);
+    } finally {
+      setReassessing(false);
+    }
   };
   const onDelete = async () => {
     if (!window.confirm(`「${applicant.full_name}」を削除します。よろしいですか？\nこの操作は取り消せません。`)) return;
@@ -162,6 +175,74 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
           borderRadius: radius.md, padding: space[3], maxHeight: 320, overflowY: 'auto',
         }}>
           {applicant.profile_text || '（本文なし）'}
+        </div>
+      </div>
+
+      {/* AI評価（イケてる判定） */}
+      <div style={{ marginTop: space[4] }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[1] }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>AI評価（イケてる判定）</label>
+          <Button variant="ghost" size="sm" loading={reassessing} onClick={onReassess}>
+            AI再判定
+          </Button>
+        </div>
+        <div style={{
+          background: color.cream, border: `1px solid ${color.borderLight}`,
+          borderRadius: radius.md, padding: space[3],
+        }}>
+          {!applicant.ai_labeled_at ? (
+            <div style={{ fontSize: font.size.sm, color: color.textLight }}>
+              未評価です。「AI再判定」で評価できます。
+            </div>
+          ) : (
+            <>
+              {/* 総合 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
+                <span style={{ fontSize: font.size.xs, color: color.textMid }}>総合</span>
+                {applicant.ai_overall_score != null ? (
+                  <Badge variant={AI_SCORE_BADGE[applicant.ai_overall_score] || 'neutral'} dot>
+                    {applicant.ai_overall_score} / 5　{AI_SCORE_MEANING[applicant.ai_overall_score] || ''}
+                  </Badge>
+                ) : (
+                  <Badge variant="neutral">評価不能</Badge>
+                )}
+                {applicant.ai_info_insufficient && (
+                  <Badge variant="warn">情報不足・要面接確認</Badge>
+                )}
+              </div>
+
+              {/* 軸別 */}
+              {applicant.ai_axis_scores && Object.keys(applicant.ai_axis_scores).length > 0 && (
+                <div style={{
+                  marginTop: space[3], display: 'grid',
+                  gridTemplateColumns: '1fr 1fr', gap: space[2],
+                }}>
+                  {Object.entries(applicant.ai_axis_scores).map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space[2] }}>
+                      <span style={{ fontSize: font.size.xs, color: color.textMid }}>
+                        {AI_AXIS_LABELS[k] || k}
+                      </span>
+                      {v != null ? (
+                        <Badge variant={AI_SCORE_BADGE[v] || 'neutral'} dot>{v} / 5</Badge>
+                      ) : (
+                        <span style={{ fontSize: font.size.xs, color: color.textLight }}>—</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 判定理由 */}
+              {applicant.ai_reason && (
+                <div style={{
+                  marginTop: space[3], fontSize: font.size.sm, lineHeight: 1.6,
+                  color: color.textDark, whiteSpace: 'pre-wrap',
+                }}>
+                  {applicant.ai_reason}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import { useAuth } from '../../../../hooks/useAuth';
 import {
   useRecruitApplicants, updateApplicant, addApplicantManual,
   JOB_TYPE_LABELS, JOB_TYPE_BADGE,
+  AI_SCORE_BADGE, AI_SCORE_MEANING,
   PIPELINE_STATUS_OPTIONS, INTERVIEWER_OPTIONS,
 } from './useRecruiting';
 
@@ -146,6 +147,26 @@ export default function SpacareerRecruitingView() {
       render: (r) => JOB_TYPE_LABELS[r.job_type]
         ? <Badge variant={JOB_TYPE_BADGE[r.job_type]} dot>{JOB_TYPE_LABELS[r.job_type]}</Badge>
         : <span style={{ color: color.textLight }}>—</span>,
+    },
+    {
+      key: 'ai_overall_score', label: 'AI評価', width: 96, align: 'center',
+      sortable: true, sortType: 'number',
+      // 未評価は最下位、情報不足は0扱いでまとめる
+      sortValue: (r) => (r.ai_overall_score != null ? r.ai_overall_score : (r.ai_info_insufficient ? 0 : -1)),
+      render: (r) => {
+        if (r.ai_overall_score != null) {
+          return (
+            <Badge variant={AI_SCORE_BADGE[r.ai_overall_score] || 'neutral'} dot
+              title={AI_SCORE_MEANING[r.ai_overall_score] || ''}>
+              {r.ai_overall_score}
+            </Badge>
+          );
+        }
+        if (r.ai_info_insufficient) {
+          return <Badge variant="neutral" title="自己PRの記載が乏しく要面接確認">情報不足</Badge>;
+        }
+        return <span style={{ color: color.textLight }}>—</span>;
+      },
     },
     {
       key: 'applied_at', label: '応募日', width: 110, align: 'right',

@@ -72,3 +72,29 @@
 ### 既知の範囲外
 - #1b の「ページ完全リロード後の処理復帰」は対象外（SPA内のタブ/画面移動での継続のみ実装）。Edge Function側の議事録生成はサーバーで継続するため、再読込後は ai_status 反映で結果は取得される。
 - 既存顧客で旧一括入力済みの第2〜8回 scheduled_at は「確定」扱い（確定優先のため仕様通り）。
+
+---
+
+# 採用管理「AIイケてる判定」（2026-06-27）
+
+スパキャリ採用管理タブの候補者に、面接前の「イケてる度」AIラベリングを追加。
+
+## 決定事項（むー様と壁打ち済）
+- スコア: 軸別＋総合（各5段階）
+- 取り込み時に自動判定（案A）／実行は spanavi Edge Function（案B＝基準をmainマージで調整可）
+- AI判定は確定扱い（再判定ボタンで上書き可）
+- 情報不足: profile_text が薄い候補者は断定せず「情報不足」マークを別表示
+- 軸: 営業=営業経験/実績インパクト/総合、トレーナー=AI知見/指導育成/総合
+- 絵文字禁止・DataTable/Badge 正規API・design トークン厳守
+- 既存31件（営業19/トレーナー12）はデプロイ後SQLで一括バックフィル
+
+## タスク
+- [ ] 1. migration: recruit_applicants に ai_* 列追加 + AFTER INSERT トリガー
+- [ ] 2. Edge Function analyze-recruit-applicant（職種別プロンプト/情報不足判定）
+- [ ] 3. UI useRecruiting.js: select 拡張 + ラベル定義 + 再判定 invoke
+- [ ] 4. UI 一覧: AI総合スコア列 + 情報不足マーク
+- [ ] 5. UI 詳細: AI評価セクション + AI再判定ボタン
+- [ ] 6. 本番: migration apply / function deploy / 既存31件バックフィル / 実候補者検証
+- [ ] 7. commit & push（main）
+
+## レビュー（完了後に記載）
