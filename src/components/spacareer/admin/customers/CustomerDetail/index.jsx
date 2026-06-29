@@ -105,22 +105,30 @@ export default function CustomerDetail({ customerId, isAdmin }) {
     }
   };
 
+  // ローディング/未選択時も SessionJobsProvider をルートに据えたまま中身だけ差し替える。
+  // こうしないと AI議事録生成の完了 refresh(loading=true) や顧客切替のたびに
+  // Provider ごとアンマウントされ、進捗インジケータが消え処理が止まって見えていた。
+  // ルート要素の型(SessionJobsProvider)が常に同一なので React がジョブ状態を保持し続ける。
   if (!customerId) {
     return (
-      <div style={{
-        height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: color.white, border: `1px solid ${color.border}`,
-        borderRadius: radius.lg, color: color.textLight, fontSize: font.size.md,
-      }}>左の一覧から顧客を選択してください</div>
+      <SessionJobsProvider customerId={customerId} refresh={refresh}>
+        <div style={{
+          height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: color.white, border: `1px solid ${color.border}`,
+          borderRadius: radius.lg, color: color.textLight, fontSize: font.size.md,
+        }}>左の一覧から顧客を選択してください</div>
+      </SessionJobsProvider>
     );
   }
   if (loading || !detail) {
     return (
-      <div style={{
-        height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: color.white, border: `1px solid ${color.border}`,
-        borderRadius: radius.lg, color: color.textLight, fontSize: font.size.sm,
-      }}>読み込み中…</div>
+      <SessionJobsProvider customerId={customerId} refresh={refresh}>
+        <div style={{
+          height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: color.white, border: `1px solid ${color.border}`,
+          borderRadius: radius.lg, color: color.textLight, fontSize: font.size.sm,
+        }}>読み込み中…</div>
+      </SessionJobsProvider>
     );
   }
 

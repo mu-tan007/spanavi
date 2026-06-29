@@ -42,6 +42,7 @@ export default function TabSessionHistory({ detail, onRefresh }) {
     _completed: fmtDate(s.completed_at),
     _hasMinutes: !!s.minutes_draft || !!s.minutes_final,
     _hasVideo: (videosBySession.get(s.id) || []).length > 0,
+    _recordingUrl: (s.recording_url || '').trim() || null,
   }));
 
   const openSession = openId ? rows.find((r) => r.id === openId) : null;
@@ -101,8 +102,20 @@ export default function TabSessionHistory({ detail, onRefresh }) {
             cellStyle: { fontFamily: font.family.mono } },
           { key: 'status', label: 'ステータス', width: 110, align: 'center',
             render: (r) => <Badge variant={STATUS_VARIANT[r.status]} dot>{STATUS_LABEL[r.status]}</Badge> },
-          { key: '_hasVideo', label: '録画', width: 70, align: 'center',
-            render: (r) => r._hasVideo ? <Badge variant="success">あり</Badge> : <span style={{ color: color.textLight }}>—</span> },
+          { key: '_hasVideo', label: '録画', width: 110, align: 'center',
+            render: (r) => (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: space[1], justifyContent: 'center' }}>
+                {r._hasVideo && <Badge variant="success">あり</Badge>}
+                {r._recordingUrl && (
+                  <a href={r._recordingUrl} target="_blank" rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold, textDecoration: 'underline' }}>
+                    録画を開く
+                  </a>
+                )}
+                {!r._hasVideo && !r._recordingUrl && <span style={{ color: color.textLight }}>—</span>}
+              </span>
+            ) },
           { key: '_hasMinutes', label: '議事録', width: 80, align: 'center',
             render: (r) => r._hasMinutes ? <Badge variant="success">あり</Badge> : <span style={{ color: color.textLight }}>—</span> },
           { key: 'hearing_sheet_completed', label: 'ヒアリング', width: 90, align: 'center',

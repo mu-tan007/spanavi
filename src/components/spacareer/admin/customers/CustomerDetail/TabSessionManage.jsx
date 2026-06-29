@@ -61,6 +61,10 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
     : '';
 
   const [form, setForm] = useState(() => buildForm(targetSession));
+  // Zoom録画 共有リンク（各回ごと・視聴専用）。入力即時で自動保存する。
+  const [recordingUrl, setRecordingUrl] = useState(() => targetSession?.recording_url || '');
+  const [recordingSavedAt, setRecordingSavedAt] = useState(null);
+  const recordingSaveTimer = useRef(null);
   const [nextStartAt, setNextStartAt] = useState(() => toDateTimeInput(nextSession?.scheduled_at));
   const [nextSavedAt, setNextSavedAt] = useState(null);
   const nextSaveTimer = useRef(null);
@@ -77,6 +81,28 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const videoErr = job?.phase === 'error' ? job.error : null;
 
   useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id, targetSession?.hearing_sheet_json]);
+  // 録画リンクはセッション切替(id変化)時のみ初期化（入力中のリフレッシュで消さない）
+  useEffect(() => { setRecordingUrl(targetSession?.recording_url || ''); setRecordingSavedAt(null); }, [targetSession?.id]);
+
+  // Zoom録画リンクを入力即時で自動保存（保存ボタン押し忘れ対策）。
+  function handleRecordingUrlChange(value) {
+    setRecordingUrl(value);
+    setRecordingSavedAt(null);
+    if (!targetSession) return;
+    if (recordingSaveTimer.current) clearTimeout(recordingSaveTimer.current);
+    recordingSaveTimer.current = setTimeout(async () => {
+      try {
+        const { error } = await supabase.from('spacareer_sessions')
+          .update({ recording_url: value.trim() || null }).eq('id', targetSession.id);
+        if (error) throw error;
+        setRecordingSavedAt(new Date());
+        onRefresh && onRefresh();
+      } catch (e) {
+        console.error('[TabSessionManage] recording_url autosave error:', e);
+      }
+    }, 600);
+  }
+  useEffect(() => () => { if (recordingSaveTimer.current) clearTimeout(recordingSaveTimer.current); }, []);
   // 次回日時はセッション切替時(id変化)のみ初期化する。scheduled_at の変化では上書きしない
   // （入力中に動画アップロード等でリフレッシュが走っても入力値が消えないようにするため）。
   useEffect(() => { setNextStartAt(toDateTimeInput(nextSession?.scheduled_at)); }, [nextSession?.id]);
@@ -253,6 +279,29 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
             fontSize: font.size.sm, borderRadius: radius.md,
           }}>{videoErr}</div>
         )}
+
+        {/* Zoom録画 共有リンク（視聴専用・各回ごと）。ファイルをアップロードしなくても
+            ここに共有リンクを貼れば管理画面から録画を開ける。AI議事録には使わない。 */}
+        <div style={{ marginTop: space[4], paddingTop: space[3], borderTop: `1px solid ${color.borderLight}` }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: space[2], flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <Input size="sm" label="Zoom録画 共有リンク（任意・視聴用）" type="url"
+                placeholder="https://us02web.zoom.us/rec/share/..."
+                value={recordingUrl}
+                onChange={(e) => handleRecordingUrlChange(e.target.value)}
+                hint="貼り付けると自動保存され、各回ごとに管理画面から録画を開けます。" />
+            </div>
+            <Button variant="outline" size="sm" disabled={!recordingUrl.trim()}
+              onClick={() => { const u = recordingUrl.trim(); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }}>
+              録画を開く
+            </Button>
+          </div>
+          {recordingSavedAt && (
+            <div style={{ marginTop: space[1], fontSize: font.size.xs, color: color.success }}>
+              リンクを保存しました（{recordingSavedAt.toLocaleTimeString()}）
+            </div>
+          )}
+        </div>
       </Card>
 
       <Card padding="md"

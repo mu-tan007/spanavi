@@ -149,6 +149,7 @@ function TabBtn({ active, onClick, label, count, accent }) {
 
 function CustomerCard({ row, active, onClick }) {
   const name = row.member?.name || '(名前未設定)';
+  const trainerName = row.trainer?.name || null;
   const top = topAttentionCode(row.attention);
   const next = row.nextSession;
   const pct = Number(row.progress_percent || 0);
@@ -181,6 +182,10 @@ function CustomerCard({ row, active, onClick }) {
           color: color.textDark,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{name}</div>
+        <div style={{
+          fontSize: font.size.xs, color: color.textMid, marginTop: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>担当: {trainerName || '未割当'}</div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2, flexWrap: 'wrap' }}>
           <Badge variant={STATUS_VARIANT[row.status] || 'neutral'} size="sm" dot>
             {STATUS_LABEL[row.status] || row.status}

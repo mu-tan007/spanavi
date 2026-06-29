@@ -38,7 +38,9 @@ const STORAGE_BUCKET = 'spacareer-session-videos'
 // 議事録生成モデル。ロープレ(Haiku 4.5)より情報密度の濃い議事録が要件のため、
 // 長尺文字起こしの構造化に強い Sonnet 4.6 を使う（$3/$15 per 1M tokens）。
 const MINUTES_MODEL = 'claude-sonnet-4-6'
-const MINUTES_MAX_TOKENS = 8192
+// 長尺セッション(60〜90分)の構造化議事録は出力が長くなりやすい。8192だと
+// 出力途中で max_tokens に達して JSON が途切れ →「結果が空」になっていたため引き上げる。
+const MINUTES_MAX_TOKENS = 16000
 // cost_usd 計算用 (USD per 1M tokens)
 const COST_INPUT_PER_M = 3.0
 const COST_OUTPUT_PER_M = 15.0
@@ -243,6 +245,71 @@ async function whisperTranscribeChunk(
   return (data.text as string) || ''
 }
 
+// Claude応答テキストから JSON オブジェクト文字列を堅牢に取り出す。
+// - ```json ... ``` のコードフェンスを剥がす
+// - 最初の { から最後の } までを対象にする（前後の説明文を無視）
+function extractJsonText(text: string): string | null {
+  let t = (text || '').trim()
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fence) t = fence[1].trim()
+  const start = t.indexOf('{')
+  const end = t.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) return null
+  return t.slice(start, end + 1)
+}
+
+function parseMinutes(text: string): { ai: MinutesAI; error: string | null } {
+  const jsonText = extractJsonText(text)
+  if (!jsonText) return { ai: {}, error: 'AI 応答に JSON 構造が含まれていません' }
+  try {
+    return { ai: JSON.parse(jsonText) as MinutesAI, error: null }
+  } catch (e) {
+    return { ai: {}, error: `JSON parse error: ${(e as Error).message}` }
+  }
+}
+
+function minutesHasContent(ai: MinutesAI): boolean {
+  return !!(ai.summary
+    || (ai.topics && ai.topics.length)
+    || (ai.decisions && ai.decisions.length)
+    || (ai.sections && ai.sections.length)
+    || (ai.nextActionsStudent && ai.nextActionsStudent.length)
+    || (ai.nextActions && ai.nextActions.length))
+}
+
+// Claude を1回呼び出して議事録JSONテキストを得る。
+// assistant ロールに "{" を prefill することで、説明文やコードフェンスを挟まず
+// 必ず JSON オブジェクトの本文から書き始めさせる（空・パース失敗の主因対策）。
+async function callClaudeMinutes(
+  userPrompt: string, anthropicKey: string,
+): Promise<{ text: string; usage: any; stopReason: string | null; httpError: string | null }> {
+  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': anthropicKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: MINUTES_MODEL,
+      max_tokens: MINUTES_MAX_TOKENS,
+      messages: [
+        { role: 'user', content: userPrompt },
+        { role: 'assistant', content: '{' },
+      ],
+    }),
+    signal: AbortSignal.timeout(200_000),
+  })
+  if (!claudeRes.ok) {
+    const errText = await claudeRes.text()
+    return { text: '', usage: {}, stopReason: null, httpError: errText.slice(0, 300) }
+  }
+  const claudeData = await claudeRes.json()
+  // prefill した "{" は応答テキストに含まれないため復元する
+  const text = '{' + (claudeData.content?.[0]?.text || '')
+  return { text, usage: claudeData.usage || {}, stopReason: claudeData.stop_reason ?? null, httpError: null }
+}
+
 // ── バックグラウンド処理 ──────────────────────────────────────
 async function processInBackground(
   session_id: string,
@@ -383,53 +450,44 @@ async function processInBackground(
 
     const userPrompt = `${SYSTEM_PROMPT}\n\n${sizeNote ? `※ ${sizeNote}\n\n` : ''}【セッション文字起こし】\n${transcript}`
 
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MINUTES_MODEL,
-        max_tokens: MINUTES_MAX_TOKENS,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
-      // Whisper を並列分割化して実時間を短縮（約120s）したぶん、議事録生成には
-      // 余裕を持たせる。長尺文字起こしの構造化＋最大8K出力でも収まる 200s。
-      // 想定 wall-clock: download40s + whisper(並列)〜150s + claude200s ≦ 400s(Pro上限)。
-      signal: AbortSignal.timeout(200_000),
-    })
-
-    if (!claudeRes.ok) {
-      const errText = await claudeRes.text()
-      console.error('[analyze-spacareer-session] Claude error:', errText)
-      await failVideo('AI 議事録生成に失敗しました（Claude）', errText.slice(0, 300))
-      return
-    }
-
-    const claudeData = await claudeRes.json()
-    const claudeText: string = claudeData.content?.[0]?.text || ''
-    const usage = claudeData.usage || {}
-
-    // JSON 抽出
+    // Claude 呼び出し → JSON 抽出。空・パース失敗（フェンス混入や出力途切れ等）の場合は
+    // 1 回だけ自動リトライしてから諦める。「結果が空」での失敗を実質的に潰す。
+    // 想定 wall-clock: download40s + whisper(並列)〜150s + claude(最大2回)≦ 400s(Pro上限) に収まる範囲で運用。
     let aiFeedback: MinutesAI = {}
     let parseError: string | null = null
-    try {
-      const m = claudeText.match(/\{[\s\S]*\}/)
-      if (!m) parseError = 'AI 応答に JSON 構造が含まれていません'
-      else aiFeedback = JSON.parse(m[0])
-    } catch (e) {
-      parseError = `JSON parse error: ${(e as Error).message}`
-      console.error('[analyze-spacareer-session] JSON parse error:', e, 'raw:', claudeText)
+    let claudeText = ''
+    let usage: any = {}
+    let inputTokensTotal = 0
+    let outputTokensTotal = 0
+    const MAX_ATTEMPTS = 2
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const r = await callClaudeMinutes(userPrompt, anthropicKey)
+      if (r.httpError) {
+        console.error('[analyze-spacareer-session] Claude error:', r.httpError)
+        // HTTP エラーは最終試行なら失敗確定、それ以外はリトライ
+        if (attempt >= MAX_ATTEMPTS) {
+          await failVideo('AI 議事録生成に失敗しました（Claude）', r.httpError)
+          return
+        }
+        parseError = `Claude HTTP error: ${r.httpError}`
+        continue
+      }
+      claudeText = r.text
+      usage = r.usage
+      inputTokensTotal += usage.input_tokens ?? 0
+      outputTokensTotal += usage.output_tokens ?? 0
+      const parsed = parseMinutes(claudeText)
+      aiFeedback = parsed.ai
+      parseError = parsed.error
+      if (r.stopReason === 'max_tokens' && !parseError) {
+        // 稀に上限到達で末尾が欠ける。パース成功していれば内容判定へ進む。
+        console.warn('[analyze-spacareer-session] stop_reason=max_tokens (attempt ' + attempt + ')')
+      }
+      if (minutesHasContent(aiFeedback)) break
+      console.warn(`[analyze-spacareer-session] empty/parse-fail attempt ${attempt}/${MAX_ATTEMPTS}: ${parseError || 'no content'}`)
     }
 
-    const hasContent = !!(aiFeedback.summary
-      || (aiFeedback.topics && aiFeedback.topics.length)
-      || (aiFeedback.decisions && aiFeedback.decisions.length)
-      || (aiFeedback.sections && aiFeedback.sections.length)
-      || (aiFeedback.nextActionsStudent && aiFeedback.nextActionsStudent.length)
-      || (aiFeedback.nextActions && aiFeedback.nextActions.length))
+    const hasContent = minutesHasContent(aiFeedback)
     if (!hasContent) {
       await supabase.from('spacareer_session_videos').update({
         ai_status: 'error',
@@ -448,8 +506,8 @@ async function processInBackground(
           customer_id: customer_id ?? null,
           feature: 'minutes_generation',
           model: MINUTES_MODEL,
-          input_tokens: usage.input_tokens ?? null,
-          output_tokens: usage.output_tokens ?? null,
+          input_tokens: inputTokensTotal || null,
+          output_tokens: outputTokensTotal || null,
           status: 'error',
           error_message: parseError || 'empty ai response',
         })
@@ -478,9 +536,9 @@ async function processInBackground(
       .eq('id', session_id)
     if (sessUpdErr) console.error('[analyze-spacareer-session] session update error:', sessUpdErr)
 
-    // 利用ログ
-    const inputTokens = usage.input_tokens ?? 0
-    const outputTokens = usage.output_tokens ?? 0
+    // 利用ログ（リトライした場合は全試行分を合算）
+    const inputTokens = inputTokensTotal
+    const outputTokens = outputTokensTotal
     const costUsd = Number(((inputTokens / 1_000_000) * COST_INPUT_PER_M + (outputTokens / 1_000_000) * COST_OUTPUT_PER_M).toFixed(6))
     if (orgId) {
       await supabase.from('spacareer_ai_usage_logs').insert({

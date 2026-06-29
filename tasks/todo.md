@@ -1,100 +1,41 @@
-# スパキャリ修正タスク（2026-06-24）
+# スパキャリ AI議事録／顧客一覧／Zoom録画リンク 改修（2026-06-29）
 
-むー様指示の4領域。全て推奨案で確定済み。
+## 背景（むー様指示）
+1. AI議事録生成で「AI 議事録の結果が空でした。再分析してください」が出る → 改善
+2. AI議事録生成中にページ移動しても生成が止まらないようにする（アップロードは既に裏側継続）
+3. 顧客一覧で各受講生の氏名の下に担当トレーナー氏名を表示（管理画面のみ。クライアントポータルは不要）
+4. 動画アップロード時にZoom共有リンクを添付し、各回ごとに管理画面で視聴できるように（視聴リンクのみ。AI議事録は従来どおりファイルから）
 
-## #1 動画アップロード・議事録生成
+## 実装タスク
 
-### #1a スキップ後も動画/議事録ができる
-- [ ] `SessionCompleteFlow.jsx`: 「スキップして完了」後も動画アップロード/議事録生成ボタンを有効化
-  - `disabled={status === 'completed'}` を撤廃（アップロード・議事録ボタン・ドロップゾーン）
-  - `doUpload` 冒頭の `if (status === 'completed') return;` を撤廃
-- [ ] `TabKickoff.jsx` / `TabSessionManage.jsx`: 同様に完了後もアップロード/議事録ボタンを有効化
+### Feature 1: AI議事録の空エラー改善（Edge Function）
+- [ ] `supabase/functions/analyze-spacareer-session/index.ts`
+  - Claude呼び出しを切り出し、assistant prefill `{` でJSON強制
+  - ```json コードフェンス除去＋堅牢なJSON抽出
+  - parse失敗 or 空内容なら1回だけ自動リトライ
+  - `MINUTES_MAX_TOKENS` を 8192→16000 に引き上げ（長尺セッション出力truncate対策）
+  - usageはリトライ分も合算
+- [ ] 本番Supabaseにdeploy＋1件検証
 
-### #1b 画面移動でも処理が止まらない
-- [ ] 新規 `SessionJobsContext.jsx`（CustomerDetail階層に常駐）を作成
-  - アップロード+音声抽出+議事録ポーリングを Provider 側で実行 → タブ切替でアンマウントされない
-  - `jobsBySession` でセッション毎の phase/進捗/エラーを保持
-  - 完了時に `refresh()` 呼び出し
-  - フローティング進捗インジケータを表示
-  - mount時に ai_status が pending/processing の動画を検出して議事録ポーリング再開
-- [ ] `CustomerDetail/index.jsx`: タブ群を `<SessionJobsProvider>` でラップ
-- [ ] `SessionCompleteFlow` / `TabKickoff` / `TabSessionManage`: ローカルstateの代わりに context を利用
+### Feature 2: ページ移動でも生成継続
+- [ ] `CustomerDetail/index.jsx`
+  - `loading || !detail` 早期returnで `SessionJobsProvider` ごとアンマウントが原因
+  - Providerを常時マウントし中身(inner)だけ出し分けるよう再構成
 
-## #2 保存エラー・強制ログアウト改善（受講生 全入力画面）
-- [ ] 新規 `src/lib/spacareer/draftCache.js`: localStorage 下書き保存/復元/破棄
-- [ ] 新規 `src/lib/spacareer/saveWithRetry.js`: 認証エラー時に refreshSession→1回リトライ
-- [ ] `ClientKickoffHearingView.jsx`: 入力毎に下書き保存、ロード時に新しい下書きを復元、保存をリトライ化、失敗してもログアウトせず下書き保持
-- [ ] `ClientHomeworkView.jsx`: 同上（answers/files）
-- [ ] `ClientFeedbackView.jsx`: 同上（score/freeComment/responses）
-- [ ] 失敗時メッセージを「端末に保存済み・再ログインで復元」に変更（データ消失の不安を解消）
+### Feature 3: 顧客一覧にトレーナー氏名表示（管理画面のみ）
+- [ ] `CustomerListColumn.jsx` CustomerCard に「担当: ○○」を氏名下に小さく表示
 
-## #3 キックオフ管理の日程
-### #3a/#3b TabKickoff
-- [ ] 「第1〜第8回 大枠日程」カード（8日付入力）を削除、第1回開始日時のみ残す
-- [ ] `handleSave` の session_2〜8 scheduled_at 一括書込ループを削除（第1回 scheduled_at は維持）
-- [ ] `buildForm` から session_2〜8_date を削除
-
-### #3c 顧客側 毎週自動仮置き（確定優先）
-- [ ] 新規 `src/lib/spacareer/sessionSchedule.js`: 第1回基準で `第1回 + 7日×(n-1)` を算出。scheduled_at があればそれを優先
-- [ ] `ClientHistoryView.jsx`: 第2〜8回で scheduled_at が無ければ毎週自動算出日を「仮決め」表示
-- [ ] `ClientMyPageView.jsx`: 次回セッションの scheduled_at が無ければ自動算出日を表示
-
-## #4 ヒアリングシート項目変更
-### TabSessionManage（第1〜8回）
-- [ ] `check_values_review`（キャリアの方向性・価値観の再確認）を削除 #4d
-- [ ] `check_next_homework_guide`（次回事後課題の提出方法・締切の説明）を削除 #4c
-- [ ] `check_unclear_points`（不明点の洗い出し）を全回共通で追加 #4b
-- [ ] firstOnly 機構が不要になるので整理
-
-### TabKickoff（第0回）
-- [ ] `check_all_sessions_dated`（第2〜8回 全回の仮日程の確定）を削除 #4a
-- [ ] 「事後課題についての説明」「締め切りについての説明」は残す（#4c は第1〜8回のみ）
+### Feature 4: Zoom録画リンク（視聴のみ・各回管理）
+- [ ] migration: `spacareer_sessions` に `recording_url text` 追加
+- [ ] `TabSessionManage.jsx` 動画カードに「Zoom録画リンク」入力＋「録画を開く」（即時autosave）
+- [ ] `TabKickoff.jsx` にも同様
+- [ ] `TabSessionHistory.jsx` 各回一覧に録画リンク表示
 
 ## 検証
-- [ ] `npm run build` でビルド通過
-- [ ] RightSidebar/needAttention の check キー参照が壊れないか確認
-- [ ] 影響範囲レビュー（既存完了セッション・既存scheduled_atへの後方互換）
+- [ ] `npm run build`
+- [ ] Edge Function deploy後に実セッションで1件確認
+- [ ] 顧客一覧トレーナー名 / Zoomリンク開く 動作確認
+- [ ] main で commit & push
 
-## レビュー（実装後記入）
-
-実装完了（2026-06-24）。`npm run build` 通過。
-
-### 変更ファイル
-- 新規 `src/lib/spacareer/draftCache.js` / `saveWithRetry.js` / `sessionSchedule.js`
-- 新規 `.../CustomerDetail/SessionJobsContext.jsx`（常駐ジョブProvider＋右下フローティング進捗）
-- `SessionCompleteFlow.jsx` / `TabKickoff.jsx` / `TabSessionManage.jsx`: 動画/議事録を常駐Provider経由に。完了後も操作可（#1a/#1b）
-- `TabKickoff.jsx`: 大枠日程カード削除→第1回開始日時のみ、check_all_sessions_dated削除（#3a/b, #4a）
-- `TabSessionManage.jsx`: check項目を整理（不明点の洗い出し追加／価値観・次回課題提出方法削除）（#4b/c/d）
-- `ClientHistoryView.jsx` / `ClientMyPageView.jsx`: 第1回基準の毎週自動仮置き（確定優先）（#3c）
-- `ClientKickoffHearingView.jsx` / `ClientHomeworkView.jsx` / `ClientFeedbackView.jsx`: localStorage下書き＋トークン更新リトライ＋非破壊メッセージ（#2）
-- `CustomerDetail/index.jsx`: SessionJobsProvider でラップ
-
-### 既知の範囲外
-- #1b の「ページ完全リロード後の処理復帰」は対象外（SPA内のタブ/画面移動での継続のみ実装）。Edge Function側の議事録生成はサーバーで継続するため、再読込後は ai_status 反映で結果は取得される。
-- 既存顧客で旧一括入力済みの第2〜8回 scheduled_at は「確定」扱い（確定優先のため仕様通り）。
-
----
-
-# 採用管理「AIイケてる判定」（2026-06-27）
-
-スパキャリ採用管理タブの候補者に、面接前の「イケてる度」AIラベリングを追加。
-
-## 決定事項（むー様と壁打ち済）
-- スコア: 軸別＋総合（各5段階）
-- 取り込み時に自動判定（案A）／実行は spanavi Edge Function（案B＝基準をmainマージで調整可）
-- AI判定は確定扱い（再判定ボタンで上書き可）
-- 情報不足: profile_text が薄い候補者は断定せず「情報不足」マークを別表示
-- 軸: 営業=営業経験/実績インパクト/総合、トレーナー=AI知見/指導育成/総合
-- 絵文字禁止・DataTable/Badge 正規API・design トークン厳守
-- 既存31件（営業19/トレーナー12）はデプロイ後SQLで一括バックフィル
-
-## タスク
-- [ ] 1. migration: recruit_applicants に ai_* 列追加 + AFTER INSERT トリガー
-- [ ] 2. Edge Function analyze-recruit-applicant（職種別プロンプト/情報不足判定）
-- [ ] 3. UI useRecruiting.js: select 拡張 + ラベル定義 + 再判定 invoke
-- [ ] 4. UI 一覧: AI総合スコア列 + 情報不足マーク
-- [ ] 5. UI 詳細: AI評価セクション + AI再判定ボタン
-- [ ] 6. 本番: migration apply / function deploy / 既存31件バックフィル / 実候補者検証
-- [ ] 7. commit & push（main）
-
-## レビュー（完了後に記載）
+## Review
+（実装後に記載）
