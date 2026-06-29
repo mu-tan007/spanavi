@@ -37,5 +37,11 @@
 - [ ] 顧客一覧トレーナー名 / Zoomリンク開く 動作確認
 - [ ] main で commit & push
 
-## Review
-（実装後に記載）
+## Review（2026-06-29 完了）
+- Feature1: prefill"{"・フェンス除去・1回リトライ・max_tokens16000で空エラー対策。本番deploy(v7 ACTIVE)済
+- Feature2: SessionJobsProviderを早期returnの外（常時ルート）へ。顧客切替/完了refresh中も継続表示
+- Feature3: CustomerCardに「担当: ○○/未割当」を氏名下に表示（管理画面のみ）
+- Feature4: spacareer_sessions.recording_url追加（本番列確認済）。キックオフ/第N回タブに入力+録画を開く、履歴の録画列にもリンク
+- build通過 / commit 8b6229a / origin/main push済
+- 残: 実セッションでの議事録再生成E2E確認（むー様作業）／Zoomリンク保存→開く動作の画面確認
+- 補足: Zoom共有リンクは視聴専用（AI議事録はアップロード動画/音声から）。直DLリンクなら従来のrecording_url fallbackで文字起こしも可
