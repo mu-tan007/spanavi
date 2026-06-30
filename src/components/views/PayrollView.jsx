@@ -47,6 +47,8 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   // 管理者は引き続き全員一覧 + ドリルダウン閲覧（下部 AdminPayrollList）。
   const myMember = (members || []).find(m => typeof m === 'object' && m.name === currentUser) || null;
   const [drillTargetId, setDrillTargetId] = useState(null);
+  // 一覧でタップした時に選択していた月を詳細へ引き継ぐ（一覧=5月なのに詳細が前月を開く取り違え防止）
+  const [drillMonth, setDrillMonth] = useState(null);
 
   if (!isAdmin) {
     return <PayrollSelfDetailView targetMember={myMember} members={members} appoData={appoData} canEdit={true} isAdmin={false} />;
@@ -64,6 +66,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
           appoData={appoData}
           canEdit={isSelf}
           isAdmin={isAdmin}
+          initialMonth={drillMonth}
           embedded
           onBack={() => setDrillTargetId(null)}
         />
@@ -74,7 +77,7 @@ export default function PayrollView({ members, appoData, isAdmin, setMembers, on
   return <AdminPayrollList
     members={members} appoData={appoData} isAdmin={isAdmin}
     setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser}
-    onSelectMember={(id) => setDrillTargetId(id)}
+    onSelectMember={(id, month) => { setDrillTargetId(id); setDrillMonth(month || null); }}
   />;
 }
 
@@ -653,7 +656,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
               columns={dataColumns}
               onRowClick={(row) => {
                 const m = (members || []).find(mm => typeof mm === 'object' && mm.name === row.name);
-                if (m && onSelectMember) onSelectMember(m._supaId || m.id);
+                if (m && onSelectMember) onSelectMember(m._supaId || m.id, monthTab);
               }}
             />
 

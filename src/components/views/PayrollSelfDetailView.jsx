@@ -46,11 +46,16 @@ function defaultMonthLabel(payrollMonths) {
   return payrollMonths[payrollMonths.length - 1]?.label || '3月';
 }
 
-export default function PayrollSelfDetailView({ targetMember, members, appoData, canEdit = true, isAdmin = false, memberRoleMap: memberRoleMapProp = null, embedded = false, onBack = null }) {
+export default function PayrollSelfDetailView({ targetMember, members, appoData, canEdit = true, isAdmin = false, memberRoleMap: memberRoleMapProp = null, embedded = false, onBack = null, initialMonth = null }) {
   // 本人 + admin が調整項目を編集可能
   const canEditAdjustments = canEdit || isAdmin;
   const payrollMonths = useMemo(() => buildPayrollMonths(), []);
-  const [monthTab, setMonthTab] = useState(() => defaultMonthLabel(payrollMonths));
+  // 一覧から渡された月（initialMonth）があればそれを初期表示。なければ前月を既定にする
+  const [monthTab, setMonthTab] = useState(() =>
+    (initialMonth && payrollMonths.some(p => p.label === initialMonth))
+      ? initialMonth
+      : defaultMonthLabel(payrollMonths)
+  );
   const [orgSettings, setOrgSettings] = useState({});
   const [internalRoleMap, setInternalRoleMap] = useState({});
 
