@@ -4336,6 +4336,61 @@ export async function fetchPayrollInvoicesByMonth(payMonth) {
   return { data: data || [], error }
 }
 
+// 月単位で全員分の請求書を ZIP にまとめてダウンロードする（管理者用）。
+// nameByMemberId: { [member_id]: 表示名 } を渡すとファイル名を「氏名_YYYY-MM.ext」にする。
+// 戻り値 { count, missing } … count=ZIPに含めた件数、missing=実体取得に失敗した件数。
+export async function downloadPayrollInvoicesZip(payMonth, nameByMemberId = {}) {
+  if (!payMonth) return { count: 0, missing: 0, error: new Error('missing payMonth') }
+  const orgId = getOrgId()
+  const { data, error } = await supabase
+    .from('payroll_invoices')
+    .select('member_id, file_name, storage_path')
+    .eq('org_id', orgId)
+    .eq('pay_month', payMonth)
+  if (error) {
+    console.error('[DB] downloadPayrollInvoicesZip fetch error:', error)
+    return { count: 0, missing: 0, error }
+  }
+  const rows = (data || []).filter(r => r.storage_path)
+  if (rows.length === 0) return { count: 0, missing: 0, error: null }
+
+  const [{ default: JSZip }, { saveAs }] = await Promise.all([
+    import('jszip'),
+    import('file-saver'),
+  ])
+  const zip = new JSZip()
+  const usedNames = new Set()
+  let missing = 0
+
+  // 同一バケットからの直接 download（署名URL不要・RLSで保護）
+  await Promise.all(rows.map(async (r) => {
+    const { data: blob, error: dlErr } = await supabase.storage
+      .from(PAYROLL_INVOICE_BUCKET)
+      .download(r.storage_path)
+    if (dlErr || !blob) {
+      console.error('[DB] downloadPayrollInvoicesZip download error:', r.storage_path, dlErr)
+      missing++
+      return
+    }
+    const ext = (r.storage_path.split('.').pop() || 'pdf').toLowerCase()
+    const base = (nameByMemberId[r.member_id] || r.member_id || 'unknown')
+      .replace(/[\\/:*?"<>|]/g, '_') // ファイル名に使えない文字を除去
+    let fname = `${base}_${payMonth}.${ext}`
+    // 同名重複回避（同姓同名など）
+    let n = 2
+    while (usedNames.has(fname)) { fname = `${base}_${payMonth}_${n++}.${ext}` }
+    usedNames.add(fname)
+    zip.file(fname, blob)
+  }))
+
+  const count = usedNames.size
+  if (count === 0) return { count: 0, missing, error: new Error('all downloads failed') }
+
+  const content = await zip.generateAsync({ type: 'blob' })
+  saveAs(content, `請求書_${payMonth}.zip`)
+  return { count, missing, error: null }
+}
+
 export async function getPayrollInvoiceUrl(storagePath, expiresIn = 600, downloadName) {
   if (!storagePath) return { url: null, error: new Error('no path') }
   // downloadName を渡すと Supabase が Content-Disposition で

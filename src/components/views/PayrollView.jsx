@@ -6,7 +6,7 @@ import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 import { calcMonthlyPayroll, calcReferralBonuses } from '../../utils/money';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
-import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth } from '../../lib/supabaseWrite';
+import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth, downloadPayrollInvoicesZip } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 // 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
 import PageHeader from '../common/PageHeader';
@@ -160,6 +160,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
 
   // 請求書格納済みの member_id セット（月単位）
   const [invoiceMemberIdSet, setInvoiceMemberIdSet] = useState(new Set());
+  const [downloadingZip, setDownloadingZip] = useState(false);
 
   // monthTab 変更時にスナップショット＆調整＆請求書一覧を取得
   useEffect(() => {
@@ -186,6 +187,35 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     });
     return m;
   }, [members]);
+
+  // member_id → 表示名（ZIP内のファイル名用）
+  const nameByMemberId = React.useMemo(() => {
+    const m = {};
+    (members || []).forEach(mem => {
+      if (typeof mem === 'object' && mem.name && mem._supaId) m[mem._supaId] = mem.name;
+    });
+    return m;
+  }, [members]);
+
+  const handleDownloadAllInvoices = async () => {
+    setDownloadingZip(true);
+    setActionMsg('');
+    try {
+      const { count, missing, error } = await downloadPayrollInvoicesZip(payMonth, nameByMemberId);
+      if (error) {
+        setActionMsg('請求書の一括ダウンロードに失敗しました');
+      } else if (count === 0) {
+        setActionMsg(`${monthTab}の格納済み請求書はありません`);
+      } else {
+        setActionMsg(`${monthTab}の請求書 ${count}件をダウンロードしました${missing > 0 ? `（${missing}件は取得できませんでした）` : ''}`);
+      }
+    } catch (e) {
+      console.error('[PayrollView] handleDownloadAllInvoices error:', e);
+      setActionMsg('請求書の一括ダウンロードに失敗しました');
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
 
   const handleSaveAdjustment = async () => {
     setAdjSaving(true);
@@ -492,6 +522,9 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
         {/* 管理者アクション */}
         {isAdmin && (
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            <Button variant="outline" size="sm" loading={downloadingZip} onClick={handleDownloadAllInvoices} style={{ borderColor: TH_BG, color: TH_BG }}>
+              {downloadingZip ? '準備中...' : '請求書を一括DL'}
+            </Button>
             {isConfirmed ? (
               <>
                 <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.success, borderLeft: `3px solid ${color.success}`, paddingLeft: 8 }}>
