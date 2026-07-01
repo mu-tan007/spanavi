@@ -1865,7 +1865,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
                 {/* クライアント一覧テーブル */}
                 <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px 50px 90px 140px 60px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 50px 90px 180px 60px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700, alignItems: 'center' }}>
                     <span style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={allChecked} onChange={() => {
                         if (allChecked) setBulkSendChecked(new Set());
@@ -1876,15 +1876,22 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <span>送信先</span>
                     <span style={{ textAlign: 'center' }}>件数</span>
                     <span style={{ textAlign: 'right' }}>請求金額</span>
-                    <span style={{ paddingLeft: 8 }}>CC（任意）</span>
+                    <span style={{ paddingLeft: 8 }}>CC（任意・担当者選択可）</span>
                     <span style={{ textAlign: 'center' }}>状態</span>
                   </div>
                   {clientInfos.length === 0 ? (
                     <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: font.size.xs, color: color.textLight }}>対象クライアントがありません</div>
                   ) : clientInfos.map(ci => {
                     const st = bulkSendStatus[ci.name] || 'idle';
+                    // CC は「担当者選択(チップ) + 自由入力」。内部はカンマ区切り文字列で保持（送信ロジックはそのまま）
+                    const ccList = String(bulkSendCc[ci.name] || '').split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+                    const toEmail = bulkSendTo[ci.name] || '';
+                    // To に選んだ人・すでにCC済みの人は候補から除外（To/CC相互排他）
+                    const ccCandidates = ci.contacts.filter(ct => ct.email && ct.email !== toEmail && !ccList.includes(ct.email));
+                    const setCc = (arr) => setBulkSendCc(prev => ({ ...prev, [ci.name]: arr.join(', ') }));
+                    const labelFor = (em) => { const ct = ci.contacts.find(c => c.email === em); return ct ? ct.label.split(' <')[0] : em; };
                     return (
-                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px 50px 90px 140px 60px', gap: 4, padding: '6px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center', fontSize: font.size.xs }}>
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 50px 90px 180px 60px', gap: 4, padding: '6px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center', fontSize: font.size.xs }}>
                         <span style={{ display: 'flex', justifyContent: 'center' }}>
                           <input type="checkbox" checked={bulkSendChecked.has(ci.name)} disabled={st === 'sent'}
                             onChange={() => setBulkSendChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
@@ -1892,7 +1899,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         </span>
                         <span style={{ fontWeight: font.weight.medium, color: color.navy }}>{ci.name}</span>
                         {ci.contacts.length > 0 ? (
-                          <select value={bulkSendTo[ci.name] || ''} onChange={e => setBulkSendTo(prev => ({ ...prev, [ci.name]: e.target.value }))}
+                          <select value={bulkSendTo[ci.name] || ''} onChange={e => {
+                              const v = e.target.value;
+                              setBulkSendTo(prev => ({ ...prev, [ci.name]: v }));
+                              // To に選んだ人は CC から自動的に外す（相互排他）
+                              if (v) setCc(ccList.filter(em => em !== v));
+                            }}
                             disabled={st === 'sent'}
                             style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${color.border}`, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }}>
                             <option value="">送信先を選択</option>
@@ -1903,9 +1915,34 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         )}
                         <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: color.navy }}>{ci.count}</span>
                         <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: font.weight.semibold, color: color.navy }}>{formatCurrency(ci.total)}</span>
-                        <input value={bulkSendCc[ci.name] || ''} onChange={e => setBulkSendCc(prev => ({ ...prev, [ci.name]: e.target.value }))}
-                          placeholder="CC" disabled={st === 'sent'}
-                          style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${color.border}`, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }} />
+                        {/* CC: 担当者チップ + 追加セレクト + 自由入力 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {ccList.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                              {ccList.map(em => (
+                                <span key={em} title={em} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, background: color.gray100, borderRadius: 3, padding: '1px 4px', fontSize: 9, color: color.navy, maxWidth: '100%' }}>
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{labelFor(em)}</span>
+                                  {st !== 'sent' && (
+                                    <span onClick={() => setCc(ccList.filter(x => x !== em))} style={{ cursor: 'pointer', color: color.textLight, fontWeight: 700 }}>×</span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {st !== 'sent' && ccCandidates.length > 0 && (
+                            <select value="" onChange={e => { if (e.target.value) setCc([...ccList, e.target.value]); }}
+                              style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${color.border}`, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }}>
+                              <option value="">＋ CCに担当者を追加</option>
+                              {ccCandidates.map((ct, i) => <option key={i} value={ct.email}>{ct.label}</option>)}
+                            </select>
+                          )}
+                          {st !== 'sent' && (
+                            <input placeholder="他のCCを手入力" defaultValue=""
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const v = e.target.value.trim(); if (v) { setCc([...ccList, v]); e.target.value = ''; } } }}
+                              onBlur={e => { const v = e.target.value.trim(); if (v) { setCc([...ccList, v]); e.target.value = ''; } }}
+                              style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${color.border}`, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }} />
+                          )}
+                        </div>
                         <span style={{ textAlign: 'center', fontSize: 10, fontWeight: font.weight.semibold, color: statusColor[st] }}>{statusLabel[st]}</span>
                       </div>
                     );
