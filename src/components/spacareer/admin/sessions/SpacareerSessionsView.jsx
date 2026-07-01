@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { color, space, font } from '../../../../constants/design';
-import { Badge, DataTable, Button } from '../../../ui';
+import { Badge, DataTable, Button, Select } from '../../../ui';
 import PageHeader from '../../../common/PageHeader';
 import { useCustomersList } from '../customers/lib/useCustomers';
 import SessionCompleteFlow from '../customers/CustomerDetail/SessionCompleteFlow';
@@ -34,6 +34,8 @@ function fmtDate(v) {
 export default function SpacareerSessionsView({ isAdmin }) {
   const { rows: customers, loading, refresh } = useCustomersList();
   const [tab, setTab] = useState('summary');
+  // 担当トレーナー絞り込み: 'all'（すべて）/ 'none'（未割当）/ トレーナーの member_id
+  const [trainerFilter, setTrainerFilter] = useState('all');
 
   const flat = useMemo(() => {
     const list = [];
@@ -55,11 +57,26 @@ export default function SpacareerSessionsView({ isAdmin }) {
           minutes_final: s.minutes_final,
           hearing_sheet_completed: s.hearing_sheet_completed,
           homework: s.session_no >= 1 && s.session_no <= 8 ? homeworkBy[s.session_no] : null,
+          trainer_id: c.assigned_trainer_id || null,
           trainer_name: c.trainer?.name || null,
         });
       });
     });
     return list;
+  }, [customers]);
+
+  // 絞り込みSelectの選択肢は、実際にアサイン済みの担当者だけを実データから生成する。
+  const trainerOptions = useMemo(() => {
+    const byId = new Map();
+    customers.forEach((c) => {
+      if (c.assigned_trainer_id && c.trainer?.name) byId.set(c.assigned_trainer_id, c.trainer.name);
+    });
+    const opts = [{ value: 'all', label: 'すべての担当' }];
+    [...byId.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1], 'ja'))
+      .forEach(([id, name]) => opts.push({ value: id, label: name }));
+    opts.push({ value: 'none', label: '未割当' });
+    return opts;
   }, [customers]);
 
   const kpi = useMemo(() => {
@@ -83,24 +100,25 @@ export default function SpacareerSessionsView({ isAdmin }) {
     return { inProgress, graduated, overdue, thisWeek };
   }, [customers, flat]);
 
+  const matchesTrainer = useCallback((r) => {
+    if (trainerFilter === 'all') return true;
+    if (trainerFilter === 'none') return !r.trainer_id;
+    return r.trainer_id === trainerFilter;
+  }, [trainerFilter]);
+
   const filteredRows = useMemo(() => {
-    if (tab === 'summary') {
-      // 全体サマリーは「次回実施(next_up)」のセッションのみ表示する
-      return flat
-        .filter((r) => r.status === 'next_up')
-        .sort((a, b) => {
-          const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : Infinity;
-          const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : Infinity;
-          return ta - tb;
-        });
-    }
-    const no = parseInt(tab.replace('session_', ''), 10);
-    return flat.filter((r) => r.session_no === no).sort((a, b) => {
+    const byTime = (a, b) => {
       const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : Infinity;
       const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : Infinity;
       return ta - tb;
-    });
-  }, [flat, tab]);
+    };
+    if (tab === 'summary') {
+      // 全体サマリーは「次回実施(next_up)」のセッションのみ表示する
+      return flat.filter((r) => r.status === 'next_up' && matchesTrainer(r)).sort(byTime);
+    }
+    const no = parseInt(tab.replace('session_', ''), 10);
+    return flat.filter((r) => r.session_no === no && matchesTrainer(r)).sort(byTime);
+  }, [flat, tab, matchesTrainer]);
 
   const [openRowId, setOpenRowId] = useState(null);
   const openRow = openRowId ? flat.find((r) => r.id === openRowId) : null;
@@ -133,7 +151,20 @@ export default function SpacareerSessionsView({ isAdmin }) {
         </div>
       )}
 
-      <SubTabs tabs={sessionTabs} activeKey={tab} onChange={setTab} />
+      <div style={{
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        gap: space[3], flexWrap: 'wrap',
+      }}>
+        <SubTabs tabs={sessionTabs} activeKey={tab} onChange={setTab} />
+        <div style={{ minWidth: 220 }}>
+          <Select
+            label="担当トレーナーで絞り込み"
+            value={trainerFilter}
+            onChange={(e) => setTrainerFilter(e.target.value)}
+            options={trainerOptions}
+          />
+        </div>
+      </div>
 
       <DataTable
         columns={[

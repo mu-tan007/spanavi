@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { color, space, radius, font, alpha } from '../../../../../constants/design';
 import { Button, Card } from '../../../../ui';
 import { useFileDrop } from '../../../_shared/useFileDrop';
-import { supabase } from '../../../../../lib/supabase';
 import { useSessionJobs } from './SessionJobsContext';
+import { useSessionCompletion } from './useSessionCompletion';
 
 // ============================================================
 // セッション完了フロー
@@ -24,21 +24,24 @@ const STEP_LABELS = [
   { id: 'complete', label: '4. セッション完了' },
 ];
 
-function pad(n) { return n < 10 ? `0${n}` : String(n); }
-function formatJpDate(d) {
-  return `${d.getFullYear()}年${pad(d.getMonth() + 1)}月${pad(d.getDate())}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 export default function SessionCompleteFlow({
   session, customerId, detail,
   hearingSheetChecked = false,
   hasVideo = false, hasMinutes = false,
   onCompleted,
+  // embedded=true のとき（顧客詳細「セッション管理」タブ内）は、動画アップロード/AI議事録生成/
+  // スキップ完了ボタンを「動画・AI議事録」カード側に移設済みのため非表示にし、
+  // ステップ一覧＋「セッション完了」ボタンのみ表示する。
+  embedded = false,
+  // completion を渡すと共通の完了フック（呼び出し側で1インスタンス生成）を共有する。
+  // 未指定なら内部で独自に生成する（横断ビューでの単独利用）。
+  completion = null,
 }) {
   const fileRef = useRef(null);
-  const [completing, setCompleting] = useState(false);
-  const [lastResult, setLastResult] = useState(null);
-  const [err, setErr] = useState(null);
+
+  // 完了処理は共通フックに集約。completion prop があればそれを使い、無ければ内部生成。
+  const ownCompletion = useSessionCompletion({ session, customerId, detail, onCompleted });
+  const { completing, err, lastResult, complete, setErr } = completion || ownCompletion;
 
   // 動画アップロード/AI議事録は常駐ジョブProvider側で実行（タブ移動しても継続）
   const { jobs, startUpload, startMinutes } = useSessionJobs();
@@ -89,124 +92,11 @@ export default function SessionCompleteFlow({
     startMinutes(session, null);
   }
 
-  // キックオフ完了時にキックオフヒアリング(70問) を受講生に配信する。
-  // 第1回セッション開始日時の3日前 23:59 を deadline_at にセット。
-  async function publishKickoffHearing() {
-    if (!detail) return { ok: false, reason: 'detail がないため自動配信できません。手動でヒアリングシートタブから配信してください。' };
-    const kHearing = detail.kickoffHearingSession;
-    const slack = detail.slack;
-    const session1At = detail.kickoff?.session_1_start_at;
-
-    if (!kHearing) return { ok: false, reason: 'キックオフヒアリングセッションが見つかりません。' };
-    if (kHearing.status !== 'unnotified') {
-      return { ok: true, alreadyNotified: true };
-    }
-    if (!slack?.channel_id) {
-      return { ok: false, reason: '受講生のSlackチャンネルが未作成のため自動配信できません。チャンネル作成後にヒアリングシートタブから手動配信してください。' };
-    }
-    if (!session1At) {
-      return { ok: false, reason: '第1回セッション開始日時が未設定のためキックオフヒアリングを配信できません。' };
-    }
-
-    const sess1 = new Date(session1At);
-    const deadline = new Date(sess1);
-    deadline.setDate(deadline.getDate() - 3);
-    deadline.setHours(23, 59, 0, 0);
-    if (deadline.getTime() <= Date.now()) {
-      return { ok: false, reason: `計算された提出期限 ${formatJpDate(deadline)} が既に過ぎています。日程を見直してください。` };
-    }
-    const deadlineDisplay = formatJpDate(deadline);
-    const customerName = detail.customer?.member?.name || detail.customer?.nickname || '受講生';
-    const hearingUrl = `${window.location.origin}/spacareer`;
-
-    const { data, error: invokeErr } = await supabase.functions.invoke('spacareer-slack-notify', {
-      body: {
-        org_id: detail.customer.org_id,
-        customer_id: detail.customer.id,
-        notify_key: 'kickoff_hearing_published',
-        vars: { customer_name: customerName, hearing_url: hearingUrl, deadline: deadlineDisplay },
-      },
-    });
-    if (invokeErr) return { ok: false, reason: `Slack通知失敗: ${invokeErr.message || invokeErr}` };
-    if (data && data.ok === false) return { ok: false, reason: `Slack通知失敗: ${data.error || 'unknown'}` };
-
-    const { error: updErr } = await supabase
-      .from('spacareer_kickoff_hearing_sessions')
-      .update({
-        status: 'unstarted',
-        notified_at: new Date().toISOString(),
-        deadline_at: deadline.toISOString(),
-      })
-      .eq('id', kHearing.id);
-    if (updErr) return { ok: false, reason: `セッション更新失敗: ${updErr.message || updErr}` };
-
-    return { ok: true, deadlineDisplay };
-  }
-
-  // force=true のときは動画/議事録/ヒアリングの必須ゲートを無視して完了させる
-  // （テスト用途や、録画なしで進めたいケース向け）。
+  // 完了処理は共通フック(useSessionCompletion)の complete(force) に集約。
+  // force=true は動画/議事録/ヒアリングの必須ゲートを無視して完了（スキップ完了）。
   async function handleComplete(force = false) {
     if (!force && !canComplete) return;
-    if (status === 'completed') return;
-    setCompleting(true); setErr(null);
-    try {
-      const now = new Date().toISOString();
-
-      const { error: e1 } = await supabase.from('spacareer_sessions')
-        .update({ status: 'completed', completed_at: now }).eq('id', session.id);
-      if (e1) throw e1;
-
-      const nextNo = (session.session_no ?? 0) + 1;
-      if (nextNo <= 8) {
-        const { data: nextSess } = await supabase.from('spacareer_sessions')
-          .select('id, status').eq('customer_id', customerId).eq('session_no', nextNo).maybeSingle();
-        if (nextSess && nextSess.status === 'not_started') {
-          await supabase.from('spacareer_sessions')
-            .update({ status: 'next_up' }).eq('id', nextSess.id);
-        }
-      }
-
-      const completedCount = nextNo;
-      const pct = Math.round((completedCount / 9) * 1000) / 10;
-      const newStatus = nextNo > 8 ? 'graduated' : 'in_progress';
-      await supabase.from('spacareer_customers')
-        .update({
-          current_session_no: Math.min(8, nextNo),
-          progress_percent: pct,
-          status: newStatus,
-        })
-        .eq('id', customerId);
-
-      // キックオフ(第0回)完了時はキックオフヒアリング配信を自動発火。
-      //
-      // 第1〜7回の事後課題は「セッション完了」では生成・公開しない（役割分離）:
-      //   - 固定事後課題＋セッション感想 … 各回の予定日時を過ぎたら自動公開cronが配信
-      //     （fn_spacareer_publish_due_fixed / fixed_published_at で冪等管理）。
-      //   - 変動事後課題 … 事後課題タブの「AI変動課題を生成」→修正→「追加公開」で配信。
-      // ここでは完了状態・進捗の更新のみを行う。
-      if (isKickoff) {
-        const publishResult = await publishKickoffHearing();
-        if (publishResult.ok) {
-          if (publishResult.alreadyNotified) {
-            setLastResult({ kind: 'kickoff_done_already_notified' });
-          } else {
-            setLastResult({ kind: 'kickoff_done_with_notify', deadlineDisplay: publishResult.deadlineDisplay });
-          }
-        } else {
-          // セッション完了自体は成功しているので、ユーザーに警告だけ出す
-          setLastResult({ kind: 'kickoff_done_notify_failed', reason: publishResult.reason });
-        }
-      } else {
-        setLastResult({ kind: 'session_completed' });
-      }
-
-      onCompleted && onCompleted({ event: 'completed', nextSessionNo: nextNo });
-    } catch (e) {
-      console.error('[SessionCompleteFlow] complete error:', e);
-      setErr(`完了処理に失敗しました: ${e.message || e}`);
-    } finally {
-      setCompleting(false);
-    }
+    await complete(force);
   }
 
   const stepDone = {
@@ -244,33 +134,39 @@ export default function SessionCompleteFlow({
         display: 'flex', gap: space[2], flexWrap: 'wrap',
         paddingTop: space[3], borderTop: `1px solid ${color.borderLight}`,
       }}>
-        <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: 'none' }} />
-        <div
-          {...dropHandlers}
-          onClick={() => !uploading && fileRef.current?.click()}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: space[2],
-            padding: `${space[1]}px ${space[3]}px`,
-            border: `2px dashed ${dropOver ? color.navy : color.border}`,
-            background: dropOver ? alpha(color.navyLight, 0.08) : 'transparent',
-            borderRadius: radius.md,
-            cursor: uploading ? 'not-allowed' : 'pointer',
-          }}
-        >
-          <Button variant="outline" size="sm" loading={uploading}
-            onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>
-            動画アップロード
-          </Button>
-          <span style={{ fontSize: font.size.xs, color: color.textLight }}>
-            またはここにドラッグ＆ドロップ
-          </span>
-        </div>
-        <Button variant="outline" size="sm" loading={generatingMinutes}
-          onClick={handleGenerateMinutes} disabled={!hasVideo}>
-          AI議事録を生成
-        </Button>
+        {/* embedded（顧客詳細タブ）では動画アップロード・AI議事録生成・スキップ完了を
+            「動画・AI議事録」カードへ移設済みのため非表示にし、完了ボタンのみ残す。 */}
+        {!embedded && (
+          <>
+            <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: 'none' }} />
+            <div
+              {...dropHandlers}
+              onClick={() => !uploading && fileRef.current?.click()}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: space[2],
+                padding: `${space[1]}px ${space[3]}px`,
+                border: `2px dashed ${dropOver ? color.navy : color.border}`,
+                background: dropOver ? alpha(color.navyLight, 0.08) : 'transparent',
+                borderRadius: radius.md,
+                cursor: uploading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <Button variant="outline" size="sm" loading={uploading}
+                onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>
+                動画アップロード
+              </Button>
+              <span style={{ fontSize: font.size.xs, color: color.textLight }}>
+                またはここにドラッグ＆ドロップ
+              </span>
+            </div>
+            <Button variant="outline" size="sm" loading={generatingMinutes}
+              onClick={handleGenerateMinutes} disabled={!hasVideo}>
+              AI議事録を生成
+            </Button>
+          </>
+        )}
         <div style={{ flex: 1 }} />
-        {status !== 'completed' && (
+        {!embedded && status !== 'completed' && (
           <Button variant="ghost" size="sm" loading={completing}
             onClick={() => {
               if (window.confirm('動画アップロードとAI議事録生成をスキップして、このセッションを完了します。\n（テスト用途や録画なしで進めたい場合向け）\n\nよろしいですか？')) {
@@ -287,7 +183,7 @@ export default function SessionCompleteFlow({
         </Button>
       </div>
 
-      {uploading && uploadPct != null && (
+      {!embedded && uploading && uploadPct != null && (
         <div style={{
           marginTop: space[3], padding: space[2],
           background: color.infoSoft,
@@ -297,7 +193,7 @@ export default function SessionCompleteFlow({
           アップロード中 {uploadPct}%（大容量動画は数分かかります）
         </div>
       )}
-      {(uploadStatus || generatingMinutes) && (
+      {!embedded && (uploadStatus || generatingMinutes) && (
         <div style={{
           marginTop: space[3], padding: space[2],
           background: color.infoSoft,

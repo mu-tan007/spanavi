@@ -8,19 +8,22 @@ import { useAuth } from '../../../../../hooks/useAuth';
 
 /** 顧客一覧（左カラム＋要対応判定用） */
 export function useCustomersList() {
-  const { orgId, profile } = useAuth();
+  const { orgId } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const isTrainer = profile?.role === 'trainer';
-  const trainerMemberId = profile?.id;
 
   const refresh = useCallback(async () => {
     if (!orgId) return;
     setLoading(true);
     setError(null);
     try {
-      let q = supabase
+      // 担当トレーナーによるスコープは RLS(spacareer_customers_select) が member_id ベースで
+      // 正しく担保する（admin=全件 / 非admin=assigned_trainer_id が自分のもの）。
+      // 以前はここで assigned_trainer_id == profile.id(=auth user_id) で絞っていたが、
+      // assigned_trainer_id は members.id のため user_id との不一致で常に0件化する潜在バグだった。
+      // クライアント側の絞り込みは撤去し、スコープは RLS に委ねる。
+      const q = supabase
         .from('spacareer_customers')
         .select(`
           id, member_id, nickname, profile_image_url, status,
@@ -34,9 +37,6 @@ export function useCustomersList() {
         .eq('org_id', orgId)
         .order('created_at', { ascending: false });
 
-      if (isTrainer && trainerMemberId) {
-        q = q.eq('assigned_trainer_id', trainerMemberId);
-      }
       const { data: customers, error: cErr } = await q;
       if (cErr) throw cErr;
 
@@ -86,7 +86,7 @@ export function useCustomersList() {
     } finally {
       setLoading(false);
     }
-  }, [orgId, isTrainer, trainerMemberId]);
+  }, [orgId]);
 
   useEffect(() => { refresh(); }, [refresh]);
   return { rows, loading, error, refresh };
@@ -214,13 +214,29 @@ export function useTrainers() {
   useEffect(() => {
     if (!orgId) return;
     (async () => {
-      // rank が trainer 系の人 OR 許可リストのメンバー
+      // スパキャリ(spartia_career)のページ権限を付与されたメンバーは担当トレーナー候補に含める。
+      // 「スパナビでスパキャリのトレーナー権限を付与した人＝アサイン候補」という運用に合わせる。
+      // rank が null でも（例: 鷲尾さん）権限行があればここで候補化される。
+      const { data: perms } = await supabase
+        .from('member_page_permissions')
+        .select('member_id')
+        .eq('org_id', orgId)
+        .eq('engagement_slug', 'spartia_career');
+      const permIds = [...new Set((perms || []).map((p) => p.member_id).filter(Boolean))];
+
+      // 条件: rank が trainer 系 OR 許可リストのメール OR spartia_career 権限保有
       const allowedEmailsCsv = SPACAREER_TRAINER_ALLOWED_EMAILS.map(e => `"${e}"`).join(',');
+      const orClauses = [
+        'rank.in.(admin,trainer,manager)',
+        `email.in.(${allowedEmailsCsv})`,
+      ];
+      if (permIds.length) orClauses.push(`id.in.(${permIds.join(',')})`);
+
       const { data } = await supabase
         .from('members')
         .select('id, name, email, rank')
         .eq('org_id', orgId)
-        .or(`rank.in.(admin,trainer,manager),email.in.(${allowedEmailsCsv})`)
+        .or(orClauses.join(','))
         .order('name');
       setTrainers(data || []);
     })();

@@ -5,6 +5,8 @@ import { supabase } from '../../../../../lib/supabase';
 import SessionCompleteFlow from './SessionCompleteFlow';
 import HomeworkVariableEditor from './HomeworkVariableEditor';
 import { useSessionJobs } from './SessionJobsContext';
+import { useSessionCompletion } from './useSessionCompletion';
+import { useFileDrop } from '../../../_shared/useFileDrop';
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
 function toDateTimeInput(v) {
@@ -79,6 +81,13 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const uploadPct = job?.phase === 'uploading' ? (job.pct ?? 0) : null;
   const generatingMinutes = job?.phase === 'minutes';
   const videoErr = job?.phase === 'error' ? job.error : null;
+
+  // セッション完了処理（共通フック）。「動画・AI議事録」カードの「スキップして完了」ボタンと
+  // 下部の完了フロー（SessionCompleteFlow embedded）で同一インスタンスを共有する。
+  const completion = useSessionCompletion({ session: targetSession, customerId, detail, onCompleted: onRefresh });
+  // 「動画・AI議事録」カードのドラッグ＆ドロップアップロード。
+  const { isOver: dropOver, dropHandlers } = useFileDrop(
+    (f) => { if (targetSession) startUpload(targetSession, f); }, uploading);
 
   useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id, targetSession?.hearing_sheet_json]);
   // 録画リンクはセッション切替(id変化)時のみ初期化（入力中のリフレッシュで消さない）
@@ -248,20 +257,55 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
       >
         <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap', alignItems: 'center' }}>
           <input ref={videoFileRef} type="file" accept="video/*" onChange={handleVideoUpload} style={{ display: 'none' }} />
-          <Button variant="primary" size="md" loading={uploading}
-            onClick={() => videoFileRef.current?.click()}>
-            {hasVideo ? '動画を差し替える' : '動画をアップロード'}
-          </Button>
+          {/* ドラッグ＆ドロップ対応のアップロード入口。動画のアップロードはここに一本化。 */}
+          <div
+            {...dropHandlers}
+            onClick={() => !uploading && videoFileRef.current?.click()}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: space[2],
+              padding: `${space[1]}px ${space[3]}px`,
+              border: `2px dashed ${dropOver ? color.navy : color.border}`,
+              background: dropOver ? alpha(color.navyLight, 0.08) : 'transparent',
+              borderRadius: radius.md,
+              cursor: uploading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <Button variant="primary" size="md" loading={uploading}
+              onClick={(e) => { e.stopPropagation(); videoFileRef.current?.click(); }}>
+              {hasVideo ? '動画を差し替える' : '動画をアップロード'}
+            </Button>
+            <span style={{ fontSize: font.size.xs, color: color.textLight }}>
+              またはここにドラッグ＆ドロップ
+            </span>
+          </div>
           <Button variant="outline" size="md" loading={generatingMinutes}
             onClick={handleGenerateMinutes} disabled={!hasVideo}>
             AI議事録を生成
           </Button>
+          {sessionStatus !== 'completed' && (
+            <Button variant="ghost" size="md" loading={completion.completing}
+              onClick={() => {
+                if (window.confirm('動画アップロードとAI議事録生成をスキップして、このセッションを完了します。\n（テスト用途や録画なしで進めたい場合向け）\n\nよろしいですか？')) {
+                  completion.complete(true);
+                }
+              }}
+              title="動画・議事録・ヒアリングの必須チェックを無視して完了します">
+              動画議事録をスキップして完了
+            </Button>
+          )}
           {hasMinutes && (
             <span style={{ fontSize: font.size.xs, color: color.textLight }}>
               下部「議事録ドラフト」で確認できます
             </span>
           )}
         </div>
+        {completion.err && (
+          <div style={{
+            marginTop: space[3], padding: space[3],
+            background: color.dangerSoft, color: '#A20018',
+            fontSize: font.size.sm, borderRadius: radius.md,
+          }}>{completion.err}</div>
+        )}
         {uploading && uploadPct != null && (
           <div style={{
             marginTop: space[3], padding: space[2],
@@ -398,7 +442,8 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
       <SessionCompleteFlow session={targetSession} customerId={customerId} detail={detail}
         hearingSheetChecked={allChecked}
         hasVideo={hasVideo} hasMinutes={hasMinutes}
-        onCompleted={onRefresh} />
+        onCompleted={onRefresh}
+        embedded completion={completion} />
 
       {/* この回(第2〜8回)の変動事後課題をここで生成・修正・追加公開する。固定課題の内容もここで確認できる。 */}
       {sessionNo >= 2 && (
