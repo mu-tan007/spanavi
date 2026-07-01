@@ -36,7 +36,7 @@ function compareBy(key, dir, isTeam) {
   };
 }
 
-function Cell({ col, v, bold }) {
+function Cell({ col, v, bold, suffix }) {
   let disp = v;
   if (col.pct) disp = `${Number(v || 0).toFixed(1)}%`;
   else if (col.yen) disp = `¥${Number(v || 0).toLocaleString()}`;
@@ -53,11 +53,20 @@ function Cell({ col, v, bold }) {
       color: col.gold ? color.gold : (col.key === 'name' ? color.navy : color.textDark),
       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       letterSpacing: col.key === 'name' ? 0 : 0.2,
-    }}>{disp}</span>
+    }}>{disp}{suffix}</span>
   );
 }
 
-export default function TeamComparison({ appoData, range }) {
+// 退職者（在籍外）メンバー行に付ける控えめなタグ
+const RetiredTag = () => (
+  <span style={{
+    marginLeft: 6, fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight,
+    border: `1px solid ${color.border}`, borderRadius: radius.sm, padding: '0 5px',
+    lineHeight: '15px', display: 'inline-block', verticalAlign: 'middle',
+  }}>退職</span>
+);
+
+export default function TeamComparison({ appoData, range, memberDir = {} }) {
   const [perf, setPerf] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sort, setSort] = useState({ key: 'sales', dir: 'desc' });
@@ -104,10 +113,32 @@ export default function TeamComparison({ appoData, range }) {
       sales: salesByMember[p.member_name] || 0,
     })), [perf, salesByMember]);
 
+  // perf（在籍者のみ返すRPC）に出てこない担当者の売上を補完する。
+  // 退職者は perf に行が無いため、そのままだと計上した売上がチーム合計にも「その他」にも
+  // 入らず消えてしまう。memberDir（退職者含む名簿）で旧チームに紐付け、0稼働の行として補完する。
+  const orphanRows = useMemo(() => {
+    const present = new Set(memberRows.map(m => m.name));
+    return Object.entries(salesByMember)
+      .filter(([name, sales]) => name && !present.has(name) && Number(sales) > 0)
+      .map(([name, sales]) => {
+        const dir = memberDir[name];
+        return {
+          name,
+          team: (dir && dir.team) || 'その他',
+          shift_hours: 0, worked_hours: 0, calls: 0, connect: 0, appo: 0, connectRate: 0,
+          sales: Number(sales) || 0,
+          // 名簿にあり在籍=false→退職。名簿外の名前も在籍稼働に出ないので退職扱いでタグ表示。
+          retired: dir ? !dir.active : true,
+        };
+      });
+  }, [salesByMember, memberRows, memberDir]);
+
+  const allRows = useMemo(() => [...memberRows, ...orphanRows], [memberRows, orphanRows]);
+
   // チーム行（メンバー集計）
   const teamRows = useMemo(() => {
     const map = new Map();
-    memberRows.forEach(m => {
+    allRows.forEach(m => {
       if (!map.has(m.team)) map.set(m.team, { team: m.team, shift_hours: 0, worked_hours: 0, calls: 0, connect: 0, appo: 0, sales: 0 });
       const o = map.get(m.team);
       o.shift_hours += m.shift_hours; o.worked_hours += m.worked_hours;
@@ -116,7 +147,7 @@ export default function TeamComparison({ appoData, range }) {
     return [...map.values()]
       .map(o => ({ ...o, connectRate: o.calls ? (o.connect / o.calls) * 100 : 0 }))
       .sort(compareBy(sort.key, sort.dir, true));
-  }, [memberRows, sort]);
+  }, [allRows, sort]);
 
   const HeaderRow = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', borderBottom: `2px solid ${color.navy}`, background: color.navy }}>
@@ -149,7 +180,7 @@ export default function TeamComparison({ appoData, range }) {
               <div style={{ padding: 24, textAlign: 'center', color: color.textLight, fontSize: font.size.md }}>データがありません</div>
             )}
             {!loading && teamRows.map((t, ti) => {
-              const members = memberRows
+              const members = allRows
                 .filter(m => m.team === t.team)
                 .sort(compareBy(sort.key, sort.dir, false));
               return (
@@ -169,7 +200,8 @@ export default function TeamComparison({ appoData, range }) {
                       <span style={{ width: 14, flexShrink: 0 }} />
                       {COLS.map(c => (
                         <Cell key={c.key} col={c}
-                          v={c.key === 'name' ? `　${m.name}` : m[c.key]} />
+                          v={c.key === 'name' ? `　${m.name}` : m[c.key]}
+                          suffix={c.key === 'name' && m.retired ? <RetiredTag /> : null} />
                       ))}
                     </div>
                   ))}

@@ -4,7 +4,7 @@ import { Select } from '../ui';
 import PageHeader from '../common/PageHeader';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useUrlState } from '../../hooks/useUrlState';
-import { rpcPerfRankingScoped, rpcPerfCallHeatmap } from '../../lib/supabaseWrite';
+import { rpcPerfRankingScoped, rpcPerfCallHeatmap, fetchMemberTeams } from '../../lib/supabaseWrite';
 
 import Heatmap from './analytics/Heatmap';
 import OverallSummary from './analytics/OverallSummary';
@@ -71,6 +71,8 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   const [rankByPerson, setRankByPerson] = useState([]);
   const [heatmapData, setHeatmapData] = useState([]);
   const [heatmapLoading, setHeatmapLoading] = useState(false);
+  // 退職者含む全メンバーの名簿（名前→チーム/在籍）。チーム内訳で退職者の売上を旧チームへ紐付ける。
+  const [allMembers, setAllMembers] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,13 +95,34 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
     return () => { cancelled = true; };
   }, [range.from, range.to]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchMemberTeams()
+      .then(({ data }) => { if (!cancelled) setAllMembers(data || []); })
+      .catch(err => console.error('[AnalyticsView] memberTeamsFetch:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  // 名簿ソース: 退職者含む全メンバー（fetch済み）を優先、未取得時は在籍者propで代替。
+  const roster = allMembers.length ? allMembers : (members || []);
+
+  // 名前→チーム（退職者含む）。SalesRanking のチームラベル空欄を解消する。
   const teamMap = useMemo(() => {
     const m = {};
-    (members || [])
-      .filter(mb => mb.is_active !== false && mb.name && !/^user_/i.test(mb.name))
+    roster
+      .filter(mb => mb.name && !/^user_/i.test(mb.name))
       .forEach(mb => { m[mb.name] = mb.team || ''; });
     return m;
-  }, [members]);
+  }, [roster]);
+
+  // 名前→{チーム, 在籍}（退職者含む）。TeamComparison が退職者の売上を旧チームに補完するのに使う。
+  const memberDir = useMemo(() => {
+    const m = {};
+    roster
+      .filter(mb => mb.name && !/^user_/i.test(mb.name))
+      .forEach(mb => { m[mb.name] = { team: mb.team || '', active: mb.is_active !== false }; });
+    return m;
+  }, [roster]);
 
   const orgStats = useMemo(() => aggregateOrg(rankByPerson), [rankByPerson]);
 
@@ -147,7 +170,7 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
       <SalesRanking appoData={appoData} range={range} period={period} monthStr={monthStr} teamMap={teamMap} />
 
       {/* ③ チーム比較（メンバー展開・シフト/稼働込み） */}
-      <TeamComparison appoData={appoData} range={range} />
+      <TeamComparison appoData={appoData} range={range} memberDir={memberDir} />
 
       {/* ④ 曜日×時間帯 ヒートマップ（全社接続率） */}
       <div style={{ marginBottom: space[5] }}>

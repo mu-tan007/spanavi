@@ -3149,6 +3149,18 @@ export async function fetchMemberPerformance(fromDate, toDate) {
   return { data: data || [], error }
 }
 
+// 退職者含む全メンバーの「名前→チーム」対応。アナリティクスのチーム内訳で、
+// 退職者(is_active=false)が計上した売上を旧チームに紐付けるために使う。
+// is_active で絞らない点が useSpanaviData の members 取得（在籍者のみ）との違い。
+export async function fetchMemberTeams() {
+  const { data, error } = await supabase
+    .from('members')
+    .select('name, team, is_active')
+    .eq('org_id', getOrgId())
+  if (error) console.error('[DB] fetchMemberTeams error:', error)
+  return { data: data || [], error }
+}
+
 export async function fetchCallListsMeta() {
   const { data, error } = await supabase
     .from('call_lists')
