@@ -57,6 +57,10 @@ export default defineConfig(({ command }) => ({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // 静的アセットをプリキャッシュ
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2}'],
+        // 拡張子付きURL（テンプレDL等）はSPAシェル(index.html)にフォールバックさせない。
+        // これが無いと /spacareer-templates/*.pptx への遷移が index.html を返し、
+        // アプリが既定ページ（架電画面）に着地して「テンプレDLで架電リストが出る」不具合になる。
+        navigateFallbackDenylist: [/\.[^./?]+(\?.*)?$/],
         // APIコール（Supabase）はネットワークファースト
         runtimeCaching: [
           {
