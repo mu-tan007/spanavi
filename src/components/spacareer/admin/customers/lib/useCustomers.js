@@ -45,7 +45,7 @@ export function useCustomersList() {
 
       const [sessionsRes, homeworkRes, trainerRes] = await Promise.all([
         supabase.from('spacareer_sessions')
-          .select('id, customer_id, session_no, scheduled_at, started_at, completed_at, status')
+          .select('id, customer_id, session_no, part, scheduled_at, started_at, completed_at, status')
           .in('customer_id', customerIds),
         supabase.from('spacareer_homework')
           .select('id, customer_id, session_no, status, due_at, notified_at, submitted_at')
@@ -75,7 +75,8 @@ export function useCustomersList() {
 
       const enriched = (customers || []).map((c) => ({
         ...c,
-        sessions: (sessByCustomer.get(c.id) || []).sort((a, b) => a.session_no - b.session_no),
+        sessions: (sessByCustomer.get(c.id) || []).sort(
+          (a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1))),
         homework: (hwByCustomer.get(c.id) || []).sort((a, b) => a.session_no - b.session_no),
         trainer: c.assigned_trainer_id ? trainerById.get(c.assigned_trainer_id) || null : null,
       }));

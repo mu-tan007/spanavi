@@ -40,17 +40,19 @@
 - [x] 検証: 既存12名 全kyoka/108セッションpart1、RPC往復で原状復帰を確認
 - 決定事項: (2)は宿題なし（宿題は第N回=part1のみ）／進行は手動選択＋next_upヒント
 
-### 管理画面UI ⬜ 未実装（次の一手・現行挙動は維持されているので安全に追加可）
-- [ ] コース選択/変更UI（RightSidebar 等）→ supabase.rpc('fn_spacareer_set_course')
-      ソーシャルスタイル（customer.social_style_type）を併記して割当/変更
-- [ ] セッション管理タブを part 対応に（index.jsx 149-164行の 1..8 ループ）
-      応用は (N,1)(N,2) を順序(session_no,part)で段階表示。補填タブは「直前の順序が完了」で出現
-- [ ] TabSessionManage を part 引数対応に（targetSession/prev/next を順序ベースに、"第N回(2)"表示）
-- [ ] ProgressStepper を oyo 対応（分母=sessions.length、(2)ノード表示）
-- [ ] RightSidebar 進捗 total（8→動的）
-- [ ] クライアントポータル ClientHistoryView に (2) セッション表示
-- [ ] SpacareerSessionsView（横断）part 対応（任意・後回し可）
-- [ ] 動作確認（kyoka既存が無変化 / oyoで(2)管理・補填ができる）
+### 管理画面UI ✅ 実装・ビルド確認済（push済）
+- [x] コース選択/変更UI（RightSidebar CourseCard）→ supabase.rpc('fn_spacareer_set_course')
+      ソーシャルスタイル併記。基本情報/メンバータブに表示
+- [x] セッション管理タブを part 対応（index.jsx。順序(session_no,part)で段階表示・補填タブ出現）
+- [x] TabSessionManage を part 引数対応（targetSession/prev/next を順序ベース、"第N回(2)"表示、
+      (2)は事後課題エディタ非表示）
+- [x] ProgressStepper を oyo 対応（分母=sessions.length、(2)ノード=「N'」表示）
+- [x] RightSidebar 進捗 total 動的化・回ラベル(2)対応
+- [x] クライアントポータル ClientHistoryView に (2) セッション表示
+- [x] TabSessionHistory / SpacareerSessionsView(横断) の (2) 対応・行id衝突解消
+- [x] useCustomersList のセッションselectに part 追加
+- [x] npm run build 成功
+- [ ] 実UI動作確認（むー様: 1名を応用に変更→(2)タブ/補填/受講生ポータル表示を確認）
 - 補足: 宿題(TabHomework/HomeworkMatrix)は(2)に紐付けないため変更不要
 
 ## Part 2(旧). 元の設計メモ（参考・上に統合済）

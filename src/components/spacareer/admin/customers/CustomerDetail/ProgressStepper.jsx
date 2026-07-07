@@ -4,16 +4,24 @@ import { color, space, font, radius, alpha } from '../../../../../constants/desi
 // ============================================================
 // 進捗ステップバー（個人ページヘッダー）
 // 仕様書 §7.1 中央：個人ページ
-//   - 第0〜第8回の9ノード + 卒業ノード10番目を別表示
-//   - 進捗率は N/9
+//   - キックオフ(K) + 各回ノード + 卒業ノード
+//   - 強化コース=第1〜8回（9ノード）、応用コース=各回(1)(2)で最大17ノード
+//   - 進捗率は 完了数 / 全セッション数（コースに応じて自動で分母が変わる）
 // ============================================================
-const NODES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-
 export default function ProgressStepper({ sessions = [], status }) {
-  const stateBy = {};
-  sessions.forEach((s) => { stateBy[s.session_no] = s; });
+  // 順序(session_no, part)で並べる。応用は (0)→(1,1)→(1,2)→(2,1)… の順。
+  const ordered = [...sessions].sort(
+    (a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1)));
   const completedCount = sessions.filter((s) => s.status === 'completed').length;
-  const pct = Math.round((completedCount / 9) * 1000) / 10;
+  const total = sessions.length || 1;
+  const pct = Math.round((completedCount / total) * 1000) / 10;
+
+  const nodes = ordered.map((s) => {
+    const part = s.part || 1;
+    const label = s.session_no === 0 ? 'K' : (part === 2 ? `${s.session_no}'` : String(s.session_no));
+    const title = s.session_no === 0 ? 'キックオフ' : `第${s.session_no}回${part === 2 ? '(2)' : ''}`;
+    return { key: `${s.session_no}-${part}`, label, title, status: s.status };
+  });
 
   return (
     <div>
@@ -25,19 +33,19 @@ export default function ProgressStepper({ sessions = [], status }) {
         <div style={{
           fontFamily: font.family.mono, fontSize: font.size.sm,
           color: color.textDark, fontWeight: font.weight.bold,
-        }}>{completedCount}/9・{pct.toFixed(1)}%</div>
+        }}>{completedCount}/{sessions.length}・{pct.toFixed(1)}%</div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-        {NODES.map((no, idx) => {
-          const sess = stateBy[no];
-          const done = sess?.status === 'completed';
-          const next = sess?.status === 'next_up';
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap', rowGap: space[2] }}>
+        {nodes.map((n, idx) => {
+          const done = n.status === 'completed';
+          const next = n.status === 'next_up';
+          const nextDone = nodes[idx + 1]?.status === 'completed';
           return (
-            <React.Fragment key={no}>
-              <Node label={no === 0 ? 'K' : String(no)} title={no === 0 ? 'キックオフ' : `第${no}回`}
+            <React.Fragment key={n.key}>
+              <Node label={n.label} title={n.title}
                 state={done ? 'done' : next ? 'next' : 'todo'} />
-              {idx < NODES.length - 1 && <Bar done={done && stateBy[no + 1]?.status === 'completed'} />}
+              {idx < nodes.length - 1 && <Bar done={done && nextDone} />}
             </React.Fragment>
           );
         })}

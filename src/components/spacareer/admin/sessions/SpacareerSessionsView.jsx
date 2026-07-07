@@ -43,12 +43,14 @@ export default function SpacareerSessionsView({ isAdmin }) {
       const homeworkBy = {};
       (c.homework || []).forEach((h) => { homeworkBy[h.session_no] = h; });
       (c.sessions || []).forEach((s) => {
+        const part = s.part || 1;
         list.push({
-          id: `${c.id}_${s.session_no}`,
+          id: `${c.id}_${s.session_no}_${part}`,
           customer_id: c.id,
           customer_name: c.member?.name || '(無名)',
           customer_email: c.member?.email,
           session_no: s.session_no,
+          part,
           session_id: s.id,
           status: s.status,
           scheduled_at: s.scheduled_at,
@@ -56,7 +58,8 @@ export default function SpacareerSessionsView({ isAdmin }) {
           minutes_draft: s.minutes_draft,
           minutes_final: s.minutes_final,
           hearing_sheet_completed: s.hearing_sheet_completed,
-          homework: s.session_no >= 1 && s.session_no <= 8 ? homeworkBy[s.session_no] : null,
+          // 事後課題は各回part1のみ（応用の(2)には課題なし）
+          homework: (s.session_no >= 1 && s.session_no <= 8 && part === 1) ? homeworkBy[s.session_no] : null,
           trainer_id: c.assigned_trainer_id || null,
           trainer_name: c.trainer?.name || null,
         });
@@ -171,7 +174,8 @@ export default function SpacareerSessionsView({ isAdmin }) {
           { key: 'customer_name', label: '顧客名', width: 180, align: 'left',
             cellStyle: { fontWeight: font.weight.semibold } },
           { key: 'session_no', label: '回', width: 80, align: 'center',
-            render: (r) => r.session_no === 0 ? 'キックオフ' : `第${r.session_no}回` },
+            render: (r) => r.session_no === 0 ? 'キックオフ'
+              : `第${r.session_no}回${(r.part || 1) === 2 ? '(2)' : ''}` },
           { key: 'scheduled_at', label: '予定日時', width: 130, align: 'right',
             render: (r) => fmtDate(r.scheduled_at), cellStyle: { fontFamily: font.family.mono } },
           { key: 'status', label: 'ステータス', width: 110, align: 'center',

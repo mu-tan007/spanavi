@@ -146,22 +146,40 @@ export default function CustomerDetail({ customerId, isAdmin }) {
   })();
   const displayCallName = calledName || customer?.nickname || null;
 
-  // 第N回セッション管理タブは、前のセッション(第N-1回)が完了した受講生にだけ表示する。
-  // 例: キックオフ(第0回)完了→第1回タブ、第1回完了→第2回タブ … と進行に応じて増える。
-  const completedNos = new Set(
-    (detail.sessions || []).filter((s) => s.status === 'completed').map((s) => s.session_no));
+  // セッション管理タブは順序(session_no, part)で段階表示する。
+  // ・強化コースは各回 part1 のみ、応用コースは (N,1)(N,2) の順に並ぶ。
+  // ・「直前の順序のセッションが完了」で当該回のタブが出現（＝進行に応じて増える）。
+  //   応用でスキップした (N,2) も直前の part1 完了で出現するため、後から補填できる。
+  const completedKeys = new Set(
+    (detail.sessions || []).filter((s) => s.status === 'completed')
+      .map((s) => `${s.session_no}-${s.part || 1}`));
+  const orderedSessions = (detail.sessions || [])
+    .filter((s) => s.session_no >= 1)
+    .sort((a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1)));
   const sessionMgmtTabs = [];
-  for (let n = 1; n <= 8; n++) {
-    if (completedNos.has(n - 1)) sessionMgmtTabs.push({ id: `session${n}`, label: `第${n}回セッション管理` });
-  }
+  orderedSessions.forEach((s, i) => {
+    const part = s.part || 1;
+    const prev = i === 0 ? { session_no: 0, part: 1 } : orderedSessions[i - 1];
+    const prevKey = `${prev.session_no}-${prev.part || 1}`;
+    const revealed = s.status === 'completed' || s.status === 'next_up' || completedKeys.has(prevKey);
+    if (revealed) {
+      const label = part === 2 ? `第${s.session_no}回(2)セッション管理` : `第${s.session_no}回セッション管理`;
+      sessionMgmtTabs.push({ id: `session-${s.session_no}-${part}`, label });
+    }
+  });
   const tabs = sessionMgmtTabs.length
     ? TABS.flatMap((t) => (t.id === 'kickoff' ? [t, ...sessionMgmtTabs] : [t]))
     : TABS;
 
   let CenterContent = null;
-  const sessionMgmtMatch = /^session([1-8])$/.exec(tab);
+  const sessionMgmtMatch = /^session-([1-8])-([12])$/.exec(tab);
   if (sessionMgmtMatch) {
-    CenterContent = <TabSessionManage detail={detail} sessionNo={parseInt(sessionMgmtMatch[1], 10)} onRefresh={refresh} />;
+    CenterContent = (
+      <TabSessionManage detail={detail}
+        sessionNo={parseInt(sessionMgmtMatch[1], 10)}
+        part={parseInt(sessionMgmtMatch[2], 10)}
+        onRefresh={refresh} />
+    );
   } else {
     switch (tab) {
       case 'basic':           CenterContent = <TabBasicInfo detail={detail} />; break;
@@ -288,7 +306,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
       </div>
 
       <div style={{ overflowY: 'auto', minHeight: 0 }}>
-        <RightSidebar detail={detail} activeTab={tab} />
+        <RightSidebar detail={detail} activeTab={tab} onRefresh={refresh} />
       </div>
     </div>
     </SessionJobsProvider>

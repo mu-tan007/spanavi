@@ -1,7 +1,15 @@
 import React from 'react';
 import { color, space, font, radius, alpha } from '../../../../../constants/design';
 import { Card, Badge, Button } from '../../../../ui';
+import { supabase } from '../../../../../lib/supabase';
 import { KICKOFF_CHECK_KEYS } from './TabKickoff';
+
+const SOCIAL_STYLE_LABELS = {
+  analytical: 'アナリティカル',
+  driver: 'ドライバー',
+  expressive: 'エクスプレッシブ',
+  amiable: 'エミアブル',
+};
 
 // ============================================================
 // 右カラム（タブ連動）
@@ -13,22 +21,25 @@ function fmtDate(v) {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-export default function RightSidebar({ detail, activeTab }) {
+export default function RightSidebar({ detail, activeTab, onRefresh }) {
   if (!detail) return null;
   const { customer, sessions = [], homework = [], strength, kickoff, trainer } = detail;
 
-  const sessMatch = /^session([1-8])$/.exec(activeTab);
-  if (sessMatch) return <SilentSidebar label={`第${sessMatch[1]}回セッション管理`} />;
+  const sessMatch = /^session-([1-8])-([12])$/.exec(activeTab);
+  if (sessMatch) {
+    const label = `第${sessMatch[1]}回${sessMatch[2] === '2' ? '(2)' : ''}セッション管理`;
+    return <SilentSidebar label={label} />;
+  }
 
   switch (activeTab) {
-    case 'basic':       return <BasicSidebar customer={customer} trainer={trainer} />;
+    case 'basic':       return <BasicSidebar customer={customer} sessions={sessions} trainer={trainer} onRefresh={onRefresh} />;
     case 'kickoff':     return <KickoffSidebar kickoff={kickoff} sessions={sessions} />;
     case 'sessions':    return <SessionsSidebar sessions={sessions} />;
     case 'homework':    return <HomeworkSidebar homework={homework} />;
     case 'strengths':   return <StrengthSidebar strength={strength} />;
     case 'files':       return <SilentSidebar label="ファイル" />;
     case 'memo':        return <SilentSidebar label="メモ" />;
-    case 'members':     return <BasicSidebar customer={customer} trainer={trainer} />;
+    case 'members':     return <BasicSidebar customer={customer} sessions={sessions} trainer={trainer} onRefresh={onRefresh} />;
     case 'video_logs':  return <VideoLogsSidebar />;
     default:            return <SilentSidebar label="—" />;
   }
@@ -44,10 +55,11 @@ function SilentSidebar({ label }) {
   );
 }
 
-function BasicSidebar({ customer, trainer }) {
+function BasicSidebar({ customer, sessions, trainer, onRefresh }) {
   if (!customer) return null;
   return (
     <div style={{ display: 'grid', gap: space[3] }}>
+      <CourseCard customer={customer} sessions={sessions} onRefresh={onRefresh} />
       <Card padding="md" title="クイックアクション">
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
           <Button variant="outline" size="sm" disabled>Slackチャンネルを開く（準備中）</Button>
@@ -61,6 +73,59 @@ function BasicSidebar({ customer, trainer }) {
         </div>
       </Card>
     </div>
+  );
+}
+
+function CourseCard({ customer, sessions = [], onRefresh }) {
+  const [saving, setSaving] = React.useState(false);
+  const course = customer?.course || 'kyoka';
+  const styleLabel = SOCIAL_STYLE_LABELS[customer?.social_style_type] || (customer?.social_style_type || '未診断');
+  const total = sessions.length; // キックオフ込みの総セッション数（強化=9 / 応用=17）
+
+  async function change(next) {
+    if (saving || next === course) return;
+    const msg = next === 'oyo'
+      ? '応用コース（16回）に変更します。\n各回に(2)セッションを追加します。これまでのセッション記録は引き継がれます。\n\nよろしいですか？'
+      : '強化コース（8回）に変更します。\n未実施の(2)セッションは削除されます（実施済みの記録は残ります）。\n\nよろしいですか？';
+    if (!window.confirm(msg)) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc('fn_spacareer_set_course', {
+        p_customer_id: customer.id, p_course: next,
+      });
+      if (error) throw error;
+      if (onRefresh) await onRefresh();
+    } catch (e) {
+      console.error('[CourseCard] set_course error:', e);
+      alert('コース変更に失敗しました: ' + (e.message || e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card padding="md" title="コース / プラン">
+      <div style={{ display: 'grid', gap: space[2] }}>
+        <Badge variant={course === 'oyo' ? 'primary' : 'neutral'} dot>
+          {course === 'oyo' ? 'AI新規開拓応用コース（16回）' : 'AI新規開拓強化コース（8回）'}
+        </Badge>
+        <div style={{ fontSize: font.size.xs, color: color.textMid }}>
+          ソーシャルスタイル：
+          <span style={{ color: color.textDark, fontWeight: font.weight.semibold }}>{styleLabel}</span>
+        </div>
+        <div style={{ fontSize: font.size.xs, color: color.textLight }}>
+          全{total}セッション（キックオフ込み）
+        </div>
+        <div style={{ display: 'flex', gap: space[2], marginTop: space[1] }}>
+          <Button variant={course === 'kyoka' ? 'primary' : 'outline'} size="sm"
+            loading={saving && course !== 'kyoka'} disabled={saving}
+            onClick={() => change('kyoka')}>強化(8回)</Button>
+          <Button variant={course === 'oyo' ? 'primary' : 'outline'} size="sm"
+            loading={saving && course !== 'oyo'} disabled={saving}
+            onClick={() => change('oyo')}>応用(16回)</Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -99,7 +164,8 @@ function SessionsSidebar({ sessions }) {
           <div style={{ display: 'grid', gap: 4 }}>
             <div style={{
               fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy,
-            }}>{nextUp.session_no === 0 ? 'キックオフ' : `第${nextUp.session_no}回`}</div>
+            }}>{nextUp.session_no === 0 ? 'キックオフ'
+              : `第${nextUp.session_no}回${(nextUp.part || 1) === 2 ? '(2)' : ''}`}</div>
             <div style={{
               fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textMid,
             }}>{fmtDate(nextUp.scheduled_at)}</div>
@@ -112,7 +178,7 @@ function SessionsSidebar({ sessions }) {
         <div style={{
           fontSize: font.size.xl, fontWeight: font.weight.bold,
           color: color.success, fontFamily: font.family.mono,
-        }}>{completed.length} <span style={{ fontSize: font.size.sm, color: color.textLight }}>/ 9</span></div>
+        }}>{completed.length} <span style={{ fontSize: font.size.sm, color: color.textLight }}>/ {sessions.length}</span></div>
       </Card>
     </div>
   );

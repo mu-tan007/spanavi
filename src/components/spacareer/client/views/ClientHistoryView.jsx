@@ -37,9 +37,10 @@ export default function ClientHistoryView() {
 
       const { data: rows } = await supabase
         .from('spacareer_sessions')
-        .select('id, session_no, scheduled_at, started_at, completed_at, zoom_url, status, minutes_final')
+        .select('id, session_no, part, scheduled_at, started_at, completed_at, zoom_url, status, minutes_final')
         .eq('customer_id', cust.id)
-        .order('session_no', { ascending: true });
+        .order('session_no', { ascending: true })
+        .order('part', { ascending: true });
       if (!cancelled) setSessions(rows || []);
       setLoading(false);
     })().catch(err => {
@@ -49,11 +50,14 @@ export default function ClientHistoryView() {
     return () => { cancelled = true; };
   }, [profile?.id]);
 
+  // 応用コースは各回に(1)(2)がある。実データ(session_no,part順)をそのまま表示する。
+  // まだ行が無い場合のみ第0〜8回のプレースホルダを表示。
   const completeRows = useMemo(() => {
-    return SESSIONS.map(n => {
-      const found = sessions.find(s => s.session_no === n);
-      return found || { id: `placeholder-${n}`, session_no: n, status: 'not_started' };
-    });
+    if (sessions.length) {
+      return [...sessions].sort(
+        (a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1)));
+    }
+    return SESSIONS.map(n => ({ id: `placeholder-${n}`, session_no: n, part: 1, status: 'not_started' }));
   }, [sessions]);
 
   const downloadMinutes = (row) => {
@@ -62,7 +66,7 @@ export default function ClientHistoryView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `第${row.session_no}回_議事録.txt`;
+    a.download = `第${row.session_no}回${(row.part || 1) === 2 ? '(2)' : ''}_議事録.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -87,7 +91,7 @@ export default function ClientHistoryView() {
       align: 'center',
       render: row => (
         <span style={{ fontWeight: font.weight.bold, color: color.navy }}>
-          第{row.session_no}回
+          第{row.session_no}回{(row.part || 1) === 2 ? '(2)' : ''}
           {row.session_no === 0 && <Badge variant="primary" size="sm" style={{ marginLeft: space[1] }}>キックオフ</Badge>}
         </span>
       ),

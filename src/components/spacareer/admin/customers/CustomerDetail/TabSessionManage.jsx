@@ -42,23 +42,37 @@ function checkFieldsFor(sessionNo) {
   return CHECK_FIELDS;
 }
 
-export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
+export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRefresh }) {
   const { customer, sessions, videos, kickoff } = detail || {};
   const customerId = customer?.id;
 
+  // 対象セッションは session_no と part の両方で特定（応用コースは同一回に(1)(2)が存在）。
   const targetSession = useMemo(
-    () => (sessions || []).find((s) => s.session_no === sessionNo) || null, [sessions, sessionNo]);
-  const prevSession = useMemo(
-    () => (sessions || []).find((s) => s.session_no === sessionNo - 1) || null, [sessions, sessionNo]);
-  const nextSession = useMemo(
-    () => (sessions || []).find((s) => s.session_no === sessionNo + 1) || null, [sessions, sessionNo]);
+    () => (sessions || []).find((s) => s.session_no === sessionNo && (s.part || 1) === part) || null,
+    [sessions, sessionNo, part]);
 
-  // 前回の引き継ぎ（質問記録・議事録）。第1回の前回はキックオフ(kickoff_checks)、
-  // 第2回以降の前回は前セッションの hearing_sheet_json から取得する。
-  const prevLabel = sessionNo === 1 ? 'キックオフ' : `第${sessionNo - 1}回`;
-  const prevQuestions = sessionNo === 1
-    ? (kickoff?.customer_questions_log || '')
-    : (prevSession?.hearing_sheet_json?.customer_questions_log || '');
+  // 順序(session_no, part)で並べ、前回/次回を決める。応用は (N,1)→(N,2)→(N+1,1)…。
+  const ordered = useMemo(
+    () => (sessions || []).filter((s) => s.session_no >= 1)
+      .sort((a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1))),
+    [sessions]);
+  const orderIdx = ordered.findIndex((s) => s.session_no === sessionNo && (s.part || 1) === part);
+  const prevSession = orderIdx > 0 ? ordered[orderIdx - 1] : null; // null = 前がキックオフ
+  const nextSession = orderIdx >= 0 && orderIdx < ordered.length - 1 ? ordered[orderIdx + 1] : null;
+
+  const partSuffix = part === 2 ? '(2)' : '';
+  const sessionLabel = `第${sessionNo}回${partSuffix}`;
+  const nextLabel = nextSession
+    ? `第${nextSession.session_no}回${(nextSession.part || 1) === 2 ? '(2)' : ''}` : '';
+
+  // 前回の引き継ぎ（質問記録・議事録）。前がキックオフ(prevSession=null)ならキックオフ、
+  // そうでなければ前セッションの hearing_sheet_json / 議事録から取得する。
+  const prevLabel = prevSession
+    ? `第${prevSession.session_no}回${(prevSession.part || 1) === 2 ? '(2)' : ''}`
+    : 'キックオフ';
+  const prevQuestions = prevSession
+    ? (prevSession.hearing_sheet_json?.customer_questions_log || '')
+    : (kickoff?.customer_questions_log || '');
   const prevMinutes = prevSession
     ? (prevSession.minutes_final || prevSession.minutes_draft || '')
     : '';
@@ -142,7 +156,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const allChecked = checkFields.every((f) => !!form[f.key]);
   const checkedCount = checkFields.filter((f) => !!form[f.key]).length;
   const hasVideo = useMemo(
-    () => (videos || []).some((v) => v.session?.session_no === sessionNo), [videos, sessionNo]);
+    () => (videos || []).some((v) => v.session_id === targetSession?.id), [videos, targetSession?.id]);
   // この回のアップロード済み動画（storage_path あり）。画面内プレーヤーで再生する。
   const sessionVideo = useMemo(
     () => (videos || []).find((v) => v.session_id === targetSession?.id && v.storage_path) || null,
@@ -200,7 +214,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
     return (
       <Card padding="md">
         <div style={{ color: color.textLight, fontSize: font.size.sm }}>
-          第{sessionNo}回のセッションが見つかりません。
+          {sessionLabel}のセッションが見つかりません。
         </div>
       </Card>
     );
@@ -248,7 +262,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
       </Card>
 
       <Card padding="md"
-        title={`第${sessionNo}回 動画・AI議事録`}
+        title={`${sessionLabel} 動画・AI議事録`}
         description="セッションの録画ファイルをアップロードし、AI議事録を生成します。セッション完了の必須ゲートです。"
         action={
           <div style={{ display: 'flex', gap: space[2] }}>
@@ -433,9 +447,9 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
       </Card>
 
       {nextSession && (
-        <Card padding="md" title={`次回（第${sessionNo + 1}回）開始日時`}
+        <Card padding="md" title={`次回（${nextLabel}）開始日時`}
           description="入力するとその場で自動保存され、セッション履歴・受講生ポータルに反映されます。この日時を過ぎると固定の事後課題とセッション感想が自動公開されます。">
-          <Input size="sm" label={`第${sessionNo + 1}回 開始日時（日付＋時間）`} type="datetime-local"
+          <Input size="sm" label={`${nextLabel} 開始日時（日付＋時間）`} type="datetime-local"
             value={nextStartAt}
             onChange={(e) => handleNextStartAtChange(e.target.value)}
             hint="入力した瞬間に自動保存されます（保存ボタン不要）。" />
@@ -462,8 +476,9 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
         onCompleted={onRefresh}
         embedded completion={completion} />
 
-      {/* この回(第2〜8回)の変動事後課題をここで生成・修正・追加公開する。固定課題の内容もここで確認できる。 */}
-      {sessionNo >= 2 && (
+      {/* この回(第2〜8回・part1)の変動事後課題をここで生成・修正・追加公開する。
+          応用コースの(2)には事後課題を紐付けないため part===1 のときだけ表示。 */}
+      {sessionNo >= 2 && part === 1 && (
         <HomeworkVariableEditor detail={detail} customerId={customerId} sessionNo={sessionNo} onRefresh={onRefresh} />
       )}
 
@@ -471,7 +486,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
         open={playerOpen}
         onClose={() => setPlayerOpen(false)}
         storagePath={sessionVideo?.storage_path}
-        title={`第${sessionNo}回 録画`}
+        title={`${sessionLabel} 録画`}
       />
     </div>
   );
