@@ -138,7 +138,7 @@ export default function SessionCompleteFlow({
             「動画・AI議事録」カードへ移設済みのため非表示にし、完了ボタンのみ残す。 */}
         {!embedded && (
           <>
-            <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: 'none' }} />
+            <input ref={fileRef} type="file" accept="video/*,audio/*" onChange={handleUpload} style={{ display: 'none' }} />
             <div
               {...dropHandlers}
               onClick={() => !uploading && fileRef.current?.click()}

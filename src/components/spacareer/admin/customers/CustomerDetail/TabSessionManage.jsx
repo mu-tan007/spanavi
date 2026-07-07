@@ -251,7 +251,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
         }
       >
         <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap', alignItems: 'center' }}>
-          <input ref={videoFileRef} type="file" accept="video/*" onChange={handleVideoUpload} style={{ display: 'none' }} />
+          <input ref={videoFileRef} type="file" accept="video/*,audio/*" onChange={handleVideoUpload} style={{ display: 'none' }} />
           {/* ドラッグ＆ドロップ対応のアップロード入口。動画のアップロードはここに一本化。 */}
           <div
             {...dropHandlers}
