@@ -83,6 +83,7 @@ export default function ContactDrawer({
   const { profile } = useAuth()
   const [tab, setTab] = useState('basic')
   const [form, setForm] = useState(emptyContactForm())
+  const [calIds, setCalIds] = useState(['']) // Google カレンダー ID の複数行編集用（保存時は form.googleCalendarId にカンマ結合）
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -116,8 +117,11 @@ export default function ContactDrawer({
         schedulingNotes: existingContact.schedulingNotes || '',
         isPrimary: existingContact.isPrimary === true,
       })
+      const existingCals = (existingContact.googleCalendarId || '').split(',').map(s => s.trim()).filter(Boolean)
+      setCalIds(existingCals.length ? existingCals : [''])
     } else {
       setForm(emptyContactForm())
+      setCalIds([''])
     }
   }, [isOpen, mode, existingContact])
 
@@ -136,6 +140,12 @@ export default function ContactDrawer({
   }, [isOpen, mode, existingContact?.id])
 
   const u = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+
+  // カレンダー ID 複数行編集: 表示用配列(calIds)を更新しつつ、保存用の form.googleCalendarId をカンマ結合で同期
+  const syncCalIds = (next) => {
+    setCalIds(next)
+    u('googleCalendarId', next.map(s => s.trim()).filter(Boolean).join(','))
+  }
 
   const handleSaveBasic = async () => {
     if (!form.name?.trim()) { setErrorMsg('名前は必須です'); return }
@@ -361,7 +371,32 @@ export default function ContactDrawer({
 
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>Google カレンダー ID</label>
-                <input value={form.googleCalendarId} onChange={e => u('googleCalendarId', e.target.value)} style={inputStyle} placeholder="xxxx@gmail.com" />
+                {calIds.map((cid, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                    <input
+                      value={cid}
+                      onChange={e => { const n = [...calIds]; n[i] = e.target.value; syncCalIds(n) }}
+                      style={{ ...inputStyle, flex: 1 }}
+                      placeholder="xxxx@gmail.com"
+                    />
+                    {calIds.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => { const n = calIds.filter((_, idx) => idx !== i); syncCalIds(n.length ? n : ['']) }}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: color.danger, fontSize: 14, padding: '0 4px', lineHeight: 1 }}
+                        title="このカレンダーを削除"
+                      >✕</button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => syncCalIds([...calIds, ''])}
+                  style={{ border: `1px dashed ${GRAY_200}`, background: 'none', cursor: 'pointer', fontSize: 11, color: BLUE, padding: '4px 12px', borderRadius: radius.sm, fontFamily: font.family.sans }}
+                >+ カレンダーを追加</button>
+                <div style={{ fontSize: 10, color: C.textLight, marginTop: 4, lineHeight: 1.5 }}>
+                  複数登録すると、1画面集中ページの週カレンダーに全カレンダーの予定を重ねて表示します。
+                </div>
               </div>
 
               <div>

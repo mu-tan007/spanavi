@@ -53,10 +53,12 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
     const timeMax = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     try {
-      if (clientCalendarId) {
-        // クライアントのカレンダーのみ取得
+      // clientCalendarId はカンマ区切りで複数カレンダーを許容（担当者が複数カレンダーを登録した場合）
+      const calIds = String(clientCalendarId || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (calIds.length > 0) {
+        // クライアントの（複数）カレンダーを取得し、busy 区間を合算して1枚に重ねる
         const res = await fetch(
-          `${SUPABASE_URL}/functions/v1/gcal-proxy?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&calendarIds=${encodeURIComponent(clientCalendarId)}`,
+          `${SUPABASE_URL}/functions/v1/gcal-proxy?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&calendarIds=${encodeURIComponent(calIds.join(','))}`,
           { headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY } }
         );
         const data = await res.json();
@@ -65,8 +67,8 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
         const cals = data.calendars || {};
         const calErrors = data.calendarErrors || {};
         setMyBusy([]);
-        setClientBusy(cals[clientCalendarId] || []);
-        setClientErrors(calErrors[clientCalendarId] || []);
+        setClientBusy(calIds.flatMap(id => cals[id] || []));
+        setClientErrors(calIds.flatMap(id => calErrors[id] || []));
       } else {
         // クライアント未連携時はデータ取得しない
         setMyBusy([]);
