@@ -21,6 +21,41 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+// 外部AI API（Whisper / Claude）の一時的な失敗に対して指数バックオフでリトライする fetch。
+// 対象: ネットワーク断・タイムアウト等の例外、および 429(レート制限) / 529(overloaded) / 5xx。
+// これがないと朝の架電ピーク時に上流が 529/429 を返した瞬間、添削(抽出)が丸ごと 500 で落ちる。
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  opts: { retries?: number; baseDelayMs?: number; label?: string } = {},
+): Promise<Response> {
+  const { retries = 3, baseDelayMs = 1000, label = 'fetch' } = opts
+  let lastErr: unknown = null
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, init)
+      if (res.status === 429 || res.status === 529 || res.status >= 500) {
+        if (attempt < retries) {
+          const wait = baseDelayMs * Math.pow(2, attempt) + Math.floor(Math.random() * 300)
+          console.warn(`[transcribe-and-extract] ${label} ${res.status} 一時エラー。${wait}ms後にリトライ (${attempt + 1}/${retries})`)
+          await new Promise((r) => setTimeout(r, wait))
+          continue
+        }
+      }
+      return res
+    } catch (err) {
+      lastErr = err
+      if (attempt < retries) {
+        const wait = baseDelayMs * Math.pow(2, attempt) + Math.floor(Math.random() * 300)
+        console.warn(`[transcribe-and-extract] ${label} 例外。${wait}ms後にリトライ (${attempt + 1}/${retries}):`, (err as Error).message)
+        await new Promise((r) => setTimeout(r, wait))
+        continue
+      }
+    }
+  }
+  throw lastErr ?? new Error(`${label}: all retries failed`)
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -95,11 +130,11 @@ Deno.serve(async (req) => {
     formData.append('file', audioBlob, 'recording.mp4')
     formData.append('model', 'whisper-1')
     formData.append('language', 'ja')
-    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const whisperRes = await fetchWithRetry('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${openaiKey}` },
       body: formData,
-    })
+    }, { label: 'Whisper' })
     if (!whisperRes.ok) {
       const errText = await whisperRes.text()
       return json({ error: `Whisper API error: ${errText}` }, 500)
@@ -164,7 +199,7 @@ ${ai_prompt ? `【テンプレ固有の抽出指示】\n${ai_prompt}\n` : ''}
 【文字起こし】
 ${transcript}`
 
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+    const claudeRes = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': anthropicKey,
@@ -176,7 +211,7 @@ ${transcript}`
         max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
       }),
-    })
+    }, { label: 'Claude' })
     if (!claudeRes.ok) {
       const errText = await claudeRes.text()
       return json({ error: `Claude API error: ${errText}` }, 500)
