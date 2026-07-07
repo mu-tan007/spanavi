@@ -96,26 +96,13 @@ export function useSessionCompletion({ session, customerId, detail, onCompleted 
         .update({ status: 'completed', completed_at: now }).eq('id', session.id);
       if (e1) throw e1;
 
+      // 次回昇格・進捗更新・卒業判定は DBトリガーに一本化して任せる
+      //   fn_spacareer_advance_next_session → reset_next_up（最も若い未実施を next_up に）
+      //   fn_spacareer_sync_customer_progress → recalc_progress（完了/全セッション数で進捗）
+      // 旧実装はここで session_no+1 を maybeSingle で昇格していたが、応用コースは
+      // 同一 session_no に (1)(2) の2行があるため maybeSingle がエラーになり、さらに /9 固定の
+      // 進捗計算がトリガーの正しい値を上書きしていた。フロントでの二重更新を廃止する。
       const nextNo = (session.session_no ?? 0) + 1;
-      if (nextNo <= 8) {
-        const { data: nextSess } = await supabase.from('spacareer_sessions')
-          .select('id, status').eq('customer_id', customerId).eq('session_no', nextNo).maybeSingle();
-        if (nextSess && nextSess.status === 'not_started') {
-          await supabase.from('spacareer_sessions')
-            .update({ status: 'next_up' }).eq('id', nextSess.id);
-        }
-      }
-
-      const completedCount = nextNo;
-      const pct = Math.round((completedCount / 9) * 1000) / 10;
-      const newStatus = nextNo > 8 ? 'graduated' : 'in_progress';
-      await supabase.from('spacareer_customers')
-        .update({
-          current_session_no: Math.min(8, nextNo),
-          progress_percent: pct,
-          status: newStatus,
-        })
-        .eq('id', customerId);
 
       // キックオフ(第0回)完了時はキックオフヒアリング配信を自動発火。
       // 第1〜7回の事後課題は「セッション完了」では生成・公開しない（役割分離）。

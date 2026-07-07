@@ -66,8 +66,10 @@ export default function ClientFeedbackView() {
           .eq('customer_id', cust.id)
           .order('created_at', { ascending: false });
         if (cancelled) return;
-        setFeedbacks(fbs || []);
-        const target = (fbs || []).find(f => !f.submitted_at) || (fbs || [])[0];
+        // キックオフ(第0回)の感想はクライアントポータルに表示しない（撤廃）。
+        const visibleFbs = (fbs || []).filter((f) => f.spacareer_sessions?.session_no !== 0);
+        setFeedbacks(visibleFbs);
+        const target = visibleFbs.find(f => !f.submitted_at) || visibleFbs[0];
         setSelectedFeedbackId(target?.id || '');
 
         const { data: tpl } = await supabase

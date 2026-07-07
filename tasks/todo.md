@@ -75,6 +75,18 @@
 - [ ] 管理画面UI改修（社内＋クライアントポータル両方）
 - [ ] 動作確認
 
+## 追加対応（むー様指示 2026-07-07 夕）✅ 完了
+
+- [x] キックオフ感想の撤廃: fn_spacareer_create_session_feedback で session_no=0 をスキップ
+      （migration 20260707140000）。既存のキックオフ感想履歴は残す（管理画面で確認可）
+- [x] クライアントポータルの感想からキックオフ(第0回)を除外（ClientFeedbackView）
+- [x] バグ修正: キックオフ未完了なのに第1回タブが出る不具合
+      ・index.jsx タブ表示条件から next_up を除去（唯一のゲート=「直前が completed」）
+      ・useSessionCompletion の二重更新（session_no+1 の maybeSingle 昇格＋/9固定進捗）を撤廃し
+        DBトリガー(reset_next_up/recalc_progress)に一本化（応用のmaybeSingleエラー＆進捗クロバーも解消）
+- [x] 応用コースを名前の横に金色バッジ「応用コース」で表示（index.jsx ヘッダー、course='oyo'時）
+- [x] npm run build 成功 / 本番データで表示ルールの無害性を検証
+
 ## Part 3b. Zoom録画 API自動取り込み ❌ 中止（むー様指示 2026-07-07）
 
 方針変更: Zoom録画リンクの貼付・再生・議事録生成は取りやめ。動画は「アップロード

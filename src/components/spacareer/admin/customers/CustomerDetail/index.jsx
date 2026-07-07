@@ -150,6 +150,8 @@ export default function CustomerDetail({ customerId, isAdmin }) {
   // ・強化コースは各回 part1 のみ、応用コースは (N,1)(N,2) の順に並ぶ。
   // ・「直前の順序のセッションが完了」で当該回のタブが出現（＝進行に応じて増える）。
   //   応用でスキップした (N,2) も直前の part1 完了で出現するため、後から補填できる。
+  // ・next_up は表示条件にしない（キックオフ未完了なのに第1回が出る不具合を防ぐ。
+  //   タブ出現の唯一のゲートは「直前が completed」。自身が completed なら常に表示）。
   const completedKeys = new Set(
     (detail.sessions || []).filter((s) => s.status === 'completed')
       .map((s) => `${s.session_no}-${s.part || 1}`));
@@ -161,7 +163,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
     const part = s.part || 1;
     const prev = i === 0 ? { session_no: 0, part: 1 } : orderedSessions[i - 1];
     const prevKey = `${prev.session_no}-${prev.part || 1}`;
-    const revealed = s.status === 'completed' || s.status === 'next_up' || completedKeys.has(prevKey);
+    const revealed = s.status === 'completed' || completedKeys.has(prevKey);
     if (revealed) {
       const label = part === 2 ? `第${s.session_no}回(2)セッション管理` : `第${s.session_no}回セッション管理`;
       sessionMgmtTabs.push({ id: `session-${s.session_no}-${part}`, label });
@@ -233,6 +235,17 @@ export default function CustomerDetail({ customerId, isAdmin }) {
                 {member.name || '(名前未設定)'}
                 {displayCallName && (
                   <span style={{ fontSize: font.size.sm, color: color.textMid }}>（{displayCallName}）</span>
+                )}
+                {customer?.course === 'oyo' && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    padding: `2px ${space[2]}px`,
+                    background: color.gold, color: color.white,
+                    borderRadius: radius.pill,
+                    fontSize: font.size.xs, fontWeight: font.weight.bold,
+                    letterSpacing: font.letterSpacing.wide,
+                    boxShadow: `0 1px 2px ${color.goldDim}`,
+                  }}>応用コース</span>
                 )}
                 {customer?.status && (
                   <Badge variant={customer.status === 'graduated' ? 'success'
