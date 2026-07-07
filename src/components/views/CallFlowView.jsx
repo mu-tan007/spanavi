@@ -180,7 +180,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialCallCountMin = null, initialCallCountMax = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -243,6 +243,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [revenueMin, setRevenueMin] = useState(initialRevenueMin ? String(initialRevenueMin) : '');  // 千円単位（例: 100000 = 1億円）
   const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
   const [prefFilters, setPrefFilters] = useState(Array.isArray(initialPrefFilter) ? initialPrefFilter : (initialPrefFilter ? [initialPrefFilter] : []));
+  const [callCountMin, setCallCountMin] = useState(initialCallCountMin != null ? String(initialCallCountMin) : '');  // 架電回数の下限（空=指定なし）
+  const [callCountMax, setCallCountMax] = useState(initialCallCountMax != null ? String(initialCallCountMax) : '');  // 架電回数の上限（空=指定なし）
   const [prefDropOpen, setPrefDropOpen] = useState(false);
   const [statusFilterLocal, setStatusFilterLocal] = useState(() => Array.isArray(statusFilter) ? statusFilter : []); // DetailModalの選択を引き継ぎ
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
@@ -640,6 +642,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       }
       if (prefFilters.length > 0) {
         if (!prefFilters.includes(extractPref(item.address))) return false;
+      }
+      // 架電回数フィルタ（call_records の件数 = テーブルの「N回」表示と一致）
+      if (callCountMin !== '' || callCountMax !== '') {
+        const cc = getRecordsForItem(item.id).length;
+        if (callCountMin !== '' && cc < Number(callCountMin)) return false;
+        if (callCountMax !== '' && cc > Number(callCountMax)) return false;
       }
       // ステータスフィルタ（企業一覧上のボタン・複数選択対応）
       // call_list_items.call_status を使用（callRecords未ロード時でも動作）
@@ -2159,6 +2167,26 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     )}
                   </div>
                 )}
+                <span style={{ color: color.gray300, fontSize: font.size.xs - 1 }}>|</span>
+                {/* 架電回数フィルター */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: font.size.xs - 1, color: color.textMid, whiteSpace: 'nowrap' }}>
+                  <span>架電回数</span>
+                  {[
+                    { value: callCountMin, setter: (v) => { setCallCountMin(v); setPage(0); } },
+                    { value: callCountMax, setter: (v) => { setCallCountMax(v); setPage(0); } },
+                  ].map(({ value, setter }, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx === 1 && <span>〜</span>}
+                      <select value={value} onChange={e => setter(e.target.value)}
+                        style={{ padding: '3px 4px', borderRadius: radius.md, border: `1px solid ${color.gray200}`, fontSize: font.size.xs - 1, fontFamily: font.family.sans, background: value !== '' ? alpha(color.navyLight, 0.08) : color.white, color: color.navyDeep, cursor: 'pointer' }}>
+                        <option value="">指定なし</option>
+                        {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+                          <option key={n} value={n}>{n}回</option>
+                        ))}
+                      </select>
+                    </React.Fragment>
+                  ))}
+                </div>
                 {/* 架電開始ボタン（右端） */}
                 <div style={{ marginLeft: 'auto', paddingLeft: space[6] }}>
                   <Button

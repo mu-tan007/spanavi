@@ -54,6 +54,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [revenueMax, setRevenueMax] = useState('');
   const [prefFilters, setPrefFilters] = useState([]);
   const [prefDropOpen, setPrefDropOpen] = useState(false);
+  const [callCountMin, setCallCountMin] = useState('');
+  const [callCountMax, setCallCountMax] = useState('');
 
   useEffect(() => {
     if (!list._supaId) {
@@ -393,7 +395,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             disabled={!flowStartNo || !flowEndNo}
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null });
+              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
             }}
           >検索</Button>
           <Button
@@ -402,7 +404,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             title="ナンバーを入力せず、リスト全件を一覧で開く"
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null });
+              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
             }}
           >全件</Button>
           {itemCount !== null && (
@@ -518,6 +520,26 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               )}
             </div>
           )}
+
+          {/* 架電回数フィルター（都道府県の右隣） */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: space[3] }}>
+            <span style={{ whiteSpace: 'nowrap' }}>架電回数</span>
+            {[
+              { value: callCountMin, setter: setCallCountMin },
+              { value: callCountMax, setter: setCallCountMax },
+            ].map(({ value, setter }, idx) => (
+              <React.Fragment key={idx}>
+                {idx === 1 && <span>〜</span>}
+                <select value={value} onChange={e => setter(e.target.value)}
+                  style={{ padding: '4px 6px', borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: font.family.sans, background: value !== '' ? '#EAF4FF' : color.white, color: color.navy, cursor: 'pointer' }}>
+                  <option value="">指定なし</option>
+                  {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+                    <option key={n} value={n}>{n}回</option>
+                  ))}
+                </select>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
 
         {/* CSV取込 / リスト削除（管理者のみ） */}
