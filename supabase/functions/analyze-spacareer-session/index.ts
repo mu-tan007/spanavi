@@ -142,6 +142,49 @@ type MinutesAI = {
   nextActions?: string[]
 }
 
+// 構造化出力(structured outputs)用の JSON スキーマ。
+// これを output_config.format に渡すことで、Claude は必ずこの形の有効な JSON を返す。
+// 旧実装は assistant ロールに "{" を prefill してフェンス混入を防いでいたが、
+// sonnet-4-6 は assistant prefill 非対応で 400（"This model does not support assistant
+// message prefill"）となり議事録生成が全件失敗していた。prefill を廃止し構造化出力へ移行する。
+// 該当が無い項目は空配列 [] / 空文字 "" を返すよう SYSTEM_PROMPT 側で指示している。
+const MINUTES_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    summary: { type: 'string' },
+    homeworkReview: { type: 'array', items: { type: 'string' } },
+    topics: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          heading: { type: 'string' },
+          points: { type: 'array', items: { type: 'string' } },
+          quotes: { type: 'array', items: { type: 'string' } },
+          takeaways: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['heading', 'points', 'quotes', 'takeaways'],
+      },
+    },
+    studentCondition: { type: 'array', items: { type: 'string' } },
+    studentQuestions: { type: 'array', items: { type: 'string' } },
+    decisions: { type: 'array', items: { type: 'string' } },
+    openIssues: { type: 'array', items: { type: 'string' } },
+    nextActionsStudent: { type: 'array', items: { type: 'string' } },
+    nextActionsTrainer: { type: 'array', items: { type: 'string' } },
+    homework: { type: 'array', items: { type: 'string' } },
+    nextSessionFocus: { type: 'array', items: { type: 'string' } },
+    trainerNotes: { type: 'string' },
+  },
+  required: [
+    'summary', 'homeworkReview', 'topics', 'studentCondition', 'studentQuestions',
+    'decisions', 'openIssues', 'nextActionsStudent', 'nextActionsTrainer',
+    'homework', 'nextSessionFocus', 'trainerNotes',
+  ],
+}
+
 function pushList(lines: string[], heading: string, items?: string[]) {
   if (!items || !items.length) return
   lines.push(`### ${heading}`)
@@ -278,8 +321,10 @@ function minutesHasContent(ai: MinutesAI): boolean {
 }
 
 // Claude を1回呼び出して議事録JSONテキストを得る。
-// assistant ロールに "{" を prefill することで、説明文やコードフェンスを挟まず
-// 必ず JSON オブジェクトの本文から書き始めさせる（空・パース失敗の主因対策）。
+// structured outputs（output_config.format + json_schema）で、説明文やコードフェンスを
+// 挟まず必ず MINUTES_SCHEMA 準拠の有効な JSON オブジェクトだけを返させる。
+// これにより (1)sonnet-4-6 非対応の assistant prefill 400、(2)```json フェンス混入や
+// 配列途中での出力途切れによる JSON パース失敗、の両方を根治する。
 async function callClaudeMinutes(
   userPrompt: string, anthropicKey: string,
 ): Promise<{ text: string; usage: any; stopReason: string | null; httpError: string | null }> {
@@ -293,9 +338,9 @@ async function callClaudeMinutes(
     body: JSON.stringify({
       model: MINUTES_MODEL,
       max_tokens: MINUTES_MAX_TOKENS,
+      output_config: { format: { type: 'json_schema', schema: MINUTES_SCHEMA } },
       messages: [
         { role: 'user', content: userPrompt },
-        { role: 'assistant', content: '{' },
       ],
     }),
     signal: AbortSignal.timeout(200_000),
@@ -305,8 +350,7 @@ async function callClaudeMinutes(
     return { text: '', usage: {}, stopReason: null, httpError: errText.slice(0, 300) }
   }
   const claudeData = await claudeRes.json()
-  // prefill した "{" は応答テキストに含まれないため復元する
-  const text = '{' + (claudeData.content?.[0]?.text || '')
+  const text = claudeData.content?.[0]?.text || ''
   return { text, usage: claudeData.usage || {}, stopReason: claudeData.stop_reason ?? null, httpError: null }
 }
 
@@ -525,6 +569,7 @@ async function processInBackground(
         transcript,
         ai_feedback: aiFeedback,
         ai_status: 'done',
+        ai_error: null, // 再分析成功時に前回の失敗メッセージを消す
         processed_at: now,
       })
       .eq('id', session_video_id)
