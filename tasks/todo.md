@@ -1,47 +1,71 @@
-# スパキャリ AI議事録／顧客一覧／Zoom録画リンク 改修（2026-06-29）
+# スパキャリ 改修タスク（2026-07-07）
 
-## 背景（むー様指示）
-1. AI議事録生成で「AI 議事録の結果が空でした。再分析してください」が出る → 改善
-2. AI議事録生成中にページ移動しても生成が止まらないようにする（アップロードは既に裏側継続）
-3. 顧客一覧で各受講生の氏名の下に担当トレーナー氏名を表示（管理画面のみ。クライアントポータルは不要）
-4. 動画アップロード時にZoom共有リンクを添付し、各回ごとに管理画面で視聴できるように（視聴リンクのみ。AI議事録は従来どおりファイルから）
+むー様依頼: (1)AI議事録エラー修正 (2)コース/プラン柔軟化 (3)Zoom録画・画面内再生
 
-## 実装タスク
+方針決定: Zoom=API自動取り込み / コース=各回(1)(2)パート分割 / 着手順=3a→2→3b
 
-### Feature 1: AI議事録の空エラー改善（Edge Function）
-- [ ] `supabase/functions/analyze-spacareer-session/index.ts`
-  - Claude呼び出しを切り出し、assistant prefill `{` でJSON強制
-  - ```json コードフェンス除去＋堅牢なJSON抽出
-  - parse失敗 or 空内容なら1回だけ自動リトライ
-  - `MINUTES_MAX_TOKENS` を 8192→16000 に引き上げ（長尺セッション出力truncate対策）
-  - usageはリトライ分も合算
-- [ ] 本番Supabaseにdeploy＋1件検証
+※ 前タスク(2026-06-29)で議事録の「空でした」対策として assistant prefill を追加したが、
+   sonnet-4-6 が prefill 非対応で今回のエラーの原因になっていた。本タスクで置換済。
 
-### Feature 2: ページ移動でも生成継続
-- [ ] `CustomerDetail/index.jsx`
-  - `loading || !detail` 早期returnで `SessionJobsProvider` ごとアンマウントが原因
-  - Providerを常時マウントし中身(inner)だけ出し分けるよう再構成
+---
 
-### Feature 3: 顧客一覧にトレーナー氏名表示（管理画面のみ）
-- [ ] `CustomerListColumn.jsx` CustomerCard に「担当: ○○」を氏名下に小さく表示
+## Part 1. AI議事録エラー修正 ✅ 完了・本番反映済
 
-### Feature 4: Zoom録画リンク（視聴のみ・各回管理）
-- [ ] migration: `spacareer_sessions` に `recording_url text` 追加
-- [ ] `TabSessionManage.jsx` 動画カードに「Zoom録画リンク」入力＋「録画を開く」（即時autosave）
-- [ ] `TabKickoff.jsx` にも同様
-- [ ] `TabSessionHistory.jsx` 各回一覧に録画リンク表示
+- [x] 根本原因: analyze-spacareer-session が sonnet-4-6 非対応の assistant prefill("{") を使用
+      → `This model does not support assistant message prefill` (400) で 6/29以降 全件失敗
+- [x] 修正: prefill 廃止 → structured outputs（output_config.format + MINUTES_SCHEMA）へ置換
+      （prefill 400 と 旧来の ```json 混入/出力途切れ の両方を根治）
+- [x] 成功時に古い ai_error をクリア
+- [x] 本番デプロイ（supabase functions deploy）
+- [x] 実データ検証: 失敗セッション再実行 → ai_status=done / 文字起こし1万字 / トピック8件
+- [x] commit & push（main）
 
-## 検証
-- [ ] `npm run build`
-- [ ] Edge Function deploy後に実セッションで1件確認
-- [ ] 顧客一覧トレーナー名 / Zoomリンク開く 動作確認
-- [ ] main で commit & push
+## Part 3a. 録画の画面内再生 ✅ 完了
 
-## Review（2026-06-29 完了）
-- Feature1: prefill"{"・フェンス除去・1回リトライ・max_tokens16000で空エラー対策。本番deploy(v7 ACTIVE)済
-- Feature2: SessionJobsProviderを早期returnの外（常時ルート）へ。顧客切替/完了refresh中も継続表示
-- Feature3: CustomerCardに「担当: ○○/未割当」を氏名下に表示（管理画面のみ）
-- Feature4: spacareer_sessions.recording_url追加（本番列確認済）。キックオフ/第N回タブに入力+録画を開く、履歴の録画列にもリンク
-- build通過 / commit 8b6229a / origin/main push済
-- 残: 実セッションでの議事録再生成E2E確認（むー様作業）／Zoomリンク保存→開く動作の画面確認
-- 補足: Zoom共有リンクは視聴専用（AI議事録はアップロード動画/音声から）。直DLリンクなら従来のrecording_url fallbackで文字起こしも可
+- [x] 再利用可能な画面内プレーヤー SessionVideoModal.jsx を作成
+      （非公開バケットのため署名付きURL→<video>。営業代行ロープレと同方式）
+- [x] TabSessionManage（第1〜8回）に「録画を再生（画面内）」追加、Zoomリンクは別タブ表示に整理
+- [x] TabKickoff（第0回）にも同様に追加
+- [x] npm run build 成功
+- [x] commit & push
+
+## Part 2. コース選択・プラン変更の柔軟化（次の着手）
+
+設計（各回(1)(2)パート分割案）:
+- spacareer_sessions に `part smallint default 1` 追加、unique(customer_id, session_no, part)
+- コース: spacareer_customers に course（'kyoka'=強化8回 / 'oyo'=応用16回）追加
+- 強化=各回 part1 のみ / 応用=各回 part1+2（= 16セッション）
+- 強化→応用 変更時: 不足 (N,2) 行を not_started で INSERT（既存記録は保持=引き継ぎ）
+- 進捗/卒業判定を course のセッション数基準へ
+- 未実施 (N,2) を任意順で後から完了できる「補填」対応（自動advance＋手動選択の併用）
+- ソーシャルスタイル診断と紐付けたプラン割当/変更UI
+- 影響UI: ProgressStepper / TabHomework / SpacareerSessionsView / RightSidebar /
+  HomeworkMatrix / ClientHistoryView / useCustomers のセッションタブ生成
+- マイグレーション + トリガー（作成/advance/進捗同期）改修 + データ移行（既存全員=強化割当）
+
+- [ ] 詳細設計の確定（宿題の(2)扱い・進行制御UI）
+- [ ] マイグレーション作成・適用
+- [ ] トリガー改修
+- [ ] 管理画面UI改修（社内＋クライアントポータル両方）
+- [ ] 動作確認
+
+## Part 3b. Zoom録画 API自動取り込み（その後）
+
+- 既存 Zoom S2S OAuth 基盤（get-zoom-recording / receive-zoom-webhook / sync-zoom-users）活用
+- ミーティング録画 API または recording.completed Webhook で
+  録画を自動DL → spacareer-session-videos 保存 → analyze-spacareer-session キック
+- 必要に応じ Zoom アプリに cloud_recording:read スコープ追加（むー様側作業の可能性）
+- セッションと録画の紐付け（開催日時/ホスト/参加者でマッチ）
+
+- [ ] Zoom ミーティング録画取得の方式確定
+- [ ] 取り込み Edge Function 実装
+- [ ] セッション紐付け・自動議事録キック
+- [ ] 動作確認
+
+---
+
+## レビュー / 結果メモ
+
+- Part 1: 議事録は構造化出力へ移行し全件復旧。管理画面から失敗回を「再分析」で通る。
+- Part 3a: アップロード済み録画（Zoom自動取り込み後も同バケット）を画面内再生。
+  Zoom共有リンクは X-Frame-Options で埋め込み不可のことが多く別タブ表示のまま。

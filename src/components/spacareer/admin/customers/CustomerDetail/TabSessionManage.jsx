@@ -7,6 +7,7 @@ import HomeworkVariableEditor from './HomeworkVariableEditor';
 import { useSessionJobs } from './SessionJobsContext';
 import { useSessionCompletion } from './useSessionCompletion';
 import { useFileDrop } from '../../../_shared/useFileDrop';
+import SessionVideoModal from '../../_shared/SessionVideoModal';
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
 function toDateTimeInput(v) {
@@ -142,6 +143,11 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
   const checkedCount = checkFields.filter((f) => !!form[f.key]).length;
   const hasVideo = useMemo(
     () => (videos || []).some((v) => v.session?.session_no === sessionNo), [videos, sessionNo]);
+  // この回のアップロード済み動画（storage_path あり）。画面内プレーヤーで再生する。
+  const sessionVideo = useMemo(
+    () => (videos || []).find((v) => v.session_id === targetSession?.id && v.storage_path) || null,
+    [videos, targetSession?.id]);
+  const [playerOpen, setPlayerOpen] = useState(false);
   const hasMinutes = !!(targetSession?.minutes_draft || targetSession?.minutes_final);
   const sessionStatus = targetSession?.status;
 
@@ -324,20 +330,31 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
           }}>{videoErr}</div>
         )}
 
-        {/* Zoom録画 共有リンク（視聴専用・各回ごと）。ファイルをアップロードしなくても
-            ここに共有リンクを貼れば管理画面から録画を開ける。AI議事録には使わない。 */}
+        {/* 録画の再生。アップロード済み動画は営業代行ロープレと同様に管理画面内で
+            そのまま再生する（別タブに飛ばさない）。Zoom共有リンクは埋め込み不可の
+            ことが多いため別タブ表示のフォールバックとして残す。 */}
         <div style={{ marginTop: space[4], paddingTop: space[3], borderTop: `1px solid ${color.borderLight}` }}>
+          {sessionVideo && (
+            <div style={{ marginBottom: space[3] }}>
+              <Button variant="primary" size="sm" onClick={() => setPlayerOpen(true)}>
+                録画を再生（画面内）
+              </Button>
+              <span style={{ marginLeft: space[2], fontSize: font.size.xs, color: color.textLight }}>
+                アップロード済みの録画をこの画面でそのまま再生します。
+              </span>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: space[2], flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 240 }}>
               <Input size="sm" label="Zoom録画 共有リンク（任意・視聴用）" type="url"
                 placeholder="https://us02web.zoom.us/rec/share/..."
                 value={recordingUrl}
                 onChange={(e) => handleRecordingUrlChange(e.target.value)}
-                hint="貼り付けると自動保存され、各回ごとに管理画面から録画を開けます。" />
+                hint="貼り付けると自動保存されます。Zoomの共有ページは埋め込み再生できないため別タブで開きます。" />
             </div>
             <Button variant="outline" size="sm" disabled={!recordingUrl.trim()}
               onClick={() => { const u = recordingUrl.trim(); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }}>
-              録画を開く
+              Zoomで開く（別タブ）
             </Button>
           </div>
           {recordingSavedAt && (
@@ -449,6 +466,13 @@ export default function TabSessionManage({ detail, sessionNo = 1, onRefresh }) {
       {sessionNo >= 2 && (
         <HomeworkVariableEditor detail={detail} customerId={customerId} sessionNo={sessionNo} onRefresh={onRefresh} />
       )}
+
+      <SessionVideoModal
+        open={playerOpen}
+        onClose={() => setPlayerOpen(false)}
+        storagePath={sessionVideo?.storage_path}
+        title={`第${sessionNo}回 録画`}
+      />
     </div>
   );
 }

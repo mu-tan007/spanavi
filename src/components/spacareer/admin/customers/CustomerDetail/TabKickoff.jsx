@@ -5,6 +5,7 @@ import { supabase } from '../../../../../lib/supabase';
 import { getOrgId } from '../../../../../lib/orgContext';
 import SessionCompleteFlow from './SessionCompleteFlow';
 import { useSessionJobs } from './SessionJobsContext';
+import SessionVideoModal from '../../_shared/SessionVideoModal';
 
 // ============================================================
 // 2. キックオフ管理タブ
@@ -95,6 +96,11 @@ export default function TabKickoff({ detail, onRefresh }) {
   const checkedCount = CHECK_FIELDS.filter((f) => !!form[f.key]).length;
   const hasVideo = useMemo(
     () => (videos || []).some((v) => v.session?.session_no === 0), [videos]);
+  // キックオフ回のアップロード済み動画（storage_path あり）。画面内プレーヤーで再生する。
+  const sessionVideo = useMemo(
+    () => (videos || []).find((v) => v.session_id === kickoffSession?.id && v.storage_path) || null,
+    [videos, kickoffSession?.id]);
+  const [playerOpen, setPlayerOpen] = useState(false);
   const hasMinutes = !!(kickoffSession?.minutes_draft || kickoffSession?.minutes_final);
   const kickoffStatus = kickoffSession?.status;
 
@@ -209,19 +215,30 @@ export default function TabKickoff({ detail, onRefresh }) {
           }}>{videoErr}</div>
         )}
 
-        {/* Zoom録画 共有リンク（視聴専用）。ファイル未アップロードでもここに貼れば録画を開ける。 */}
+        {/* 録画の再生。アップロード済み動画は営業代行ロープレと同様に管理画面内でそのまま再生する
+            （別タブに飛ばさない）。Zoom共有リンクは埋め込み不可のことが多いため別タブ表示で残す。 */}
         <div style={{ marginTop: space[4], paddingTop: space[3], borderTop: `1px solid ${color.borderLight}` }}>
+          {sessionVideo && (
+            <div style={{ marginBottom: space[3] }}>
+              <Button variant="primary" size="sm" onClick={() => setPlayerOpen(true)}>
+                録画を再生（画面内）
+              </Button>
+              <span style={{ marginLeft: space[2], fontSize: font.size.xs, color: color.textLight }}>
+                アップロード済みの録画をこの画面でそのまま再生します。
+              </span>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: space[2], flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 240 }}>
               <Input size="sm" label="Zoom録画 共有リンク（任意・視聴用）" type="url"
                 placeholder="https://us02web.zoom.us/rec/share/..."
                 value={recordingUrl}
                 onChange={(e) => handleRecordingUrlChange(e.target.value)}
-                hint="貼り付けると自動保存され、管理画面から録画を開けます。" />
+                hint="貼り付けると自動保存されます。Zoomの共有ページは埋め込み再生できないため別タブで開きます。" />
             </div>
             <Button variant="outline" size="sm" disabled={!recordingUrl.trim()}
               onClick={() => { const u = recordingUrl.trim(); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }}>
-              録画を開く
+              Zoomで開く（別タブ）
             </Button>
           </div>
           {recordingSavedAt && (
@@ -328,6 +345,13 @@ export default function TabKickoff({ detail, onRefresh }) {
         hearingSheetChecked={allChecked}
         hasVideo={hasVideo} hasMinutes={hasMinutes}
         onCompleted={onRefresh} />
+
+      <SessionVideoModal
+        open={playerOpen}
+        onClose={() => setPlayerOpen(false)}
+        storagePath={sessionVideo?.storage_path}
+        title="キックオフ 録画"
+      />
     </div>
   );
 }
