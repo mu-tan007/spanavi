@@ -48,10 +48,6 @@ export default function TabKickoff({ detail, onRefresh }) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const videoFileRef = useRef(null);
-  // Zoom録画 共有リンク（キックオフ回・視聴専用）。入力即時で自動保存する。
-  const [recordingUrl, setRecordingUrl] = useState('');
-  const [recordingSavedAt, setRecordingSavedAt] = useState(null);
-  const recordingSaveTimer = useRef(null);
 
   // 動画アップロード/AI議事録は常駐ジョブProvider側で実行（タブ移動しても継続）
   const { jobs, startUpload, startMinutes } = useSessionJobs();
@@ -69,28 +65,6 @@ export default function TabKickoff({ detail, onRefresh }) {
 
   useEffect(() => { setForm(buildForm(kickoff)); }, [kickoff]);
   useEffect(() => { setKickoffHeldAt(toDateTimeInput(kickoffSession?.started_at)); }, [kickoffSession?.id, kickoffSession?.started_at]);
-  // 録画リンクはセッション切替(id変化)時のみ初期化（入力中のリフレッシュで消さない）
-  useEffect(() => { setRecordingUrl(kickoffSession?.recording_url || ''); setRecordingSavedAt(null); }, [kickoffSession?.id]);
-  useEffect(() => () => { if (recordingSaveTimer.current) clearTimeout(recordingSaveTimer.current); }, []);
-
-  // Zoom録画リンクを入力即時で自動保存（保存ボタン押し忘れ対策）。
-  function handleRecordingUrlChange(value) {
-    setRecordingUrl(value);
-    setRecordingSavedAt(null);
-    if (!kickoffSession) return;
-    if (recordingSaveTimer.current) clearTimeout(recordingSaveTimer.current);
-    recordingSaveTimer.current = setTimeout(async () => {
-      try {
-        const { error } = await supabase.from('spacareer_sessions')
-          .update({ recording_url: value.trim() || null }).eq('id', kickoffSession.id);
-        if (error) throw error;
-        setRecordingSavedAt(new Date());
-        onRefresh && onRefresh();
-      } catch (e) {
-        console.error('[TabKickoff] recording_url autosave error:', e);
-      }
-    }, 600);
-  }
 
   const allChecked = CHECK_FIELDS.every((f) => !!form[f.key]);
   const checkedCount = CHECK_FIELDS.filter((f) => !!form[f.key]).length;
@@ -215,38 +189,17 @@ export default function TabKickoff({ detail, onRefresh }) {
           }}>{videoErr}</div>
         )}
 
-        {/* 録画の再生。アップロード済み動画は営業代行ロープレと同様に管理画面内でそのまま再生する
-            （別タブに飛ばさない）。Zoom共有リンクは埋め込み不可のことが多いため別タブ表示で残す。 */}
-        <div style={{ marginTop: space[4], paddingTop: space[3], borderTop: `1px solid ${color.borderLight}` }}>
-          {sessionVideo && (
-            <div style={{ marginBottom: space[3] }}>
-              <Button variant="primary" size="sm" onClick={() => setPlayerOpen(true)}>
-                録画を再生（画面内）
-              </Button>
-              <span style={{ marginLeft: space[2], fontSize: font.size.xs, color: color.textLight }}>
-                アップロード済みの録画をこの画面でそのまま再生します。
-              </span>
-            </div>
-          )}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: space[2], flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <Input size="sm" label="Zoom録画 共有リンク（任意・視聴用）" type="url"
-                placeholder="https://us02web.zoom.us/rec/share/..."
-                value={recordingUrl}
-                onChange={(e) => handleRecordingUrlChange(e.target.value)}
-                hint="貼り付けると自動保存されます。Zoomの共有ページは埋め込み再生できないため別タブで開きます。" />
-            </div>
-            <Button variant="outline" size="sm" disabled={!recordingUrl.trim()}
-              onClick={() => { const u = recordingUrl.trim(); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }}>
-              Zoomで開く（別タブ）
+        {/* アップロードした録画は営業代行ロープレと同様に管理画面内でそのまま再生する。 */}
+        {sessionVideo && (
+          <div style={{ marginTop: space[4], paddingTop: space[3], borderTop: `1px solid ${color.borderLight}` }}>
+            <Button variant="primary" size="sm" onClick={() => setPlayerOpen(true)}>
+              録画を再生（画面内）
             </Button>
+            <span style={{ marginLeft: space[2], fontSize: font.size.xs, color: color.textLight }}>
+              アップロードした録画をこの画面でそのまま再生します。
+            </span>
           </div>
-          {recordingSavedAt && (
-            <div style={{ marginTop: space[1], fontSize: font.size.xs, color: color.success }}>
-              リンクを保存しました（{recordingSavedAt.toLocaleTimeString()}）
-            </div>
-          )}
-        </div>
+        )}
       </Card>
 
       <Card padding="md"

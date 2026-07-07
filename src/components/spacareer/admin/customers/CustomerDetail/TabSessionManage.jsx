@@ -78,10 +78,6 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
     : '';
 
   const [form, setForm] = useState(() => buildForm(targetSession));
-  // Zoom録画 共有リンク（各回ごと・視聴専用）。入力即時で自動保存する。
-  const [recordingUrl, setRecordingUrl] = useState(() => targetSession?.recording_url || '');
-  const [recordingSavedAt, setRecordingSavedAt] = useState(null);
-  const recordingSaveTimer = useRef(null);
   const [nextStartAt, setNextStartAt] = useState(() => toDateTimeInput(nextSession?.scheduled_at));
   const [nextSavedAt, setNextSavedAt] = useState(null);
   const nextSaveTimer = useRef(null);
@@ -105,28 +101,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
     (f) => { if (targetSession) startUpload(targetSession, f); }, uploading);
 
   useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id, targetSession?.hearing_sheet_json]);
-  // 録画リンクはセッション切替(id変化)時のみ初期化（入力中のリフレッシュで消さない）
-  useEffect(() => { setRecordingUrl(targetSession?.recording_url || ''); setRecordingSavedAt(null); }, [targetSession?.id]);
 
-  // Zoom録画リンクを入力即時で自動保存（保存ボタン押し忘れ対策）。
-  function handleRecordingUrlChange(value) {
-    setRecordingUrl(value);
-    setRecordingSavedAt(null);
-    if (!targetSession) return;
-    if (recordingSaveTimer.current) clearTimeout(recordingSaveTimer.current);
-    recordingSaveTimer.current = setTimeout(async () => {
-      try {
-        const { error } = await supabase.from('spacareer_sessions')
-          .update({ recording_url: value.trim() || null }).eq('id', targetSession.id);
-        if (error) throw error;
-        setRecordingSavedAt(new Date());
-        onRefresh && onRefresh();
-      } catch (e) {
-        console.error('[TabSessionManage] recording_url autosave error:', e);
-      }
-    }, 600);
-  }
-  useEffect(() => () => { if (recordingSaveTimer.current) clearTimeout(recordingSaveTimer.current); }, []);
   // 次回日時はセッション切替時(id変化)のみ初期化する。scheduled_at の変化では上書きしない
   // （入力中に動画アップロード等でリフレッシュが走っても入力値が消えないようにするため）。
   useEffect(() => { setNextStartAt(toDateTimeInput(nextSession?.scheduled_at)); }, [nextSession?.id]);
@@ -344,39 +319,17 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
           }}>{videoErr}</div>
         )}
 
-        {/* 録画の再生。アップロード済み動画は営業代行ロープレと同様に管理画面内で
-            そのまま再生する（別タブに飛ばさない）。Zoom共有リンクは埋め込み不可の
-            ことが多いため別タブ表示のフォールバックとして残す。 */}
-        <div style={{ marginTop: space[4], paddingTop: space[3], borderTop: `1px solid ${color.borderLight}` }}>
-          {sessionVideo && (
-            <div style={{ marginBottom: space[3] }}>
-              <Button variant="primary" size="sm" onClick={() => setPlayerOpen(true)}>
-                録画を再生（画面内）
-              </Button>
-              <span style={{ marginLeft: space[2], fontSize: font.size.xs, color: color.textLight }}>
-                アップロード済みの録画をこの画面でそのまま再生します。
-              </span>
-            </div>
-          )}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: space[2], flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <Input size="sm" label="Zoom録画 共有リンク（任意・視聴用）" type="url"
-                placeholder="https://us02web.zoom.us/rec/share/..."
-                value={recordingUrl}
-                onChange={(e) => handleRecordingUrlChange(e.target.value)}
-                hint="貼り付けると自動保存されます。Zoomの共有ページは埋め込み再生できないため別タブで開きます。" />
-            </div>
-            <Button variant="outline" size="sm" disabled={!recordingUrl.trim()}
-              onClick={() => { const u = recordingUrl.trim(); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }}>
-              Zoomで開く（別タブ）
+        {/* アップロードした録画は営業代行ロープレと同様に管理画面内でそのまま再生する。 */}
+        {sessionVideo && (
+          <div style={{ marginTop: space[4], paddingTop: space[3], borderTop: `1px solid ${color.borderLight}` }}>
+            <Button variant="primary" size="sm" onClick={() => setPlayerOpen(true)}>
+              録画を再生（画面内）
             </Button>
+            <span style={{ marginLeft: space[2], fontSize: font.size.xs, color: color.textLight }}>
+              アップロードした録画をこの画面でそのまま再生します。
+            </span>
           </div>
-          {recordingSavedAt && (
-            <div style={{ marginTop: space[1], fontSize: font.size.xs, color: color.success }}>
-              リンクを保存しました（{recordingSavedAt.toLocaleTimeString()}）
-            </div>
-          )}
-        </div>
+        )}
       </Card>
 
       <Card padding="md"

@@ -3,6 +3,7 @@ import { color, space, radius, font } from '../../../../../constants/design';
 import { Card, Badge, Button, DataTable } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import SessionCompleteFlow from './SessionCompleteFlow';
+import SessionVideoModal from '../../_shared/SessionVideoModal';
 
 // ============================================================
 // 3. セッション履歴タブ（縦断ビュー）
@@ -25,6 +26,7 @@ function fmtDateOnly(v) {
 export default function TabSessionHistory({ detail, onRefresh }) {
   const { customer, sessions = [], videos = [] } = detail || {};
   const [openId, setOpenId] = useState(null);
+  const [playPath, setPlayPath] = useState(null); // 画面内再生する動画の storage_path
   // 議事録の確定（受講生公開）用の編集状態
   const [minutesText, setMinutesText] = useState('');
   const [publishing, setPublishing] = useState(false);
@@ -45,7 +47,7 @@ export default function TabSessionHistory({ detail, onRefresh }) {
       _completed: fmtDate(s.completed_at),
       _hasMinutes: !!s.minutes_draft || !!s.minutes_final,
       _hasVideo: (videosBySession.get(s.id) || []).length > 0,
-      _recordingUrl: (s.recording_url || '').trim() || null,
+      _videoPath: (videosBySession.get(s.id) || []).find((v) => v.storage_path)?.storage_path || null,
     }));
 
   const openSession = openId ? rows.find((r) => r.id === openId) : null;
@@ -107,17 +109,12 @@ export default function TabSessionHistory({ detail, onRefresh }) {
             render: (r) => <Badge variant={STATUS_VARIANT[r.status]} dot>{STATUS_LABEL[r.status]}</Badge> },
           { key: '_hasVideo', label: '録画', width: 110, align: 'center',
             render: (r) => (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: space[1], justifyContent: 'center' }}>
-                {r._hasVideo && <Badge variant="success">あり</Badge>}
-                {r._recordingUrl && (
-                  <a href={r._recordingUrl} target="_blank" rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold, textDecoration: 'underline' }}>
-                    録画を開く
-                  </a>
-                )}
-                {!r._hasVideo && !r._recordingUrl && <span style={{ color: color.textLight }}>—</span>}
-              </span>
+              r._videoPath ? (
+                <Button size="sm" variant="outline"
+                  onClick={(e) => { e.stopPropagation(); setPlayPath(r._videoPath); }}>
+                  再生
+                </Button>
+              ) : <span style={{ color: color.textLight }}>—</span>
             ) },
           { key: '_hasMinutes', label: '議事録', width: 80, align: 'center',
             render: (r) => r._hasMinutes ? <Badge variant="success">あり</Badge> : <span style={{ color: color.textLight }}>—</span> },
@@ -190,6 +187,13 @@ export default function TabSessionHistory({ detail, onRefresh }) {
           )}
         </Card>
       )}
+
+      <SessionVideoModal
+        open={!!playPath}
+        onClose={() => setPlayPath(null)}
+        storagePath={playPath}
+        title="セッション録画"
+      />
     </div>
   );
 }

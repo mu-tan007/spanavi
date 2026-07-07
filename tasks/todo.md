@@ -75,7 +75,18 @@
 - [ ] 管理画面UI改修（社内＋クライアントポータル両方）
 - [ ] 動作確認
 
-## Part 3b. Zoom録画 API自動取り込み（その後）
+## Part 3b. Zoom録画 API自動取り込み ❌ 中止（むー様指示 2026-07-07）
+
+方針変更: Zoom録画リンクの貼付・再生・議事録生成は取りやめ。動画は「アップロード
+（ボタン or ドラッグ＆ドロップ）」のみ。アップロード動画は画面内で再生できるように。
+- [x] TabKickoff / TabSessionManage から Zoom録画 共有リンク入力＋「Zoomで開く」を撤去
+- [x] TabSessionHistory の「録画を開く」(recording_url)を撤去→アップロード動画の画面内「再生」に置換
+- [x] 動画アップロード（ボタン＋D&D）＋画面内再生の導線に一本化
+- [x] npm run build 成功
+- 補足: recording_url カラムはDBに残置（UIからは不使用・無害。DROPしない）
+- 補足: クライアントポータルの zoom_url 列は録画リンクと別概念のため残置
+
+## Part 3b(旧). Zoom API自動取り込み案（参考・中止）
 
 - 既存 Zoom S2S OAuth 基盤（get-zoom-recording / receive-zoom-webhook / sync-zoom-users）活用
 - ミーティング録画 API または recording.completed Webhook で
