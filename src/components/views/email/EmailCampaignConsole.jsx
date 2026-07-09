@@ -84,11 +84,10 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
   // ----- 初期ロード -----
   useEffect(() => {
     if (!orgId) return;
-    if (editable) {
-      supabase.from('clients').select('id,name,status').eq('org_id', orgId).order('name', { ascending: true })
-        .then(({ data, error: e }) => { if (!e) setClientOptions(data || []); });
-    }
-  }, [orgId, editable]);
+    // 送付先の個別選択は下書き(初回送信)でも配信済み(追加送信)でも使うため常に取得
+    supabase.from('clients').select('id,name,status').eq('org_id', orgId).order('name', { ascending: true })
+      .then(({ data, error: e }) => { if (!e) setClientOptions(data || []); });
+  }, [orgId]);
 
   useEffect(() => {
     if (!showStats || !campaign.id) return;
