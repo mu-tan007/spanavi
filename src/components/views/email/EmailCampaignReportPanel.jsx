@@ -176,6 +176,19 @@ export default function EmailCampaignReportPanel({ campaign, onClose, onDuplicat
         />
       </div>
 
+      {campaign.body_html && (
+        <div style={{ marginBottom: space[2] }}>
+          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textDark, marginBottom: space[1] }}>
+            本文プレビュー
+          </div>
+          <iframe
+            title="本文プレビュー"
+            srcDoc={campaign.body_html}
+            style={{ width: '100%', height: 480, border: `1px solid ${color.border}`, borderRadius: radius.md, background: color.white }}
+          />
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: space[1], justifyContent: 'flex-end' }}>
         <Button variant="outline" size="sm" onClick={onDuplicate}>複製して新規作成</Button>
         <Button variant="ghost" size="sm" onClick={onReload}>再読込</Button>

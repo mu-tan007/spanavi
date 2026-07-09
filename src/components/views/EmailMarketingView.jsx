@@ -156,6 +156,16 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
     setShowForm(true);
   };
 
+  // 下書きは編集フォームを直接開く。配信済み等はレポート(実績)を開く。
+  const handleRowClick = (row) => {
+    if (row.status === 'draft') {
+      setEditCampaign(row);
+      setShowForm(true);
+    } else {
+      setSelectedId(row.id === selectedId ? null : row.id);
+    }
+  };
+
   const handleFormClose = (didChange) => {
     setShowForm(false);
     setEditCampaign(null);
@@ -182,7 +192,7 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
             rowKey="id"
             loading={loading}
             emptyMessage="まだキャンペーンがありません。「新規キャンペーン」から作成してください。"
-            onRowClick={(row) => setSelectedId(row.id === selectedId ? null : row.id)}
+            onRowClick={handleRowClick}
             rowAccent={(row) => row.id === selectedId ? 'primary' : null}
             height="calc(100vh - 220px)"
             fillWidth

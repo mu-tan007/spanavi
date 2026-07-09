@@ -82,6 +82,11 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
   const [ccStatuses, setCcStatuses] = useState(initialSeg.client_contacts?.statuses || [...CLIENT_STATUSES]);
   const [ccEngagements, setCcEngagements] = useState(initialSeg.client_contacts?.engagement_ids || []);
   const [ccPrimaryOnly, setCcPrimaryOnly] = useState(initialSeg.client_contacts?.primary_only ?? true);
+  // 送信先の選び方: 'filter'=条件で絞る / 'individual'=個別に企業をチェック選択
+  const [ccMode, setCcMode] = useState((initialSeg.client_contacts?.client_ids?.length > 0) ? 'individual' : 'filter');
+  const [ccClientIds, setCcClientIds] = useState(initialSeg.client_contacts?.client_ids || []);
+  const [clientOptions, setClientOptions] = useState([]);
+  const [clientSearch, setClientSearch] = useState('');
   const [lcEnabled, setLcEnabled] = useState(initialSeg.lead_companies?.enabled ?? false);
   const [lcLists, setLcLists] = useState(initialSeg.lead_companies?.list_ids || []);
   const [lcExclPromo, setLcExclPromo] = useState(initialSeg.lead_companies?.exclude_promoted ?? true);
@@ -99,6 +104,8 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
   // プレビュー結果
   const [previewResult, setPreviewResult] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewFull, setPreviewFull] = useState(false);   // 本文の全画面プレビュー
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   // 送信中
   const [saving, setSaving] = useState(false);
@@ -110,11 +117,36 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
     Promise.all([
       supabase.from('client_lead_lists').select('id,name').eq('org_id', orgId).order('created_at', { ascending: false }),
       supabase.from('email_templates').select('id,name,subject_template,body_html').eq('org_id', orgId).order('updated_at', { ascending: false }).limit(50),
-    ]).then(([listRes, tmplRes]) => {
+      supabase.from('clients').select('id,name,status').eq('org_id', orgId).order('name', { ascending: true }),
+    ]).then(([listRes, tmplRes, clientRes]) => {
       if (!listRes.error) setLeadLists(listRes.data || []);
       if (!tmplRes.error) setTemplates(tmplRes.data || []);
+      if (!clientRes.error) setClientOptions(clientRes.data || []);
     });
   }, [orgId]);
+
+  // ----- テンプレートとして保存 -----
+  const handleSaveAsTemplate = useCallback(async () => {
+    if (!bodyHtml.trim()) { setError('本文が空のためテンプレート保存できません'); return; }
+    const tplName = (name.trim() || subject.trim() || '無題テンプレート');
+    setSavingTemplate(true);
+    setError(null);
+    const { error: tplErr } = await supabase.from('email_templates').insert({
+      org_id: orgId,
+      name: tplName,
+      subject_template: subject.trim() || '(件名なし)',
+      body_html: bodyHtml,
+      from_name: fromName.trim() || null,
+    });
+    setSavingTemplate(false);
+    if (tplErr) { setError('テンプレート保存失敗: ' + tplErr.message); return; }
+    // テンプレ一覧を再取得
+    const { data } = await supabase
+      .from('email_templates').select('id,name,subject_template,body_html')
+      .eq('org_id', orgId).order('updated_at', { ascending: false }).limit(50);
+    setTemplates(data || []);
+    setError('「' + tplName + '」をテンプレートとして保存しました');
+  }, [orgId, name, subject, bodyHtml, fromName]);
 
   // ----- セグメント JSON 構築 -----
   const segmentDefinition = useMemo(() => {
@@ -131,8 +163,10 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
     return {
       client_contacts: ccEnabled ? {
         enabled: true,
-        statuses: ccStatuses,
-        engagement_ids: ccEngagements,
+        // 個別選択モードでは status/商材の絞り込みは無効化し、選んだ企業のみを対象にする
+        statuses: ccMode === 'individual' ? [] : ccStatuses,
+        engagement_ids: ccMode === 'individual' ? [] : ccEngagements,
+        client_ids: ccMode === 'individual' ? ccClientIds : [],
         primary_only: ccPrimaryOnly,
       } : { enabled: false },
       lead_companies: lcEnabled ? {
@@ -143,7 +177,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
       } : { enabled: false },
       manual_emails: manual,
     };
-  }, [ccEnabled, ccStatuses, ccEngagements, ccPrimaryOnly, lcEnabled, lcLists, lcExclPromo, lcExclExcl, manualText]);
+  }, [ccEnabled, ccMode, ccStatuses, ccEngagements, ccClientIds, ccPrimaryOnly, lcEnabled, lcLists, lcExclPromo, lcExclExcl, manualText]);
 
   // ----- 配信先プレビュー -----
   const handlePreview = useCallback(async () => {
@@ -366,6 +400,19 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
                   background: previewMode === 'preview' ? color.navy : color.white,
                   color: previewMode === 'preview' ? color.white : color.textDark,
                 }}>プレビュー</button>
+              <button type="button" onClick={() => setPreviewFull(true)}
+                style={{
+                  padding: `${space[1]}px ${space[2]}px`, fontSize: font.size.xs,
+                  border: `1px solid ${color.border}`, borderRadius: radius.sm, cursor: 'pointer',
+                  background: color.white, color: color.textDark,
+                }}>⛶ 全画面プレビュー</button>
+              <button type="button" onClick={handleSaveAsTemplate} disabled={savingTemplate}
+                style={{
+                  marginLeft: 'auto',
+                  padding: `${space[1]}px ${space[2]}px`, fontSize: font.size.xs,
+                  border: `1px solid ${color.border}`, borderRadius: radius.sm, cursor: 'pointer',
+                  background: color.white, color: color.navy,
+                }}>{savingTemplate ? '保存中…' : 'テンプレートとして保存'}</button>
             </div>
             {previewMode === 'edit' ? (
               <textarea
@@ -418,34 +465,90 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
               </label>
               {ccEnabled && (
                 <div style={{ paddingLeft: space[3], display: 'grid', gap: space[2] }}>
-                  <div>
-                    <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
-                      CRMステータス (複数選択可、未選択=全て)
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1] }}>
-                      {CLIENT_STATUSES.map(s => (
-                        <Chip key={s} active={ccStatuses.includes(s)}
-                          onClick={() => setCcStatuses(prev => toggleArrayItem(prev, s))}>
-                          {s}
-                        </Chip>
-                      ))}
-                    </div>
+                  {/* 選び方トグル */}
+                  <div style={{ display: 'flex', gap: space[1] }}>
+                    {[['filter', '条件で絞る'], ['individual', '個別に選ぶ']].map(([m, lbl]) => (
+                      <button key={m} type="button" onClick={() => setCcMode(m)}
+                        style={{
+                          padding: `${space[1]}px ${space[2]}px`, fontSize: font.size.xs,
+                          border: `1px solid ${color.border}`, borderRadius: radius.sm, cursor: 'pointer',
+                          background: ccMode === m ? color.navy : color.white,
+                          color: ccMode === m ? color.white : color.textDark,
+                        }}>{lbl}</button>
+                    ))}
                   </div>
-                  {realEngagements.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
-                        商材で絞り込み (未選択=全商材)
+
+                  {ccMode === 'filter' && (
+                    <>
+                      <div>
+                        <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
+                          CRMステータス (複数選択可、未選択=全て)
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1] }}>
+                          {CLIENT_STATUSES.map(s => (
+                            <Chip key={s} active={ccStatuses.includes(s)}
+                              onClick={() => setCcStatuses(prev => toggleArrayItem(prev, s))}>
+                              {s}
+                            </Chip>
+                          ))}
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1] }}>
-                        {realEngagements.map(e => (
-                          <Chip key={e.id} active={ccEngagements.includes(e.id)}
-                            onClick={() => setCcEngagements(prev => toggleArrayItem(prev, e.id))}>
-                            {e.name}
-                          </Chip>
-                        ))}
+                      {realEngagements.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
+                            商材で絞り込み (未選択=全商材)
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1] }}>
+                            {realEngagements.map(e => (
+                              <Chip key={e.id} active={ccEngagements.includes(e.id)}
+                                onClick={() => setCcEngagements(prev => toggleArrayItem(prev, e.id))}>
+                                {e.name}
+                              </Chip>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {ccMode === 'individual' && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[1] }}>
+                        <div style={{ fontSize: font.size.xs, color: color.textMid }}>
+                          送る企業を選択 ({ccClientIds.length}社選択中)
+                        </div>
+                        <div style={{ display: 'flex', gap: space[1] }}>
+                          <button type="button" onClick={() => setCcClientIds(clientOptions.map(c => c.id))}
+                            style={{ fontSize: 10, padding: `1px ${space[1]}px`, border: `1px solid ${color.border}`, borderRadius: radius.sm, background: color.white, color: color.textMid, cursor: 'pointer' }}>全選択</button>
+                          <button type="button" onClick={() => setCcClientIds([])}
+                            style={{ fontSize: 10, padding: `1px ${space[1]}px`, border: `1px solid ${color.border}`, borderRadius: radius.sm, background: color.white, color: color.textMid, cursor: 'pointer' }}>クリア</button>
+                        </div>
+                      </div>
+                      <input
+                        value={clientSearch}
+                        onChange={e => setClientSearch(e.target.value)}
+                        placeholder="企業名で絞り込み"
+                        style={{ width: '100%', padding: `${space[1]}px ${space[2]}px`, marginBottom: space[1], boxSizing: 'border-box',
+                          border: `1px solid ${color.border}`, borderRadius: radius.sm, fontSize: font.size.xs }}
+                      />
+                      <div style={{ maxHeight: 220, overflow: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.sm, background: color.white }}>
+                        {clientOptions
+                          .filter(c => !clientSearch || (c.name || '').includes(clientSearch))
+                          .map(c => (
+                            <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: space[2], padding: `${space[1]}px ${space[2]}px`, cursor: 'pointer', borderBottom: `1px solid ${color.borderLight}`, fontSize: font.size.xs }}>
+                              <input type="checkbox" checked={ccClientIds.includes(c.id)}
+                                onChange={() => setCcClientIds(prev => toggleArrayItem(prev, c.id))} />
+                              <span style={{ flex: 1, color: color.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                              {c.status && <span style={{ fontSize: 10, color: color.textLight }}>{c.status}</span>}
+                            </label>
+                          ))}
+                        {clientOptions.length === 0 && (
+                          <div style={{ padding: space[2], fontSize: font.size.xs, color: color.textLight }}>クライアントがありません</div>
+                        )}
                       </div>
                     </div>
                   )}
+
                   <label style={{ display: 'flex', alignItems: 'center', gap: space[2], cursor: 'pointer', fontSize: font.size.xs, color: color.textDark }}>
                     <input type="checkbox" checked={ccPrimaryOnly} onChange={e => setCcPrimaryOnly(e.target.checked)} />
                     主担当者のみに送る (チェック外すと全担当者)
@@ -594,6 +697,28 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
           )}
         </div>
       </div>
+
+      {previewFull && (
+        <div
+          onClick={() => setPreviewFull(false)}
+          style={{
+            position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.7),
+            zIndex: 10000, display: 'flex', flexDirection: 'column', padding: space[4],
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[2] }}>
+            <span style={{ color: color.white, fontSize: font.size.sm }}>本文プレビュー（差込前のイメージ）</span>
+            <button type="button" onClick={() => setPreviewFull(false)}
+              style={{ background: 'transparent', border: `1px solid ${color.white}`, color: color.white, borderRadius: radius.sm, padding: `${space[1]}px ${space[3]}px`, cursor: 'pointer' }}>
+              閉じる ×
+            </button>
+          </div>
+          <div onClick={(e) => e.stopPropagation()} style={{ flex: 1, background: color.white, borderRadius: radius.md, overflow: 'hidden' }}>
+            <iframe title="全画面プレビュー" srcDoc={bodyHtml}
+              style={{ width: '100%', height: '100%', border: 'none', background: color.white }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
