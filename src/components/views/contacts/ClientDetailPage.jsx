@@ -654,6 +654,20 @@ export default function ClientDetailPage({
   // モバイル時のタブ切替
   const isMobile = useIsMobile();
 
+  // 面談議事録カラムの高さを左カラム(担当者+契約条件)の下端に揃える
+  const leftColRef = useRef(null);
+  const [leftColHeight, setLeftColHeight] = useState(null);
+  useEffect(() => {
+    if (isMobile) { setLeftColHeight(null); return; }
+    const el = leftColRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const sync = () => setLeftColHeight(el.offsetHeight);
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    sync();
+    return () => ro.disconnect();
+  }, [isMobile]);
+
   const contacts = (c?._supaId && contactsByClient[c._supaId]) || [];
   const sortedContacts = [...contacts].sort((a, b) => {
     if (a.isPrimary && !b.isPrimary) return -1;
@@ -764,7 +778,7 @@ export default function ClientDetailPage({
         alignItems: 'start',
       }}>
         {/* Left column: 担当者・契約条件 */}
-        <div style={{
+        <div ref={leftColRef} style={{
           display: 'flex', flexDirection: 'column', gap: 12,
         }}>
           {/* 担当者カード (コンパクト) */}
@@ -933,10 +947,11 @@ export default function ClientDetailPage({
           </CollapsibleCard>
         </div>
 
-        {/* Center column: 面談記録 (メイン) */}
+        {/* Center column: 面談記録 (メイン) — 高さは左カラムの下端に揃える(内部スクロール) */}
         <div style={{
           background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
           padding: '10px 14px',
+          ...(!isMobile && leftColHeight ? { height: leftColHeight, overflowY: 'auto' } : {}),
         }}>
           <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
         </div>
