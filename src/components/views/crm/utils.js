@@ -6,7 +6,7 @@ export const GRAY_200 = '#E5E7EB';
 export const GRAY_50 = '#F8F9FA';
 export const GOLD = '#B8860B';
 
-export const STATUS_LIST = ['支援中', '準備中', '停止中', '保留', '中期フォロー', '面談予定'];
+export const STATUS_LIST = ['支援中', '準備中', '停止中', '保留', '中期フォロー', '面談予定', '問い合わせ'];
 
 // ステータスのカテゴリ分類
 // - 取引先: 既に契約・支援関係がある会社 (支援中/準備中/停止中/保留)
@@ -19,6 +19,7 @@ export const STATUS_CATEGORY = {
   '保留':         '取引先',
   '中期フォロー': '接触済み',
   '面談予定':     '接触済み',
+  '問い合わせ':   '接触済み',
 };
 
 export function statusCategory(st) {
@@ -35,7 +36,7 @@ export function statusCategoryStyle(category) {
 // カテゴリ単位でグルーピングされた STATUS_LIST (タブ表示用)
 export const STATUS_GROUPS = [
   { category: '取引先',   statuses: ['支援中', '準備中', '停止中', '保留'] },
-  { category: '接触済み', statuses: ['中期フォロー', '面談予定'] },
+  { category: '接触済み', statuses: ['中期フォロー', '面談予定', '問い合わせ'] },
 ];
 
 export function statusStyle(st) {
@@ -45,6 +46,7 @@ export function statusStyle(st) {
   if (st === '保留') return { bg: C.textLight + '15', color: C.textLight, dot: C.textLight };
   if (st === '中期フォロー') return { bg: NAVY + '10', color: NAVY, dot: NAVY };
   if (st === '面談予定') return { bg: '#7c3aed15', color: '#7c3aed', dot: '#7c3aed' };
+  if (st === '問い合わせ') return { bg: '#0891b215', color: '#0891b2', dot: '#0891b2' };
   return { bg: C.textLight + '10', color: C.textLight, dot: C.textLight };
 }
 

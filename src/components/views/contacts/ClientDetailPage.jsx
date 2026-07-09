@@ -25,6 +25,7 @@ const statusStyle = (st) => {
   if (st === '保留') return { color: C.textLight };
   if (st === '中期フォロー') return { color: NAVY };
   if (st === '面談予定') return { color: '#7c3aed' };
+  if (st === '問い合わせ') return { color: '#0891b2' };
   return { color: C.textLight };
 };
 
@@ -701,7 +702,7 @@ export default function ClientDetailPage({
                   outline: 'none',
                 }}
               >
-                {['準備中','支援中','停止中','保留','中期フォロー','面談予定'].map(s => (
+                {['準備中','支援中','停止中','保留','中期フォロー','面談予定','問い合わせ'].map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
