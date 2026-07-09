@@ -906,11 +906,6 @@ export default function ClientDetailPage({
               ]}
               onSave={v => patchClient({ contact: v })}
             />
-            <EditableField
-              label="メールアドレス" value={c.clientEmail} type="email"
-              placeholder="client@example.com"
-              onSave={v => patchClient({ clientEmail: v })}
-            />
             {c.contact === 'Slack' && (
               <EditableField
                 label="Slack Webhook URL (アポ報告用)" value={c.slackWebhookUrl}
@@ -923,18 +918,6 @@ export default function ClientDetailPage({
                 label="Chatwork ルームID" value={c.chatworkRoomId}
                 placeholder="123456789"
                 onSave={v => patchClient({ chatworkRoomId: v })}
-              />
-            )}
-            <EditableField
-              label="Slack Webhook URL (社内報告用)" value={c.slackWebhookUrlInternal}
-              placeholder="https://hooks.slack.com/services/..."
-              onSave={v => patchClient({ slackWebhookUrlInternal: v })}
-            />
-            {(c.calendar === 'Google' || c.calendar === 'Google(入力)') && (
-              <EditableField
-                label="Google Calendar ID" value={c.googleCalendarId}
-                placeholder="クライアントのGoogleメールアドレス"
-                onSave={v => patchClient({ googleCalendarId: v })}
               />
             )}
             {(c.calendar === 'Spir' || c.calendar === '調整アポ') && (
