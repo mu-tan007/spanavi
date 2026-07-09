@@ -51,7 +51,7 @@ function appendUnsubscribeFooter(html: string, unsubscribeUrl: string, orgName: 
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:32px;border-top:1px solid #e0e0e0;padding-top:16px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#666;line-height:1.6;">
   <tr><td>
     <p style="margin:0 0 8px 0;">本メールの配信元: ${orgName}</p>
-    <p style="margin:0 0 8px 0;">所在地: 東京都港区南青山2-2-15 ウィン青山1F</p>
+    <p style="margin:0 0 8px 0;">所在地: 〒106-0031 東京都港区西麻布4-12-13 グランフィールド麻布霞町2F</p>
     <p style="margin:0;"><a href="${unsubscribeUrl}" style="color:#0176D3;text-decoration:underline;">このメールの配信を停止する</a></p>
   </td></tr>
 </table>`
@@ -64,7 +64,7 @@ function appendUnsubscribeFooter(html: string, unsubscribeUrl: string, orgName: 
 
 /** プレーンテキスト末尾にも配信停止URL */
 function appendUnsubscribeFooterText(text: string, unsubscribeUrl: string, orgName: string): string {
-  return `${text}\n\n---\n本メールの配信元: ${orgName}\n所在地: 東京都港区南青山2-2-15 ウィン青山1F\n配信停止: ${unsubscribeUrl}\n`
+  return `${text}\n\n---\n本メールの配信元: ${orgName}\n所在地: 〒106-0031 東京都港区西麻布4-12-13 グランフィールド麻布霞町2F\n配信停止: ${unsubscribeUrl}\n`
 }
 
 Deno.serve(async (req) => {
@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
   const campaign = lockedCampaign as {
     id: string; org_id: string; subject: string; from_email: string; from_name: string;
     body_html: string; body_text: string | null; segment_definition: Record<string, unknown>;
+    reply_to: string | null;
   }
 
   try {
@@ -192,6 +193,7 @@ Deno.serve(async (req) => {
     let sentCount = 0
     let failedCount = 0
     const orgName = campaign.from_name || 'M&Aソーシングパートナーズ'
+    const replyTo = (campaign.reply_to ?? '').trim()
 
     for (let i = 0; i < recipientRows.length; i += BATCH_SIZE) {
       const batch = recipientRows.slice(i, i + BATCH_SIZE)
@@ -211,6 +213,7 @@ Deno.serve(async (req) => {
         return {
           from: `${orgName} <${campaign.from_email}>`,
           to: r.email,
+          ...(replyTo ? { reply_to: replyTo } : {}),
           subject,
           html,
           ...(text ? { text } : {}),

@@ -72,6 +72,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
   const [name, setName] = useState(initial?.name || '');
   const [subject, setSubject] = useState(initial?.subject || '');
   const [fromName, setFromName] = useState(initial?.from_name || 'M&Aソーシングパートナーズ');
+  const [replyTo, setReplyTo] = useState(initial?.reply_to ?? 'shinomiya@ma-sp.co');
   const [bodyHtml, setBodyHtml] = useState(initial?.body_html || DEFAULT_BODY);
   const [templateId, setTemplateId] = useState(initial?.template_id || '');
 
@@ -200,6 +201,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
         subject: subject.trim(),
         from_email: 'noreply@newsletter.ma-sp.co',
         from_name: fromName.trim() || 'M&Aソーシングパートナーズ',
+        reply_to: replyTo.trim() || null,
         body_html: bodyHtml,
         body_text: null,
         segment_definition: segmentDefinition,
@@ -241,7 +243,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
     } finally {
       setSaving(false);
     }
-  }, [orgId, templateId, name, subject, fromName, bodyHtml, segmentDefinition, scheduledAt, previewResult, initial, onClose]);
+  }, [orgId, templateId, name, subject, fromName, replyTo, bodyHtml, segmentDefinition, scheduledAt, previewResult, initial, onClose]);
 
   const toggleArrayItem = (arr, item) =>
     arr.includes(item) ? arr.filter(x => x !== item) : [...arr, item];
@@ -336,6 +338,15 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
               />
               <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: -space[1] }}>
                 送信元アドレス: <code style={{ fontFamily: font.family.mono }}>noreply@newsletter.ma-sp.co</code> (固定)
+              </div>
+              <Input
+                label="返信先アドレス (Reply-To)"
+                value={replyTo}
+                onChange={e => setReplyTo(e.target.value)}
+                placeholder="shinomiya@ma-sp.co"
+              />
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: -space[1] }}>
+                受信者が「返信」した際の宛先。空欄なら送信元アドレスに返信されます。
               </div>
             </div>
 
