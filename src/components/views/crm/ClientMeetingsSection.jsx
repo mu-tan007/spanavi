@@ -86,19 +86,11 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
       }
       merged = [...tagged, ...inserted];
     }
-    // 並び順: デフォルト3枠(初回面談→キックオフミーティング→定期MTG)を
-    // sort_order に依らず常にこの固定順で先頭に。追加した面談はその下に
-    // sort_order 昇順(=追加順で下に付く)、null は meeting_at 昇順。
-    const catRank = (r) => {
-      const i = DEFAULT_TITLES.indexOf(r._cat);
-      return i === -1 ? null : i;
-    };
+    // sort_order 昇順で表示(=ドラッグ並び替え結果が保存・反映される)。
+    // 初期状態のデフォルト順(初回1/キックオフ2/定期3)は INSERT 時の
+    // sort_order と既存データの正規化で担保する。null は末尾→meeting_at 昇順。
     merged.sort((a, b) => {
-      const ra = catRank(a), rb = catRank(b);
-      if (ra != null && rb != null) return ra - rb;   // 両方デフォルト → 固定順
-      if (ra != null) return -1;                       // デフォルトは常に先頭側
-      if (rb != null) return 1;
-      const sa = a.sort_order, sb = b.sort_order;      // 以下その他(追加分)
+      const sa = a.sort_order, sb = b.sort_order;
       if (sa != null && sb != null) return sa - sb;
       if (sa != null) return -1;
       if (sb != null) return 1;
