@@ -41,12 +41,14 @@ async function fetchAllRecordings(token: string, from: string, to: string): Prom
   callee_number?: string
   download_url?: string
   date_time?: string
+  duration?: number
 }[]> {
   const all: {
     owner?: { id?: string; name?: string; type?: string }
     callee_number?: string
     download_url?: string
     date_time?: string
+    duration?: number
   }[] = []
   let nextPageToken = ''
   let page = 1
@@ -220,7 +222,7 @@ Deno.serve(async (req) => {
     // 全録音のowner・callee_numberを出力（デバッグ用）
     console.log('[get-zoom-recording] 全録音一覧:')
     allRecordings.forEach((r, i) => {
-      console.log(`  [${i + 1}] owner.id=${r.owner?.id ?? '—'} / callee=${r.callee_number ?? '—'} / caller=${(r as any).caller_number ?? '—'} / direction=${(r as any).direction ?? '—'} / date_time=${r.date_time ?? '—'}`)
+      console.log(`  [${i + 1}] owner.id=${r.owner?.id ?? '—'} / callee=${r.callee_number ?? '—'} / caller=${(r as any).caller_number ?? '—'} / direction=${(r as any).direction ?? '—'} / date_time=${r.date_time ?? '—'} / duration=${r.duration ?? '—'}`)
     })
 
     // owner.id でフィルタ（APIレスポンスは owner.id のネスト構造）
@@ -267,9 +269,19 @@ Deno.serve(async (req) => {
           target = null
         }
       } else {
-        // called_at なし（AppoReportModal等）: 最新を選択
-        target = phoneFiltered.sort((a, b) => (b.date_time || '').localeCompare(a.date_time || ''))[0]
-        console.log(`[get-zoom-recording] called_at未指定: 最新録音を選択 date_time=${target?.date_time ?? '—'}`)
+        // called_at なし（アポ報告用「さっきの通話」: AppoReportModal / AI添削）:
+        // 単純に「開始時刻が最新」を選ぶと、本題通話の“後”に発生した短い録音
+        // （受付への再コール・誤発信・保留切れ等）を掴んでしまうことがある。
+        // 実例: 株式会社タクマ 2026-07-09 → 6.5分の本題ではなく117秒の受付録音を取得し、
+        //        AI添削のお人柄/関心度が「本人不在・確認できず」になった。
+        // 対策: 最新録音の開始時刻から30分以内の“直近クラスタ”の中で「最長」の録音を選ぶ。
+        //        アポを生んだ実質的な通話は、ほぼ常に直近クラスタ内で最長になる。
+        const byRecent = phoneFiltered.slice().sort((a, b) => (b.date_time || '').localeCompare(a.date_time || ''))
+        const latestStart = new Date(byRecent[0].date_time || 0).getTime()
+        const CLUSTER_MS = 30 * 60 * 1000
+        const cluster = byRecent.filter(r => latestStart - new Date(r.date_time || 0).getTime() <= CLUSTER_MS)
+        target = cluster.slice().sort((a, b) => (Number(b.duration) || 0) - (Number(a.duration) || 0))[0] || byRecent[0]
+        console.log(`[get-zoom-recording] called_at未指定: 直近30分クラスタ ${cluster.length}/${phoneFiltered.length}件 から最長を選択 date_time=${target?.date_time ?? '—'} duration=${target?.duration ?? '—'}`)
       }
     }
 
