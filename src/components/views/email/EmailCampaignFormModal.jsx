@@ -78,7 +78,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
   // セグメント
   const initialSeg = initial?.segment_definition || {};
   const [ccEnabled, setCcEnabled] = useState(initialSeg.client_contacts?.enabled ?? true);
-  const [ccStatuses, setCcStatuses] = useState(initialSeg.client_contacts?.statuses || ['支援中']);
+  const [ccStatuses, setCcStatuses] = useState(initialSeg.client_contacts?.statuses || [...CLIENT_STATUSES]);
   const [ccEngagements, setCcEngagements] = useState(initialSeg.client_contacts?.engagement_ids || []);
   const [ccPrimaryOnly, setCcPrimaryOnly] = useState(initialSeg.client_contacts?.primary_only ?? true);
   const [lcEnabled, setLcEnabled] = useState(initialSeg.lead_companies?.enabled ?? false);
