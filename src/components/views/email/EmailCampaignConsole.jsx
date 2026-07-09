@@ -62,6 +62,7 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
   const [ccPrimaryOnly, setCcPrimaryOnly] = useState(seg.primary_only ?? true);
   const [clientOptions, setClientOptions] = useState([]);
   const [clientSearch, setClientSearch] = useState('');
+  const [clientStatusTab, setClientStatusTab] = useState('all');   // 個別選択時のステータス絞り込みタブ
 
   // ----- 送信タイミング -----
   const [sendTiming, setSendTiming] = useState(campaign.scheduled_at ? 'scheduled' : 'now');
@@ -195,7 +196,11 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
         : <span style={{ color: color.textLight, fontSize: 11 }}>-</span> },
   ], []);
 
-  const filteredClients = clientOptions.filter(c => !clientSearch || (c.name || '').includes(clientSearch));
+  const filteredClients = clientOptions.filter(c =>
+    (clientStatusTab === 'all' || c.status === clientStatusTab) &&
+    (!clientSearch || (c.name || '').includes(clientSearch))
+  );
+  const statusCount = (s) => clientOptions.filter(c => s === 'all' || c.status === s).length;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: color.white, zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
@@ -214,9 +219,9 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
       </div>
 
       {/* Body: 左パネル + 右プレビュー */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '440px 1fr', overflow: 'hidden' }}>
-        {/* 左 */}
-        <div style={{ overflow: 'auto', padding: space[5], borderRight: `1px solid ${color.border}`, background: color.snow }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', overflow: 'hidden' }}>
+        {/* 右カラム(設定/送付先/送信) — DOMはこちらが先だが gridColumn:2 で右に配置 */}
+        <div style={{ gridColumn: 2, overflow: 'auto', padding: space[5], background: color.snow }}>
           {showStats && (
             <>
               <h3 style={SECTION_TITLE}>配信実績</h3>
@@ -288,6 +293,17 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
                           style={{ fontSize: 10, padding: `1px ${space[1]}px`, border: `1px solid ${color.border}`, borderRadius: radius.sm, background: color.white, color: color.textMid, cursor: 'pointer' }}>クリア</button>
                       </div>
                     </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1], marginBottom: space[1] }}>
+                      {['all', ...CLIENT_STATUSES].map(t => (
+                        <button key={t} type="button" onClick={() => setClientStatusTab(t)}
+                          style={{ padding: `2px ${space[1.5]}px`, fontSize: 11, cursor: 'pointer', borderRadius: radius.sm,
+                            border: `1px solid ${clientStatusTab === t ? color.navy : color.border}`,
+                            background: clientStatusTab === t ? color.navy : color.white,
+                            color: clientStatusTab === t ? color.white : color.textMid }}>
+                          {t === 'all' ? '全部' : t}<span style={{ opacity: 0.7, marginLeft: 3 }}>{statusCount(t)}</span>
+                        </button>
+                      ))}
+                    </div>
                     <input value={clientSearch} onChange={e => setClientSearch(e.target.value)} placeholder="企業名で絞り込み"
                       style={{ width: '100%', padding: `${space[1]}px ${space[2]}px`, marginBottom: space[1], boxSizing: 'border-box', border: `1px solid ${color.border}`, borderRadius: radius.sm, fontSize: font.size.xs }} />
                     <div style={{ maxHeight: 240, overflow: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.sm, background: color.white }}>
@@ -354,8 +370,8 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
           </div>
         </div>
 
-        {/* 右: 全画面プレビュー */}
-        <div style={{ background: color.gray50, padding: space[3], overflow: 'hidden' }}>
+        {/* 左: 全画面プレビュー (gridColumn:1 で左に配置) */}
+        <div style={{ gridColumn: 1, gridRow: 1, background: color.gray50, padding: space[3], overflow: 'hidden', borderRight: `1px solid ${color.border}` }}>
           <iframe title="本文プレビュー" srcDoc={campaign.body_html || '<p style="padding:24px;color:#888">本文がありません</p>'}
             style={{ width: '100%', height: '100%', border: `1px solid ${color.border}`, borderRadius: radius.md, background: color.white }} />
         </div>
