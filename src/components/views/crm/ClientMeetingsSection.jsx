@@ -86,9 +86,19 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
       }
       merged = [...tagged, ...inserted];
     }
-    // sort_order 昇順、nullは末尾、同値は meeting_at 昇順
+    // 並び順: デフォルト3枠(初回面談→キックオフミーティング→定期MTG)を
+    // sort_order に依らず常にこの固定順で先頭に。追加した面談はその下に
+    // sort_order 昇順(=追加順で下に付く)、null は meeting_at 昇順。
+    const catRank = (r) => {
+      const i = DEFAULT_TITLES.indexOf(r._cat);
+      return i === -1 ? null : i;
+    };
     merged.sort((a, b) => {
-      const sa = a.sort_order, sb = b.sort_order;
+      const ra = catRank(a), rb = catRank(b);
+      if (ra != null && rb != null) return ra - rb;   // 両方デフォルト → 固定順
+      if (ra != null) return -1;                       // デフォルトは常に先頭側
+      if (rb != null) return 1;
+      const sa = a.sort_order, sb = b.sort_order;      // 以下その他(追加分)
       if (sa != null && sb != null) return sa - sb;
       if (sa != null) return -1;
       if (sb != null) return 1;
@@ -323,7 +333,7 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
             onChange={summaryIme.onChange}
             onCompositionStart={summaryIme.onCompositionStart}
             onCompositionEnd={summaryIme.onCompositionEnd}
-            rows={5}
+            rows={12}
             placeholder="面談の概要…"
             style={{
               width: '100%', padding: '4px 8px', border: `1px solid ${color.border}`,
@@ -342,7 +352,7 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
             onChange={nextActionIme.onChange}
             onCompositionStart={nextActionIme.onCompositionStart}
             onCompositionEnd={nextActionIme.onCompositionEnd}
-            rows={5}
+            rows={12}
             placeholder="次のアクション…"
             style={{
               width: '100%', padding: '4px 8px', border: `1px solid ${color.border}`,
