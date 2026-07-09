@@ -71,7 +71,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
   // ----- フォーム状態 -----
   const [name, setName] = useState(initial?.name || '');
   const [subject, setSubject] = useState(initial?.subject || '');
-  const [fromName, setFromName] = useState(initial?.from_name || 'M&Aソーシングパートナーズ');
+  const [fromName, setFromName] = useState(initial?.from_name || 'M&Aソーシングパートナーズ株式会社');
   const [replyTo, setReplyTo] = useState(initial?.reply_to ?? 'shinomiya@ma-sp.co');
   const [bodyHtml, setBodyHtml] = useState(initial?.body_html || DEFAULT_BODY);
   const [templateId, setTemplateId] = useState(initial?.template_id || '');
@@ -200,7 +200,7 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
         name: name.trim() || subject.trim(),
         subject: subject.trim(),
         from_email: 'noreply@newsletter.ma-sp.co',
-        from_name: fromName.trim() || 'M&Aソーシングパートナーズ',
+        from_name: fromName.trim() || 'M&Aソーシングパートナーズ株式会社',
         reply_to: replyTo.trim() || null,
         body_html: bodyHtml,
         body_text: null,

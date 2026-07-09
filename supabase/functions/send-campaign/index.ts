@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     // ===== 4. Resend バッチ送信 =====
     let sentCount = 0
     let failedCount = 0
-    const orgName = campaign.from_name || 'M&Aソーシングパートナーズ'
+    const orgName = campaign.from_name || 'M&Aソーシングパートナーズ株式会社'
     const replyTo = (campaign.reply_to ?? '').trim()
 
     for (let i = 0; i < recipientRows.length; i += BATCH_SIZE) {
