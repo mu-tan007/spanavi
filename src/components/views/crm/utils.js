@@ -80,6 +80,7 @@ export const CRM_COLS_BASE = [
   { key: 'company',        width: 220, align: 'left'   },
   { key: 'product',        width: 110, align: 'left'   },
   { key: 'primaryContact', width: 120, align: 'left'   },
+  { key: 'primaryEmail',   width: 200, align: 'left'   },
   { key: 'rewards',        width: 200, align: 'left'   },
   { key: 'listCount',      width: 80,  align: 'right'  },
   { key: 'memo',           width: 220, align: 'left'   },
@@ -88,7 +89,7 @@ export const CRM_COLS_BASE = [
 // 編集モードでもカラム構成は同じ (右端アイコン群は廃止)
 export const CRM_COLS_EDIT = [...CRM_COLS_BASE];
 
-export const CRM_COL_LABELS = ['★','ステータス','企業名','商材','主担当','報酬体系','リスト数','メモ'];
+export const CRM_COL_LABELS = ['★','ステータス','企業名','商材','主担当','メールアドレス','報酬体系','リスト数','メモ'];
 
 // 商材ソート可能なカラムキー一覧 (lastMeeting / targetRatio 削除済み)
 export const CRM_SORTABLE_KEYS = new Set(['product','company','status','listCount']);

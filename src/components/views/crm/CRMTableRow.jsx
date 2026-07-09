@@ -349,9 +349,19 @@ export default function CRMTableRow({
         <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[4]?.align }}>-</span>
       )}
 
-      {/* 5. 報酬体系 */}
+      {/* 5. メールアドレス (主担当に紐づく) */}
+      <span
+        style={{
+          textAlign: crmCols[5]?.align,
+          fontSize: font.size.xs, color: color.textMid,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}
+        title={primary?.email || ''}
+      >{primary?.email || '—'}</span>
+
+      {/* 6. 報酬体系 */}
       <span style={{
-        textAlign: crmCols[5]?.align,
+        textAlign: crmCols[6]?.align,
         fontSize: font.size.xs, color: color.textMid,
         display: 'flex', flexDirection: 'column', gap: 2,
       }}>
@@ -364,17 +374,17 @@ export default function CRMTableRow({
         )}
       </span>
 
-      {/* 6. リスト数 (アクティブのみ) */}
+      {/* 7. リスト数 (アクティブのみ) */}
       <span style={{
-        textAlign: crmCols[6]?.align,
+        textAlign: crmCols[7]?.align,
         fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
         fontSize: font.size.xs,
         color: listCount > 0 ? color.textDark : color.textLight,
         fontWeight: listCount > 0 ? font.weight.semibold : font.weight.normal,
       }}>{listCount > 0 ? listCount : '—'}</span>
 
-      {/* 7. メモ (インライン編集可) */}
-      <MemoCell client={c} setClientData={setClientData} align={crmCols[7]?.align} />
+      {/* 8. メモ (インライン編集可) */}
+      <MemoCell client={c} setClientData={setClientData} align={crmCols[8]?.align} />
     </div>
   );
 }
