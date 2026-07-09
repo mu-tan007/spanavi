@@ -121,8 +121,12 @@ export function useCustomerDetail(customerId) {
           .select('*').eq('customer_id', customerId).maybeSingle(),
         supabase.from('spacareer_social_style_responses')
           .select('*').eq('customer_id', customerId).maybeSingle(),
+        // uploaded_at 降順（最新が先頭）で取得する。各タブは session_id で該当動画を
+        // find/先頭採用するため、再アップロード（同一セッションに複数動画）がある場合でも
+        // 常に「最新の動画」が再生・議事録対象になる（古い動画が出る不具合を防ぐ）。
         supabase.from('spacareer_session_videos')
-          .select('*, session:spacareer_sessions ( session_no )').eq('org_id', orgId),
+          .select('*, session:spacareer_sessions ( session_no )').eq('org_id', orgId)
+          .order('uploaded_at', { ascending: false }),
         supabase.from('spacareer_slack_channels')
           .select('*').eq('customer_id', customerId).maybeSingle(),
         // 第1回前70問キックオフヒアリング（§6.2A）

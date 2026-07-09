@@ -132,9 +132,12 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
   const checkedCount = checkFields.filter((f) => !!form[f.key]).length;
   const hasVideo = useMemo(
     () => (videos || []).some((v) => v.session_id === targetSession?.id), [videos, targetSession?.id]);
-  // この回のアップロード済み動画（storage_path あり）。画面内プレーヤーで再生する。
+  // この回のアップロード済み動画（storage_path あり）のうち最新のもの。画面内プレーヤーで再生する。
+  // 再アップロードで同一セッションに複数動画がある場合、古い動画ではなく最新を必ず選ぶ。
   const sessionVideo = useMemo(
-    () => (videos || []).find((v) => v.session_id === targetSession?.id && v.storage_path) || null,
+    () => (videos || [])
+      .filter((v) => v.session_id === targetSession?.id && v.storage_path)
+      .sort((a, b) => new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0))[0] || null,
     [videos, targetSession?.id]);
   const [playerOpen, setPlayerOpen] = useState(false);
   const hasMinutes = !!(targetSession?.minutes_draft || targetSession?.minutes_final);

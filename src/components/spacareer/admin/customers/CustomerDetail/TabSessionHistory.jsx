@@ -47,7 +47,10 @@ export default function TabSessionHistory({ detail, onRefresh }) {
       _completed: fmtDate(s.completed_at),
       _hasMinutes: !!s.minutes_draft || !!s.minutes_final,
       _hasVideo: (videosBySession.get(s.id) || []).length > 0,
-      _videoPath: (videosBySession.get(s.id) || []).find((v) => v.storage_path)?.storage_path || null,
+      // 再アップロードで複数動画がある場合は最新（uploaded_at 降順の先頭）を再生対象にする。
+      _videoPath: (videosBySession.get(s.id) || [])
+        .filter((v) => v.storage_path)
+        .sort((a, b) => new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0))[0]?.storage_path || null,
     }));
 
   const openSession = openId ? rows.find((r) => r.id === openId) : null;

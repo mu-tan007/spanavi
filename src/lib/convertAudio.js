@@ -33,6 +33,21 @@ async function getFFmpeg() {
   return _loadPromise
 }
 
+// ffmpeg.wasm はシングルトン（単一ワーカー）で再入不可。複数の変換が同時に走ると
+// 同じワーカー/同じ一時ファイル名を奪い合ってデッドロック（=アップロードボタンが
+// 永久にくるくる回る）する。スパキャリで受講生Aの動画変換中に受講生Bをアップロード
+// すると発生していた事象がこれ。
+// 変換のクリティカルセクション（writeFile→exec→readFile→deleteFile）を
+// Promise チェーンで直列化し、同時実行を1本に絞る。TUS の実アップロードは各自
+// 並行して進むため、これで「誰かの変換中でも他の受講生がアップロードできない」問題は解消する。
+let _ffmpegQueue = Promise.resolve()
+function runExclusive(task) {
+  const run = _ffmpegQueue.then(task, task)
+  // キュー自体はタスクの成否で止めない（失敗しても次を実行できるようにする）
+  _ffmpegQueue = run.then(() => {}, () => {})
+  return run
+}
+
 /**
  * @param {File} file
  * @param {(msg: string) => void} [onProgress]  変換中の状態メッセージコールバック
@@ -48,32 +63,44 @@ export async function prepareAudioForWhisper(file, onProgress, maxSeconds = null
   onProgress?.('🔄 変換ライブラリを読み込み中...')
   const ff = await getFFmpeg()
 
-  const inputName = `input.${ext}`
-  const outputName = 'output.mp3'
+  // 同時変換の競合を避けるため、一時ファイル名は呼び出しごとに一意にする。
+  const token = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID().slice(0, 8)
+    : `${Date.now()}${Math.floor(Math.random() * 1e6)}`
+  const inputName = `input_${token}.${ext}`
+  const outputName = `output_${token}.mp3`
 
-  onProgress?.('📂 ファイルを読み込み中...')
-  await ff.writeFile(inputName, await fetchFile(file))
+  // ffmpeg のクリティカルセクション全体を直列化（同時に走らせない）。
+  const data = await runExclusive(async () => {
+    onProgress?.('📂 ファイルを読み込み中...')
+    await ff.writeFile(inputName, await fetchFile(file))
 
-  ff.on('progress', ({ progress }) => {
-    if (progress > 0) onProgress?.(`🔄 変換中... ${Math.round(progress * 100)}%`)
+    const onProg = ({ progress }) => {
+      if (progress > 0) onProgress?.(`🔄 変換中... ${Math.round(progress * 100)}%`)
+    }
+    ff.on('progress', onProg)
+
+    try {
+      onProgress?.('🔄 MP3 に変換中...')
+      const ffmpegArgs = ['-i', inputName]
+      if (maxSeconds) ffmpegArgs.push('-t', String(maxSeconds))
+      ffmpegArgs.push(
+        '-vn',                  // 映像トラックを削除
+        '-acodec', 'libmp3lame',
+        '-ab', '32k',           // 32 kbps（音声認識に十分な品質、ファイルサイズ半減）
+        '-ar', '22050',         // 22050 Hz（音声に最適）
+        '-ac', '1',             // モノラル
+        outputName,
+      )
+      await ff.exec(ffmpegArgs)
+      const out = await ff.readFile(outputName)
+      return out
+    } finally {
+      ff.off?.('progress', onProg)
+      await ff.deleteFile(inputName).catch(() => {})
+      await ff.deleteFile(outputName).catch(() => {})
+    }
   })
-
-  onProgress?.('🔄 MP3 に変換中...')
-  const ffmpegArgs = ['-i', inputName]
-  if (maxSeconds) ffmpegArgs.push('-t', String(maxSeconds))
-  ffmpegArgs.push(
-    '-vn',                  // 映像トラックを削除
-    '-acodec', 'libmp3lame',
-    '-ab', '32k',           // 32 kbps（音声認識に十分な品質、ファイルサイズ半減）
-    '-ar', '22050',         // 22050 Hz（音声に最適）
-    '-ac', '1',             // モノラル
-    outputName,
-  )
-  await ff.exec(ffmpegArgs)
-
-  const data = await ff.readFile(outputName)
-  await ff.deleteFile(inputName).catch(() => {})
-  await ff.deleteFile(outputName).catch(() => {})
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
   return new File([data.buffer], `${baseName}.mp3`, { type: 'audio/mpeg' })
