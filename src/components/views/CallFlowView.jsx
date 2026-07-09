@@ -945,16 +945,33 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setCallRecords(prev => prev.map(r => r.id === rec.id ? { ...r, recording_url: url } : r));
   };
 
-  // アポ報告フォーム用録音URL取得（Zoom APIからリトライ付きで取得）
-  // called_at は渡さない: 「ボタン押下時刻-3h」の時間窓だと、通話からしばらく
-  // 経ってから報告を書いた場合に通話が窓から外れて取得できない
-  // （サンフロンティア事例: 13:38通話→16:40再取得で未取得）。
-  // called_at なしの場合、関数側は「この番号への最新の録音」を返すため
-  // アポ報告の用途（さっきの通話の録音）には常にこちらが正しい。
-  const handleAppoFetchRecording = async (_itemId, phone) => {
-    // 最大30秒（5秒×6回）リトライしてZoom録音を取得（Zoom側の処理遅延を吸収）
+  // アポ報告フォーム用録音URL取得。
+  // 【最優先】録音を「当て直さない」: handleAppoSave が通話時刻の時間窓で正確に特定し、
+  //   「アポ獲得」記録に保存済みの録音があれば、それをそのまま使う。当て直しによる
+  //   録音の取り違え（＝本題ではなく直後の短い受付録音を掴む事故）が原理的に起きない。
+  //   ステータスを「アポ獲得」に限定するため、受付・再コールの録音を誤用することはない。
+  // 【フォールバック】まだ確定録音が無い（新規保存直後でアップロード前など）場合のみ、
+  //   Zoom検索（get-zoom-recording: called_at未指定＝直近30分クラスタで最長）で取得する。
+  const handleAppoFetchRecording = async (itemId, phone) => {
+    // 「アポ獲得」記録に確定済みの録音があれば最優先で返す（DBを都度参照して最新状態を見る）
+    const confirmedRecordingFor = async () => {
+      if (!itemId) return null;
+      try {
+        const { data } = await fetchCallRecordsByItem(itemId);
+        const apoRec = (data || [])
+          .filter(r => r.status === 'アポ獲得' && r.recording_url)
+          .sort((a, b) => (b.called_at || '').localeCompare(a.called_at || ''))[0];
+        return apoRec?.recording_url || null;
+      } catch (e) {
+        console.warn('[handleAppoFetchRecording] 確定録音の参照に失敗:', e);
+        return null;
+      }
+    };
+    // 最大30秒（5秒×6回）リトライ。各回でまず確定録音を確認し、無ければZoom検索へ。
     for (let i = 0; i < 6; i++) {
       if (i > 0) await new Promise(r => setTimeout(r, 5000));
+      const confirmed = await confirmedRecordingFor();
+      if (confirmed) return confirmed;
       try {
         const url = await fetchRecordingUrl(phone, null, null);
         if (url) return url;
