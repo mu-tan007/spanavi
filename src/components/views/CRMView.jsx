@@ -7,11 +7,10 @@ import { getOrgId } from '../../lib/orgContext';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import { useUrlState } from '../../hooks/useUrlState';
 import PageHeader from '../common/PageHeader';
-import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { color, radius, font, shadow } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import ClientDetailPage from './contacts/ClientDetailPage';
 import { EmailFollowupModal } from './BusinessOverviewView';
-import BulkEmailModal from './crm/BulkEmailModal';
 import RewardTypeManager from './masp/RewardTypeManager';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
@@ -54,24 +53,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const [addSaving, setAddSaving] = useState(false);
   const [addToast, setAddToast] = useState(null);
   const [emailCtx, setEmailCtx] = useState(null); // クライアント向けフォローメール作成 ctx
-  // 一括選択 (一斉メール送信用)
-  const [selectedIds, setSelectedIds] = useState(() => new Set());
-  const handleToggleSelect = useCallback((id) => {
-    if (!id) return;
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-  const handleToggleSelectAll = useCallback((rows, on) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      rows.forEach(r => { if (on) next.add(r._supaId); else next.delete(r._supaId); });
-      return next;
-    });
-  }, []);
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
   // お気に入りトグル
   const handleToggleFavorite = useCallback(async (cli) => {
     if (!cli?._supaId || !setClientData) return;
@@ -799,51 +780,11 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
                 past_appo_count: 0,
               },
             })}
-            selectedIds={selectedIds}
-            onToggleSelect={handleToggleSelect}
-            onToggleSelectAll={handleToggleSelectAll}
             onToggleFavorite={handleToggleFavorite}
             canDrag={canDragClients}
             onReorder={handleReorderClients}
           />
         </>
-      )}
-
-      {/* 一斉メール送信バー (1件以上選択中のみ表示) */}
-      {selectedIds.size > 0 && (
-        <div style={{
-          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          background: color.navy, color: color.white,
-          padding: '10px 18px', borderRadius: radius.md, boxShadow: shadow.lg,
-          fontSize: font.size.sm, fontFamily: font.family.sans,
-          display: 'flex', alignItems: 'center', gap: space[3], zIndex: 9999,
-        }}>
-          <span style={{ fontWeight: font.weight.semibold }}>
-            {selectedIds.size} 社選択中
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              const targets = (clientData || []).filter(c => selectedIds.has(c._supaId));
-              setEmailCtx({ kind: 'bulk', clients: targets });
-            }}
-            style={{
-              padding: '6px 14px', background: color.white, color: color.navy,
-              border: 'none', borderRadius: radius.sm,
-              fontSize: font.size.xs, fontWeight: font.weight.bold,
-              cursor: 'pointer', fontFamily: font.family.sans,
-            }}
-          >一斉メール作成</button>
-          <button
-            type="button"
-            onClick={clearSelection}
-            style={{
-              padding: '6px 10px', background: 'transparent', color: color.white,
-              border: `1px solid ${alpha(color.white, 0.4)}`, borderRadius: radius.sm,
-              fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
-            }}
-          >解除</button>
-        </div>
       )}
 
       {/* Toast */}
@@ -913,15 +854,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           onClose={() => setEmailCtx(null)}
         />
       )}
-      {emailCtx?.kind === 'bulk' && (
-        <BulkEmailModal
-          clients={emailCtx.clients}
-          contactsByClient={contactsByClient}
-          currentUser={currentUser}
-          onClose={() => setEmailCtx(null)}
-        />
-      )}
-
     </div>
   );
 }

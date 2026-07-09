@@ -73,7 +73,6 @@ export function lastTouchDisplay(ts) {
 }
 
 export const CRM_COLS_BASE = [
-  { key: 'select',         width: 36,  align: 'center' },
   { key: 'favorite',       width: 36,  align: 'center' },
   { key: 'status',         width: 100, align: 'center' },
   { key: 'company',        width: 220, align: 'left'   },
@@ -87,7 +86,7 @@ export const CRM_COLS_BASE = [
 // 編集モードでもカラム構成は同じ (右端アイコン群は廃止)
 export const CRM_COLS_EDIT = [...CRM_COLS_BASE];
 
-export const CRM_COL_LABELS = ['','★','ステータス','企業名','商材','主担当','報酬体系','リスト数','メモ'];
+export const CRM_COL_LABELS = ['★','ステータス','企業名','商材','主担当','報酬体系','リスト数','メモ'];
 
 // 商材ソート可能なカラムキー一覧 (lastMeeting / targetRatio 削除済み)
 export const CRM_SORTABLE_KEYS = new Set(['product','company','status','listCount']);

@@ -159,9 +159,6 @@ export default function CRMTable({
   setSortState,
   onRowClick,
   onComposeEmail,
-  selectedIds = new Set(),
-  onToggleSelect,
-  onToggleSelectAll,
   onToggleFavorite,
   canDrag = false,
   onReorder,
@@ -237,8 +234,6 @@ export default function CRMTable({
     rewardMaster,
     onRowClick,
     onComposeEmail,
-    isSelected: selectedIds.has(c._supaId),
-    onToggleSelect,
     onToggleFavorite,
   });
 
@@ -257,23 +252,6 @@ export default function CRMTable({
             const sortable = col && CRM_SORTABLE_KEYS.has(col.key);
             const active = sortState.key === col?.key;
             const arrow = active ? (sortState.dir === 'desc' ? ' ▼' : ' ▲') : '';
-            // 一括選択 checkbox (select 列)
-            if (col?.key === 'select') {
-              const allChecked = filtered.length > 0 && filtered.every(c => selectedIds.has(c._supaId));
-              const someChecked = !allChecked && filtered.some(c => selectedIds.has(c._supaId));
-              return (
-                <span key={label} style={{ position: 'relative', textAlign: 'center', userSelect: 'none' }}>
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    ref={el => { if (el) el.indeterminate = someChecked; }}
-                    onChange={() => onToggleSelectAll?.(filtered, !allChecked)}
-                    title="すべて選択 / 解除"
-                    style={{ cursor: 'pointer' }}
-                  />
-                </span>
-              );
-            }
             return (
               <span
                 key={label}

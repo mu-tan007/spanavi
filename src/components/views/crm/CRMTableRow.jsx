@@ -188,8 +188,6 @@ export default function CRMTableRow({
   rewardMaster = [],
   onRowClick,
   onComposeEmail,
-  isSelected = false,
-  onToggleSelect,
   onToggleFavorite,
   // ドラッグ並び替え用 (CRMTable から useSortable 経由で渡す)
   dragRef,
@@ -250,18 +248,7 @@ export default function CRMTableRow({
         >⋮⋮</span>
       )}
 
-      {/* 0. 一括選択 checkbox */}
-      <span style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => onToggleSelect?.(c._supaId)}
-          title={isSelected ? '選択解除' : '選択'}
-          style={{ cursor: 'pointer' }}
-        />
-      </span>
-
-      {/* 0b. お気に入り */}
+      {/* 0. お気に入り */}
       <span style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
         <button
           type="button"
@@ -283,7 +270,7 @@ export default function CRMTableRow({
           <span style={{
             borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
             display: 'inline-flex', flexDirection: 'column', width: 'fit-content',
-            alignItems: 'flex-start', textAlign: crmCols[4]?.align, lineHeight: 1.15,
+            alignItems: 'flex-start', textAlign: crmCols[3]?.align, lineHeight: 1.15,
           }}>
             {cat && (
               <span style={{
@@ -302,7 +289,7 @@ export default function CRMTableRow({
 
       {/* 2. 企業名（優先度バッジ付き / クリックで詳細ページに移動） */}
       <span style={{
-        textAlign: crmCols[3]?.align,
+        textAlign: crmCols[2]?.align,
         display: 'inline-flex', alignItems: 'center', gap: 6,
         overflow: 'hidden', whiteSpace: 'nowrap',
       }}>
@@ -337,7 +324,7 @@ export default function CRMTableRow({
 
       {/* 3. 商材 */}
       <span style={{
-        textAlign: crmCols[4]?.align,
+        textAlign: crmCols[3]?.align,
         fontSize: font.size.xs, color: color.textMid,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{c.industry || '-'}</span>
@@ -345,7 +332,7 @@ export default function CRMTableRow({
       {/* 4. 主担当 */}
       {primary ? (
         <span style={{
-          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[5]?.align,
+          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[4]?.align,
           display: 'inline-flex', alignItems: 'center', gap: 4,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -359,12 +346,12 @@ export default function CRMTableRow({
           <span style={{ fontWeight: font.weight.medium }}>{primary.name}</span>
         </span>
       ) : (
-        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[5]?.align }}>-</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[4]?.align }}>-</span>
       )}
 
       {/* 5. 報酬体系 */}
       <span style={{
-        textAlign: crmCols[6]?.align,
+        textAlign: crmCols[5]?.align,
         fontSize: font.size.xs, color: color.textMid,
         display: 'flex', flexDirection: 'column', gap: 2,
       }}>
@@ -379,7 +366,7 @@ export default function CRMTableRow({
 
       {/* 6. リスト数 (アクティブのみ) */}
       <span style={{
-        textAlign: crmCols[7]?.align,
+        textAlign: crmCols[6]?.align,
         fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
         fontSize: font.size.xs,
         color: listCount > 0 ? color.textDark : color.textLight,
@@ -387,7 +374,7 @@ export default function CRMTableRow({
       }}>{listCount > 0 ? listCount : '—'}</span>
 
       {/* 7. メモ (インライン編集可) */}
-      <MemoCell client={c} setClientData={setClientData} align={crmCols[8]?.align} />
+      <MemoCell client={c} setClientData={setClientData} align={crmCols[7]?.align} />
     </div>
   );
 }
