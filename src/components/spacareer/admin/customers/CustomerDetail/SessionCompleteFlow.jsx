@@ -4,6 +4,8 @@ import { Button, Card } from '../../../../ui';
 import { useFileDrop } from '../../../_shared/useFileDrop';
 import { useSessionJobs } from './SessionJobsContext';
 import { useSessionCompletion } from './useSessionCompletion';
+import { useAuth } from '../../../../../hooks/useAuth';
+import { canSkipSessionComplete } from '../../../../../lib/spacareer/permissions';
 
 // ============================================================
 // セッション完了フロー
@@ -38,6 +40,9 @@ export default function SessionCompleteFlow({
   completion = null,
 }) {
   const fileRef = useRef(null);
+  const { profile } = useAuth();
+  // 「動画・議事録をスキップして完了」は篠宮・小山のみ表示（むー様指示 2026-07-09）。
+  const canSkip = canSkipSessionComplete(profile?.email);
 
   // 完了処理は共通フックに集約。completion prop があればそれを使い、無ければ内部生成。
   const ownCompletion = useSessionCompletion({ session, customerId, detail, onCompleted });
@@ -166,7 +171,7 @@ export default function SessionCompleteFlow({
           </>
         )}
         <div style={{ flex: 1 }} />
-        {!embedded && status !== 'completed' && (
+        {!embedded && status !== 'completed' && canSkip && (
           <Button variant="ghost" size="sm" loading={completing}
             onClick={() => {
               if (window.confirm('動画アップロードとAI議事録生成をスキップして、このセッションを完了します。\n（テスト用途や録画なしで進めたい場合向け）\n\nよろしいですか？')) {

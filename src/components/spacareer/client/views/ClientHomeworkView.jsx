@@ -21,6 +21,54 @@ const MAX_FILES = 3;
 const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50MB
 const HOMEWORK_BUCKET = 'spacareer-homework-files';
 
+// Supabase Storage のオブジェクトキーに日本語・空白等が含まれると "Invalid key" で
+// アップロードに失敗する（第1回「私の人生の地図.pptx」等）。表示名は元のまま保持しつつ、
+// キーはASCII安全な形へ変換する。
+function sanitizeStorageName(name) {
+  const raw = String(name || 'file');
+  const dot = raw.lastIndexOf('.');
+  const base = dot > 0 ? raw.slice(0, dot) : raw;
+  const ext = dot > 0 ? raw.slice(dot + 1) : '';
+  const safeBase = base.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '') || 'file';
+  const safeExt = ext.replace(/[^A-Za-z0-9]+/g, '').toLowerCase();
+  return safeExt ? `${safeBase}.${safeExt}` : safeBase;
+}
+
+// 拡張子から MIME を補完する。ブラウザが file.type を空や octet-stream で返すと
+// バケットの許可MIMEリストに弾かれてアップロードできないため。
+const EXT_MIME = {
+  pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  webp: 'image/webp', gif: 'image/gif',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ppt: 'application/vnd.ms-powerpoint',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  doc: 'application/msword', txt: 'text/plain',
+};
+function resolveContentType(file) {
+  const ext = (String(file?.name || '').split('.').pop() || '').toLowerCase();
+  const known = EXT_MIME[ext];
+  if (known) return known; // 拡張子優先（許可MIMEに確実に合わせる）
+  return file?.type || 'application/octet-stream';
+}
+
+// 非公開バケットの添付を開く。保存済み path から署名URLを都度生成する
+// （getPublicUrl の公開URLは非公開バケットでは404になるため）。
+async function openHomeworkFile(f) {
+  try {
+    if (f?.path) {
+      const { data, error } = await supabase.storage
+        .from(HOMEWORK_BUCKET).createSignedUrl(f.path, 60 * 10);
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } else if (f?.url) {
+      window.open(f.url, '_blank', 'noopener,noreferrer');
+    }
+  } catch (e) {
+    console.error('[ClientHomework] open file error:', e);
+    alert('ファイルを開けませんでした。時間をおいて再度お試しください。');
+  }
+}
+
 export default function ClientHomeworkView() {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -233,6 +281,9 @@ export default function ClientHomeworkView() {
       await saveAnswers(items.map(it => it.id), { setSubmitted: false });
       // 全件サーバー保存できたので端末の下書きは破棄
       if (draftKey) clearDraft(draftKey);
+      // 保存できたことが必ず分かるようポップアップを出す（むー様指示 2026-07-09）。
+      // 「提出」は別ボタン。ここでは保存完了のみを明示する。
+      alert('回答を保存しました。\n（まだ「提出」は完了していません。すべて回答できたら「回答を提出」を押してください）');
     } catch (e) {
       console.error('[ClientHomework] saveAll error:', e);
       alert('保存に失敗しましたが、入力内容は端末に保存されています（再ログイン後に自動復元されます）。');
@@ -297,15 +348,16 @@ export default function ClientHomeworkView() {
       alert('1設問あたり最大3ファイルまでです。');
       return;
     }
-    const path = `${customer.id}/${selectedHomeworkId}/${itemId}/${Date.now()}_${file.name}`;
-    const { error: upErr } = await supabase.storage.from(HOMEWORK_BUCKET).upload(path, file, { contentType: file.type });
+    // キーは日本語・空白をサニタイズ（表示名は元のまま name に保持する）。
+    const path = `${customer.id}/${selectedHomeworkId}/${itemId}/${Date.now()}_${sanitizeStorageName(file.name)}`;
+    const { error: upErr } = await supabase.storage.from(HOMEWORK_BUCKET)
+      .upload(path, file, { contentType: resolveContentType(file), upsert: false });
     if (upErr) {
       alert('アップロードに失敗しました: ' + upErr.message);
       return;
     }
-    const { data: urlData } = supabase.storage.from(HOMEWORK_BUCKET).getPublicUrl(path);
     setFiles(prev => {
-      const next = { ...prev, [itemId]: [...current, { name: file.name, path, url: urlData.publicUrl, size: file.size }] };
+      const next = { ...prev, [itemId]: [...current, { name: file.name, path, size: file.size }] };
       if (draftKey) saveDraft(draftKey, { answers, files: next });
       return next;
     });
@@ -729,9 +781,8 @@ function FileAttachArea({ files, onAdd, onRemove, readOnly = false }) {
       {files.map((f, i) => (
         <a
           key={i}
-          href={f.url}
-          target="_blank"
-          rel="noreferrer"
+          href={f.url || '#'}
+          onClick={(e) => { e.preventDefault(); openHomeworkFile(f); }}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: space[1],
             padding: `2px ${space[2]}px`,

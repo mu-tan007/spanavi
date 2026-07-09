@@ -8,6 +8,8 @@ import { useSessionJobs } from './SessionJobsContext';
 import { useSessionCompletion } from './useSessionCompletion';
 import { useFileDrop } from '../../../_shared/useFileDrop';
 import SessionVideoModal from '../../_shared/SessionVideoModal';
+import { useAuth } from '../../../../../hooks/useAuth';
+import { canSkipSessionComplete } from '../../../../../lib/spacareer/permissions';
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
 function toDateTimeInput(v) {
@@ -45,6 +47,9 @@ function checkFieldsFor(sessionNo) {
 export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRefresh }) {
   const { customer, sessions, videos, kickoff } = detail || {};
   const customerId = customer?.id;
+  const { profile } = useAuth();
+  // 「動画議事録をスキップして完了」は篠宮・小山のみ表示（誤操作防止・むー様指示 2026-07-09）。
+  const canSkip = canSkipSessionComplete(profile?.email);
 
   // 対象セッションは session_no と part の両方で特定（応用コースは同一回に(1)(2)が存在）。
   const targetSession = useMemo(
@@ -100,7 +105,11 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
   const { isOver: dropOver, dropHandlers } = useFileDrop(
     (f) => { if (targetSession) startUpload(targetSession, f); }, uploading);
 
-  useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id, targetSession?.hearing_sheet_json]);
+  // ヒアリングシートのチェック/質問記録は、セッション切替時(id変化)のみ初期化する。
+  // hearing_sheet_json の変化では上書きしない（動画アップロード完了や次回日時の自動保存で
+  // detail 全体が refetch されても、入力途中のチェック・質問記録が消えないようにするため。
+  // 次回日時と同じ保護方針。むー様指示 2026-07-09）。
+  useEffect(() => { setForm(buildForm(targetSession)); }, [targetSession?.id]);
 
   // 次回日時はセッション切替時(id変化)のみ初期化する。scheduled_at の変化では上書きしない
   // （入力中に動画アップロード等でリフレッシュが走っても入力値が消えないようにするため）。
@@ -119,7 +128,9 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
           .update({ scheduled_at: iso }).eq('id', nextSession.id);
         if (error) throw error;
         setNextSavedAt(new Date());
-        onRefresh && onRefresh();
+        // ここでは onRefresh を呼ばない。日時を選ぶたびに detail 全体を refetch すると
+        // 画面全体がリロードされ、入力途中のヒアリング等の体感が悪くなるため。
+        // DB へは保存済みで、履歴・受講生ポータル・自動公開cronはDB値を参照する（むー様指示 2026-07-09）。
       } catch (e) {
         console.error('[TabSessionManage] next datetime autosave error:', e);
       }
@@ -280,7 +291,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
             onClick={handleGenerateMinutes} disabled={!hasVideo}>
             AI議事録を生成
           </Button>
-          {sessionStatus !== 'completed' && (
+          {sessionStatus !== 'completed' && canSkip && (
             <Button variant="ghost" size="md" loading={completion.completing}
               onClick={() => {
                 if (window.confirm('動画アップロードとAI議事録生成をスキップして、このセッションを完了します。\n（テスト用途や録画なしで進めたい場合向け）\n\nよろしいですか？')) {

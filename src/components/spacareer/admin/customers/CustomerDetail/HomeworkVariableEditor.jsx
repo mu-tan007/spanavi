@@ -35,12 +35,14 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
     [detail?.homework, sessionNo],
   );
   const [selectedId, setSelectedId] = useState('');
-  const [fixedItems, setFixedItems] = useState([]);       // source='fixed'（読取専用）
+  const [fixedDrafts, setFixedDrafts] = useState([]);      // source='fixed'（編集可・回答は保持）
+  const [removedFixedIds, setRemovedFixedIds] = useState([]);
   const [publishedVar, setPublishedVar] = useState([]);    // source='variable' && is_published（読取専用）
   const [drafts, setDrafts] = useState([]);                // source='variable' && !is_published（編集対象）
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingFixed, setSavingFixed] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -55,24 +57,41 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
     if (targets.length && !targets.find((t) => t.id === selectedId)) setSelectedId(targets[0].id);
   }, [targets, selectedId]);
 
+  // homework_items をDBから取得し、固定/公開済み変動/変動ドラフトに振り分けて state へ。
+  async function fetchItems(homeworkId) {
+    const { data, error } = await supabase
+      .from('spacareer_homework_items')
+      .select('*')
+      .eq('homework_id', homeworkId)
+      .order('position', { ascending: true });
+    if (error) { console.error('[HomeworkVariableEditor] load error:', error); return []; }
+    return data || [];
+  }
+  function applyRows(rows) {
+    setFixedDrafts(rows
+      .filter((it) => it.source === 'fixed')
+      .map((it) => ({
+        ...it,
+        _key: it.id,
+        // 受講生の回答があるか（削除時の警告に使う）
+        _answered: !!(it.answer_text && String(it.answer_text).trim())
+          || (Array.isArray(it.attached_files) && it.attached_files.length > 0),
+      })));
+    setRemovedFixedIds([]);
+    setPublishedVar(rows.filter((it) => it.source === 'variable' && it.is_published));
+    setDrafts(rows
+      .filter((it) => it.source === 'variable' && !it.is_published)
+      .map((it) => ({ ...it, _key: it.id })));
+  }
+
   useEffect(() => {
-    if (!selected?.id) { setFixedItems([]); setPublishedVar([]); setDrafts([]); return; }
+    if (!selected?.id) { setFixedDrafts([]); setRemovedFixedIds([]); setPublishedVar([]); setDrafts([]); return; }
     let cancelled = false;
     setLoading(true); setMsg(null);
     (async () => {
-      const { data, error } = await supabase
-        .from('spacareer_homework_items')
-        .select('*')
-        .eq('homework_id', selected.id)
-        .order('position', { ascending: true });
+      const rows = await fetchItems(selected.id);
       if (cancelled) return;
-      if (error) { console.error('[HomeworkVariableEditor] load error:', error); }
-      const rows = data || [];
-      setFixedItems(rows.filter((it) => it.source === 'fixed'));
-      setPublishedVar(rows.filter((it) => it.source === 'variable' && it.is_published));
-      setDrafts(rows
-        .filter((it) => it.source === 'variable' && !it.is_published)
-        .map((it) => ({ ...it, _key: it.id })));
+      applyRows(rows);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -93,8 +112,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
     return null;
   }
 
-  const lockedCount = fixedItems.length + publishedVar.length;
-  const variableTarget = Math.max(1, TARGET_TOTAL - fixedItems.length - publishedVar.length);
+  const lockedCount = fixedDrafts.length + publishedVar.length;
+  const variableTarget = Math.max(1, TARGET_TOTAL - fixedDrafts.length - publishedVar.length);
 
   const update = (key, patch) => setDrafts((prev) => prev.map((it) => (it._key === key ? { ...it, ...patch } : it)));
   const remove = (key) => setDrafts((prev) => prev.filter((it) => it._key !== key));
@@ -102,6 +121,77 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
     ...prev,
     { _key: `new_${prev.length}_${Date.now()}`, question_text: '', question_hint: null, is_required: false, max_length: 500, item_type: 'text' },
   ]);
+
+  // ---- 固定課題の編集（むー様指示 2026-07-09: 受講生ごとに毎回編集できるように） ----
+  // 本文/ヒント/必須/形式を編集し「固定課題を保存」でDBへUPDATE（内容列のみ＝回答は保持）。
+  // 追加はINSERT、削除は行削除（回答があるものは確認あり）。
+  const updateFixed = (key, patch) =>
+    setFixedDrafts((prev) => prev.map((it) => (it._key === key ? { ...it, ...patch } : it)));
+  const addFixed = () => setFixedDrafts((prev) => [
+    ...prev,
+    { _key: `newfixed_${prev.length}_${Date.now()}`, question_text: '', question_hint: null, is_required: false, max_length: 500, item_type: 'text', _answered: false },
+  ]);
+  const removeFixed = (key) => {
+    const it = fixedDrafts.find((x) => x._key === key);
+    if (it?._answered && !window.confirm('この固定課題には受講生の回答があります。削除すると回答も失われます。よろしいですか？')) return;
+    if (it?.id) setRemovedFixedIds((prev) => [...prev, it.id]);
+    setFixedDrafts((prev) => prev.filter((x) => x._key !== key));
+  };
+
+  async function handleSaveFixed() {
+    if (!selected?.id) return;
+    setSavingFixed(true); setMsg(null);
+    try {
+      const orgId = selected.org_id;
+      // 既存の固定課題は内容列のみUPDATE（answer_text/attached_files/submitted_atは触らない＝回答保持）。
+      const existing = fixedDrafts.filter((it) => it.id);
+      for (const it of existing) {
+        const { error } = await supabase.from('spacareer_homework_items').update({
+          question_text: (it.question_text || '').trim() || '設問',
+          question_hint: it.question_hint ? String(it.question_hint).trim() : null,
+          is_required: !!it.is_required,
+          item_type: it.item_type === 'file' ? 'file' : 'text',
+          max_length: it.item_type === 'file' ? null : (it.max_length || null),
+        }).eq('id', it.id);
+        if (error) throw error;
+      }
+      // 追加された固定課題はINSERT（固定ブロックの末尾に付ける）。
+      const news = fixedDrafts.filter((it) => !it.id);
+      if (news.length) {
+        const maxPos = existing.reduce((mx, it) => Math.max(mx, it.position || 0), 0);
+        const payload = news.map((it, i) => ({
+          org_id: orgId,
+          homework_id: selected.id,
+          position: maxPos + i + 1,
+          section: null,
+          question_text: (it.question_text || '').trim() || `設問`,
+          question_hint: it.question_hint ? String(it.question_hint).trim() : null,
+          is_required: !!it.is_required,
+          max_length: it.item_type === 'file' ? null : (it.max_length || null),
+          item_type: it.item_type === 'file' ? 'file' : 'text',
+          template_url: null,
+          template_name: null,
+          source: 'fixed',
+          is_published: true,
+        }));
+        const { error } = await supabase.from('spacareer_homework_items').insert(payload);
+        if (error) throw error;
+      }
+      // 削除された固定課題を反映。
+      if (removedFixedIds.length) {
+        const { error } = await supabase.from('spacareer_homework_items').delete().in('id', removedFixedIds);
+        if (error) throw error;
+      }
+      // 実IDを取り直すためDBから再読込（追加分に本物のidを付け、二重INSERTを防ぐ）。
+      const rows = await fetchItems(selected.id);
+      applyRows(rows);
+      setMsg({ kind: 'ok', text: '固定課題を保存しました。受講生の回答は保持されます。' });
+    } catch (e) {
+      setMsg({ kind: 'err', text: `固定課題の保存に失敗しました: ${e.message || e}` });
+    } finally {
+      setSavingFixed(false);
+    }
+  }
 
   // 議事録など、AIへ渡す当該回の文脈メモを組み立てる。
   function buildContextNotes() {
@@ -126,7 +216,7 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
             sessionNo: selected.session_no,
             contextNotes: buildContextNotes(),
             count: variableTarget,
-            fixedItems: fixedItems.map((f) => f.question_text),
+            fixedItems: fixedDrafts.map((f) => f.question_text),
           },
         });
         if (!error && Array.isArray(data?.items) && data.items.length) items = data.items;
@@ -275,7 +365,7 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
         gap: space[2], marginBottom: space[3], flexWrap: 'wrap',
       }}>
         <div style={{ fontSize: font.size.xs, color: color.textMid }}>
-          固定 <strong style={{ color: color.textDark }}>{fixedItems.length}</strong>
+          固定 <strong style={{ color: color.textDark }}>{fixedDrafts.length}</strong>
           <span style={{ margin: '0 8px', color: color.border }}>|</span>
           公開済み変動 <strong style={{ color: color.textDark }}>{publishedVar.length}</strong>
           <span style={{ margin: '0 8px', color: color.border }}>|</span>
@@ -311,25 +401,90 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
-          {/* 固定課題（読取専用・内容表示）。何が固定課題かを確認できるようにする。 */}
-          {fixedItems.length > 0 && (
+          {/* 固定課題（編集可）。むー様指示 2026-07-09: この受講生の固定課題を毎回編集できる。
+              本文などを直すと即ポータルへ反映。既存の回答は保持される。 */}
+          <div style={{
+            padding: space[3], background: color.cream, borderRadius: radius.md,
+          }}>
             <div style={{
-              padding: space[3], background: color.cream, borderRadius: radius.md,
-              fontSize: font.size.xs, color: color.textMid,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              gap: space[2], flexWrap: 'wrap', marginBottom: space[2],
             }}>
-              <div style={{ fontWeight: font.weight.semibold, color: color.textDark, marginBottom: space[1] }}>
-                固定課題（全員共通・公開済み・編集不可）{fixedItems.length}項目
+              <div style={{ fontWeight: font.weight.semibold, color: color.textDark, fontSize: font.size.xs }}>
+                固定課題（この受講生・編集可）{fixedDrafts.length}項目
+                <span style={{ marginLeft: space[2], color: color.textLight, fontWeight: font.weight.normal }}>
+                  ※本文を直すとポータルに即反映。既存回答は保持されます。
+                </span>
               </div>
-              <ol style={{ margin: 0, paddingLeft: space[4], display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {fixedItems.map((f) => (
-                  <li key={f.id} style={{ color: color.textMid }}>
-                    {f.item_type === 'file' && <span style={{ color: color.navy }}>[ファイル提出] </span>}
-                    {f.question_text}
-                  </li>
-                ))}
-              </ol>
+              <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap' }}>
+                <Button variant="outline" size="sm" onClick={addFixed}>＋ 固定項目を追加</Button>
+                <Button variant="primary" size="sm" loading={savingFixed} onClick={handleSaveFixed}>固定課題を保存</Button>
+              </div>
             </div>
-          )}
+            {fixedDrafts.length === 0 ? (
+              <div style={{ fontSize: font.size.sm, color: color.textLight }}>
+                固定課題はまだありません。「＋ 固定項目を追加」で作成できます。
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
+                {fixedDrafts.map((it, idx) => (
+                  <div key={it._key} style={{
+                    border: `1px solid ${color.borderLight}`, borderRadius: radius.md,
+                    padding: space[3], background: color.white,
+                  }}>
+                    <div style={{ display: 'flex', gap: space[2], alignItems: 'center', marginBottom: space[2] }}>
+                      <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textLight, minWidth: 40 }}>
+                        固定#{String(idx + 1).padStart(2, '0')}
+                      </span>
+                      {it._answered && (
+                        <Badge variant="warn" dot>回答あり</Badge>
+                      )}
+                      <div style={{ display: 'inline-flex', border: `1px solid ${color.border}`, borderRadius: radius.sm, overflow: 'hidden' }}>
+                        {['text', 'file'].map((t) => (
+                          <button key={t} type="button"
+                            onClick={() => updateFixed(it._key, { item_type: t, max_length: t === 'file' ? null : (it.max_length || 500) })}
+                            style={{
+                              border: 'none', cursor: 'pointer',
+                              padding: `2px ${space[2]}px`, fontSize: font.size.xs,
+                              background: (it.item_type || 'text') === t ? color.navy : color.white,
+                              color: (it.item_type || 'text') === t ? color.white : color.textMid,
+                            }}>{t === 'text' ? '記述' : 'ファイル'}</button>
+                        ))}
+                      </div>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: font.size.xs, color: color.textMid, cursor: 'pointer', marginLeft: 'auto' }}>
+                        <input type="checkbox" checked={!!it.is_required} onChange={(e) => updateFixed(it._key, { is_required: e.target.checked })} />
+                        必須
+                      </label>
+                      <button type="button" onClick={() => removeFixed(it._key)}
+                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: color.textLight, padding: 4, fontSize: font.size.xs }}
+                        title="削除">削除</button>
+                    </div>
+                    <textarea
+                      value={it.question_text || ''}
+                      onChange={(e) => updateFixed(it._key, { question_text: e.target.value })}
+                      rows={2}
+                      placeholder="設問文"
+                      style={{
+                        width: '100%', border: `1px solid ${color.borderLight}`, borderRadius: radius.sm,
+                        padding: space[2], fontSize: font.size.sm, color: color.textDark, background: color.snow,
+                        fontFamily: font.family.sans, outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+                      }}
+                    />
+                    <input
+                      value={it.question_hint || ''}
+                      onChange={(e) => updateFixed(it._key, { question_hint: e.target.value || null })}
+                      placeholder="回答のヒント（任意）"
+                      style={{
+                        width: '100%', marginTop: space[2], border: `1px solid ${color.borderLight}`, borderRadius: radius.sm,
+                        padding: space[2], fontSize: font.size.xs, color: color.textMid, background: color.white,
+                        fontFamily: font.family.sans, outline: 'none', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           {publishedVar.length > 0 && (
             <div style={{
               padding: space[2], background: color.cream, borderRadius: radius.md,
