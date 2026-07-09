@@ -332,6 +332,8 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
               borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
               color: color.textDark, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
               lineHeight: 1.5, background: color.white,
+              // デフォルト3枠がちょうど1画面に収まる高さ(画面高さを3等分)。手動リサイズも可。
+              height: 'max(120px, calc((100vh - 230px) / 3 - 100px))',
             }}
           />
         </div>
@@ -351,6 +353,8 @@ function MeetingCard({ meeting, clientId, onChange, onDelete, draggable = false 
               borderRadius: radius.sm, fontSize: font.size.xs, fontFamily: font.family.sans,
               color: color.textDark, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
               lineHeight: 1.5, background: color.white,
+              // デフォルト3枠がちょうど1画面に収まる高さ(画面高さを3等分)。手動リサイズも可。
+              height: 'max(120px, calc((100vh - 230px) / 3 - 100px))',
             }}
           />
         </div>
