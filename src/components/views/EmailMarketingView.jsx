@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Card, Badge, DataTable } from '../ui';
+import { color, space, font } from '../../constants/design';
+import { Card, Badge, DataTable } from '../ui';
 import PageHeader from '../common/PageHeader';
-import EmailCampaignFormModal from './email/EmailCampaignFormModal';
-import EmailCampaignReportPanel from './email/EmailCampaignReportPanel';
+import EmailCampaignConsole from './email/EmailCampaignConsole';
 
 const STATUS_LABEL = {
   draft:     { text: '下書き',     variant: 'neutral' },
@@ -27,11 +26,9 @@ function pct(num, denom) {
   return `${Math.round((num / denom) * 1000) / 10}%`;
 }
 
-export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
+export default function EmailMarketingView({ orgId }) {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editCampaign, setEditCampaign] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
 
   const loadCampaigns = useCallback(async () => {
@@ -43,17 +40,12 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
       .eq('org_id', orgId)
       .order('created_at', { ascending: false })
       .limit(200);
-    if (error) {
-      console.error('load campaigns failed:', error);
-    } else {
-      setCampaigns(data || []);
-    }
+    if (error) console.error('load campaigns failed:', error);
+    else setCampaigns(data || []);
     setLoading(false);
   }, [orgId]);
 
-  useEffect(() => {
-    loadCampaigns();
-  }, [loadCampaigns]);
+  useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
 
   const selected = useMemo(
     () => campaigns.find(c => c.id === selectedId) || null,
@@ -69,9 +61,7 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
             {row.subject || '(件名なし)'}
           </div>
           {row.name && (
-            <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>
-              {row.name}
-            </div>
+            <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>{row.name}</div>
           )}
         </div>
       ),
@@ -93,105 +83,32 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
     },
     {
       key: 'total_recipients', label: '対象', width: 70, align: 'right',
-      render: (row) => (
-        <span style={{ fontFamily: font.family.mono, fontSize: font.size.sm }}>
-          {row.total_recipients || 0}
-        </span>
-      ),
+      render: (row) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.sm }}>{row.total_recipients || 0}</span>,
     },
     {
       key: 'open_rate', label: '開封率', width: 80, align: 'right',
-      render: (row) => (
-        <span style={{ fontFamily: font.family.mono, fontSize: font.size.sm, color: color.textDark }}>
-          {pct(row.opened_count, row.sent_count)}
-        </span>
-      ),
+      render: (row) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.sm, color: color.textDark }}>{pct(row.opened_count, row.sent_count)}</span>,
     },
     {
       key: 'click_rate', label: 'クリック率', width: 90, align: 'right',
-      render: (row) => (
-        <span style={{ fontFamily: font.family.mono, fontSize: font.size.sm, color: color.textDark }}>
-          {pct(row.clicked_count, row.sent_count)}
-        </span>
-      ),
+      render: (row) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.sm, color: color.textDark }}>{pct(row.clicked_count, row.sent_count)}</span>,
     },
     {
       key: 'bounced', label: 'バウンス', width: 80, align: 'right',
-      render: (row) => (
-        <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: row.bounced_count ? color.danger : color.textMid }}>
-          {row.bounced_count || 0}
-        </span>
-      ),
+      render: (row) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: row.bounced_count ? color.danger : color.textMid }}>{row.bounced_count || 0}</span>,
     },
     {
       key: 'unsubscribed', label: '停止', width: 70, align: 'right',
-      render: (row) => (
-        <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid }}>
-          {row.unsubscribed_count || 0}
-        </span>
-      ),
+      render: (row) => <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid }}>{row.unsubscribed_count || 0}</span>,
     },
   ], []);
-
-  const handleNewCampaign = () => {
-    setEditCampaign(null);
-    setShowForm(true);
-  };
-
-  const handleDuplicate = (campaign) => {
-    setEditCampaign({
-      ...campaign,
-      id: null,
-      status: 'draft',
-      name: campaign.name + ' (複製)',
-      sent_at: null,
-      scheduled_at: null,
-      total_recipients: 0,
-      sent_count: 0,
-      bounced_count: 0,
-      opened_count: 0,
-      clicked_count: 0,
-      unsubscribed_count: 0,
-    });
-    setShowForm(true);
-  };
-
-  // 下書きは編集フォームを直接開く。配信済み等はレポート(実績)を開く。
-  const handleRowClick = (row) => {
-    if (row.status === 'draft') {
-      setEditCampaign(row);
-      setShowForm(true);
-    } else {
-      setSelectedId(row.id === selectedId ? null : row.id);
-    }
-  };
-
-  const handleDelete = async (campaign) => {
-    if (!campaign?.id) return;
-    if (!window.confirm(`「${campaign.name || campaign.subject || '(無題)'}」を削除します。よろしいですか？\n（受信者・開封/クリック履歴も一緒に削除され、元に戻せません）`)) return;
-    const { error } = await supabase.from('email_campaigns').delete().eq('id', campaign.id);
-    if (error) { alert('削除に失敗しました: ' + error.message); return; }
-    setSelectedId(null);
-    loadCampaigns();
-  };
-
-  const handleFormClose = (didChange) => {
-    setShowForm(false);
-    setEditCampaign(null);
-    if (didChange) loadCampaigns();
-  };
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="メルマガ"
-        description="クライアント・見込み客へのHTML一斉配信、開封率/クリック率トラッキング"
+        description="件名をタップすると、プレビュー・送付先の選択・送信ができます"
         style={{ marginBottom: 16 }}
-        right={
-          <Button variant="primary" size="md" onClick={handleNewCampaign}>
-            新規キャンペーン
-          </Button>
-        }
       />
 
       <div>
@@ -201,9 +118,8 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
             rows={campaigns}
             rowKey="id"
             loading={loading}
-            emptyMessage="まだキャンペーンがありません。「新規キャンペーン」から作成してください。"
-            onRowClick={handleRowClick}
-            rowAccent={(row) => row.id === selectedId ? 'primary' : null}
+            emptyMessage="配信するメルマガがありません。"
+            onRowClick={(row) => setSelectedId(row.id)}
             height="calc(100vh - 220px)"
             fillWidth
           />
@@ -211,39 +127,10 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
       </div>
 
       {selected && (
-        <div
-          onClick={() => setSelectedId(null)}
-          style={{
-            position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5),
-            zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: space[4],
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%', maxWidth: 880, maxHeight: '90vh',
-              background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl,
-              overflow: 'auto',
-            }}
-          >
-            <EmailCampaignReportPanel
-              campaign={selected}
-              onClose={() => setSelectedId(null)}
-              onDuplicate={() => handleDuplicate(selected)}
-              onDelete={() => handleDelete(selected)}
-              onReload={loadCampaigns}
-            />
-          </div>
-        </div>
-      )}
-
-      {showForm && (
-        <EmailCampaignFormModal
+        <EmailCampaignConsole
+          campaign={selected}
           orgId={orgId}
-          currentUser={currentUser}
-          initial={editCampaign}
-          onClose={handleFormClose}
+          onClose={(changed) => { setSelectedId(null); if (changed) loadCampaigns(); }}
         />
       )}
     </div>
