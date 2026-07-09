@@ -32,7 +32,7 @@ function KpiTile({ label, value, sub }) {
   );
 }
 
-export default function EmailCampaignReportPanel({ campaign, onClose, onDuplicate, onReload }) {
+export default function EmailCampaignReportPanel({ campaign, onClose, onDuplicate, onDelete, onReload }) {
   const [recipients, setRecipients] = useState([]);
   const [clickStats, setClickStats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -189,9 +189,14 @@ export default function EmailCampaignReportPanel({ campaign, onClose, onDuplicat
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: space[1], justifyContent: 'flex-end' }}>
-        <Button variant="outline" size="sm" onClick={onDuplicate}>複製して新規作成</Button>
-        <Button variant="ghost" size="sm" onClick={onReload}>再読込</Button>
+      <div style={{ display: 'flex', gap: space[1], justifyContent: 'space-between', alignItems: 'center' }}>
+        {onDelete
+          ? <Button variant="danger" size="sm" onClick={onDelete}>削除</Button>
+          : <span />}
+        <div style={{ display: 'flex', gap: space[1] }}>
+          <Button variant="outline" size="sm" onClick={onDuplicate}>複製して新規作成</Button>
+          <Button variant="ghost" size="sm" onClick={onReload}>再読込</Button>
+        </div>
       </div>
     </Card>
   );

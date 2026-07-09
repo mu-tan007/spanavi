@@ -166,6 +166,15 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
     }
   };
 
+  const handleDelete = async (campaign) => {
+    if (!campaign?.id) return;
+    if (!window.confirm(`「${campaign.name || campaign.subject || '(無題)'}」を削除します。よろしいですか？\n（受信者・開封/クリック履歴も一緒に削除され、元に戻せません）`)) return;
+    const { error } = await supabase.from('email_campaigns').delete().eq('id', campaign.id);
+    if (error) { alert('削除に失敗しました: ' + error.message); return; }
+    setSelectedId(null);
+    loadCampaigns();
+  };
+
   const handleFormClose = (didChange) => {
     setShowForm(false);
     setEditCampaign(null);
@@ -221,6 +230,7 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
               campaign={selected}
               onClose={() => setSelectedId(null)}
               onDuplicate={() => handleDuplicate(selected)}
+              onDelete={() => handleDelete(selected)}
               onReload={loadCampaigns}
             />
           </div>

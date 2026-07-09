@@ -279,6 +279,17 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
     }
   }, [orgId, templateId, name, subject, fromName, replyTo, bodyHtml, segmentDefinition, scheduledAt, previewResult, initial, onClose]);
 
+  // ----- 削除 (既存キャンペーンのみ) -----
+  const handleDelete = useCallback(async () => {
+    if (!initial?.id) return;
+    if (!window.confirm('このキャンペーンを削除します。よろしいですか？\n（受信者・開封/クリック履歴も一緒に削除され、元に戻せません）')) return;
+    setSaving(true);
+    const { error: delErr } = await supabase.from('email_campaigns').delete().eq('id', initial.id);
+    setSaving(false);
+    if (delErr) { setError('削除に失敗しました: ' + delErr.message); return; }
+    onClose(true);
+  }, [initial, onClose]);
+
   const toggleArrayItem = (arr, item) =>
     arr.includes(item) ? arr.filter(x => x !== item) : [...arr, item];
 
@@ -673,6 +684,11 @@ export default function EmailCampaignFormModal({ orgId, currentUser, initial, on
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: space[2],
           background: color.snow,
         }}>
+          {initial?.id && (
+            <Button variant="danger" size="md" onClick={handleDelete} disabled={saving}>
+              削除
+            </Button>
+          )}
           <div style={{ flex: 1, fontSize: font.size.xs, color: color.danger, minHeight: 16 }}>
             {error}
           </div>
