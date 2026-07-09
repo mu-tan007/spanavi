@@ -205,19 +205,9 @@ export default function CRMTableRow({
   const contactList = contactsByClient[c._supaId] || [];
   const primary = contactList.find(ct => ct.isPrimary) || contactList[0];
 
-  // 当月の実績/目標から目標対比%を計算
+  // 当月の実績/目標（優先度スコア算出に使用）
   const monthAppoCount = monthAppoCountByClient[c._supaId] || 0;
   const monthTarget = monthTargetByClient[c._supaId] || 0;
-  let ratioDisplay;
-  if (monthTarget === 0) {
-    ratioDisplay = { label: '—', color: color.textLight };
-  } else {
-    const ratio = Math.round((monthAppoCount / monthTarget) * 100);
-    let ratioColor = color.danger;
-    if (ratio >= 100) ratioColor = color.success;
-    else if (ratio >= 70) ratioColor = color.gold;
-    ratioDisplay = { label: `${ratio}%`, color: ratioColor, sub: `${monthAppoCount}/${monthTarget}` };
-  }
 
   // 優先度スコア
   const score = priorityScore(c, {
@@ -396,67 +386,8 @@ export default function CRMTableRow({
         fontWeight: listCount > 0 ? font.weight.semibold : font.weight.normal,
       }}>{listCount > 0 ? listCount : '—'}</span>
 
-      {/* 7. 目標対比 */}
-      <span style={{ textAlign: crmCols[8]?.align }}>
-        <span style={{
-          display: 'inline-block',
-          fontFamily: font.family.mono,
-          fontVariantNumeric: 'tabular-nums',
-          fontSize: font.size.sm, fontWeight: font.weight.bold,
-          color: ratioDisplay.color,
-        }}>
-          {ratioDisplay.label}
-        </span>
-        {ratioDisplay.sub && (
-          <div style={{
-            fontSize: 8, color: color.textLight,
-            fontFamily: font.family.mono,
-            fontVariantNumeric: 'tabular-nums',
-            marginTop: 1,
-          }}>{ratioDisplay.sub}</div>
-        )}
-      </span>
-
-      {/* 8. メール作成 (主担当のメアド未登録なら薄く表示) */}
-      <span style={{ textAlign: crmCols[9]?.align }}>
-        {(() => {
-          const hasEmail = !!(primary?.email);
-          return (
-            <button
-              onClick={(e) => { e.stopPropagation(); if (hasEmail) onComposeEmail?.(c); }}
-              disabled={!hasEmail}
-              title={hasEmail
-                ? 'この企業向けにフォローメールを作成'
-                : '主担当のメールアドレスが未登録です'}
-              style={{
-                padding: '4px 10px',
-                background: color.white,
-                border: `1px solid ${hasEmail ? color.navy : color.border}`,
-                borderRadius: radius.sm,
-                color: hasEmail ? color.navy : color.textLight,
-                fontSize: 10, fontWeight: font.weight.semibold,
-                cursor: hasEmail ? 'pointer' : 'not-allowed',
-                opacity: hasEmail ? 1 : 0.45,
-                fontFamily: font.family.sans,
-                transition: 'background 0.12s, color 0.12s',
-              }}
-              onMouseEnter={(e) => {
-                if (!hasEmail) return;
-                e.currentTarget.style.background = color.navy;
-                e.currentTarget.style.color = color.white;
-              }}
-              onMouseLeave={(e) => {
-                if (!hasEmail) return;
-                e.currentTarget.style.background = color.white;
-                e.currentTarget.style.color = color.navy;
-              }}
-            >メール作成</button>
-          );
-        })()}
-      </span>
-
-      {/* 9. メモ (インライン編集可) */}
-      <MemoCell client={c} setClientData={setClientData} align={crmCols[10]?.align} />
+      {/* 7. メモ (インライン編集可) */}
+      <MemoCell client={c} setClientData={setClientData} align={crmCols[8]?.align} />
     </div>
   );
 }

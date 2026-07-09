@@ -9,8 +9,6 @@ import { useEngagements } from '../../../hooks/useEngagements';
 import { PAYMENT_SITE_OPTIONS } from '../crm/utils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
-import ActivityTimeline from './ActivityTimeline';
-import ClientMonthlyTargetSection from '../crm/ClientMonthlyTargetSection';
 import ClientMeetingsSection from '../crm/ClientMeetingsSection';
 
 const NAVY = '#0D2247';
@@ -523,17 +521,6 @@ function InlineCompanyName({ company, editable, onSave }) {
   );
 }
 
-// ActivityTimeline カード (デフォルト開)
-function ActivityTimelineCard({ clientSupaId, contactsByClient }) {
-  return (
-    <CollapsibleCard title="Activity Timeline" defaultOpen={true}>
-      <div style={{ maxHeight: 600, overflowY: 'auto' }}>
-        <ActivityTimeline clientSupaId={clientSupaId} contactsByClient={contactsByClient} />
-      </div>
-    </CollapsibleCard>
-  );
-}
-
 function SectionTitle({ children }) {
   return (
     <div style={{
@@ -638,15 +625,6 @@ export default function ClientDetailPage({
   }, [rewardMaster]);
   const rm = rewardMap[c?.rewardType];
 
-  // 関連リスト (このクライアントの架電リスト)
-  const relatedLists = useMemo(() => {
-    if (!c?.company) return [];
-    return (callListData || []).filter(l => l.company === c.company && !l.is_archived);
-  }, [callListData, c?.company]);
-
-  // 数字: 累計売上 / 今月着地 / 契約開始
-  const [stats, setStats] = useState({ totalSales: 0, monthSales: 0, contractStart: null, loading: true });
-
   // インライン編集: 1フィールドだけ差分更新
   const patchClient = async (patch) => {
     if (!c?._supaId) return;
@@ -671,70 +649,10 @@ export default function ClientDetailPage({
     onBack?.();
   };
 
-  // 商材プルダウン (business_categories)
-  const [categoryOptions, setCategoryOptions] = useState([]);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('business_categories')
-        .select('name, is_active, display_order')
-        .eq('org_id', getOrgId())
-        .eq('is_active', true)
-        .order('display_order');
-      if (!cancelled) setCategoryOptions((data || []).map(x => ({ value: x.name, label: x.name })));
-    })();
-    return () => { cancelled = true; };
-  }, []);
   // 担当者ドロワー
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
   // モバイル時のタブ切替
   const isMobile = useIsMobile();
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!c?._supaId) { setStats({ totalSales: 0, monthSales: 0, contractStart: null, loading: false }); return; }
-    (async () => {
-      const orgId = getOrgId();
-      if (!orgId) return;
-      try {
-        // 累計売上 + 今月着地（appointments.sales_amount 集計）
-        const { data: appos } = await supabase
-          .from('appointments')
-          .select('sales_amount, appointment_date, created_at')
-          .eq('org_id', orgId)
-          .eq('client_id', c._supaId);
-        let total = 0;
-        let month = 0;
-        const now = new Date();
-        const yyyymm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        (appos || []).forEach(a => {
-          const amt = Number(a.sales_amount) || 0;
-          total += amt;
-          const dt = a.appointment_date || a.created_at;
-          if (dt && String(dt).startsWith(yyyymm)) month += amt;
-        });
-        // 契約開始 = clients.created_at
-        const { data: clientRow } = await supabase
-          .from('clients')
-          .select('created_at')
-          .eq('id', c._supaId)
-          .maybeSingle();
-        if (!cancelled) {
-          setStats({
-            totalSales: total,
-            monthSales: month,
-            contractStart: clientRow?.created_at || null,
-            loading: false,
-          });
-        }
-      } catch (e) {
-        console.warn('[ClientDetail] stats fetch failed', e);
-        if (!cancelled) setStats(s => ({ ...s, loading: false }));
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [c?._supaId]);
 
   const contacts = (c?._supaId && contactsByClient[c._supaId]) || [];
   const sortedContacts = [...contacts].sort((a, b) => {
@@ -838,91 +756,14 @@ export default function ClientDetailPage({
         </div>
       </div>
 
-      {/* サマリーバー: 重要情報を1行で */}
-      <div style={{
-        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16,
-        padding: '10px 16px', background: GRAY_50,
-        border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-        marginBottom: 12, fontSize: font.size.xs, color: C.textMid,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: C.textLight }}>商材</span>
-          {setClientData ? (
-            <select
-              value={c.industry || ''}
-              onChange={async (e) => { await patchClient({ industry: e.target.value }); }}
-              title="商材を変更"
-              style={{
-                color: c.industry ? C.textDark : C.textLight,
-                fontWeight: font.weight.medium, border: 'none',
-                background: 'transparent', cursor: 'pointer', fontFamily: font.family.sans,
-                fontSize: font.size.xs, outline: 'none', padding: 0,
-              }}
-            >
-              <option value="">—</option>
-              {categoryOptions.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          ) : (
-            <span style={{ color: C.textDark, fontWeight: font.weight.medium }}>{c.industry || '—'}</span>
-          )}
-        </div>
-        {sortedContacts.length > 0 && (
-          <div>
-            <span style={{ color: C.textLight, marginRight: 4 }}>主担当</span>
-            <span style={{ color: NAVY, fontWeight: font.weight.semibold }}>
-              {sortedContacts.find(ct => ct.isPrimary)?.name || sortedContacts[0]?.name || '—'}
-            </span>
-            {sortedContacts.length > 1 && (
-              <span style={{ color: C.textLight, marginLeft: 4 }}>+{sortedContacts.length - 1}名</span>
-            )}
-          </div>
-        )}
-        {c.rewardType && (
-          <div>
-            <span style={{ color: C.textLight, marginRight: 4 }}>報酬</span>
-            <span
-              onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
-              style={{
-                color: NAVY, fontWeight: font.weight.semibold,
-                cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted',
-              }}
-            >{c.rewardType}</span>
-          </div>
-        )}
-        <div>
-          <span style={{ color: C.textLight, marginRight: 4 }}>次回接点</span>
-          <span style={{ color: C.textDark, fontFamily: font.family.mono }}>
-            {c.nextContactAt ? fmtDate(c.nextContactAt) : '—'}
-          </span>
-        </div>
-        {!stats.loading && (
-          <div>
-            <span style={{ color: C.textLight, marginRight: 4 }}>累計売上</span>
-            <span style={{ color: NAVY, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>
-              {yen(stats.totalSales)}
-            </span>
-          </div>
-        )}
-        {!stats.loading && stats.contractStart && (
-          <div>
-            <span style={{ color: C.textLight, marginRight: 4 }}>契約開始</span>
-            <span style={{ color: C.textDark, fontFamily: font.family.mono }}>
-              {fmtDate(stats.contractStart)}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* 3-column layout: 左=担当者/契約条件/数字 / 中=面談議事録 / 右=Activity Timeline */}
+      {/* 2-column layout: 左=担当者/契約条件 / 中=面談議事録 */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '320px 1fr 360px',
+        gridTemplateColumns: isMobile ? '1fr' : '320px 1fr',
         gap: 16,
         alignItems: 'start',
       }}>
-        {/* Left column: 担当者・契約条件・数字・月別目標・関連リスト */}
+        {/* Left column: 担当者・契約条件 */}
         <div style={{
           display: 'flex', flexDirection: 'column', gap: 12,
         }}>
@@ -1090,49 +931,6 @@ export default function ClientDetailPage({
               />
             )}
           </CollapsibleCard>
-
-          {/* 数字カード (デフォルト開) */}
-          <CollapsibleCard title="数字" defaultOpen={true}>
-            {stats.loading ? (
-              <div style={{ fontSize: font.size.xs, color: C.textLight }}>読み込み中...</div>
-            ) : (
-              <>
-                <FieldRow label="累計売上" value={yen(stats.totalSales)} mono valueColor={NAVY} />
-                <FieldRow label="今月着地" value={yen(stats.monthSales)} mono />
-                <FieldRow label="契約開始" value={fmtDate(stats.contractStart)} mono />
-              </>
-            )}
-          </CollapsibleCard>
-
-          {/* 月別目標カード (支援中のみ・デフォルト閉) */}
-          {c.status === '支援中' && (
-            <CollapsibleCard title="月別目標" defaultOpen={false}>
-              <ClientMonthlyTargetSection clientId={c._supaId} />
-            </CollapsibleCard>
-          )}
-
-          {/* 関連リストカード (デフォルト閉) */}
-          {relatedLists.length > 0 && (
-            <CollapsibleCard title={`関連リスト (${relatedLists.length})`} defaultOpen={false}>
-              {relatedLists.slice(0, 8).map(l => (
-                <div key={l._supaId || l.id} style={{
-                  fontSize: font.size.xs, color: C.textDark,
-                  padding: '5px 0', borderBottom: `1px solid ${GRAY_100}`,
-                  display: 'flex', justifyContent: 'space-between', gap: 6,
-                }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {l.industry || '(無題)'}
-                  </span>
-                  <span style={{ fontFamily: font.family.mono, fontSize: 10, color: C.textLight, flexShrink: 0 }}>
-                    {l.count || 0}件
-                  </span>
-                </div>
-              ))}
-              {relatedLists.length > 8 && (
-                <div style={{ fontSize: 10, color: C.textLight, marginTop: 6 }}>他 {relatedLists.length - 8} 件</div>
-              )}
-            </CollapsibleCard>
-          )}
         </div>
 
         {/* Center column: 面談記録 (メイン) */}
@@ -1141,13 +939,6 @@ export default function ClientDetailPage({
           padding: '10px 14px',
         }}>
           <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
-        </div>
-
-        {/* Right column: Activity Timeline (デフォルト開) */}
-        <div style={{
-          display: 'flex', flexDirection: 'column', gap: 12,
-        }}>
-          <ActivityTimelineCard clientSupaId={c?._supaId} contactsByClient={contactsByClient} />
         </div>
       </div>
 
