@@ -47,6 +47,7 @@ const SECTION_TITLE = {
 export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
   const editable = ['draft', 'scheduled', 'failed'].includes(campaign.status);
   const showStats = ['sent', 'sending', 'failed'].includes(campaign.status);
+  const isSent = campaign.status === 'sent';   // 配信済みからの追加送信を許可
 
   // ----- 設定 -----
   const [name, setName] = useState(campaign.name || '');
@@ -65,7 +66,7 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
   const [clientStatusTab, setClientStatusTab] = useState('all');   // 個別選択時のステータス絞り込みタブ
 
   // ----- 送信タイミング -----
-  const [sendTiming, setSendTiming] = useState(campaign.scheduled_at ? 'scheduled' : 'now');
+  const [sendTiming, setSendTiming] = useState((campaign.status !== 'sent' && campaign.scheduled_at) ? 'scheduled' : 'now');
   const [scheduledAt, setScheduledAt] = useState(
     campaign.scheduled_at ? new Date(campaign.scheduled_at).toISOString().slice(0, 16) : ''
   );
@@ -245,8 +246,9 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
             </>
           )}
 
-          {editable && (
+          {(editable || isSent) && (
             <>
+              {editable && (<>
               <h3 style={SECTION_TITLE}>設定</h3>
               <div style={{ display: 'grid', gap: space[2], marginBottom: space[4] }}>
                 <Input label="キャンペーン名 (社内識別用)" value={name} onChange={e => setName(e.target.value)} placeholder="例: 6月度ニュースレター" />
@@ -260,8 +262,14 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
                   ※本文(HTML)はClaude側で作成します。この画面では本文編集はできません。
                 </div>
               </div>
+              </>)}
 
-              <h3 style={SECTION_TITLE}>送付先</h3>
+              <h3 style={SECTION_TITLE}>{isSent ? '他の企業にも送る' : '送付先'}</h3>
+              {isSent && (
+                <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[2] }}>
+                  既に送信済みの宛先は自動でスキップされます（同じ相手に二重送信されません）。
+                </div>
+              )}
               <div style={{ display: 'grid', gap: space[2], marginBottom: space[4] }}>
                 <div style={{ display: 'flex', gap: space[1] }}>
                   {[['filter', '条件で絞る'], ['individual', '個別に選ぶ']].map(([m, lbl]) => (
@@ -334,6 +342,7 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
                 </div>
               </div>
 
+              {editable && (<>
               <h3 style={SECTION_TITLE}>送信</h3>
               <div style={{ display: 'flex', gap: space[3], marginBottom: space[2] }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: space[1], cursor: 'pointer', fontSize: font.size.sm }}>
@@ -347,6 +356,7 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
                 <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
                   style={{ padding: space[2], border: `1px solid ${color.border}`, borderRadius: radius.md, fontSize: font.size.sm, marginBottom: space[2] }} />
               )}
+              </>)}
             </>
           )}
 
@@ -366,6 +376,9 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
                   {sendTiming === 'scheduled' ? '予約送信' : '送信'}
                 </Button>
               </>
+            )}
+            {isSent && (
+              <Button variant="primary" size="md" onClick={handleSend} loading={busy}>追加送信</Button>
             )}
           </div>
         </div>

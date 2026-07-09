@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     .from('email_campaigns')
     .update({ status: 'sending', sent_at: new Date().toISOString() })
     .eq('id', campaignId)
-    .in('status', ['scheduled', 'draft'])
+    .in('status', ['scheduled', 'draft', 'sent', 'failed'])
     .select('*')
     .single()
 
@@ -158,8 +158,21 @@ Deno.serve(async (req) => {
       )
     }
 
+    // 既にこのキャンペーンで送信(登録)済みの宛先を除外して二重送信を防ぐ(=追加送信対応)
+    const { data: existingRec } = await supabase
+      .from('email_campaign_recipients').select('email').eq('campaign_id', campaign.id)
+    const existingEmails = new Set((existingRec ?? []).map((r) => r.email))
+    const newRecipients = recipients.filter((r) => !existingEmails.has(r.email))
+    if (newRecipients.length === 0) {
+      await supabase.from('email_campaigns').update({ status: 'sent' }).eq('id', campaign.id)
+      return new Response(
+        JSON.stringify({ ok: true, sent_count: 0, message: '新規の宛先はありません(対象は全員送信済み)' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // ===== 3. recipients を INSERT (unsubscribe_token 付き) =====
-    const recipientRows = await Promise.all(recipients.map(async (r) => {
+    const recipientRows = await Promise.all(newRecipients.map(async (r) => {
       const tempId = crypto.randomUUID()
       const token = await generateUnsubscribeToken(tempId, hmacSecret)
       return {
@@ -183,11 +196,6 @@ Deno.serve(async (req) => {
       .insert(recipientRows)
 
     if (insertError) throw new Error('Recipients insert failed: ' + insertError.message)
-
-    await supabase
-      .from('email_campaigns')
-      .update({ total_recipients: recipientRows.length })
-      .eq('id', campaign.id)
 
     // ===== 4. Resend バッチ送信 =====
     let sentCount = 0
@@ -262,12 +270,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ===== 5. campaign を完了状態に =====
+    // ===== 5. campaign を完了状態に(件数はテーブルから再集計=追加送信でも累積) =====
+    const { count: totalAll } = await supabase
+      .from('email_campaign_recipients').select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaign.id)
+    const { count: sentAll } = await supabase
+      .from('email_campaign_recipients').select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaign.id).not('sent_at', 'is', null)
     await supabase
       .from('email_campaigns')
       .update({
         status: failedCount === recipientRows.length ? 'failed' : 'sent',
-        sent_count: sentCount,
+        total_recipients: totalAll ?? 0,
+        sent_count: sentAll ?? 0,
       })
       .eq('id', campaign.id)
 
