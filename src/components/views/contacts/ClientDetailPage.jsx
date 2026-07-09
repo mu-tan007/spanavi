@@ -916,11 +916,10 @@ export default function ClientDetailPage({
           </CollapsibleCard>
         </div>
 
-        {/* Center column: 面談記録 (メイン) — 左カラムに依らず大きく高さを確保(内容が多ければ伸びる) */}
+        {/* Center column: 面談記録 (メイン) — 白背景の高さは中身(ボックス)に連動 */}
         <div style={{
           background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-          padding: '10px 14px',
-          ...(isMobile ? {} : { minHeight: 'calc(100vh - 200px)' }),
+          padding: '10px 14px', alignSelf: 'start',
         }}>
           <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
         </div>
