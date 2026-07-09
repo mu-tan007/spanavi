@@ -182,10 +182,11 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
   };
 
   return (
-    <div style={{ padding: space[4], background: color.snow, minHeight: '100vh' }}>
+    <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="メルマガ"
         description="クライアント・見込み客へのHTML一斉配信、開封率/クリック率トラッキング"
+        style={{ marginBottom: 16 }}
         right={
           <Button variant="primary" size="md" onClick={handleNewCampaign}>
             新規キャンペーン
@@ -193,7 +194,7 @@ export default function EmailMarketingView({ orgId, currentUser, isAdmin }) {
         }
       />
 
-      <div style={{ marginTop: space[4] }}>
+      <div>
         <Card padding="none">
           <DataTable
             columns={columns}
