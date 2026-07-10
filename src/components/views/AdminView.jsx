@@ -17,6 +17,7 @@ import CallStatusSettings from '../admin/CallStatusSettings';
 import PermissionSettings from '../admin/PermissionSettings';
 import RewardMasterView from './RewardMasterView';
 import MASPMembersView from './MASPMembersView';
+import SpacareerSettingsView from '../spacareer/admin/settings/SpacareerSettingsView';
 import MyPageView from './MyPageView';
 import GoalSettingsPanel from '../admin/GoalSettingsPanel';
 import PageHeader from '../common/PageHeader';
@@ -127,6 +128,8 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   };
   const selectedProduct = selectableProducts.find(p => p.id === selectedProductId) || null;
   const isCompanyWide = selectedProductId === COMPANY_WIDE_ID;
+  // スパキャリスコープは営業代行と共通の設定タブではなく、スパキャリ専用設定画面を出す。
+  const isSpacareer = selectedProduct?.slug === 'spartia_career_biz';
   // 選択中 product 配下の代表 engagement（タブ設定の保存先として使う）
   const selectedEngagementId = useMemo(() => {
     if (isCompanyWide) return COMPANY_WIDE_ID;
@@ -257,6 +260,13 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         </div>
       )}
 
+      {/* スパキャリスコープ: 専用設定画面を丸ごと表示（旧スパキャリタブ「設定」から移行） */}
+      {isSpacareer ? (
+        <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, padding: isMobile ? `${space[4]}px ${space[3]}px` : `${space[6]}px 28px` }}>
+          <SpacareerSettingsView />
+        </div>
+      ) : (
+      <>
       {/* タブバー */}
       <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${color.border}`, background: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, overflow: isMobile ? 'auto' : 'hidden', marginBottom: 0 }}>
         {visibleTabs.map(tab => {
@@ -322,6 +332,8 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         {activeTab === 'products' && <ProductsManagement onToast={showToast} />}
         {activeTab === 'business_categories' && <BusinessCategoriesManagement onToast={showToast} />}
       </div>
+      </>
+      )}
 
       {/* メンバーマイページ モーダル */}
       {viewingMember && (

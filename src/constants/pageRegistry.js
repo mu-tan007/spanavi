@@ -40,7 +40,7 @@ export const PAGE_REGISTRY = {
     { key: 'ai_courses', label: 'AI講座管理', group: 'CONTENT' },
     { key: 'templates', label: 'テンプレート管理', group: 'CONTENT' },
     { key: 'analytics', label: '分析レポート', group: 'ANALYTICS' },
-    { key: 'settings', label: '設定', group: 'SETTINGS' },
+    // 設定は「全社管理 → 対象事業=スパキャリ」へ移行済み（admin限定）。
   ],
 };
 
