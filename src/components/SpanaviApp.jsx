@@ -69,7 +69,7 @@ import LibraryView from './views/LibraryView';
 import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
 import ManagerAdminView from './views/ManagerAdminView';
-import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Bot, Bell, Sparkles } from 'lucide-react';
+import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Users, Bot, Bell, Sparkles } from 'lucide-react';
 import { useBranding } from '../hooks/useBranding';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { supabase } from '../lib/supabase';
@@ -691,33 +691,34 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // 単独項目 (children=null) は本体 id を、グループは children の各 id を権限判定する。
   // children が 0 になったグループは表示しない。
   const _rawNavGroups = [
-    // 事業俯瞰はアナリティクスに統合済み（2026-06-12）。サイドバーから撤去
-    { id: "dashboard", label: "ダッシュボード", children: null },
-    // 企業DB は旧 MASP タブから移設。管理者のみ表示。
-    ...(isAdmin ? [{ id: "database", label: "企業DB", children: null }] : []),
-    { id: "g_call", label: "架電", children: [
+    { id: "g_call", label: "Call", children: [
+      { id: "dashboard", label: "ダッシュボード" },
       { id: "lists", label: "架電リスト" },
       { id: "scripts", label: "スクリプト" },
-      { id: "search", label: "企業・録音検索" },
+      { id: "search", label: "企業検索" },
       { id: "live", label: "ライブ稼働状況" },
       { id: "recall", label: "再架電" },
       { id: "incoming", label: "着信対応" },
     ]},
-    { id: "g_appo", label: "商談", children: [
+    { id: "g_sfa", label: "SFA", children: [
+      // 企業DB は管理者のみ（canViewPage が非admin を自動で弾く）
+      { id: "database", label: "企業DB" },
       { id: "appo", label: "アポ一覧" },
       { id: "deals", label: "案件" },
     ]},
-    { id: "g_insights", label: "分析・教育", children: [
+    { id: "g_crm", label: "CRM", children: [
+      { id: "crm", label: "顧客管理" },
+      { id: "email_marketing", label: "メルマガ" },
+    ]},
+    { id: "g_member", label: "Member", children: [
+      { id: "members", label: "メンバー一覧" },
+      { id: "shift", label: "シフト" },
+      { id: "payroll", label: "報酬" },
+    ]},
+    { id: "g_enablement", label: "Enablement", children: [
       { id: "stats", label: "アナリティクス" },
       { id: "library", label: "ライブラリ" },
       { id: "edu_roleplay", label: "ロープレ" },
-    ]},
-    { id: "g_admin", label: "管理", children: [
-      { id: "members", label: "メンバー" },
-      { id: "crm", label: "CRM" },
-      { id: "email_marketing", label: "メルマガ" },
-      { id: "payroll", label: "報酬" },
-      { id: "shift", label: "シフト" },
     ]},
     ...(isManagerRole ? [{ id: "manager_admin", label: "管理者設定", children: null }] : []),
     // 「設定」(admin_settings) はスクロールと独立してログアウト直上に固定表示する（navGroups には入れない）。
@@ -725,9 +726,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const navGroups = _rawNavGroups
     .map(g => {
       if (!g.children) {
-        // 単独項目: id 自体が page_key。manager_admin / overview / admin_settings / database は
-        // 権限テーブル対象外（admin/manager 判定のみで既に出し分け済み）。
-        if (g.id === 'manager_admin' || g.id === 'overview' || g.id === 'admin_settings' || g.id === 'database') return g;
+        // 単独項目: id 自体が page_key。manager_admin / overview は権限テーブル対象外（admin/manager 判定のみ）。
+        if (g.id === 'manager_admin' || g.id === 'overview') return g;
         return canViewPage('seller_sourcing', g.id) ? g : null;
       }
       const visibleChildren = g.children.filter(c => canViewPage('seller_sourcing', c.id));
@@ -934,7 +934,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* Navigation */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
           {navGroups.map(group => {
-            const _sbIconMap = { g_call: Phone, g_appo: Calendar, g_insights: Sparkles, g_admin: Settings, mypage: User, ai: Bot };
+            const _sbIconMap = { g_call: Phone, g_sfa: Calendar, g_crm: User, g_member: Users, g_enablement: GraduationCap, mypage: User, ai: Bot };
             const SbIconComp = _sbIconMap[group.id];
             if (!group.children) {
               const _sbActive = currentTab === group.id;
