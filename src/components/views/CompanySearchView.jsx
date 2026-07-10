@@ -1060,7 +1060,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageHeader
-        title="企業・録音検索"
+        title="企業検索"
         description="企業・連絡先・通話録音の横断検索"
         style={{ marginBottom: 24 }}
       />

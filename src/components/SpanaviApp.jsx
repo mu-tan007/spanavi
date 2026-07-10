@@ -711,7 +711,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "email_marketing", label: "メルマガ" },
     ]},
     { id: "g_member", label: "Member", children: [
-      { id: "members", label: "メンバー一覧" },
+      { id: "members", label: "メンバー" },
       { id: "shift", label: "シフト" },
       { id: "payroll", label: "報酬" },
     ]},

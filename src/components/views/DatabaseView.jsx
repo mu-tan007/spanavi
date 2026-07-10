@@ -122,7 +122,7 @@ export default function DatabaseView({ isAdmin }) {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="企業データベース"
+        title="企業DB"
         description={dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : undefined}
         style={{ marginBottom: 24 }}
         right={
