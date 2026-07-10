@@ -438,7 +438,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
     const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin','admin_settings'];
-    const CAREER_TABS = ['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','mypage','admin_settings'];
+    const CAREER_TABS = ['customers','recruiting','sessions','trainer_schedule','session_records','homework','social_style','ai_courses','templates','analytics','mypage','admin_settings'];
     if (engSlug === 'seller_sourcing') {
       if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
     } else if (engSlug === 'spartia_career') {
@@ -758,7 +758,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         return null;
       }
       if (engSlug === 'spartia_career') {
-        return ['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics'].find(k => canViewPage('spartia_career', k));
+        return ['customers','recruiting','sessions','trainer_schedule','session_records','homework','social_style','ai_courses','templates','analytics'].find(k => canViewPage('spartia_career', k));
       }
       return null;
     })();

@@ -35,10 +35,12 @@ export const PAGE_REGISTRY = {
     { key: 'customers', label: '顧客一覧', group: 'CUSTOMERS' },
     { key: 'recruiting', label: '採用管理', group: 'RECRUITING' },
     { key: 'sessions', label: 'セッション管理', group: 'OPERATIONS' },
+    { key: 'trainer_schedule', label: 'トレーナー別予定', group: 'OPERATIONS' },
     { key: 'homework', label: '事後課題管理', group: 'OPERATIONS' },
     { key: 'social_style', label: 'ソーシャルスタイル診断', group: 'DIAGNOSIS' },
     { key: 'ai_courses', label: 'AI講座管理', group: 'CONTENT' },
     { key: 'templates', label: 'テンプレート管理', group: 'CONTENT' },
+    { key: 'session_records', label: 'セッション記録', group: 'ANALYTICS' },
     { key: 'analytics', label: '分析レポート', group: 'ANALYTICS' },
     // 設定は「全社管理 → 対象事業=スパキャリ」へ移行済み（admin限定）。
   ],
