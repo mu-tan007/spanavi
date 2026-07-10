@@ -16,7 +16,9 @@ import { canSkipSessionComplete } from '../../../../../lib/spacareer/permissions
 // 第0回完了時はキックオフヒアリング(70問)の Slack 配信通知を自動発火する。
 //
 // 事後課題は完了時には生成・公開しない（役割分離）:
-//   - 固定事後課題＋感想 … 各回の予定日時を過ぎたら自動公開cron（fn_spacareer_publish_due_fixed）
+//   - 固定事後課題＋感想 … セッション完了(status='completed'=動画UPで完了)した回のみ自動公開cron
+//     （fn_spacareer_publish_due_fixed）。未実施の回は予定日時が過ぎても公開しない。
+//     むー様指示 2026-07-10: 完了した回だけ受講生に事後課題/感想を出す。
 //   - 変動事後課題       … 事後課題タブの「AI変動課題を生成」→修正→「追加公開」
 // ============================================================
 const STEP_LABELS = [

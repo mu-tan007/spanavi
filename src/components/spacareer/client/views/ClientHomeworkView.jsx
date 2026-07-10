@@ -120,9 +120,20 @@ export default function ClientHomeworkView() {
           .not('notified_at', 'is', null)
           .order('session_no', { ascending: false });
         if (cancelled) return;
-        setHomeworks(hws || []);
+        // 動画UP＝セッション完了した回の事後課題だけを表示する。
+        // 自動公開cronの取りこぼしや予定日時ズレで未完了回の課題が公開済みでも、
+        // 受講生には完了した回の分しか出さない（二重ガード）。
+        const { data: doneSess } = await supabase
+          .from('spacareer_sessions')
+          .select('session_no')
+          .eq('customer_id', cust.id)
+          .eq('status', 'completed');
+        if (cancelled) return;
+        const doneSet = new Set((doneSess || []).map(s => s.session_no));
+        const visibleHws = (hws || []).filter(h => doneSet.has(h.session_no));
+        setHomeworks(visibleHws);
         // 先頭(最新回)から見て未完了の最初を選択。全完了なら最新回を選択。
-        const target = (hws || []).find(h => h.status !== 'completed') || (hws || [])[0];
+        const target = visibleHws.find(h => h.status !== 'completed') || visibleHws[0];
         setSelectedHomeworkId(target?.id || '');
       }
       setLoading(false);
