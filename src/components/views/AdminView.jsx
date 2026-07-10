@@ -263,7 +263,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       {/* スパキャリスコープ: 専用設定画面を丸ごと表示（旧スパキャリタブ「設定」から移行） */}
       {isSpacareer ? (
         <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, padding: isMobile ? `${space[4]}px ${space[3]}px` : `${space[6]}px 28px` }}>
-          <SpacareerSettingsView />
+          <SpacareerSettingsView hideHeader />
         </div>
       ) : (
       <>

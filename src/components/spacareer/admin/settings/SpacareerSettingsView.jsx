@@ -26,16 +26,18 @@ const SECTIONS = [
   { key: 'ai_usage',    label: 'AI利用状況' },
 ];
 
-export default function SpacareerSettingsView() {
+export default function SpacareerSettingsView({ hideHeader = false }) {
   const [section, setSection] = useState('permissions');
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      <PageHeader
-        title="設定"
-        description="権限・Zoom URL・コース・Slack・AI利用状況"
-        style={{ marginBottom: space[4] }}
-      />
+      {!hideHeader && (
+        <PageHeader
+          title="設定"
+          description="権限・Zoom URL・コース・Slack・AI利用状況"
+          style={{ marginBottom: space[4] }}
+        />
+      )}
 
       {/* セクションタブ */}
       <div style={{
