@@ -1,4 +1,5 @@
 import React from 'react';
+import { Settings } from 'lucide-react';
 import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from '../../common/sidebars/SidebarShell';
 import { useAccessControl } from '../../../hooks/useAccessControl';
 
@@ -71,11 +72,18 @@ export default function SpacareerAdminSidebar({
       userHighlighted={currentTab === 'mypage'}
       onLogout={onLogout}
       pinnedFooter={isAdmin ? (
-        <ActiveItem
-          label="設定"
-          active={currentTab === 'admin_settings'}
-          onClick={() => setCurrentTab && setCurrentTab('admin_settings')}
-        />
+        // 営業代行サイドバーの固定「設定」項目と完全に同一のマークアップ（歯車アイコン＋パディング）
+        <button onClick={() => setCurrentTab && setCurrentTab('admin_settings')} style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 20px',
+          background: currentTab === 'admin_settings' ? 'rgba(255,255,255,0.12)' : 'transparent',
+          border: 'none', borderLeft: '3px solid transparent',
+          color: currentTab === 'admin_settings' ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
+          fontSize: 13, fontWeight: currentTab === 'admin_settings' ? 600 : 400,
+          fontFamily: "'Noto Sans JP', sans-serif", cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
+        }}
+        onMouseEnter={e => { if (currentTab !== 'admin_settings') e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+        onMouseLeave={e => { if (currentTab !== 'admin_settings') e.currentTarget.style.background = 'transparent'; }}
+        ><Settings size={14} />設定</button>
       ) : null}
     >
       {sections.map(section => (
