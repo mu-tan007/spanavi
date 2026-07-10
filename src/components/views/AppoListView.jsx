@@ -84,7 +84,8 @@ export function MemberSuggestInput({ value, onChange, members = [], style, place
 function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, onStatusUpdate }) {
   const [emailStep, setEmailStep] = React.useState('idle'); // 'idle' | 'compose' | 'sending' | 'sent' | 'error'
   const [emailTo, setEmailTo] = React.useState('');
-  const [emailCc, setEmailCc] = React.useState('');
+  const [emailCcList, setEmailCcList] = React.useState([]); // 選択したクライアント担当者のCC（email配列・複数可）
+  const [emailCcExtra, setEmailCcExtra] = React.useState(''); // フリー入力の追加CC（カンマ区切り可）
   const [emailSubject, setEmailSubject] = React.useState('');
   const [emailBody, setEmailBody] = React.useState('');
   const [sendError, setSendError] = React.useState('');
@@ -163,7 +164,8 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
         `ご確認のほど、よろしくお願いいたします。\n\n` +
         `MASP 篠宮`
       );
-      setEmailCc('');
+      setEmailCcList([]);
+      setEmailCcExtra('');
     }
     setSendError('');
     setEmailStep('compose');
@@ -197,7 +199,12 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       const emailAttachments = await Promise.all(
         attachedFiles.map(async (f) => ({ filename: f.name, data: await fileToBase64(f), mimeType: f.type || 'application/octet-stream' }))
       );
-      ({ error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: emailCc || undefined, attachments: emailAttachments.length > 0 ? emailAttachments : undefined }));
+      // 選択担当者CC + フリー入力CC を結合（宛先と重複するものは除外し、重複排除）
+      const ccJoined = Array.from(new Set([
+        ...emailCcList.filter(e => e && e !== emailTo),
+        ...String(emailCcExtra).split(/[\s,;]+/).map(s => s.trim()).filter(Boolean),
+      ])).join(', ');
+      ({ error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: ccJoined || undefined, attachments: emailAttachments.length > 0 ? emailAttachments : undefined }));
     }
 
     if (error) {
@@ -258,15 +265,31 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
               )}
             </div>
             <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>CC</label>
-              {ccOptions.length > 0 ? (
-                <select value={emailCc} onChange={e => setEmailCc(e.target.value)} style={iStyle}>
-                  <option value="">なし</option>
-                  {ccOptions.map((opt, i) => <option key={i} value={opt.email}>{opt.label}</option>)}
-                </select>
-              ) : (
-                <input value={emailCc} onChange={e => setEmailCc(e.target.value)} placeholder="cc@example.com（任意）" style={iStyle} />
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>CC（複数選択可）</label>
+              {ccOptions.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+                  {ccOptions.map((opt, i) => {
+                    const on = emailCcList.includes(opt.email);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setEmailCcList(prev => on ? prev.filter(e => e !== opt.email) : [...prev, opt.email])}
+                        style={{
+                          padding: '2px 8px', borderRadius: radius.pill, cursor: 'pointer',
+                          fontSize: 9, fontFamily: "'Noto Sans JP'",
+                          border: `1px solid ${on ? color.navy : color.border}`,
+                          background: on ? color.navy : color.white,
+                          color: on ? color.white : color.textMid,
+                        }}
+                      >
+                        {on ? '✓ ' : ''}{opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
+              <input value={emailCcExtra} onChange={e => setEmailCcExtra(e.target.value)} placeholder="他のCCをカンマ区切りで追加（任意）" style={iStyle} />
             </div>
             <div style={{ marginBottom: 6 }}>
               <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>件名</label>
