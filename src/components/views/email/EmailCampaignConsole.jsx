@@ -202,11 +202,12 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
   ], []);
 
   // 受信者一覧の絞り込みタブ定義
+  // 各受信者はどれか1タブにだけ入る(重複なし)。クリック>開封のみ>未開封の優先で排他。
   const REC_TABS = [
     { key: 'all',      label: '全員',     match: () => true },
-    { key: 'opened',   label: '開封',     match: (r) => !!r.first_opened_at },
     { key: 'clicked',  label: 'クリック', match: (r) => !!r.first_clicked_at },
-    { key: 'unopened', label: '未開封',   match: (r) => !r.first_opened_at && !['bounced', 'unsubscribed'].includes(r.status) },
+    { key: 'opened',   label: '開封のみ', match: (r) => !!r.first_opened_at && !r.first_clicked_at },
+    { key: 'unopened', label: '未開封',   match: (r) => !r.first_opened_at && !r.first_clicked_at && !['bounced', 'unsubscribed'].includes(r.status) },
     { key: 'bounced',  label: 'バウンス', match: (r) => r.status === 'bounced' },
     { key: 'unsub',    label: '配信停止', match: (r) => r.status === 'unsubscribed' },
   ];
