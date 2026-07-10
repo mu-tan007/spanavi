@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow } from '../../constants/design';
 import { Button } from '../ui';
-import { useEngagements, MASP_ENGAGEMENT } from '../../hooks/useEngagements';
+import { useEngagements } from '../../hooks/useEngagements';
 import { useAccessControl } from '../../hooks/useAccessControl';
 
 // product slug 単位で「サイドバーが切り替わる対象」と「準備中」を判定する。
@@ -28,36 +28,26 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange,
 
   if (!engagements.length) return null;
 
-  // MASP（仮想） + 全 products を、表示順で並べる
+  // 全 products を、表示順で並べる
   // 各 product の表示可否は配下の代表 engagement に対する canViewEngagement で判定
-  const items = [
-    { kind: 'masp', id: 'masp_global', slug: 'masp', name: 'MASP', display_order: 0 },
-    ...((products || []).map(p => ({
-      kind: 'product', id: p.id, slug: p.slug, name: p.name, display_order: p.display_order || 0,
-    }))),
-  ].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+  const items = (products || []).map(p => ({
+    kind: 'product', id: p.id, slug: p.slug, name: p.name, display_order: p.display_order || 0,
+  })).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
   const sorted = items.filter(item => {
-    if (item.kind === 'masp') return canViewEngagement('masp');
     const engSlug = PRODUCT_TO_PRIMARY_ENG_SLUG[item.slug];
     return engSlug ? canViewEngagement(engSlug) : false;
   });
 
   if (sorted.length === 0) return null;
 
-  // 現在選択中の item を判定（MASP は engagement.slug='masp'、product は配下の代表engagement）
+  // 現在選択中の item を判定（product は配下の代表engagement）
   const currentItemId = (() => {
-    if (currentEngagement?.slug === 'masp') return 'masp_global';
     const p = (products || []).find(p => p.id === currentEngagement?.product_id);
     return p?.id || null;
   })();
 
   const handleTabClick = (item) => {
-    if (item.kind === 'masp') {
-      switchEngagement('masp');
-      onEngagementChange?.({ slug: 'masp', name: 'MASP' });
-      return;
-    }
     if (SWITCHABLE_PRODUCT_SLUGS.has(item.slug)) {
       const engSlug = PRODUCT_TO_PRIMARY_ENG_SLUG[item.slug];
       if (engSlug) {
@@ -155,7 +145,7 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange,
               borderTop: `3px solid ${color.gold}`,
             }}
           >
-            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, letterSpacing: font.letterSpacing.wider, textTransform: 'uppercase', marginBottom: 6 }}>MASP</div>
+            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, letterSpacing: font.letterSpacing.wider, textTransform: 'uppercase', marginBottom: 6 }}>SPANAVI</div>
             <div style={{ fontSize: 18, fontWeight: font.weight.bold, color: color.navy, marginBottom: 10, fontFamily: font.family.display + "," + font.family.sans }}>
               {comingSoon.name}
             </div>

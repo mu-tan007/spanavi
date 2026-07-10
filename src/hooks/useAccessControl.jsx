@@ -87,11 +87,6 @@ export function AccessControlProvider({ children }) {
       pmap.get(r.engagement_slug).add(r.page_key);
     });
 
-    // MASP の閲覧可否は member_page_permissions に masp の行があるかで判定
-    if (pmap.has('masp') && pmap.get('masp').size > 0) {
-      slugs.add('masp');
-    }
-
     setEngagementSlugs(slugs);
     setPageKeys(pmap);
     setLoading(false);
@@ -102,16 +97,12 @@ export function AccessControlProvider({ children }) {
   const canViewEngagement = useCallback((slug) => {
     if (isAdmin) return true;
     if (!slug) return false;
-    // MASP（全社）は admin 専用。一般メンバーは設定に関わらず見えない。
-    if (slug === 'masp') return false;
     return engagementSlugs.has(slug);
   }, [isAdmin, engagementSlugs]);
 
   const canViewPage = useCallback((slug, pageKey) => {
     if (isAdmin) return true;
     if (!slug || !pageKey) return false;
-    // MASP の中身は admin 専用。
-    if (slug === 'masp') return false;
     const set = pageKeys.get(slug);
     return !!(set && set.has(pageKey));
   }, [isAdmin, pageKeys]);

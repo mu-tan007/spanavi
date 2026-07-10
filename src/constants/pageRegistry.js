@@ -12,11 +12,6 @@
 // この定数の交差で動的に表示する（PermissionSettings 等を参照）。
 
 export const PAGE_REGISTRY = {
-  masp: [
-    { key: 'database', label: '企業DB' },
-    { key: 'firms', label: 'M&A支援機関' },
-    { key: 'all_members', label: 'メンバー' },
-  ],
   seller_sourcing: [
     { key: 'overview', label: '事業俯瞰', group: 'OVERVIEW' },
     { key: 'dashboard', label: 'ダッシュボード', group: 'OVERVIEW' },
@@ -52,7 +47,6 @@ export const PAGE_REGISTRY = {
 // 事業slug → デフォルト表示名（DBに engagements.name が無い場合のフォールバック）。
 // DB engagements が取得できる場合は eng.name を優先すること。
 export const ENGAGEMENT_LABELS = {
-  masp: 'MASP（全社）',
   seller_sourcing: '売り手ソーシング',
   matching: '買い手マッチング',
   client_acquisition: 'クライアント開拓',
