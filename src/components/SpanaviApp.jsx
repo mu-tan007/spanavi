@@ -24,6 +24,8 @@ import SpacareerAdminSidebar from './spacareer/admin/SpacareerAdminSidebar';
 import SpacareerCustomersView from './spacareer/admin/customers/SpacareerCustomersView';
 import SpacareerRecruitingView from './spacareer/admin/recruiting/SpacareerRecruitingView';
 import SpacareerSessionsView from './spacareer/admin/sessions/SpacareerSessionsView';
+import TrainerScheduleView from './spacareer/admin/sessions/TrainerScheduleView';
+import SessionRecordsView from './spacareer/admin/sessions/SessionRecordsView';
 import SpacareerSocialStyleView from './spacareer/admin/social-style/SpacareerSocialStyleView';
 import SpacareerCoursesView from './spacareer/admin/courses/SpacareerCoursesView';
 import SpacareerAnalyticsView from './spacareer/admin/analytics/SpacareerAnalyticsView';
@@ -1388,13 +1390,15 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_career' && currentTab === 'customers' && <SpacareerCustomersView isAdmin={isAdmin} />}
         {engSlug === 'spartia_career' && currentTab === 'recruiting' && <SpacareerRecruitingView />}
         {engSlug === 'spartia_career' && currentTab === 'sessions' && <SpacareerSessionsView isAdmin={isAdmin} />}
+        {engSlug === 'spartia_career' && currentTab === 'trainer_schedule' && <TrainerScheduleView />}
+        {engSlug === 'spartia_career' && currentTab === 'session_records' && <SessionRecordsView />}
         {engSlug === 'spartia_career' && currentTab === 'social_style' && <SpacareerSocialStyleView />}
         {engSlug === 'spartia_career' && currentTab === 'ai_courses' && <SpacareerCoursesView />}
         {engSlug === 'spartia_career' && currentTab === 'analytics' && <SpacareerAnalyticsView />}
         {engSlug === 'spartia_career' && currentTab === 'settings' && <SpacareerSettingsView />}
         {engSlug === 'spartia_career' && currentTab === 'homework' && <SpacareerHomeworkView />}
         {engSlug === 'spartia_career' && currentTab === 'templates' && <SpacareerTemplatesView />}
-        {engSlug === 'spartia_career' && !['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'].includes(currentTab) && (
+        {engSlug === 'spartia_career' && !['customers','recruiting','sessions','trainer_schedule','session_records','homework','social_style','ai_courses','templates','analytics','settings','mypage'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は実装中です" />
         )}
         {engSlug === 'spartia_capital' && <CapitalApp isAdmin={isAdmin} />}
