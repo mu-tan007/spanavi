@@ -206,8 +206,8 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
   return (
     <div style={{ paddingBottom: space[12], animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="管理者設定"
-        description="管理者設定 — 代表のみアクセス可能"
+        title="設定"
+        description="全社共通の設定 — 代表のみアクセス可能"
         style={{ marginBottom: space[6] }}
         right={
           <>

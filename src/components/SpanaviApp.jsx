@@ -720,8 +720,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "shift", label: "シフト" },
     ]},
     ...(isManagerRole ? [{ id: "manager_admin", label: "管理者設定", children: null }] : []),
-    // 全社管理（管理者設定）は旧 MASP タブから移設。全事業のサイドバー下部に admin 限定で固定。
-    ...(isAdmin ? [{ id: "admin_settings", label: "全社管理", children: null }] : []),
+    // 「設定」(admin_settings) はスクロールと独立してログアウト直上に固定表示する（navGroups には入れない）。
   ];
   const navGroups = _rawNavGroups
     .map(g => {
@@ -866,10 +865,14 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       {/* ===== SIDEBAR (desktop only) ===== */}
       {isMobile && mobileMenuOpen && (
         <MobileSidebarOverlay
-          navGroups={navGroups.map(g => ({
-            label: g.label,
-            items: g.children ? g.children : [{ id: g.id, label: g.label }],
-          }))}
+          navGroups={[
+            ...navGroups.map(g => ({
+              label: g.label,
+              items: g.children ? g.children : [{ id: g.id, label: g.label }],
+            })),
+            // 「設定」はデスクトップではログアウト直上に固定。モバイルは末尾に admin 限定で表示。
+            ...(isAdmin ? [{ label: null, items: [{ id: 'admin_settings', label: '設定' }] }] : []),
+          ]}
           currentTab={currentTab}
           setCurrentTab={setCurrentTab}
           onClose={() => setMobileMenuOpen(false)}
@@ -976,6 +979,22 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             );
           })}
         </div>
+        {/* 設定（全社共通・admin限定）: スクロールと独立してログアウト直上に完全固定 */}
+        {isAdmin && (
+          <div style={{ background: branding.primaryColor, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <button onClick={() => setCurrentTab('admin_settings')} style={{
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 20px',
+              background: currentTab === 'admin_settings' ? 'rgba(255,255,255,0.12)' : 'transparent',
+              border: 'none', borderLeft: '3px solid transparent',
+              color: currentTab === 'admin_settings' ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
+              fontSize: 13, fontWeight: currentTab === 'admin_settings' ? 600 : 400,
+              fontFamily: "'Noto Sans JP', sans-serif", cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
+            }}
+            onMouseEnter={e => { if (currentTab !== 'admin_settings') e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+            onMouseLeave={e => { if (currentTab !== 'admin_settings') e.currentTarget.style.background = 'transparent'; }}
+            ><Settings size={14} />設定</button>
+          </div>
+        )}
         {/* Logout */}
         <div style={{ position: 'sticky', bottom: 0, background: '#021d47', padding: '12px 20px' }}>
           <button onClick={() => { if (onLogout) onLogout(); else setCurrentUser(null); }} style={{

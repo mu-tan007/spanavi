@@ -12,6 +12,7 @@ export default function SidebarShell({
   onUserClick,
   userHighlighted,
   onLogout,
+  pinnedFooter,
   children,
 }) {
   // 注: branding props 由来の動的色 (primary/accent/highlight) は維持する
@@ -105,6 +106,13 @@ export default function SidebarShell({
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: space[2] }}>
         {children}
       </div>
+
+      {/* スクロールと独立してログアウト直上に完全固定する枠（設定など） */}
+      {pinnedFooter && (
+        <div style={{ background: primary, borderTop: `1px solid ${alpha(color.white, 0.1)}` }}>
+          {pinnedFooter}
+        </div>
+      )}
 
       {onLogout && (
         <div style={{
