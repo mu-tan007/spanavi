@@ -70,41 +70,57 @@ ${fixedItems.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 # 第${sessionNo}回セッションの議事録・受講生の状況（最重要）
 ${hasContext
   ? contextNotes
-  : '（議事録・特記事項が提供されていません。この場合は、議事録依存の問いは作らず、営業・案件獲得など実務行動のエビデンス課題のみを少数作ること）'}
+  : '（議事録・特記事項が提供されていません。この場合は、議事録依存の問いは作らず、収益化を前進させる実務行動の課題のみを少数作ること）'}
 
 ${fixedBlock}# 設計思想（最重要・厳守）
-受講生を「課題をこなす生徒」ではなく「自分の事業を前進させる実行者」と位置づける。
-各課題は次の2種類のいずれかにすること。感想・気持ちの吐き出しのような課題は作らない。
+事後課題は「宿題・事務作業」ではなく、受講生が自分の収益化を"実際に前に進める"ための実務行動そのものである。
+提出のためのエビデンス作り（スクリーンショット収集、一覧表の作成、スプレッドシートやURLの添付など）は
+受講生を疲弊させるだけなので一切作らない。行動したら Slack でトレーナーに報告・壁打ちしてもらい、
+スパナビ上ではチェックを入れるだけで完了とする。前に進めながら数をこなすことが最優先。
 
-1. 【行動エビデンス課題】(item_type="file")
-   - 「実際に行動したか」を提出物（スクリーンショット/登録完了画面/成果物URL/ログ）で検証できる課題。
-   - question_text に「何を」「何件/どの画面を」添付するかを具体的に書く。
-   - 例:「2万円以上の高単価案件に応募したことが分かるスクリーンショットを10件添付してください」
-   - 例:「作成したツールをデプロイしたURLが分かる画面を添付してください」
+各課題は次の2種類のいずれか。感想・気持ちの吐き出しや、提出物集めのためだけの課題は作らない。
 
-2. 【議事録ベースの内省課題】(item_type="text")
-   - 第${sessionNo}回の議事録・トレーナーとの対話で出た論点に**具体的に紐づく**テキスト課題。
-   - 議事録で語られた目標・課題・気づきと、現状の行動との「乖離」を言語化させ、思考を整理させる。
-   - 議事録に登場しない一般論・抽象論にしない。
+1. 【行動課題】(item_type="checkbox")  ← 事後課題の大半はこれにする
+   - 収益化を前進させる具体的な実務行動を1つ指示し、「実行したら Slack でトレーナーに報告・壁打ちする」形にする。
+   - question_text は原則「〜してください。実施したら Slack でトレーナーに報告・壁打ちしてください。」の形にする。
+   - 数をこなす行動でも、対象案件は1〜2件に絞る（多くても2件）。大量応募・大量提出は課さない。
+   - スクリーンショット添付・一覧表作成・スプレッドシートURL提出などのエビデンス提出は指示しない（Slack報告で十分）。
+   - 例:「副業プラットフォームで気になる案件に2件応募し、その案件概要を簡単に Slack でトレーナーに報告してください。」
+   - 例:「交渉中の案件について、第${sessionNo}回セッション以降のやり取りの最新の進捗を Slack でトレーナーに壁打ちしてください。」
+
+2. 【内省課題】(item_type="text")  ← 全体で1〜2問まで（ほぼ不要）
+   - 第${sessionNo}回の議事録で出た論点に具体的に紐づく、短い言語化課題のみ。
+   - 計画・戦略の整理はセッション中に行うため、事後課題での記述は最小限にする。
+   - 議事録に登場しない一般論・抽象論にはしない。text課題は必ず2問以内。
 
 # 絶対に作ってはいけない課題（除外）
-- 議事録・セッション内容を全く踏まえていない一般的な質問（これは厳禁。1問たりとも入れない）。
-- 感情・気分・価値観の吐き出し系（例:「5年後の自分への言葉」「不機嫌スイッチ」「感情の起伏メモ」など）。
-- セッション感想やキックオフヒアリングで既に聞いている内容（目標宣言・価値観・自己紹介系）との重複。
-- 上記「固定課題」との重複。
+- スクリーンショット／画面キャプチャ／一覧表／スプレッドシートURL 等、エビデンス提出のためだけの課題（面倒な事務作業になるため厳禁）。
+- 「自分が提案できるサービスメニューと想定単価の一覧」など、収益化を前進させない棚卸し・一覧作成課題。
+- 受注前の案件について不足スキル・経験・体制を細かく洗い出させる等、過度な準備・分析課題（準備は案件1〜2件で十分）。
+- 感情・気分・価値観の吐き出し系（例:「5年後の自分への言葉」など）。
+- 議事録・セッション内容を全く踏まえていない一般的な質問。
+- セッション感想やキックオフヒアリングで既に聞いた内容、上記「固定課題」との重複。
+- text（内省）課題を3問以上入れること（text は全体で最大2問）。
+
+# プラットフォーム名の表記（厳守）
+外部サービス名は必ず正確に表記する。特に以下は誤記が多いので注意する：
+- 「Yenta」（Yenter・イェンター 等の誤記禁止）
+- 「Wantedly」（Wantedy 等の誤記禁止）
+- 「Bizon」（Bison 等の誤記禁止）
+- 「クラウドワークス」「ランサーズ」「複業クラウド」
 
 # 各課題の属性
-- item_type: "file"（提出物で行動を検証する課題）/ "text"（議事録ベースの内省課題）。行動課題は file を優先。
+- item_type: "checkbox"（行動→Slack報告、大半はこれ）/ "text"（内省課題、全体で最大2問）。
 - is_required: 重要な課題は true。必須は半数以上。
-- max_length: text のときの記述量目安。通常500〜600、詳述が必要なら800。file のときは null でよい。
-- question_hint: 何を提出/記述すべきかを補足（不要なら null）。
+- max_length: text のときの記述量目安（通常300〜500）。checkbox のときは null。
+- question_hint: 補足（不要なら null）。checkbox では「Slack で何を報告・壁打ちすればよいか」を簡潔に添えてもよい。
 
 # 出力形式（厳守）
 - 説明文・前置き・マークダウンは一切付けず、JSON配列のみを出力すること。
-- 議事録が薄い場合は無理に${count}問埋めず、質の高い行動エビデンス課題のみ少数でよい。
+- 議事録が薄い場合は無理に${count}問埋めず、質の高い行動課題(checkbox)のみ少数でよい。
 - 各要素は次のキーを持つオブジェクト:
-  { "position": 整数, "question_text": "設問文(日本語)", "question_hint": "ヒント or null", "is_required": true/false, "max_length": 整数 or null, "item_type": "file" or "text" }
-- position は1から連番。絵文字は使わない。
+  { "position": 整数, "question_text": "設問文(日本語)", "question_hint": "ヒント or null", "is_required": true/false, "max_length": 整数 or null, "item_type": "checkbox" or "text" }
+- position は1から連番。絵文字は使わない。text課題は全体で最大2問。
 
 JSON配列だけを出力してください。`
 
@@ -150,21 +166,41 @@ JSON配列だけを出力してください。`
     return json({ error: 'failed to parse Claude output' }, 502)
   }
 
-  // 正規化（position連番・型の安全化・要求された count 件まで）
-  const normalized = items.slice(0, count).map((it: any, idx: number) => {
-    const itemType = it?.item_type === 'file' ? 'file' : 'text'
-    return {
+  // プラットフォーム名の誤記を後処理でも補正する（Yenta / Wantedly / Bizon）。
+  const fixPlatformNames = (s: string | null): string | null => {
+    if (!s) return s
+    return s
+      .replace(/[Yy]ent(?:er|ar)/g, 'Yenta')
+      .replace(/イェンター|イェンタ(?!ー)/g, 'Yenta')
+      .replace(/[Bb]ison/g, 'Bizon')
+      .replace(/[Ww]anted(?:y|ley|lly)/g, 'Wantedly')
+  }
+
+  // 正規化（position連番・型の安全化・要求された count 件まで）。
+  // 内省(text)課題は全体で最大2問に制限し、超過分は除外する（前進行動を最優先）。
+  let textCount = 0
+  const normalized = items.slice(0, count)
+    .map((it: any) => {
+      // "text" 以外はすべて行動チェック課題(checkbox)に寄せる（file等のエビデンス提出は廃止）。
+      const itemType = it?.item_type === 'text' ? 'text' : 'checkbox'
+      return { it, itemType }
+    })
+    .filter(({ itemType }) => {
+      if (itemType !== 'text') return true
+      textCount += 1
+      return textCount <= 2
+    })
+    .map(({ it, itemType }, idx: number) => ({
       position: idx + 1,
-      question_text: String(it?.question_text || '').trim() || `設問${idx + 1}`,
-      question_hint: it?.question_hint ? String(it.question_hint).trim() : null,
+      question_text: fixPlatformNames(String(it?.question_text || '').trim()) || `設問${idx + 1}`,
+      question_hint: it?.question_hint ? fixPlatformNames(String(it.question_hint).trim()) : null,
       is_required: it?.is_required === undefined ? true : !!it.is_required,
-      // file課題は文字数制限不要。text課題は目安を設定。
-      max_length: itemType === 'file'
+      // checkbox課題は文字数制限不要。text課題のみ目安を設定。
+      max_length: itemType === 'checkbox'
         ? null
-        : (Number.isFinite(Number(it?.max_length)) ? Number(it.max_length) : 500),
+        : (Number.isFinite(Number(it?.max_length)) ? Number(it.max_length) : 400),
       item_type: itemType,
-    }
-  })
+    }))
 
   return json({
     items: normalized,

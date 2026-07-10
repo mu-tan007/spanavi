@@ -195,52 +195,30 @@ export type HomeworkItem = {
   question_hint?: string | null;
   is_required: boolean;
   max_length?: number | null;
+  item_type?: 'text' | 'checkbox' | 'file';
 };
 
 /**
- * 次回事後課題30項目をAIで生成する mock。
- * 本実装はトレーナーが手動編集後「完了・通知」で確定。
+ * 次回事後課題の mock（AI生成失敗時のフォールバック）。
+ * 事後課題は「宿題」ではなく収益化を前に進める実務行動そのもの。
+ * 行動したら Slack でトレーナーに報告・壁打ちしてもらい、スパナビ上はチェックのみで完了。
+ * 記述(text)課題は最小限（1問）に留める。トレーナーが手動編集後「追加公開」で確定。
  */
 export async function generateHomework30Items(
   input: HomeworkItemsInput,
 ): Promise<HomeworkItem[]> {
   const n = input?.nextSessionNo ?? 1;
   const templates: Array<Omit<HomeworkItem, 'position'>> = [
-    { question_text: `前回（第${Math.max(n - 1, 0)}回）セッションを振り返り、最も印象に残った気づきを3つ挙げてください。`, is_required: true, max_length: 800 },
-    { question_text: '前回設定したアクションのうち、実行できたものを具体的に教えてください。', is_required: true, max_length: 800 },
-    { question_text: '実行できなかったアクションについて、阻害要因を分析してください。', is_required: true, max_length: 600 },
-    { question_text: '今週1週間の中で、自分の「強み」が活きた場面を1つ詳述してください。', is_required: true, max_length: 600 },
-    { question_text: '逆に「課題」を感じた場面を1つ詳述してください。', is_required: true, max_length: 600 },
-    { question_text: '現職で達成したい3ヶ月以内の目標を再定義してください。', is_required: true, max_length: 400 },
-    { question_text: '転職活動を行う場合、譲れない条件を5つ優先順位付きで列挙してください。', is_required: true, max_length: 400 },
-    { question_text: '上記5条件のうち、家族に共有済みの条件はいくつありますか？理由も添えてください。', is_required: false, max_length: 300 },
-    { question_text: '尊敬する人物のキャリア軌跡から学べる「再現可能な行動」を3つ抽出してください。', is_required: true, max_length: 600 },
-    { question_text: '次の1週間で必ず実行する小さな行動を3つ挙げてください。', is_required: true, max_length: 400 },
-    { question_text: '自分が「お金以外で」報われたと感じた直近の出来事を教えてください。', is_required: true, max_length: 500 },
-    { question_text: '5年後の自分が今の自分にかける言葉を、自分自身に向けて書いてください。', is_required: true, max_length: 400 },
-    { question_text: '直近1ヶ月で、自分の判断を後悔した出来事はありますか？', is_required: false, max_length: 500 },
-    { question_text: 'もし1年間の有給休暇が貰えたら、最初の3ヶ月で何をしますか？', is_required: false, max_length: 400 },
-    { question_text: '現職で得たスキルのうち、転職市場で武器になると思うものを3つ選んでください。', is_required: true, max_length: 500 },
-    { question_text: '逆に、市場で通用しないと感じているスキル・経験を率直に書いてください。', is_required: true, max_length: 500 },
-    { question_text: 'これまでに「成長した」と実感した瞬間を、起点となった出来事と合わせて記述してください。', is_required: true, max_length: 600 },
-    { question_text: '自分の「不機嫌スイッチ」が入る典型パターンを3つ言語化してください。', is_required: false, max_length: 400 },
-    { question_text: 'チームの中で自然と任される役割は何ですか？', is_required: true, max_length: 400 },
-    { question_text: '上記の役割は、自分が望んでいるものですか？理由も添えてください。', is_required: true, max_length: 400 },
-    { question_text: '今の働き方を10点満点で点数化し、減点ポイントを具体的に列挙してください。', is_required: true, max_length: 500 },
-    { question_text: '健康・睡眠・運動に関する、現状の課題と改善案を書いてください。', is_required: false, max_length: 400 },
-    { question_text: '直近で「自分らしくない」と感じた選択はありますか？', is_required: false, max_length: 400 },
-    { question_text: '同じ業界の同年代と比べて、自分の強みは何だと思いますか？', is_required: true, max_length: 500 },
-    { question_text: `次回（第${n}回）セッションで必ず議論したい論点を1つ挙げてください。`, is_required: true, max_length: 300 },
-    { question_text: '次回セッションまでに読みたい本・記事・動画を1つ決めて理由を書いてください。', is_required: false, max_length: 300 },
-    { question_text: '自分の感情の起伏を1週間メモした結果を共有してください（任意フォーマット）。', is_required: false, max_length: 600 },
-    { question_text: '配偶者・パートナー・家族との対話の中で、キャリアについて出た言葉を共有してください。', is_required: false, max_length: 500 },
-    { question_text: '今回の宿題で最も時間をかけた質問はどれですか？理由も。', is_required: false, max_length: 300 },
-    { question_text: 'トレーナーに次回最も深掘ってほしいテーマを1つ指定してください。', is_required: true, max_length: 300 },
+    { question_text: '副業プラットフォームで気になる案件に2件応募し、その案件概要を簡単に Slack でトレーナーに報告してください。', is_required: true, item_type: 'checkbox' },
+    { question_text: '交渉中・進行中の案件について、最新の進捗を Slack でトレーナーに壁打ちしてください。', is_required: true, item_type: 'checkbox' },
+    { question_text: 'クラウドワークスのプロフィール文章を見直し、Slack でトレーナーに共有して添削（フィードバック）をもらってください。', is_required: false, item_type: 'checkbox' },
+    { question_text: 'BizonまたはYentaでつながりたい相手に1〜2件アプローチし、実施した旨を Slack でトレーナーに報告してください。', is_required: false, item_type: 'checkbox' },
+    { question_text: `第${Math.max(n - 1, 0)}回セッションで出た論点のうち、最も前に進めたい行動を1つに絞って言語化してください。`, is_required: true, max_length: 400, item_type: 'text' },
   ];
 
   return templates.map((tpl, idx) => ({
     position: idx + 1,
-    question_hint: idx % 5 === 0 ? '前回のセッションを踏まえて具体的に記述してください。' : null,
+    question_hint: tpl.item_type === 'checkbox' ? '実施したら Slack でトレーナーに報告・壁打ちし、チェックを入れてください。' : null,
     ...tpl,
   }));
 }

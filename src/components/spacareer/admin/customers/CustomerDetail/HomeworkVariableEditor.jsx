@@ -150,8 +150,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
           question_text: (it.question_text || '').trim() || '設問',
           question_hint: it.question_hint ? String(it.question_hint).trim() : null,
           is_required: !!it.is_required,
-          item_type: it.item_type === 'file' ? 'file' : 'text',
-          max_length: it.item_type === 'file' ? null : (it.max_length || null),
+          item_type: ['file', 'checkbox'].includes(it.item_type) ? it.item_type : 'text',
+          max_length: ['file', 'checkbox'].includes(it.item_type) ? null : (it.max_length || null),
         }).eq('id', it.id);
         if (error) throw error;
       }
@@ -167,8 +167,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
           question_text: (it.question_text || '').trim() || `設問`,
           question_hint: it.question_hint ? String(it.question_hint).trim() : null,
           is_required: !!it.is_required,
-          max_length: it.item_type === 'file' ? null : (it.max_length || null),
-          item_type: it.item_type === 'file' ? 'file' : 'text',
+          max_length: ['file', 'checkbox'].includes(it.item_type) ? null : (it.max_length || null),
+          item_type: ['file', 'checkbox'].includes(it.item_type) ? it.item_type : 'text',
           template_url: null,
           template_name: null,
           source: 'fixed',
@@ -234,8 +234,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
         question_text: it.question_text || '',
         question_hint: it.question_hint || null,
         is_required: !!it.is_required,
-        item_type: it.item_type === 'file' ? 'file' : 'text',
-        max_length: it.item_type === 'file' ? null : (it.max_length || 500),
+        item_type: ['file', 'checkbox'].includes(it.item_type) ? it.item_type : 'text',
+        max_length: ['file', 'checkbox'].includes(it.item_type) ? null : (it.max_length || 500),
       })));
       setMsg({ kind: 'ok', text: source === 'mock'
         ? 'AI生成に失敗したため、テンプレを仮置きしました。内容を確認・修正のうえ「追加公開」してください。'
@@ -260,8 +260,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
       question_text: (it.question_text || '').trim() || `設問${base + i + 1}`,
       question_hint: it.question_hint ? String(it.question_hint).trim() : null,
       is_required: !!it.is_required,
-      max_length: it.item_type === 'file' ? null : (it.max_length || null),
-      item_type: it.item_type === 'file' ? 'file' : 'text',
+      max_length: ['file', 'checkbox'].includes(it.item_type) ? null : (it.max_length || null),
+      item_type: ['file', 'checkbox'].includes(it.item_type) ? it.item_type : 'text',
       template_url: null,
       template_name: null,
       source: 'variable',
@@ -440,15 +440,15 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
                         <Badge variant="warn" dot>回答あり</Badge>
                       )}
                       <div style={{ display: 'inline-flex', border: `1px solid ${color.border}`, borderRadius: radius.sm, overflow: 'hidden' }}>
-                        {['text', 'file'].map((t) => (
+                        {['text', 'file', 'checkbox'].map((t) => (
                           <button key={t} type="button"
-                            onClick={() => updateFixed(it._key, { item_type: t, max_length: t === 'file' ? null : (it.max_length || 500) })}
+                            onClick={() => updateFixed(it._key, { item_type: t, max_length: (t === 'file' || t === 'checkbox') ? null : (it.max_length || 500) })}
                             style={{
                               border: 'none', cursor: 'pointer',
                               padding: `2px ${space[2]}px`, fontSize: font.size.xs,
                               background: (it.item_type || 'text') === t ? color.navy : color.white,
                               color: (it.item_type || 'text') === t ? color.white : color.textMid,
-                            }}>{t === 'text' ? '記述' : 'ファイル'}</button>
+                            }}>{t === 'text' ? '記述' : t === 'file' ? 'ファイル' : 'チェック'}</button>
                         ))}
                       </div>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: font.size.xs, color: color.textMid, cursor: 'pointer', marginLeft: 'auto' }}>
@@ -508,17 +508,17 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
                 <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textLight, minWidth: 40 }}>
                   #{String(lockedCount + idx + 1).padStart(2, '0')}
                 </span>
-                {/* 提出形式トグル: text=記述 / file=ファイル添付（スクショ等の行動エビデンス） */}
+                {/* 提出形式トグル: text=記述 / file=ファイル添付 / checkbox=Slack報告→チェックのみ */}
                 <div style={{ display: 'inline-flex', border: `1px solid ${color.border}`, borderRadius: radius.sm, overflow: 'hidden' }}>
-                  {['text', 'file'].map((t) => (
+                  {['text', 'file', 'checkbox'].map((t) => (
                     <button key={t} type="button"
-                      onClick={() => update(it._key, { item_type: t, max_length: t === 'file' ? null : (it.max_length || 500) })}
+                      onClick={() => update(it._key, { item_type: t, max_length: (t === 'file' || t === 'checkbox') ? null : (it.max_length || 500) })}
                       style={{
                         border: 'none', cursor: 'pointer',
                         padding: `2px ${space[2]}px`, fontSize: font.size.xs,
                         background: (it.item_type || 'text') === t ? color.navy : color.white,
                         color: (it.item_type || 'text') === t ? color.white : color.textMid,
-                      }}>{t === 'text' ? '記述' : 'ファイル'}</button>
+                      }}>{t === 'text' ? '記述' : t === 'file' ? 'ファイル' : 'チェック'}</button>
                   ))}
                 </div>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: font.size.xs, color: color.textMid, cursor: 'pointer', marginLeft: 'auto' }}>

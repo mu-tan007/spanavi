@@ -192,11 +192,16 @@ export default function ClientHomeworkView() {
   const draftKey = customer?.id && selectedHomeworkId
     ? `homework:${customer.id}:${selectedHomeworkId}` : null;
 
-  // 回答済み判定。ファイル提出形式(item_type='file')は添付があれば回答済みとみなす。
+  // 回答済み判定。
+  //  - checkbox形式: 「Slackで報告済み」にチェックが入っていれば完了
+  //  - file形式: 添付があれば完了
+  //  - text形式: 本文が入っていれば完了
   const isAnswered = (it) =>
-    it.item_type === 'file'
-      ? (files[it.id] || []).length > 0
-      : (answers[it.id] || '').trim().length > 0;
+    it.item_type === 'checkbox'
+      ? (answers[it.id] || '').trim().length > 0
+      : it.item_type === 'file'
+        ? (files[it.id] || []).length > 0
+        : (answers[it.id] || '').trim().length > 0;
 
   const totalItems = items.length;
   const answeredItems = useMemo(() => {
@@ -221,15 +226,16 @@ export default function ClientHomeworkView() {
     return { level: 'info', text: `提出期限：${dueStr}` };
   }, [selectedHomework]);
 
-  const saveAnswers = async (itemIds, opts = { setSubmitted: false }) => {
+  const saveAnswers = async (itemIds, opts = { setSubmitted: false }, overrides = null) => {
     if (!itemIds.length) return;
     // 設問行はトレーナー配信時に作成済みのため、受講生は常に UPDATE のみ。
     // upsert(INSERT ON CONFLICT)にすると、行が既存でも Postgres が INSERT 用
     // WITH CHECK を評価し、受講生に INSERT 権限が無いため RLS で弾かれる。
+    // overrides: state 反映前の最新値を明示保存するため（チェックボックスの即時保存など）
     const nowIso = new Date().toISOString();
     const results = await Promise.all(itemIds.map(id => {
       const patch = {
-        answer_text: answers[id] ?? null,
+        answer_text: (overrides && id in overrides) ? (overrides[id] ?? null) : (answers[id] ?? null),
         attached_files: files[id] || [],
       };
       // setSubmitted 以外は submitted_at を触らない（既存値を保持）
@@ -247,7 +253,7 @@ export default function ClientHomeworkView() {
     setItems(prev => prev.map(it => idSet.has(it.id)
       ? {
           ...it,
-          answer_text: answers[it.id] ?? null,
+          answer_text: (overrides && it.id in overrides) ? (overrides[it.id] ?? null) : (answers[it.id] ?? null),
           attached_files: files[it.id] || [],
           submitted_at: opts.setSubmitted ? nowIso : it.submitted_at,
         }
@@ -280,6 +286,25 @@ export default function ClientHomeworkView() {
       await saveAnswers([itemId], { setSubmitted: false });
     } catch (e) {
       console.error('[ClientHomework] tempSave error:', e);
+      alert('保存に失敗しましたが、入力内容は端末に保存されています（再ログイン後に自動復元されます）。');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // チェックボックス形式（Slack報告済み）は state 反映を待たず、明示値で即時保存する。
+  const handleToggleCheckbox = async (itemId, isChecked) => {
+    const val = isChecked ? 'reported' : '';
+    setAnswers(prev => {
+      const next = { ...prev, [itemId]: val };
+      if (draftKey) saveDraft(draftKey, { answers: next, files });
+      return next;
+    });
+    setSaving(true);
+    try {
+      await saveAnswers([itemId], { setSubmitted: false }, { [itemId]: val });
+    } catch (e) {
+      console.error('[ClientHomework] checkbox save error:', e);
       alert('保存に失敗しましたが、入力内容は端末に保存されています（再ログイン後に自動復元されます）。');
     } finally {
       setSaving(false);
@@ -483,6 +508,7 @@ export default function ClientHomeworkView() {
                   onFileAdd={f => handleFileAdd(item.id, f)}
                   onFileRemove={i => handleFileRemove(item.id, i)}
                   onTempSave={() => handleTempSave(item.id)}
+                  onToggleCheckbox={(checked) => handleToggleCheckbox(item.id, checked)}
                   saving={saving}
                   readOnly={locked}
                 />
@@ -641,10 +667,12 @@ function Centered({ children }) {
   );
 }
 
-function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, onFileRemove, onTempSave, saving, readOnly = false }) {
+function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, onFileRemove, onTempSave, onToggleCheckbox, saving, readOnly = false }) {
   const len = (answer || '').length;
   const max = item.max_length || null;
   const isFile = item.item_type === 'file';
+  const isCheckbox = item.item_type === 'checkbox';
+  const checked = (answer || '').trim().length > 0;
 
   // テンプレートのダウンロード。<a download> 直リンクは Content-Disposition: inline や
   // SPA フォールバックの影響でファイルが開かず別ページに遷移することがあるため、
@@ -710,7 +738,27 @@ function QuestionCard({ index, item, answer, onAnswerChange, files, onFileAdd, o
         </div>
       </div>
 
-      {isFile ? (
+      {isCheckbox ? (
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: space[3],
+          border: `1px solid ${checked ? color.navy : color.border}`,
+          borderRadius: radius.md,
+          padding: `${space[3]}px ${space[4]}px`,
+          background: checked ? alpha(color.navyLight, 0.08) : color.cream,
+          cursor: readOnly ? 'default' : 'pointer',
+        }}>
+          <input
+            type="checkbox"
+            checked={checked}
+            disabled={readOnly}
+            onChange={(e) => onToggleCheckbox?.(e.target.checked)}
+            style={{ width: 20, height: 20, flexShrink: 0, cursor: readOnly ? 'default' : 'pointer', accentColor: color.navy }}
+          />
+          <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>
+            Slackでトレーナーに報告・壁打ち済み
+          </span>
+        </label>
+      ) : isFile ? (
         <div style={{
           border: `1px dashed ${color.border}`,
           borderRadius: radius.md,
