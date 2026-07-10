@@ -80,6 +80,7 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
   // 実績(配信済み)
   const [recipients, setRecipients] = useState([]);
   const [recLoading, setRecLoading] = useState(showStats);
+  const [recFilter, setRecFilter] = useState('all');   // 受信者一覧の絞り込み
 
   // ----- 初期ロード -----
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
     let cancelled = false;
     setRecLoading(true);
     supabase.from('email_campaign_recipients')
-      .select('id,email,display_name,status,first_opened_at')
+      .select('id,email,display_name,status,first_opened_at,first_clicked_at')
       .eq('campaign_id', campaign.id)
       .order('first_opened_at', { ascending: false, nullsFirst: false })
       .limit(500)
@@ -190,11 +191,31 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
       ) },
     { key: 'status', label: '状態', width: 90, align: 'center',
       render: (row) => { const s = RECIPIENT_STATUS_LABEL[row.status] || { text: row.status, variant: 'neutral' }; return <Badge variant={s.variant}>{s.text}</Badge>; } },
-    { key: 'first_opened_at', label: '開封', width: 90, align: 'right',
+    { key: 'first_opened_at', label: '開封', width: 84, align: 'right',
       render: (row) => row.first_opened_at
         ? <span style={{ fontSize: 11, fontFamily: font.family.mono, color: color.success }}>{new Date(row.first_opened_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
         : <span style={{ color: color.textLight, fontSize: 11 }}>-</span> },
+    { key: 'first_clicked_at', label: 'クリック', width: 84, align: 'right',
+      render: (row) => row.first_clicked_at
+        ? <span style={{ fontSize: 11, fontFamily: font.family.mono, color: color.navy }}>{new Date(row.first_clicked_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+        : <span style={{ color: color.textLight, fontSize: 11 }}>-</span> },
   ], []);
+
+  // 受信者一覧の絞り込みタブ定義
+  const REC_TABS = [
+    { key: 'all',      label: '全員',     match: () => true },
+    { key: 'opened',   label: '開封',     match: (r) => !!r.first_opened_at },
+    { key: 'clicked',  label: 'クリック', match: (r) => !!r.first_clicked_at },
+    { key: 'unopened', label: '未開封',   match: (r) => !r.first_opened_at && !['bounced', 'unsubscribed'].includes(r.status) },
+    { key: 'bounced',  label: 'バウンス', match: (r) => r.status === 'bounced' },
+    { key: 'unsub',    label: '配信停止', match: (r) => r.status === 'unsubscribed' },
+  ];
+  const recMatch = REC_TABS.find((t) => t.key === recFilter)?.match ?? (() => true);
+  const filteredRecipients = recipients.filter(recMatch);
+  const copyEmails = () => {
+    const list = filteredRecipients.map((r) => r.email).filter(Boolean).join('\n');
+    if (list) navigator.clipboard?.writeText(list);
+  };
 
   const filteredClients = clientOptions.filter(c =>
     (clientStatusTab === 'all' || c.status === clientStatusTab) &&
@@ -238,9 +259,29 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
                   </div>
                 ))}
               </div>
-              <h3 style={SECTION_TITLE}>受信者 ({recipients.length}件)</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2], borderBottom: `1px solid ${color.borderLight}`, paddingBottom: space[1] }}>
+                <h3 style={{ ...SECTION_TITLE, margin: 0, border: 'none', padding: 0 }}>受信者 ({filteredRecipients.length}件)</h3>
+                <button type="button" onClick={copyEmails}
+                  style={{ fontSize: 11, padding: `2px ${space[2]}px`, border: `1px solid ${color.border}`, borderRadius: radius.sm, background: color.white, color: color.navy, cursor: 'pointer' }}>
+                  表示中のメールをコピー
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1], marginBottom: space[2] }}>
+                {REC_TABS.map((t) => {
+                  const cnt = recipients.filter(t.match).length;
+                  return (
+                    <button key={t.key} type="button" onClick={() => setRecFilter(t.key)}
+                      style={{ padding: `2px ${space[1.5]}px`, fontSize: 11, cursor: 'pointer', borderRadius: radius.sm,
+                        border: `1px solid ${recFilter === t.key ? color.navy : color.border}`,
+                        background: recFilter === t.key ? color.navy : color.white,
+                        color: recFilter === t.key ? color.white : color.textMid }}>
+                      {t.label}<span style={{ opacity: 0.7, marginLeft: 3 }}>{cnt}</span>
+                    </button>
+                  );
+                })}
+              </div>
               <div style={{ marginBottom: space[4] }}>
-                <DataTable columns={recipientColumns} rows={recipients} rowKey="id" loading={recLoading} emptyMessage="受信者なし" height={260} fillWidth />
+                <DataTable columns={recipientColumns} rows={filteredRecipients} rowKey="id" loading={recLoading} emptyMessage="該当なし" height={300} fillWidth />
               </div>
             </>
           )}
