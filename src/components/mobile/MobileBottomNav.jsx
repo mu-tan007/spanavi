@@ -13,12 +13,6 @@ const NAV_BY_ENGAGEMENT = {
     { id: 'appo',  label: 'アポ' },
     { id: '_more', label: 'その他' },
   ],
-  masp: [
-    { id: 'database',       label: '企業DB' },
-    { id: 'all_members',    label: 'メンバー' },
-    { id: 'mypage',         label: 'マイページ' },
-    { id: '_more',          label: 'その他' },
-  ],
   spartia_career: [
     { id: 'applications',   label: '応募' },
     { id: 'deals_career',   label: '案件' },

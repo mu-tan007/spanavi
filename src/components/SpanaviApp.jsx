@@ -19,7 +19,6 @@ import EngagementHeader from './common/EngagementHeader';
 import { EngagementProvider, useEngagements } from '../hooks/useEngagements';
 import { MemberProfileProvider } from './common/MemberProfileDrawer';
 import { RecordingPlayerProvider } from './common/RecordingPlayerProvider';
-import MASPSidebar from './common/sidebars/MASPSidebar';
 import SpacareerAdminSidebar from './spacareer/admin/SpacareerAdminSidebar';
 import SpacareerCustomersView from './spacareer/admin/customers/SpacareerCustomersView';
 import SpacareerRecruitingView from './spacareer/admin/recruiting/SpacareerRecruitingView';
@@ -50,8 +49,6 @@ import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
 import DatabaseView from './views/DatabaseView';
 import DealsView from './views/DealsView';
-import MASPMembersView from './views/MASPMembersView';
-import MaspFirmsView from './views/MaspFirmsView';
 import EngagementMembersView from './views/EngagementMembersView';
 
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
@@ -405,7 +402,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","firms","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","homework","social_style","ai_courses","templates","analytics","settings","all_members","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","homework","social_style","ai_courses","templates","analytics","settings","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -441,12 +438,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 初回（ロード完了直後）は currentTab を尊重する。タブが現エンゲージメントで
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
-    const MASP_TABS = ['database', 'firms', 'all_members', 'admin_settings', 'mypage'];
-    const SOURCING_TABS = ['dashboard','live','incoming','lists','scripts','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin'];
-    const CAREER_TABS = ['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'];
-    if (engSlug === 'masp') {
-      if (!MASP_TABS.includes(currentTab)) setCurrentTab('database');
-    } else if (engSlug === 'seller_sourcing') {
+    const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin','admin_settings'];
+    const CAREER_TABS = ['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage','admin_settings'];
+    if (engSlug === 'seller_sourcing') {
       if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
     } else if (engSlug === 'spartia_career') {
       if (!CAREER_TABS.includes(currentTab)) setCurrentTab('customers');
@@ -700,6 +694,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const _rawNavGroups = [
     // 事業俯瞰はアナリティクスに統合済み（2026-06-12）。サイドバーから撤去
     { id: "dashboard", label: "ダッシュボード", children: null },
+    // 企業DB は旧 MASP タブから移設。管理者のみ表示。
+    ...(isAdmin ? [{ id: "database", label: "企業DB", children: null }] : []),
     { id: "g_call", label: "架電", children: [
       { id: "lists", label: "架電リスト" },
       { id: "scripts", label: "スクリプト" },
@@ -725,12 +721,15 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "shift", label: "シフト" },
     ]},
     ...(isManagerRole ? [{ id: "manager_admin", label: "管理者設定", children: null }] : []),
+    // 全社管理（管理者設定）は旧 MASP タブから移設。全事業のサイドバー下部に admin 限定で固定。
+    ...(isAdmin ? [{ id: "admin_settings", label: "全社管理", children: null }] : []),
   ];
   const navGroups = _rawNavGroups
     .map(g => {
       if (!g.children) {
-        // 単独項目: id 自体が page_key。manager_admin / overview は権限テーブル対象外（admin判定のみ）
-        if (g.id === 'manager_admin' || g.id === 'overview') return g;
+        // 単独項目: id 自体が page_key。manager_admin / overview / admin_settings / database は
+        // 権限テーブル対象外（admin/manager 判定のみで既に出し分け済み）。
+        if (g.id === 'manager_admin' || g.id === 'overview' || g.id === 'admin_settings' || g.id === 'database') return g;
         return canViewPage('seller_sourcing', g.id) ? g : null;
       }
       const visibleChildren = g.children.filter(c => canViewPage('seller_sourcing', c.id));
@@ -749,9 +748,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     if (currentTab === 'admin_settings' || currentTab === 'manager_admin' || currentTab === 'overview') return;
     if (canViewPage(engSlug, currentTab)) return;
     const fallback = (() => {
-      if (engSlug === 'masp') {
-        return ['database', 'firms', 'all_members'].find(k => canViewPage('masp', k));
-      }
       if (engSlug === 'seller_sourcing') {
         for (const g of navGroups) {
           if (g.children) {
@@ -786,7 +782,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // engagements テーブルには商材×ステージの全組合せ (IFAリード獲得 等) が存在するが、
   // それらは EngagementPlaceholder にフォールバックするだけのため巡回から除外する。
   useEffect(() => {
-    const IMPLEMENTED_ENG_SLUGS = ['masp', 'seller_sourcing', 'spartia_career'];
+    const IMPLEMENTED_ENG_SLUGS = ['seller_sourcing', 'spartia_career'];
     const handleKeyDown = (e) => {
       if (!e.ctrlKey) return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -824,13 +820,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         }
         flatTabs.push('mypage');
         cycle(flatTabs, currentTab, e.key, setCurrentTab);
-      } else if (engSlug === 'masp') {
-        const tabs = ['database', 'firms', 'all_members'];
-        if (isAdmin) tabs.push('admin_settings');
-        tabs.push('mypage');
-        cycle(tabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_career') {
-        cycle(['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'], currentTab, e.key, setCurrentTab);
+        const tabs = ['customers','recruiting','sessions','homework','social_style','ai_courses','templates','analytics','settings','mypage'];
+        if (isAdmin) tabs.push('admin_settings');
+        cycle(tabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_capital') {
         const paths = ['/dashboard', '/deals', '/needs', '/partners', '/documents', '/members'];
         const cur = getCapitalPathname();
@@ -1000,18 +993,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         const _avatar = currentMemberDetail?.avatarUrl || null;
         const _onLogout = () => { if (onLogout) onLogout(); else setCurrentUser(null); };
         const _onUserClick = () => setCurrentTab('mypage');
-        if (engSlug === 'masp') return (
-          <MASPSidebar
-            currentTab={currentTab}
-            setCurrentTab={setCurrentTab}
-            branding={branding}
-            currentUser={displayUserName}
-            currentMemberAvatar={_avatar}
-            onUserClick={_onUserClick}
-            onLogout={_onLogout}
-            isAdmin={isAdmin}
-          />
-        );
         if (engSlug === 'spartia_career') return (
           <SpacareerAdminSidebar
             currentTab={currentTab}
@@ -1021,6 +1002,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             currentMemberAvatar={_avatar}
             onUserClick={_onUserClick}
             onLogout={_onLogout}
+            isAdmin={isAdmin}
           />
         );
         if (engSlug === 'spartia_capital') return (
@@ -1158,7 +1140,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       }}>
         <div onClick={() => {
           if (engSlug === 'seller_sourcing') setCurrentTab('dashboard');
-          else if (engSlug === 'masp') setCurrentTab('database');
           else if (engSlug === 'spartia_career') setCurrentTab('customers');
           else if (engSlug === 'spartia_capital') capitalNavigate('/dashboard');
           else setCurrentTab('dashboard');
@@ -1367,12 +1348,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* key で engSlug+currentTab が変わるたびに DOM を強制再マウント。
             各 View の fadeIn が (engagement 切替含め) 必ず再生される。 */}
         <div key={`${engSlug}:${currentTab}`}>
-        {engSlug === 'masp' && !['database','firms','mypage','all_members','admin_settings'].includes(currentTab) && (
-          <EngagementComingSoon title="MASP" subtitle="この画面は準備中です" />
-        )}
-        {engSlug === 'masp' && currentTab === 'firms' && <MaspFirmsView />}
-        {engSlug === 'masp' && currentTab === 'all_members' && <MASPMembersView isAdmin={isAdmin} />}
-        {engSlug === 'masp' && currentTab === 'admin_settings' && isAdmin && (
+        {/* 全社管理（管理者設定）は事業横断。旧 MASP タブから移設し、どの engagement からでも admin のみ開ける。 */}
+        {currentTab === 'admin_settings' && isAdmin && (
           <AdminView
             isAdmin={isAdmin}
             setCurrentTab={setCurrentTab}
@@ -1398,16 +1375,15 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_career' && currentTab === 'settings' && <SpacareerSettingsView />}
         {engSlug === 'spartia_career' && currentTab === 'homework' && <SpacareerHomeworkView />}
         {engSlug === 'spartia_career' && currentTab === 'templates' && <SpacareerTemplatesView />}
-        {engSlug === 'spartia_career' && !['customers','recruiting','sessions','trainer_schedule','session_records','homework','social_style','ai_courses','templates','analytics','settings','mypage'].includes(currentTab) && (
+        {engSlug === 'spartia_career' && currentTab !== 'admin_settings' && !['customers','recruiting','sessions','trainer_schedule','session_records','homework','social_style','ai_courses','templates','analytics','settings','mypage'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は実装中です" />
         )}
-        {engSlug === 'spartia_capital' && <CapitalApp isAdmin={isAdmin} />}
-        {engSlug !== 'seller_sourcing' && engSlug !== 'masp' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && (
+        {engSlug === 'spartia_capital' && currentTab !== 'admin_settings' && <CapitalApp isAdmin={isAdmin} />}
+        {engSlug !== 'seller_sourcing' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && currentTab !== 'admin_settings' && (
           <EngagementPlaceholder engagement={currentEngagement} />
         )}
-        {/* --- Seller Sourcing views (既存) / MASP の database+mypage / スパキャリ の mypage --- */}
+        {/* --- Seller Sourcing views (既存) / スパキャリ の mypage --- */}
         {(engSlug === 'seller_sourcing'
-          || (engSlug === 'masp' && (currentTab === 'database' || currentTab === 'mypage'))
           || (engSlug === 'spartia_career' && currentTab === 'mypage')) && (<>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}

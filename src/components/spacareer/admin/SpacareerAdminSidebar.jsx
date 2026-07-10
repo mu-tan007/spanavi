@@ -26,6 +26,7 @@ export default function SpacareerAdminSidebar({
   currentMemberAvatar,
   onUserClick,
   onLogout,
+  isAdmin = false,
 }) {
   const { canViewPage } = useAccessControl();
 
@@ -88,6 +89,17 @@ export default function SpacareerAdminSidebar({
           ))}
         </React.Fragment>
       ))}
+      {/* 全社管理（管理者設定）は旧 MASP タブから移設。全事業のサイドバー下部に admin 限定で固定。 */}
+      {isAdmin && (
+        <>
+          <SectionHeader label="ADMIN" />
+          <ActiveItem
+            label="全社管理"
+            active={currentTab === 'admin_settings'}
+            onClick={() => setCurrentTab && setCurrentTab('admin_settings')}
+          />
+        </>
+      )}
     </SidebarShell>
   );
 }

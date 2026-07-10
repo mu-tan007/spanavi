@@ -8,19 +8,7 @@ const STORAGE_KEY = 'spanavi_current_engagement_slug';
 // engagements テーブルには商材×ステージの全組合せ (IFAリード獲得 等) が active で
 // 存在するが、それらは EngagementPlaceholder にフォールバックするだけのため、
 // localStorage に古い slug が残っていてもプレースホルダーに戻らないようにする。
-const IMPLEMENTED_ENG_SLUGS = ['masp', 'seller_sourcing', 'spartia_career'];
-
-// MASP (全社モード) を表す仮想エンゲージメント。DBには存在しない。
-export const MASP_ENGAGEMENT = {
-  id: 'masp_global',
-  slug: 'masp',
-  name: 'MASP',
-  type: 'global',
-  status: 'active',
-  display_order: 0,
-  description: '全社共通メニュー',
-  isVirtual: true,
-};
+const IMPLEMENTED_ENG_SLUGS = ['seller_sourcing', 'spartia_career'];
 
 const EngagementContext = createContext(null);
 
@@ -63,7 +51,7 @@ export function EngagementProvider({ children }) {
         if (!engRes.error && engRes.data) {
           setDbEngagements(engRes.data);
           const saved = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch { return null; } })();
-          const all = [MASP_ENGAGEMENT, ...engRes.data];
+          const all = engRes.data;
           const initial = all.find(e => e.slug === saved && IMPLEMENTED_ENG_SLUGS.includes(e.slug))
             || all.find(e => e.slug === 'seller_sourcing')
             || all[0];
@@ -92,7 +80,7 @@ export function EngagementProvider({ children }) {
     return () => { cancelled = true; };
   }, [orgId]);
 
-  const engagements = useMemo(() => [MASP_ENGAGEMENT, ...dbEngagements], [dbEngagements]);
+  const engagements = useMemo(() => dbEngagements, [dbEngagements]);
   const products = useMemo(() => dbProducts, [dbProducts]);
   const categories = useMemo(() => dbCategories, [dbCategories]);
   const currentEngagement = useMemo(
@@ -119,11 +107,6 @@ export function EngagementProvider({ children }) {
 
   // 指定 product の代表 engagement に切り替え（display_order が最小のもの）
   const switchProduct = (productId) => {
-    if (productId === 'masp_global') {
-      setCurrentSlug('masp');
-      try { localStorage.setItem(STORAGE_KEY, 'masp'); } catch { /* ignore */ }
-      return;
-    }
     const candidates = dbEngagements
       .filter(e => e.product_id === productId)
       .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));

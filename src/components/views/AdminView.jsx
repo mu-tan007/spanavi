@@ -16,6 +16,7 @@ import IndustryRuleSettings from '../admin/IndustryRuleSettings';
 import CallStatusSettings from '../admin/CallStatusSettings';
 import PermissionSettings from '../admin/PermissionSettings';
 import RewardMasterView from './RewardMasterView';
+import MASPMembersView from './MASPMembersView';
 import MyPageView from './MyPageView';
 import GoalSettingsPanel from '../admin/GoalSettingsPanel';
 import PageHeader from '../common/PageHeader';
@@ -26,9 +27,10 @@ import { Button, Input, Select, Card, Badge } from '../ui';
 const NAVY = color.navy;
 const GOLD = color.gold;
 
-// メンバー管理は MASP > Members に統合済み（Phase 0-B で削除）
+// メンバー管理は旧 MASP タブ廃止に伴い全社管理へ再統合（company-wide スコープの専用タブ）。
 const TABS = [
   { id: 'org',         label: '組織設定',              icon: '' },
+  { id: 'members_company', label: 'メンバー',          icon: '' },
   { id: 'permissions', label: '権限管理',              icon: '' },
   { id: 'engagement',  label: '事業設定',           icon: '' },
   { id: 'kpi',         label: 'KPI 目標',              icon: '' },
@@ -44,7 +46,7 @@ const TABS = [
 ];
 
 // 全社スコープでのみ表示するタブ。事業セレクタを「全社」にしたときのみ並ぶ。
-const COMPANY_WIDE_TABS = new Set(['org', 'permissions']);
+const COMPANY_WIDE_TABS = new Set(['org', 'members_company', 'permissions']);
 
 // 「全社」スコープを表す UI 専用の仮想 product（DB には存在しない）。
 // 全社を選択しているときだけ「組織設定」タブを表示する。
@@ -285,6 +287,9 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
       <div style={{ background: color.white, borderRadius: `0 0 ${radius.md}px ${radius.md}px`, border: `1px solid ${color.border}`, borderTop: 'none', padding: isMobile ? `${space[4]}px ${space[3]}px` : `${space[6]}px 28px`, marginBottom: 0 }}>
         {activeTab === 'org' && isCompanyWide && (
           <OrganizationSettings onToast={showToast} />
+        )}
+        {activeTab === 'members_company' && isCompanyWide && (
+          <MASPMembersView isAdmin={isAdmin} />
         )}
         {activeTab === 'permissions' && isCompanyWide && (
           <PermissionSettings onToast={(t) => showToast(t.message, t.type || 'success')} />
