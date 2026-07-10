@@ -4,6 +4,7 @@ import { Card, Badge, Button, DataTable } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import SessionCompleteFlow from './SessionCompleteFlow';
 import SessionVideoModal from '../../_shared/SessionVideoModal';
+import { orderSessions, sessionLabel } from '../../../../../lib/spacareer/sessionOrder';
 
 // ============================================================
 // 3. セッション履歴タブ（縦断ビュー）
@@ -38,12 +39,10 @@ export default function TabSessionHistory({ detail, onRefresh }) {
     videosBySession.get(v.session_id).push(v);
   });
 
-  const rows = [...sessions]
-    .sort((a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1)))
+  const rows = orderSessions(sessions, customer?.oyo_start_session_no)
     .map((s) => ({
       ...s,
-      _label: s.session_no === 0 ? 'キックオフ'
-        : `第${s.session_no}回${(s.part || 1) === 2 ? '(2)' : ''}`,
+      _label: sessionLabel(s),
       _completed: fmtDate(s.completed_at),
       _hasMinutes: !!s.minutes_draft || !!s.minutes_final,
       _hasVideo: (videosBySession.get(s.id) || []).length > 0,

@@ -27,7 +27,7 @@ export function useCustomersList() {
         .from('spacareer_customers')
         .select(`
           id, member_id, nickname, profile_image_url, status,
-          current_session_no, progress_percent,
+          current_session_no, progress_percent, course,
           assigned_trainer_id, assigned_at,
           contract_started_at, occupation, birthdate,
           social_style_type, social_style_completed_at,

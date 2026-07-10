@@ -6,6 +6,7 @@ import { useCustomersList } from '../customers/lib/useCustomers';
 import SessionCompleteFlow from '../customers/CustomerDetail/SessionCompleteFlow';
 import KpiCard from '../_shared/KpiCard';
 import SubTabs from '../_shared/SubTabs';
+import { sessionLabel } from '../../../../lib/spacareer/sessionOrder';
 
 // ============================================================
 // セッション管理（独立メニュー）= 横断ビュー
@@ -119,8 +120,14 @@ export default function SpacareerSessionsView({ isAdmin }) {
       // 全体サマリーは「次回実施(next_up)」のセッションのみ表示する
       return flat.filter((r) => r.status === 'next_up' && matchesTrainer(r)).sort(byTime);
     }
+    if (tab === 'alpha') {
+      // プラスアルファ（応用コースのα, part=2）は独立タブに集約。α番号(session_no)順で並べる。
+      return flat.filter((r) => (r.part || 1) === 2 && matchesTrainer(r))
+        .sort((a, b) => (a.session_no - b.session_no) || byTime(a, b));
+    }
     const no = parseInt(tab.replace('session_', ''), 10);
-    return flat.filter((r) => r.session_no === no && matchesTrainer(r)).sort(byTime);
+    // 基本回タブは part1 のみ（α(part2)が「第N回」に混ざらないようにする）
+    return flat.filter((r) => r.session_no === no && (r.part || 1) === 1 && matchesTrainer(r)).sort(byTime);
   }, [flat, tab, matchesTrainer]);
 
   const [openRowId, setOpenRowId] = useState(null);
@@ -132,6 +139,7 @@ export default function SpacareerSessionsView({ isAdmin }) {
       key: `session_${n}`,
       label: n === 0 ? 'キックオフ' : `第${n}回`,
     })),
+    { key: 'alpha', label: 'プラスアルファ' },
   ]), []);
 
   return (
@@ -173,9 +181,8 @@ export default function SpacareerSessionsView({ isAdmin }) {
         columns={[
           { key: 'customer_name', label: '顧客名', width: 180, align: 'left',
             cellStyle: { fontWeight: font.weight.semibold } },
-          { key: 'session_no', label: '回', width: 80, align: 'center',
-            render: (r) => r.session_no === 0 ? 'キックオフ'
-              : `第${r.session_no}回${(r.part || 1) === 2 ? '(2)' : ''}` },
+          { key: 'session_no', label: '回', width: 100, align: 'center',
+            render: (r) => sessionLabel(r) },
           { key: 'scheduled_at', label: '予定日時', width: 130, align: 'right',
             render: (r) => fmtDate(r.scheduled_at), cellStyle: { fontFamily: font.family.mono } },
           { key: 'status', label: 'ステータス', width: 110, align: 'center',

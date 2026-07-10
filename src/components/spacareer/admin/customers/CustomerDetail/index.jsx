@@ -5,6 +5,7 @@ import { supabase } from '../../../../../lib/supabase';
 import { invokeAdminImpersonateSpacareerCustomer } from '../../../../../lib/supabaseWrite';
 import { useAuth } from '../../../../../hooks/useAuth';
 import { useCustomerDetail } from '../lib/useCustomers';
+import { orderSessions, sessionLabel } from '../../../../../lib/spacareer/sessionOrder';
 
 // 代理ログイン時に現在の管理者セッションを退避する localStorage キー。
 // 営業代行ポータルの `spanavi_admin_session_backup` とは別キーで管理し、
@@ -146,18 +147,18 @@ export default function CustomerDetail({ customerId, isAdmin }) {
   })();
   const displayCallName = calledName || customer?.nickname || null;
 
-  // セッション管理タブは順序(session_no, part)で段階表示する。
-  // ・強化コースは各回 part1 のみ、応用コースは (N,1)(N,2) の順に並ぶ。
-  // ・「直前の順序のセッションが完了」で当該回のタブが出現（＝進行に応じて増える）。
-  //   応用でスキップした (N,2) も直前の part1 完了で出現するため、後から補填できる。
+  // セッション管理タブは「加入回 J 以降の interleave 順」（sessionOrder.js）で段階表示する。
+  // ・強化＝第1〜8回のみ。応用＝加入回以降、各基本回の直後にプラスアルファ(α)を1本ずつ差し込み、
+  //   第8回まで来たら残りのαを連番順で連続表示（過去回にαを差し込まないので虫食いが出ない）。
+  // ・「直前の順序のセッションが完了」で当該回のタブが出現（第3回→α1→第4回…の順送り）。
   // ・next_up は表示条件にしない（キックオフ未完了なのに第1回が出る不具合を防ぐ。
   //   タブ出現の唯一のゲートは「直前が completed」。自身が completed なら常に表示）。
   const completedKeys = new Set(
     (detail.sessions || []).filter((s) => s.status === 'completed')
       .map((s) => `${s.session_no}-${s.part || 1}`));
-  const orderedSessions = (detail.sessions || [])
-    .filter((s) => s.session_no >= 1)
-    .sort((a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1)));
+  const orderedSessions = orderSessions(
+    (detail.sessions || []).filter((s) => s.session_no >= 1),
+    customer?.oyo_start_session_no);
   const sessionMgmtTabs = [];
   orderedSessions.forEach((s, i) => {
     const part = s.part || 1;
@@ -165,8 +166,7 @@ export default function CustomerDetail({ customerId, isAdmin }) {
     const prevKey = `${prev.session_no}-${prev.part || 1}`;
     const revealed = s.status === 'completed' || completedKeys.has(prevKey);
     if (revealed) {
-      const label = part === 2 ? `第${s.session_no}回(2)セッション管理` : `第${s.session_no}回セッション管理`;
-      sessionMgmtTabs.push({ id: `session-${s.session_no}-${part}`, label });
+      sessionMgmtTabs.push({ id: `session-${s.session_no}-${part}`, label: `${sessionLabel(s)}セッション管理` });
     }
   });
   const tabs = sessionMgmtTabs.length
@@ -288,7 +288,8 @@ export default function CustomerDetail({ customerId, isAdmin }) {
           </div>
 
           <div style={{ marginTop: space[3] }}>
-            <ProgressStepper sessions={detail.sessions} status={customer?.status} />
+            <ProgressStepper sessions={detail.sessions} status={customer?.status}
+              oyoStartNo={customer?.oyo_start_session_no} />
           </div>
         </div>
 

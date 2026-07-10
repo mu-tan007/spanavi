@@ -10,6 +10,7 @@ import { useFileDrop } from '../../../_shared/useFileDrop';
 import SessionVideoModal from '../../_shared/SessionVideoModal';
 import { useAuth } from '../../../../../hooks/useAuth';
 import { canSkipSessionComplete } from '../../../../../lib/spacareer/permissions';
+import { orderSessions, sessionLabel } from '../../../../../lib/spacareer/sessionOrder';
 
 function pad(n) { return n < 10 ? `0${n}` : String(n); }
 function toDateTimeInput(v) {
@@ -56,25 +57,22 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
     () => (sessions || []).find((s) => s.session_no === sessionNo && (s.part || 1) === part) || null,
     [sessions, sessionNo, part]);
 
-  // 順序(session_no, part)で並べ、前回/次回を決める。応用は (N,1)→(N,2)→(N+1,1)…。
+  // 加入回 J 以降の interleave 順（sessionOrder.js）で並べ、前回/次回を決める。
+  // 応用は 第3回→α1→第4回→α2… のように基本回とプラスアルファが交互になる。
   const ordered = useMemo(
-    () => (sessions || []).filter((s) => s.session_no >= 1)
-      .sort((a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1))),
-    [sessions]);
+    () => orderSessions((sessions || []).filter((s) => s.session_no >= 1),
+      customer?.oyo_start_session_no),
+    [sessions, customer?.oyo_start_session_no]);
   const orderIdx = ordered.findIndex((s) => s.session_no === sessionNo && (s.part || 1) === part);
   const prevSession = orderIdx > 0 ? ordered[orderIdx - 1] : null; // null = 前がキックオフ
   const nextSession = orderIdx >= 0 && orderIdx < ordered.length - 1 ? ordered[orderIdx + 1] : null;
 
-  const partSuffix = part === 2 ? '(2)' : '';
-  const sessionLabel = `第${sessionNo}回${partSuffix}`;
-  const nextLabel = nextSession
-    ? `第${nextSession.session_no}回${(nextSession.part || 1) === 2 ? '(2)' : ''}` : '';
+  const sessionLabelText = sessionLabel({ session_no: sessionNo, part });
+  const nextLabel = nextSession ? sessionLabel(nextSession) : '';
 
   // 前回の引き継ぎ（質問記録・議事録）。前がキックオフ(prevSession=null)ならキックオフ、
   // そうでなければ前セッションの hearing_sheet_json / 議事録から取得する。
-  const prevLabel = prevSession
-    ? `第${prevSession.session_no}回${(prevSession.part || 1) === 2 ? '(2)' : ''}`
-    : 'キックオフ';
+  const prevLabel = prevSession ? sessionLabel(prevSession) : 'キックオフ';
   const prevQuestions = prevSession
     ? (prevSession.hearing_sheet_json?.customer_questions_log || '')
     : (kickoff?.customer_questions_log || '');
@@ -203,7 +201,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
     return (
       <Card padding="md">
         <div style={{ color: color.textLight, fontSize: font.size.sm }}>
-          {sessionLabel}のセッションが見つかりません。
+          {sessionLabelText}のセッションが見つかりません。
         </div>
       </Card>
     );
@@ -251,7 +249,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
       </Card>
 
       <Card padding="md"
-        title={`${sessionLabel} 動画・AI議事録`}
+        title={`${sessionLabelText} 動画・AI議事録`}
         description="セッションの録画ファイルをアップロードし、AI議事録を生成します。セッション完了の必須ゲートです。"
         action={
           <div style={{ display: 'flex', gap: space[2] }}>
@@ -453,7 +451,7 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
         open={playerOpen}
         onClose={() => setPlayerOpen(false)}
         storagePath={sessionVideo?.storage_path}
-        title={`${sessionLabel} 録画`}
+        title={`${sessionLabelText} 録画`}
       />
     </div>
   );

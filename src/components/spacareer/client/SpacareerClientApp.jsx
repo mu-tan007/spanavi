@@ -35,6 +35,7 @@ import ClientCoursesView from './views/ClientCoursesView';
 import ClientHistoryView from './views/ClientHistoryView';
 import ClientKickoffHearingView from './views/ClientKickoffHearingView';
 import ClientSocialStyleView from './views/ClientSocialStyleView';
+import SpacareerCompanyDbView from './views/SpacareerCompanyDbView';
 
 // 受講生（rank='student'）向けのスパキャリ・クライアントポータル本体。
 // 仕様書: tasks/spacareer-spec.md §6 / §6.2A
@@ -46,6 +47,7 @@ export default function SpacareerClientApp() {
   const [currentTab, setCurrentTab] = useState('mypage');
   const [hearingActive, setHearingActive] = useState(false); // キックオフヒアリングを表示するか
   const [socialStyleActive, setSocialStyleActive] = useState(false); // ソーシャルスタイル診断を表示するか
+  const [companyDbActive, setCompanyDbActive] = useState(false); // 企業DB（直案件）を表示するか＝第4回完了で解禁
   const [customerId, setCustomerId] = useState(null);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [adminBackup, setAdminBackup] = useState(() => readAdminBackupSpacareer());
@@ -97,11 +99,14 @@ export default function SpacareerClientApp() {
         if (!member) { if (!cancelled) setBootstrapped(true); return; }
         const { data: cust } = await supabase
           .from('spacareer_customers')
-          .select('id, social_style_completed_at, current_session_no')
+          .select('id, social_style_completed_at, current_session_no, direct_db_access_granted_at')
           .eq('member_id', member.id)
           .maybeSingle();
         if (!cust) { if (!cancelled) setBootstrapped(true); return; }
         if (!cancelled) setCustomerId(cust.id);
+
+        // 企業DB（直案件）は第4回完了で解禁（direct_db_access_granted_at がセットされる）
+        if (!cancelled) setCompanyDbActive(!!cust.direct_db_access_granted_at);
 
         // ソーシャルスタイル診断の状態
         const socialStyleDone = !!cust.social_style_completed_at;
@@ -216,6 +221,7 @@ export default function SpacareerClientApp() {
         onLogout={handleLogout}
         showKickoffHearing={hearingActive}
         showSocialStyle={socialStyleActive}
+        showCompanyDb={companyDbActive}
       />
       <main style={{ flex: 1, marginLeft: 220, padding: 0 }}>
         {/* 代理ログイン中バナー（通常ログインでは表示されない） */}
@@ -263,6 +269,7 @@ export default function SpacareerClientApp() {
           {currentTab === 'feedback' && <ClientFeedbackView />}
           {currentTab === 'courses' && <ClientCoursesView />}
           {currentTab === 'history' && <ClientHistoryView />}
+          {currentTab === 'company_db' && companyDbActive && <SpacareerCompanyDbView />}
         </div>
       </main>
     </div>

@@ -4,6 +4,7 @@ import { Button, Card, Badge, DataTable } from '../../../ui';
 import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
 import { resolveSessionSchedule, getSession1At } from '../../../../lib/spacareer/sessionSchedule';
+import { orderSessions, sessionLabel } from '../../../../lib/spacareer/sessionOrder';
 
 // 仕様書: tasks/spacareer-spec.md §6.5 セッション履歴
 //
@@ -30,7 +31,7 @@ export default function ClientHistoryView() {
         .from('members').select('id').eq('user_id', profile.id).maybeSingle();
       if (!member) { setLoading(false); return; }
       const { data: cust } = await supabase
-        .from('spacareer_customers').select('id').eq('member_id', member.id).maybeSingle();
+        .from('spacareer_customers').select('id, oyo_start_session_no').eq('member_id', member.id).maybeSingle();
       if (cancelled) return;
       setCustomer(cust);
       if (!cust) { setLoading(false); return; }
@@ -50,15 +51,14 @@ export default function ClientHistoryView() {
     return () => { cancelled = true; };
   }, [profile?.id]);
 
-  // 応用コースは各回に(1)(2)がある。実データ(session_no,part順)をそのまま表示する。
-  // まだ行が無い場合のみ第0〜8回のプレースホルダを表示。
+  // 応用コースは第1〜8回に加えプラスアルファα1〜8がある。加入回 J 以降の interleave 順
+  // （sessionOrder.js）で表示する。まだ行が無い場合のみ第0〜8回のプレースホルダを表示。
   const completeRows = useMemo(() => {
     if (sessions.length) {
-      return [...sessions].sort(
-        (a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1)));
+      return orderSessions(sessions, customer?.oyo_start_session_no);
     }
     return SESSIONS.map(n => ({ id: `placeholder-${n}`, session_no: n, part: 1, status: 'not_started' }));
-  }, [sessions]);
+  }, [sessions, customer?.oyo_start_session_no]);
 
   const downloadMinutes = (row) => {
     if (!row.minutes_final) return;
@@ -66,7 +66,7 @@ export default function ClientHistoryView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `第${row.session_no}回${(row.part || 1) === 2 ? '(2)' : ''}_議事録.txt`;
+    a.download = `${sessionLabel(row)}_議事録.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -91,8 +91,7 @@ export default function ClientHistoryView() {
       align: 'center',
       render: row => (
         <span style={{ fontWeight: font.weight.bold, color: color.navy }}>
-          第{row.session_no}回{(row.part || 1) === 2 ? '(2)' : ''}
-          {row.session_no === 0 && <Badge variant="primary" size="sm" style={{ marginLeft: space[1] }}>キックオフ</Badge>}
+          {sessionLabel(row)}
         </span>
       ),
     },

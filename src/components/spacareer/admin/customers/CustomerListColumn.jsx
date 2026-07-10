@@ -180,8 +180,22 @@ function CustomerCard({ row, active, onClick }) {
           display: 'flex', alignItems: 'center', gap: 6,
           fontSize: font.size.md, fontWeight: font.weight.semibold,
           color: color.textDark,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{name}</div>
+          overflow: 'hidden', whiteSpace: 'nowrap',
+        }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+          {row.course === 'oyo' && (
+            <span style={{
+              flexShrink: 0,
+              display: 'inline-flex', alignItems: 'center',
+              padding: `1px ${space[1]}px`,
+              background: color.gold, color: color.white,
+              borderRadius: radius.pill,
+              fontSize: font.size.xs, fontWeight: font.weight.bold,
+              letterSpacing: font.letterSpacing.wide,
+              boxShadow: `0 1px 2px ${color.goldDim}`,
+            }}>応用コース</span>
+          )}
+        </div>
         <div style={{
           fontSize: font.size.xs, color: color.textMid, marginTop: 1,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

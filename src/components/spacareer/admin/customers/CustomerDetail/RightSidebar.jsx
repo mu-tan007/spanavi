@@ -2,6 +2,9 @@ import React from 'react';
 import { color, space, font, radius, alpha } from '../../../../../constants/design';
 import { Card, Badge, Button } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
+import { useAuth } from '../../../../../hooks/useAuth';
+import { canChangeCourse } from '../../../../../lib/spacareer/permissions';
+import { sessionLabel } from '../../../../../lib/spacareer/sessionOrder';
 import { KICKOFF_CHECK_KEYS } from './TabKickoff';
 
 const SOCIAL_STYLE_LABELS = {
@@ -27,7 +30,7 @@ export default function RightSidebar({ detail, activeTab, onRefresh }) {
 
   const sessMatch = /^session-([1-8])-([12])$/.exec(activeTab);
   if (sessMatch) {
-    const label = `第${sessMatch[1]}回${sessMatch[2] === '2' ? '(2)' : ''}セッション管理`;
+    const label = `${sessionLabel({ session_no: Number(sessMatch[1]), part: Number(sessMatch[2]) })}セッション管理`;
     return <SilentSidebar label={label} />;
   }
 
@@ -78,6 +81,9 @@ function BasicSidebar({ customer, sessions, trainer, onRefresh }) {
 
 function CourseCard({ customer, sessions = [], onRefresh }) {
   const [saving, setSaving] = React.useState(false);
+  const { profile } = useAuth();
+  // コース/プラン変更は篠宮・小山のみ（むー様指示 2026-07-10）。他トレーナーには操作ボタンを出さない。
+  const canChange = canChangeCourse(profile?.email);
   const course = customer?.course || 'kyoka';
   const styleLabel = SOCIAL_STYLE_LABELS[customer?.social_style_type] || (customer?.social_style_type || '未診断');
   const total = sessions.length; // キックオフ込みの総セッション数（強化=9 / 応用=17）
@@ -85,8 +91,8 @@ function CourseCard({ customer, sessions = [], onRefresh }) {
   async function change(next) {
     if (saving || next === course) return;
     const msg = next === 'oyo'
-      ? '応用コース（16回）に変更します。\n各回に(2)セッションを追加します。これまでのセッション記録は引き継がれます。\n\nよろしいですか？'
-      : '強化コース（8回）に変更します。\n未実施の(2)セッションは削除されます（実施済みの記録は残ります）。\n\nよろしいですか？';
+      ? '応用コースに変更します。\nプラスアルファ（α1〜8）セッションを追加します。これまでのセッション記録は引き継がれます。\n\nよろしいですか？'
+      : '強化コース（8回）に変更します。\n未実施のプラスアルファ（α）セッションは削除されます（実施済みの記録は残ります）。\n\nよろしいですか？';
     if (!window.confirm(msg)) return;
     setSaving(true);
     try {
@@ -116,14 +122,20 @@ function CourseCard({ customer, sessions = [], onRefresh }) {
         <div style={{ fontSize: font.size.xs, color: color.textLight }}>
           全{total}セッション（キックオフ込み）
         </div>
-        <div style={{ display: 'flex', gap: space[2], marginTop: space[1] }}>
-          <Button variant={course === 'kyoka' ? 'primary' : 'outline'} size="sm"
-            loading={saving && course !== 'kyoka'} disabled={saving}
-            onClick={() => change('kyoka')}>強化(8回)</Button>
-          <Button variant={course === 'oyo' ? 'primary' : 'outline'} size="sm"
-            loading={saving && course !== 'oyo'} disabled={saving}
-            onClick={() => change('oyo')}>応用(16回)</Button>
-        </div>
+        {canChange ? (
+          <div style={{ display: 'flex', gap: space[2], marginTop: space[1] }}>
+            <Button variant={course === 'kyoka' ? 'primary' : 'outline'} size="sm"
+              loading={saving && course !== 'kyoka'} disabled={saving}
+              onClick={() => change('kyoka')}>強化(8回)</Button>
+            <Button variant={course === 'oyo' ? 'primary' : 'outline'} size="sm"
+              loading={saving && course !== 'oyo'} disabled={saving}
+              onClick={() => change('oyo')}>応用(16回)</Button>
+          </div>
+        ) : (
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: space[1] }}>
+            コース・プランの変更は篠宮・小山のみ可能です。
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -164,8 +176,7 @@ function SessionsSidebar({ sessions }) {
           <div style={{ display: 'grid', gap: 4 }}>
             <div style={{
               fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy,
-            }}>{nextUp.session_no === 0 ? 'キックオフ'
-              : `第${nextUp.session_no}回${(nextUp.part || 1) === 2 ? '(2)' : ''}`}</div>
+            }}>{sessionLabel(nextUp)}</div>
             <div style={{
               fontSize: font.size.sm, fontFamily: font.family.mono, color: color.textMid,
             }}>{fmtDate(nextUp.scheduled_at)}</div>

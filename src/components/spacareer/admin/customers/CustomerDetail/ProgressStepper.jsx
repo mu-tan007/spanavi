@@ -1,27 +1,27 @@
 import React from 'react';
 import { color, space, font, radius, alpha } from '../../../../../constants/design';
+import { orderSessions, sessionLabel, sessionShortLabel } from '../../../../../lib/spacareer/sessionOrder';
 
 // ============================================================
 // 進捗ステップバー（個人ページヘッダー）
 // 仕様書 §7.1 中央：個人ページ
 //   - キックオフ(K) + 各回ノード + 卒業ノード
-//   - 強化コース=第1〜8回（9ノード）、応用コース=各回(1)(2)で最大17ノード
+//   - 強化コース=第1〜8回（9ノード）、応用コース=第1〜8回＋プラスアルファα1〜8（最大17ノード）
+//   - 並び順は加入回 J 以降の interleave（sessionOrder.js）
 //   - 進捗率は 完了数 / 全セッション数（コースに応じて自動で分母が変わる）
 // ============================================================
-export default function ProgressStepper({ sessions = [], status }) {
-  // 順序(session_no, part)で並べる。応用は (0)→(1,1)→(1,2)→(2,1)… の順。
-  const ordered = [...sessions].sort(
-    (a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1)));
+export default function ProgressStepper({ sessions = [], status, oyoStartNo }) {
+  const ordered = orderSessions(sessions, oyoStartNo);
   const completedCount = sessions.filter((s) => s.status === 'completed').length;
   const total = sessions.length || 1;
   const pct = Math.round((completedCount / total) * 1000) / 10;
 
-  const nodes = ordered.map((s) => {
-    const part = s.part || 1;
-    const label = s.session_no === 0 ? 'K' : (part === 2 ? `${s.session_no}'` : String(s.session_no));
-    const title = s.session_no === 0 ? 'キックオフ' : `第${s.session_no}回${part === 2 ? '(2)' : ''}`;
-    return { key: `${s.session_no}-${part}`, label, title, status: s.status };
-  });
+  const nodes = ordered.map((s) => ({
+    key: `${s.session_no}-${s.part || 1}`,
+    label: sessionShortLabel(s),
+    title: sessionLabel(s),
+    status: s.status,
+  }));
 
   return (
     <div>

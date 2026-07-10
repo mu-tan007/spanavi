@@ -4,6 +4,7 @@ import { Card, Badge, DataTable, Select } from '../../../ui';
 import PageHeader from '../../../common/PageHeader';
 import SubTabs from '../_shared/SubTabs';
 import { useCustomersList } from '../customers/lib/useCustomers';
+import { sessionLabel } from '../../../../lib/spacareer/sessionOrder';
 
 // ============================================================
 // セッション記録一覧
@@ -188,7 +189,7 @@ export default function SessionRecordsView() {
             { key: 'customer_name', label: '顧客名', width: 180, align: 'left',
               cellStyle: { fontWeight: font.weight.semibold } },
             { key: 'session_no', label: '回', width: 110, align: 'center',
-              render: (r) => r.session_no === 0 ? 'キックオフ' : `第${r.session_no}回${r.part === 2 ? '(2)' : ''}` },
+              render: (r) => sessionLabel(r) },
           ]}
           rows={filtered}
           rowKey="id"

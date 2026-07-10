@@ -26,6 +26,7 @@ export default function SpacareerClientSidebar({
   onLogout,
   showKickoffHearing = false,
   showSocialStyle = false,
+  showCompanyDb = false,
 }) {
   const prefix = [];
   if (showSocialStyle) {
@@ -34,7 +35,11 @@ export default function SpacareerClientSidebar({
   if (showKickoffHearing) {
     prefix.push({ id: 'kickoff_hearing', label: 'キックオフヒアリング', sub: '第1回前の事前ヒアリング' });
   }
-  const menu = [...prefix, ...BASE_MENU];
+  // 企業DB（直案件）は第4回完了で解禁。解禁後はベースメニューの末尾に表示。
+  const suffix = showCompanyDb
+    ? [{ id: 'company_db', label: '企業データベース', sub: '直案件の企業検索' }]
+    : [];
+  const menu = [...prefix, ...BASE_MENU, ...suffix];
 
   return (
     <SidebarShell

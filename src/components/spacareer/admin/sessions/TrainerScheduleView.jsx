@@ -4,6 +4,7 @@ import { Card, Badge, DataTable } from '../../../ui';
 import PageHeader from '../../../common/PageHeader';
 import SubTabs from '../_shared/SubTabs';
 import { useCustomersList } from '../customers/lib/useCustomers';
+import { sessionLabel } from '../../../../lib/spacareer/sessionOrder';
 
 // ============================================================
 // トレーナー別「次回セッション予定」一覧（今週 / 来週）
@@ -126,9 +127,8 @@ export default function TrainerScheduleView() {
                     render: (r) => fmtDateTime(r.scheduled_at), cellStyle: { fontFamily: font.family.mono } },
                   { key: 'customer_name', label: '顧客名', width: 200, align: 'left',
                     cellStyle: { fontWeight: font.weight.semibold } },
-                  { key: 'session_no', label: '回', width: 100, align: 'center',
-                    render: (r) => r.session_no === 0 ? 'キックオフ'
-                      : `第${r.session_no}回${r.part === 2 ? '(2)' : ''}` },
+                  { key: 'session_no', label: '回', width: 110, align: 'center',
+                    render: (r) => sessionLabel(r) },
                 ]}
                 rows={g.items}
                 rowKey="id"

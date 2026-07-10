@@ -57,7 +57,9 @@ export function isHomeworkNearDeadline(row, now = new Date()) {
   if (!h || !h.due_at) return false;
   if (h.status === 'completed' || h.status === 'submitted') return false;
   if (h.status === 'unnotified') return false;
-  return +new Date(h.due_at) - +now <= 0;
+  // 締切まで3日以内（＝締切3日前以降。締切超過も含む）で未提出/部分提出なら要対応。
+  // 旧実装は `<= 0`（締切超過のみ）で、ラベル「締切3日前到達」と乖離していた（3日前アラートが出ない）。
+  return +new Date(h.due_at) - +now <= THREE_DAYS_MS;
 }
 
 /** 4. セッション実施日を過ぎても完了が押されていない */
