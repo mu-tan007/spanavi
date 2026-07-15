@@ -28,6 +28,7 @@ export function useCustomersList() {
         .select(`
           id, member_id, nickname, profile_image_url, status,
           current_session_no, progress_percent, course,
+          archived_at,
           assigned_trainer_id, assigned_at,
           contract_started_at, occupation, birthdate,
           social_style_type, social_style_completed_at,

@@ -50,7 +50,7 @@ function initials(name = '') {
 }
 
 export default function CustomerListColumn({
-  rows = [], selectedId, onSelect, loading,
+  rows = [], selectedId, onSelect, loading, canViewArchived = false,
 }) {
   const [tab, setTab] = useState('all');
   const [q, setQ] = useState('');
@@ -62,9 +62,13 @@ export default function CustomerListColumn({
     nextSession: formatNextSession(r.sessions || []),
   })), [rows]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // アーカイブ済みは通常タブから除外し、篠宮・小山のみ専用タブで確認できる。
+  const activeRows = useMemo(() => enriched.filter((r) => !r.archived_at), [enriched]);
+  const archivedRows = useMemo(() => enriched.filter((r) => r.archived_at), [enriched]);
+
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
-    let list = enriched;
+    let list = tab === 'archived' ? archivedRows : activeRows;
     if (tab === 'attention') {
       list = list.filter((r) => r.attention.length > 0);
       const order = { unassigned: 1, homework_unnotified: 2, homework_near_deadline: 3, session_overdue: 4 };
@@ -82,9 +86,9 @@ export default function CustomerListColumn({
       });
     }
     return list;
-  }, [enriched, tab, q]);
+  }, [activeRows, archivedRows, tab, q]);
 
-  const attentionCount = enriched.filter((r) => r.attention.length > 0).length;
+  const attentionCount = activeRows.filter((r) => r.attention.length > 0).length;
 
   return (
     <div style={{
@@ -95,8 +99,11 @@ export default function CustomerListColumn({
       height: '100%', overflow: 'hidden',
     }}>
       <div style={{ display: 'flex', borderBottom: `1px solid ${color.border}` }}>
-        <TabBtn active={tab === 'all'} onClick={() => setTab('all')} label="すべて" count={enriched.length} />
+        <TabBtn active={tab === 'all'} onClick={() => setTab('all')} label="すべて" count={activeRows.length} />
         <TabBtn active={tab === 'attention'} onClick={() => setTab('attention')} label="要対応" count={attentionCount} accent />
+        {canViewArchived && (
+          <TabBtn active={tab === 'archived'} onClick={() => setTab('archived')} label="アーカイブ" count={archivedRows.length} />
+        )}
       </div>
 
       <div style={{ padding: space[3], borderBottom: `1px solid ${color.borderLight}` }}>
@@ -108,7 +115,9 @@ export default function CustomerListColumn({
           <div style={{ padding: space[4], color: color.textLight, fontSize: font.size.sm }}>読み込み中…</div>
         ) : filtered.length === 0 ? (
           <div style={{ padding: space[6], textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>
-            {tab === 'attention' ? '要対応の顧客はありません' : '該当する顧客がありません'}
+            {tab === 'attention' ? '要対応の顧客はありません'
+              : tab === 'archived' ? 'アーカイブ済みの顧客はありません'
+              : '該当する顧客がありません'}
           </div>
         ) : filtered.map((r) => (
           <CustomerCard key={r.id} row={r} active={r.id === selectedId} onClick={() => onSelect && onSelect(r.id)} />

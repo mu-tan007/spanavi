@@ -6,6 +6,7 @@ import { invokeAdminImpersonateSpacareerCustomer } from '../../../../../lib/supa
 import { useAuth } from '../../../../../hooks/useAuth';
 import { useCustomerDetail } from '../lib/useCustomers';
 import { orderSessions, sessionLabel } from '../../../../../lib/spacareer/sessionOrder';
+import { canArchiveCustomer } from '../../../../../lib/spacareer/permissions';
 
 // 代理ログイン時に現在の管理者セッションを退避する localStorage キー。
 // 営業代行ポータルの `spanavi_admin_session_backup` とは別キーで管理し、
@@ -61,15 +62,63 @@ function ageFromBirthdate(b) {
   return age;
 }
 
-export default function CustomerDetail({ customerId, isAdmin }) {
+export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onArchived }) {
   const { detail, loading, refresh } = useCustomerDetail(customerId);
   const { profile } = useAuth();
   const [tab, setTab] = useState('basic');
   const [impersonating, setImpersonating] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   // 代理ログイン可否: 全体adminか、スパキャリ専用許可リストに載っているか
   const canImpersonate = isAdmin
     || SPACAREER_IMPERSONATE_ALLOWED_EMAILS.includes(profile?.email);
+
+  // 顧客のアーカイブ（論理削除）／復元は篠宮・小山のみ（むー様指示 2026-07-15）。
+  // サーバー側(fn_spacareer_archive_customer)でも同じ2名で弾く二重ガード。
+  const canArchive = canArchiveCustomer(profile?.email);
+
+  // 顧客をアーカイブ（非表示）する。物理削除ではないので「アーカイブ」タブから復元できる。
+  const handleArchive = async () => {
+    const cust = detail?.customer;
+    if (!cust?.id || archiving) return;
+    const name = cust.member?.name || 'この顧客';
+    if (!window.confirm(
+      `「${name}」を顧客一覧からアーカイブ（非表示）します。\n\n`
+      + 'セッション・事後課題などの記録はデータとして残り、\n'
+      + '左の「アーカイブ」タブからいつでも復元できます。\n\n'
+      + 'よろしいですか？',
+    )) return;
+    setArchiving(true);
+    try {
+      const { error } = await supabase.rpc('fn_spacareer_archive_customer', { p_customer_id: cust.id });
+      if (error) throw error;
+      if (onRefreshList) await onRefreshList();
+      if (onArchived) onArchived();
+    } catch (e) {
+      console.error('[CustomerDetail] archive error:', e);
+      alert('アーカイブに失敗しました: ' + (e.message || e));
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  // アーカイブ済み顧客を復元する。
+  const handleUnarchive = async () => {
+    const cust = detail?.customer;
+    if (!cust?.id || archiving) return;
+    setArchiving(true);
+    try {
+      const { error } = await supabase.rpc('fn_spacareer_unarchive_customer', { p_customer_id: cust.id });
+      if (error) throw error;
+      if (onRefreshList) await onRefreshList();
+      await refresh();
+    } catch (e) {
+      console.error('[CustomerDetail] unarchive error:', e);
+      alert('復元に失敗しました: ' + (e.message || e));
+    } finally {
+      setArchiving(false);
+    }
+  };
 
   // スパキャリ受講生として代理ログインする。営業代行 DealsView の handleImpersonate と同じ構造。
   // 退避キーだけ別物（ADMIN_BACKUP_KEY_SPACAREER）にしてあるため、営業代行ポータルとは混線しない。
@@ -253,6 +302,9 @@ export default function CustomerDetail({ customerId, isAdmin }) {
                     {customer.status}
                   </Badge>
                 )}
+                {customer?.archived_at && (
+                  <Badge variant="neutral">アーカイブ済み</Badge>
+                )}
               </div>
               <div style={{
                 fontSize: font.size.xs, color: color.textMid, marginTop: 4,
@@ -285,6 +337,29 @@ export default function CustomerDetail({ customerId, isAdmin }) {
                 >{label}</Button>
               );
             })()}
+            {canArchive && (
+              customer?.archived_at ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={archiving}
+                  disabled={archiving}
+                  onClick={handleUnarchive}
+                  title="この顧客を一覧に復元する"
+                  style={{ flexShrink: 0 }}
+                >復元</Button>
+              ) : (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  loading={archiving}
+                  disabled={archiving}
+                  onClick={handleArchive}
+                  title="この顧客を一覧からアーカイブ（非表示）する。データは残り、復元可能。"
+                  style={{ flexShrink: 0 }}
+                >アーカイブ</Button>
+              )
+            )}
           </div>
 
           <div style={{ marginTop: space[3] }}>

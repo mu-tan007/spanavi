@@ -24,3 +24,16 @@ export const SPACAREER_COURSE_CHANGE_EMAILS = [
 export function canChangeCourse(email) {
   return SPACAREER_COURSE_CHANGE_EMAILS.includes(String(email || '').trim().toLowerCase());
 }
+
+// 顧客のアーカイブ（論理削除・非表示）／復元を実行できる人。
+// むー様指示 2026-07-15: 顧客削除は誤操作の影響が極めて大きいため、篠宮・小山のみに絞る。
+// サーバー側でも fn_spacareer_archive_customer / fn_spacareer_unarchive_customer が
+// 同じ2名のメールで弾く（二重ガード）。
+export const SPACAREER_ARCHIVE_CUSTOMER_EMAILS = [
+  'shinomiya@ma-sp.co', // 篠宮（全体管理者）
+  'koyama@ma-sp.co',    // 小山（スパキャリ事業責任者）
+];
+
+export function canArchiveCustomer(email) {
+  return SPACAREER_ARCHIVE_CUSTOMER_EMAILS.includes(String(email || '').trim().toLowerCase());
+}

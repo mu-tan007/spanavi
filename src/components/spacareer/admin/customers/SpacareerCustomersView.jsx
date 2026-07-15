@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { space } from '../../../../constants/design';
 import PageHeader from '../../../common/PageHeader';
+import { useAuth } from '../../../../hooks/useAuth';
+import { canArchiveCustomer } from '../../../../lib/spacareer/permissions';
 import { useCustomersList } from './lib/useCustomers';
 import CustomerListColumn from './CustomerListColumn';
 import CustomerDetail from './CustomerDetail';
@@ -14,6 +16,8 @@ import CustomerDetail from './CustomerDetail';
 // ============================================================
 export default function SpacareerCustomersView({ isAdmin }) {
   const { rows, loading, refresh } = useCustomersList();
+  const { profile } = useAuth();
+  const canArchive = canArchiveCustomer(profile?.email);
   const [selectedId, setSelectedId] = useState(null);
 
   useEffect(() => {
@@ -40,11 +44,13 @@ export default function SpacareerCustomersView({ isAdmin }) {
       }}>
         <div style={{ minHeight: 0 }}>
           <CustomerListColumn rows={rows} loading={loading}
-            selectedId={selectedId} onSelect={setSelectedId} />
+            selectedId={selectedId} onSelect={setSelectedId}
+            canViewArchived={canArchive} />
         </div>
         <div style={{ minHeight: 0 }}>
           <CustomerDetail customerId={selectedId} isAdmin={isAdmin}
-            onRefreshList={refresh} />
+            onRefreshList={refresh}
+            onArchived={() => setSelectedId(null)} />
         </div>
       </div>
     </div>
