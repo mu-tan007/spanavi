@@ -8,7 +8,7 @@ import { generateHomework30Items } from '../../../../../lib/spacareer/ai/mock';
 // 事後課題：変動課題エディタ（第2〜7回）
 // ------------------------------------------------------------
 // 新フロー（むー様 2026-06-23）:
-//   - 固定事後課題＋感想 … 各回の予定日時を過ぎたら自動公開cronが配信（fixed_published_at）。
+//   - 固定事後課題＋感想 … 各回をセッション完了(status='completed')にすると自動公開cronが配信（fixed_published_at）。
 //   - 変動事後課題       … 本エディタで AI 生成 → 修正 → 「追加公開」で公開済み課題に追記。
 // 対象は固定公開済み（fixed_published_at あり）の第2〜7回。
 // 固定項目(source='fixed')と公開済み変動(is_published=true)は受講生の回答保護のため読取専用。
@@ -103,7 +103,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
       return (
         <Card padding="md" title="事後課題：変動課題（AI生成）">
           <div style={{ fontSize: font.size.sm, color: color.textMid }}>
-            この回の固定事後課題はまだ自動公開されていません。第{sessionNo}回の予定日時を過ぎると
+            この回の固定事後課題はまだ自動公開されていません。第{sessionNo}回のセッションを完了
+            （動画アップロード＋AI議事録＋チェック完了、または「セッション完了」ボタン）すると、
             固定事後課題＋セッション感想が自動公開され、ここで変動課題を生成・追加公開できるようになります。
           </div>
         </Card>

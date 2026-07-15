@@ -123,7 +123,7 @@ export default function SessionCompleteFlow({
       title={`完了フロー（${isKickoff ? 'キックオフ' : `第${session.session_no}回`}）`}
       description={isKickoff
         ? '動画アップロード+AI議事録+9項目チェックを満たすと「セッション完了」が押せます。完了時にキックオフヒアリングが自動配信されます。'
-        : '必須ゲートを満たすと「セッション完了」が押せます。固定の事後課題とセッション感想は各回の予定日時を過ぎると自動公開されます。変動の事後課題は「事後課題」タブから生成・追加公開してください。'}
+        : '必須ゲートを満たすと「セッション完了」が押せます。固定の事後課題とセッション感想はこの回を完了すると自動公開されます。変動の事後課題は「事後課題」タブから生成・追加公開してください。'}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginTop: space[2] }}>
         {steps.map((st, idx) => (
@@ -232,7 +232,7 @@ export default function SessionCompleteFlow({
           background: color.successSoft, color: '#1F6537',
           fontSize: font.size.sm, borderRadius: radius.md,
         }}>
-          セッションを完了しました。固定の事後課題とセッション感想は、この回の予定日時を過ぎると自動でポータルに公開されます。
+          セッションを完了しました。固定の事後課題とセッション感想は、まもなく（毎時の自動公開処理で）ポータルに公開されます。
           変動の事後課題は「事後課題」タブから生成・追加公開してください。
         </div>
       )}
