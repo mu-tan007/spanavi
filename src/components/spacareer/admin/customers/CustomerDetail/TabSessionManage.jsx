@@ -84,6 +84,14 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
   const [nextStartAt, setNextStartAt] = useState(() => toDateTimeInput(nextSession?.scheduled_at));
   const [nextSavedAt, setNextSavedAt] = useState(null);
   const nextSaveTimer = useRef(null);
+  // この回の事後課題（提出期限を画面から直接編集できるようにする。むー様指示 2026-07-16）。
+  // 応用コースの(2)には事後課題を紐付けないため part===1 の回のみが対象。
+  const currentHomework = useMemo(
+    () => (detail?.homework || []).find((h) => h.session_no === sessionNo) || null,
+    [detail?.homework, sessionNo]);
+  const [dueAt, setDueAt] = useState(() => toDateTimeInput(currentHomework?.due_at));
+  const [dueSavedAt, setDueSavedAt] = useState(null);
+  const dueSaveTimer = useRef(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const videoFileRef = useRef(null);
@@ -113,6 +121,9 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
   // （入力中に動画アップロード等でリフレッシュが走っても入力値が消えないようにするため）。
   useEffect(() => { setNextStartAt(toDateTimeInput(nextSession?.scheduled_at)); }, [nextSession?.id]);
 
+  // 事後課題の締切も、その回の homework 切替時(id変化)のみ初期化する（次回日時と同じ保護方針）。
+  useEffect(() => { setDueAt(toDateTimeInput(currentHomework?.due_at)); setDueSavedAt(null); }, [currentHomework?.id]);
+
   // 次回（第N+1回）開始日時を入力即時で自動保存する（保存ボタン押し忘れ・リフレッシュでの消失対策）。
   function handleNextStartAtChange(value) {
     setNextStartAt(value);
@@ -135,6 +146,31 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
     }, 600);
   }
   useEffect(() => () => { if (nextSaveTimer.current) clearTimeout(nextSaveTimer.current); }, []);
+
+  // 事後課題の締切を入力即時で自動保存する（次回開始日時と同じ作法）。
+  // datetime-local はTZ無しのローカル文字列のため new Date(...).toISOString() で
+  // ブラウザのローカル時刻として正規化してから保存する（UTC解釈による9時間ズレを防ぐ）。
+  // 空欄にすると due_at=null（締切なし）で保存する。
+  function handleDueAtChange(value) {
+    setDueAt(value);
+    setDueSavedAt(null);
+    if (!currentHomework) return;
+    if (dueSaveTimer.current) clearTimeout(dueSaveTimer.current);
+    dueSaveTimer.current = setTimeout(async () => {
+      try {
+        const iso = value ? new Date(value).toISOString() : null;
+        const { error } = await supabase.from('spacareer_homework')
+          .update({ due_at: iso }).eq('id', currentHomework.id);
+        if (error) throw error;
+        setDueSavedAt(new Date());
+        // ここでは onRefresh を呼ばない（次回日時欄と同じ。DBには保存済みで、
+        // 受講生ポータル・提出サマリ・締切リマインダーはDB値を参照する）。
+      } catch (e) {
+        console.error('[TabSessionManage] due_at autosave error:', e);
+      }
+    }, 600);
+  }
+  useEffect(() => () => { if (dueSaveTimer.current) clearTimeout(dueSaveTimer.current); }, []);
 
   const checkFields = useMemo(() => checkFieldsFor(sessionNo), [sessionNo]);
   const allChecked = checkFields.every((f) => !!form[f.key]);
@@ -440,6 +476,24 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
         hasVideo={hasVideo} hasMinutes={hasMinutes}
         onCompleted={onRefresh}
         embedded completion={completion} />
+
+      {/* 事後課題の締切をこの画面から直接編集できる（むー様指示 2026-07-16）。
+          この受講生・この回の spacareer_homework.due_at を即時自動保存する。
+          事後課題があるのは第1回以降・part1 のみ。 */}
+      {currentHomework && part === 1 && (
+        <Card padding="md" title={`${sessionLabelText} 事後課題の締切`}
+          description="この受講生のこの回の事後課題（宿題）の提出期限です。入力するとその場で自動保存され、受講生ポータル・提出サマリ・締切リマインダーに反映されます。">
+          <Input size="sm" label="事後課題の締切（日付＋時間）" type="datetime-local"
+            value={dueAt}
+            onChange={(e) => handleDueAtChange(e.target.value)}
+            hint="入力した瞬間に自動保存されます（保存ボタン不要）。空欄にすると締切なしになります。" />
+          {dueSavedAt && (
+            <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.success }}>
+              自動保存しました（{dueSavedAt.toLocaleTimeString()}）
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* この回(第2〜8回・part1)の変動事後課題をここで生成・修正・追加公開する。
           応用コースの(2)には事後課題を紐付けないため part===1 のときだけ表示。 */}

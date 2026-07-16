@@ -25,14 +25,21 @@ function fmtDateTime(v) {
 }
 
 export default function HomeworkVariableEditor({ detail, customerId, sessionNo = null, onRefresh }) {
-  // 固定公開済み（fixed_published_at あり）の第2〜8回が変動課題の対象。
+  // 変動課題の対象は「固定公開済み（fixed_published_at あり）」または「セッション完了済み」の第2〜8回。
+  // → セッション完了直後（固定の自動公開cronを待たずに）から変動課題を生成・下書き保存できる。
+  //   ただし受講生への「追加公開」は固定公開後(fixed_published_at)に限定する（handlePublish で保護）。
   // sessionNo 指定時はその回のみ（セッション管理タブ埋め込み用）。
+  const completedSessionNos = useMemo(
+    () => new Set((detail?.sessions || []).filter((s) => s.status === 'completed').map((s) => s.session_no)),
+    [detail?.sessions],
+  );
   const targets = useMemo(
     () => (detail?.homework || [])
-      .filter((h) => h.session_no >= 2 && h.session_no <= 8 && h.fixed_published_at
+      .filter((h) => h.session_no >= 2 && h.session_no <= 8
+        && (h.fixed_published_at || completedSessionNos.has(h.session_no))
         && (sessionNo ? h.session_no === sessionNo : true))
       .sort((a, b) => a.session_no - b.session_no),
-    [detail?.homework, sessionNo],
+    [detail?.homework, completedSessionNos, sessionNo],
   );
   const [selectedId, setSelectedId] = useState('');
   const [fixedDrafts, setFixedDrafts] = useState([]);      // source='fixed'（編集可・回答は保持）
@@ -103,9 +110,10 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
       return (
         <Card padding="md" title="事後課題：変動課題（AI生成）">
           <div style={{ fontSize: font.size.sm, color: color.textMid }}>
-            この回の固定事後課題はまだ自動公開されていません。第{sessionNo}回のセッションを完了
+            第{sessionNo}回のセッションがまだ完了していません。セッションを完了
             （動画アップロード＋AI議事録＋チェック完了、または「セッション完了」ボタン）すると、
-            固定事後課題＋セッション感想が自動公開され、ここで変動課題を生成・追加公開できるようになります。
+            すぐにここで変動課題を生成・下書き保存できるようになります
+            （受講生への追加公開は、固定事後課題が自動公開されたあとに行えます）。
           </div>
         </Card>
       );
@@ -294,6 +302,12 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
 
   async function handlePublish() {
     if (!drafts.length) return;
+    // 順序保護: 固定の事後課題がまだ自動公開されていない回は、変動課題を先に追加公開しない
+    // （固定より先に変動だけが受講生に見える状態を防ぐ）。下書きは保存済みなので固定公開後に追加公開できる。
+    if (!selected?.fixed_published_at) {
+      setMsg({ kind: 'err', text: 'この回の固定事後課題がまだ自動公開されていないため、変動課題の追加公開はできません。固定が公開（セッション完了後の自動公開）されると追加公開できます。下書きはこのまま保持されます。' });
+      return;
+    }
     if (!window.confirm(`第${selected.session_no}回の変動事後課題（${drafts.length}項目）を受講生に追加公開します。\n公開後は受講生のポータルに表示され、回答できるようになります。よろしいですか？`)) return;
     setPublishing(true); setMsg(null);
     try {
@@ -350,6 +364,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
   }
 
   const isPublished = !!selected?.notified_at;
+  // 固定の事後課題が自動公開済みか。未公開の間は「追加公開」を禁止し、生成・下書き保存のみ許可する。
+  const fixedPublished = !!selected?.fixed_published_at;
 
   return (
     <Card padding="md"
@@ -374,18 +390,34 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
           <span style={{ margin: '0 8px', color: color.border }}>|</span>
           公開状態 {isPublished
             ? <Badge variant="success" dot>公開中</Badge>
-            : <Badge variant="warn" dot>停止中</Badge>}
+            : fixedPublished
+              ? <Badge variant="warn" dot>停止中</Badge>
+              : <Badge variant="neutral" dot>固定公開待ち</Badge>}
         </div>
         <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap' }}>
           <Button variant="outline" size="sm" onClick={add}>＋ 項目追加</Button>
           <Button variant="outline" size="sm" loading={generating} onClick={handleGenerate}>AIで変動課題を生成</Button>
           <Button variant="secondary" size="sm" loading={saving} onClick={handleSaveDraft} disabled={!drafts.length}>下書き保存</Button>
-          <Button variant="primary" size="sm" loading={publishing} onClick={handlePublish} disabled={!drafts.length}>追加公開</Button>
-          {isPublished
+          <Button variant="primary" size="sm" loading={publishing} onClick={handlePublish}
+            disabled={!drafts.length || !fixedPublished}
+            title={!fixedPublished ? '固定の事後課題が自動公開されてから追加公開できます（順序保護）。それまでは下書き保存でご準備ください。' : undefined}>追加公開</Button>
+          {/* 公開停止／再公開は固定が自動公開された後のみ操作可能にする（固定公開前に notified_at を立てない）。 */}
+          {fixedPublished && (isPublished
             ? <Button variant="ghost" size="sm" loading={toggling} onClick={() => toggleFixedPublish(true)}>公開を停止</Button>
-            : <Button variant="ghost" size="sm" loading={toggling} onClick={() => toggleFixedPublish(false)}>再公開</Button>}
+            : <Button variant="ghost" size="sm" loading={toggling} onClick={() => toggleFixedPublish(false)}>再公開</Button>)}
         </div>
       </div>
+
+      {!fixedPublished && (
+        <div style={{
+          marginBottom: space[3], padding: space[2],
+          background: color.infoSoft, color: color.textMid,
+          fontSize: font.size.sm, borderRadius: radius.md,
+        }}>
+          この回はセッション完了済みのため、変動課題を今すぐ生成・下書き保存して準備できます。
+          受講生への「追加公開」は、固定事後課題が自動公開（セッション完了後、毎時の自動処理で公開）されると行えます。
+        </div>
+      )}
 
       {msg && (
         <div style={{
