@@ -105,10 +105,15 @@ export default function DatabaseView({ isAdmin }) {
           if (phoneCol < 0 && PHONE_H.includes(h)) phoneCol = col;
         });
         if (nameCol < 0 || phoneCol < 0) { alert('「企業名」「電話番号」の列が見つかりませんでした。'); return; }
+        // getCell(col) はブラウザ版 exceljs だと空セルのある行で列番号がズレる（スパース索引化）。
+        // eachCell の col（真の列番号）で照合して確実に電話番号/企業名を拾う。
         ws.eachRow({ includeEmpty: false }, (row, rn) => {
           if (rn === 1) return;
-          const n = String(row.getCell(nameCol).text || '').trim();
-          const p = String(row.getCell(phoneCol).text || '').trim();
+          let n = '', p = '';
+          row.eachCell({ includeEmpty: false }, (cell, col) => {
+            if (col === nameCol) n = String(cell.text || '').trim();
+            else if (col === phoneCol) p = String(cell.text || '').trim();
+          });
           if (n && p) pairs.push({ n, p });
         });
       }
@@ -188,7 +193,7 @@ export default function DatabaseView({ isAdmin }) {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="企業DB"
-        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-22 23:20・診断版)`}
+        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-23 08:00・診断版2)`}
         style={{ marginBottom: 24 }}
         right={
           <>
