@@ -113,6 +113,8 @@ export default function DatabaseView({ isAdmin }) {
         });
       }
       if (!pairs.length) { alert('取り込める行がありませんでした（企業名・電話番号の列をご確認ください）。'); return; }
+      // 【一時診断】ブラウザが実際に何を読めているか確認する（原因特定後に削除）
+      if (!window.confirm(`【診断】読取件数=${pairs.length}\n先頭: ${JSON.stringify(pairs[0])}\n2件目: ${JSON.stringify(pairs[1])}\n3件目: ${JSON.stringify(pairs[2])}\n\nこの内容でOKなら「OK」を押すと取込を続行します`)) { return; }
 
       let matched = 0, inserted = 0;
       const B = 1500;
@@ -186,7 +188,7 @@ export default function DatabaseView({ isAdmin }) {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="企業DB"
-        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-22 23:07)`}
+        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-22 23:20・診断版)`}
         style={{ marginBottom: 24 }}
         right={
           <>
