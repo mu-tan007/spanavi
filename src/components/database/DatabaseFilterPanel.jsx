@@ -26,19 +26,17 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
     fetchEngagementTypes().then(setEngagementTypes).catch(console.error);
   }, []);
 
-  // 選択中の商材配下のタイプ（engagement）。商材未選択なら全タイプ。
+  // タイプ（engagement）は「選択中の商材配下」だけ表示する（未選択時は出さない＝羅列を防ぐ）。
   const selectedCats = filters.callCategory || [];
   const visibleTypes = useMemo(() => {
-    const list = selectedCats.length
-      ? engagementTypes.filter(e => selectedCats.includes(e.category_id))
-      : engagementTypes;
-    // 同名タイプが複数商材にまたがる場合、商材名を接頭してラベル衝突を避ける
+    if (!selectedCats.length) return [];
     const catName = Object.fromEntries(businessCategories.map(c => [c.id, c.name]));
-    const nameCounts = {};
-    list.forEach(e => { nameCounts[e.name] = (nameCounts[e.name] || 0) + 1; });
+    const list = engagementTypes.filter(e => selectedCats.includes(e.category_id));
+    // 複数商材を選択中のみ、どの商材のタイプか分かるよう商材名を接頭
+    const multi = selectedCats.length > 1;
     return list.map(e => ({
       id: e.id,
-      label: (nameCounts[e.name] > 1 && catName[e.category_id]) ? `${catName[e.category_id]}/${e.name}` : e.name,
+      label: (multi && catName[e.category_id]) ? `${catName[e.category_id]}／${e.name}` : e.name,
     }));
   }, [engagementTypes, businessCategories, selectedCats]);
 
@@ -232,7 +230,7 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
       {/* タイプ（商材配下の engagement） */}
       {visibleTypes.length > 0 && (
         <div style={{ marginBottom: space[3] }}>
-          <div style={labelStyle}>タイプ<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>商材配下の種別で絞る（複数選択＝OR。未選択＝全タイプ）</span></div>
+          <div style={labelStyle}>タイプ<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>選択中の商材の種別で絞る（複数選択＝OR。未選択＝全タイプ）</span></div>
           <div style={{ display: 'flex', gap: space[1.5], flexWrap: 'wrap' }}>
             {visibleTypes.map(t => {
               const selected = (filters.callEngagement || []).includes(t.id);

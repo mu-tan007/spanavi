@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')!
+    // スパキャリ専用キーを優先（Live用に STRIPE_SPACAREER_SECRET_KEY を使う。無ければ共有キーにフォールバック）
+    const stripeSecretKey = Deno.env.get('STRIPE_SPACAREER_SECRET_KEY') ?? Deno.env.get('STRIPE_SECRET_KEY')!
 
     // 呼び出し元が管理者か検証（売上は経営情報のため admin 限定）
     const userClient = createClient(supabaseUrl, anonKey, {

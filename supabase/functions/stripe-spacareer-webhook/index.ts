@@ -17,7 +17,8 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')!
+  // スパキャリ専用キーを優先（Live用に STRIPE_SPACAREER_SECRET_KEY を使う。無ければ共有キーにフォールバック）
+  const stripeSecretKey = Deno.env.get('STRIPE_SPACAREER_SECRET_KEY') ?? Deno.env.get('STRIPE_SECRET_KEY')!
   const webhookSecret = Deno.env.get('STRIPE_SPACAREER_WEBHOOK_SECRET')!
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
