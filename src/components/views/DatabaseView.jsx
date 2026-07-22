@@ -10,7 +10,7 @@ import ImportModal from '../database/ImportModal';
 import DatabaseExportColumnModal from '../database/DatabaseExportColumnModal';
 import TsrIndustryModal from '../TsrIndustryModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
-import { searchCompanies } from '../../lib/companyMasterApi';
+import { searchCompanies, bulkLabelFromPairs } from '../../lib/companyMasterApi';
 import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
 
@@ -65,6 +65,59 @@ export default function DatabaseView({ isAdmin }) {
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
   const [dbTotal, setDbTotal] = useState(null);
+  const [labelImporting, setLabelImporting] = useState(false);
+
+  // 【一時】「M&Aニーズあり」Excel/CSV一括取込。1回投入したらこのボタン群は撤去する。
+  const handleMaNeedsImport = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setLabelImporting(true);
+    try {
+      let hdrs = [], rows = [];
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'csv' || ext === 'tsv') {
+        const text = await file.text();
+        const sep = ext === 'tsv' ? '\t' : ',';
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        const split = (l) => l.split(sep).map(s => s.replace(/^﻿/, '').replace(/^"|"$/g, '').trim());
+        hdrs = split(lines[0]); rows = lines.slice(1).map(split);
+      } else {
+        const ExcelJS = (await import('exceljs')).default;
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(await file.arrayBuffer());
+        const ws = wb.worksheets[0];
+        ws.eachRow((row, i) => {
+          const vals = row.values.slice(1).map(v => v == null ? '' : String(v));
+          if (i === 1) hdrs = vals; else rows.push(vals);
+        });
+      }
+      const norm = (s) => String(s || '').replace(/[\s　]/g, '').replace(/\(.*?\)|（.*?）/g, '');
+      const nameIdx = hdrs.findIndex(h => ['企業名', '会社名', '法人名', '社名'].includes(norm(h)));
+      const phoneIdx = hdrs.findIndex(h => ['電話番号', '電話', 'TEL', 'tel', 'Tel'].includes(norm(h)));
+      if (nameIdx < 0 || phoneIdx < 0) {
+        alert('「企業名」「電話番号」の列が見つかりませんでした。ヘッダー名をご確認ください。');
+        return;
+      }
+      const pairs = rows
+        .map(r => ({ n: (r[nameIdx] || '').trim(), p: (r[phoneIdx] || '').trim() }))
+        .filter(x => x.n && x.p);
+      if (!pairs.length) { alert('取り込める行がありませんでした。'); return; }
+
+      let matched = 0, inserted = 0;
+      const B = 1500;
+      for (let i = 0; i < pairs.length; i += B) {
+        const res = await bulkLabelFromPairs('M&Aニーズあり', pairs.slice(i, i + B));
+        if (res?.error) { alert('取込に失敗しました: ' + (res.error.message || '')); return; }
+        matched += res.matched || 0; inserted += res.inserted || 0;
+      }
+      alert(`「M&Aニーズあり」取込完了\n対象 ${pairs.length.toLocaleString()}件 / 企業DB突合 ${matched.toLocaleString()}件 / 新規付与 ${inserted.toLocaleString()}件\n（突合できなかった先はTSR企業DB未収録です）`);
+    } catch (err) {
+      alert('取込エラー: ' + err.message);
+    } finally {
+      setLabelImporting(false);
+    }
+  }, []);
 
   useEffect(() => {
     supabase.from('company_master').select('id', { count: 'exact', head: true })
@@ -133,6 +186,19 @@ export default function DatabaseView({ isAdmin }) {
             <Button variant="secondary" size="sm" onClick={() => setShowTsrModal(true)}>
               TSR業種分類一覧
             </Button>
+            {isAdmin && (
+              <label style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '6px 12px', borderRadius: radius.md, cursor: labelImporting ? 'default' : 'pointer',
+                fontSize: font.size.sm, fontWeight: font.weight.medium, fontFamily: font.family.sans,
+                border: `1px solid ${color.gold}`, background: color.white, color: color.navyDeep,
+                opacity: labelImporting ? 0.6 : 1, whiteSpace: 'nowrap',
+              }} title="【一時】Excelを1回アップロードするとM&Aニーズありを付与。完了後に撤去します。">
+                <Upload size={14} />
+                {labelImporting ? '取込中...' : 'M&Aニーズあり取込（一時）'}
+                <input type="file" accept=".xlsx,.csv,.tsv" onChange={handleMaNeedsImport} disabled={labelImporting} style={{ display: 'none' }} />
+              </label>
+            )}
             {isAdmin && (
               <Button size="sm" iconLeft={<Upload size={14} />} onClick={() => setShowImport(true)}>
                 リストインポート

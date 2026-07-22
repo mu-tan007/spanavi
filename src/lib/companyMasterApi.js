@@ -273,6 +273,17 @@ export async function searchCompanies(filters) {
 /** 企業DBラベルの選択肢（現状は 'M&Aニーズあり' 固定。将来DB化可） */
 export const DB_LABEL_OPTIONS = ['M&Aニーズあり'];
 
+/**
+ * (企業名, 電話) ペア配列を company_master に突合して企業DBラベルを一括付与。
+ * ※一時的なExcel取込用（1回投入後にUIは撤去予定）。
+ * @returns {Promise<{input:number, matched:number, inserted:number}|{error:any}>}
+ */
+export async function bulkLabelFromPairs(label, pairs) {
+  const { data, error } = await supabase.rpc('bulk_label_from_pairs', { p_label: label, p_pairs: pairs });
+  if (error) { console.warn('[companyMasterApi] bulkLabelFromPairs error:', error.message); return { error }; }
+  return data || {};
+}
+
 /** 指定企業(company_master.id)に付いている企業DBラベル一覧を取得 */
 export async function fetchCompanyLabels(companyMasterId) {
   if (!companyMasterId) return [];
