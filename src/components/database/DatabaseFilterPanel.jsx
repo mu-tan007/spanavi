@@ -3,7 +3,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { Search, RotateCcw, Download } from 'lucide-react';
 import CategorySearchInput from './CategorySearchInput';
-import { fetchCategories, fetchPrefectures, fetchBusinessCategories, DB_LABEL_OPTIONS } from '../../lib/companyMasterApi';
+import { fetchCategories, fetchPrefectures, fetchBusinessCategories, fetchEngagementTypes, DB_LABEL_OPTIONS } from '../../lib/companyMasterApi';
 import { CALL_RESULTS } from '../../constants/callResults';
 
 const labelStyle = { fontSize: font.size.xs, color: color.textMid, marginBottom: 3, fontWeight: font.weight.semibold };
@@ -17,12 +17,30 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
   const [categories, setCategories] = useState([]);
   const [prefectures, setPrefectures] = useState([]);
   const [businessCategories, setBusinessCategories] = useState([]); // 商材(M&A/人材/IFA/…)
+  const [engagementTypes, setEngagementTypes] = useState([]); // タイプ(売り手ソーシング等)
 
   useEffect(() => {
     fetchCategories().then(setCategories).catch(console.error);
     fetchPrefectures().then(setPrefectures).catch(console.error);
     fetchBusinessCategories().then(setBusinessCategories).catch(console.error);
+    fetchEngagementTypes().then(setEngagementTypes).catch(console.error);
   }, []);
+
+  // 選択中の商材配下のタイプ（engagement）。商材未選択なら全タイプ。
+  const selectedCats = filters.callCategory || [];
+  const visibleTypes = useMemo(() => {
+    const list = selectedCats.length
+      ? engagementTypes.filter(e => selectedCats.includes(e.category_id))
+      : engagementTypes;
+    // 同名タイプが複数商材にまたがる場合、商材名を接頭してラベル衝突を避ける
+    const catName = Object.fromEntries(businessCategories.map(c => [c.id, c.name]));
+    const nameCounts = {};
+    list.forEach(e => { nameCounts[e.name] = (nameCounts[e.name] || 0) + 1; });
+    return list.map(e => ({
+      id: e.id,
+      label: (nameCounts[e.name] > 1 && catName[e.category_id]) ? `${catName[e.category_id]}/${e.name}` : e.name,
+    }));
+  }, [engagementTypes, businessCategories, selectedCats]);
 
   const daibunruiList = useMemo(() => {
     return [...new Set(categories.map(c => c.daibunrui))];
@@ -211,9 +229,34 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
         </div>
       )}
 
+      {/* タイプ（商材配下の engagement） */}
+      {visibleTypes.length > 0 && (
+        <div style={{ marginBottom: space[3] }}>
+          <div style={labelStyle}>タイプ<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>商材配下の種別で絞る（複数選択＝OR。未選択＝全タイプ）</span></div>
+          <div style={{ display: 'flex', gap: space[1.5], flexWrap: 'wrap' }}>
+            {visibleTypes.map(t => {
+              const selected = (filters.callEngagement || []).includes(t.id);
+              return (
+                <button key={t.id} onClick={() => {
+                  const cur = filters.callEngagement || [];
+                  setFilter('callEngagement', selected ? cur.filter(v => v !== t.id) : [...cur, t.id]);
+                }} style={{
+                  padding: '5px 14px', fontSize: font.size.sm, fontWeight: font.weight.semibold, borderRadius: radius.lg, cursor: 'pointer',
+                  border: `1px solid ${selected ? color.navyLight : color.border}`,
+                  background: selected ? color.navyLight : color.white,
+                  color: selected ? color.white : color.textMid,
+                }}>
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 架電ステータス */}
       <div style={{ marginBottom: space[3] }}>
-        <div style={labelStyle}>架電ステータス<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>いずれかのリストで該当（複数選択＝OR）{(filters.callCategory || []).length > 0 ? '・上の商材内で判定' : ''}</span></div>
+        <div style={labelStyle}>架電ステータス<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>いずれかのリストで該当（複数選択＝OR）{((filters.callCategory || []).length > 0 || (filters.callEngagement || []).length > 0) ? '・上の商材/タイプ内で判定' : ''}</span></div>
         <div style={{ display: 'flex', gap: space[1.5], flexWrap: 'wrap' }}>
           {CALL_STATUS_OPTIONS.map(label => {
             const selected = (filters.callStatus || []).includes(label);

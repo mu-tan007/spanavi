@@ -184,6 +184,21 @@ export async function fetchBusinessCategories() {
   return _businessCategoryCache;
 }
 
+/** タイプ一覧（engagements: 売り手ソーシング/買い手マッチング/クライアント開拓/リード獲得 等）。商材(category_id)配下 */
+let _engagementTypeCache = null;
+export async function fetchEngagementTypes() {
+  if (_engagementTypeCache) return _engagementTypeCache;
+  const { data, error } = await supabase
+    .from('engagements')
+    .select('id,name,slug,category_id,display_order')
+    .eq('org_id', getOrgId())
+    .eq('status', 'active')
+    .order('display_order');
+  if (error) { console.warn('[companyMasterApi] fetchEngagementTypes error:', error.message); return []; }
+  _engagementTypeCache = data || [];
+  return _engagementTypeCache;
+}
+
 /** 企業検索（RPC） - 複数選択・AND/OR対応 */
 export async function searchCompanies(filters) {
   const params = {};
@@ -225,6 +240,7 @@ export async function searchCompanies(filters) {
   if (filters.shareholderType?.length) params.p_shareholder_type_arr = filters.shareholderType;
   if (filters.callStatus?.length) params.p_call_status_arr = filters.callStatus;
   if (filters.callCategory?.length) params.p_call_category_arr = filters.callCategory;
+  if (filters.callEngagement?.length) params.p_call_engagement_arr = filters.callEngagement;
   if (filters.dbLabel?.length) params.p_db_label_arr = filters.dbLabel;
   if (filters.repShareholderMatch) params.p_rep_shareholder_match = true;
   params.p_logic = filters.logic || 'AND';
