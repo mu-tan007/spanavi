@@ -26,6 +26,7 @@ const INITIAL_FILTERS = {
   establishedMin: '',
   establishedMax: '',
   shareholderType: [],  // ['individual', 'corporate', 'mixed', 'empty']
+  callStatus: [],   // 架電ステータス抽出（'未架電'/'未登録'/9ステータス）。いずれか該当でヒット
   repShareholderMatch: false,  // 代表者名が株主欄に含まれるか
   logic: 'AND',     // AND / OR
   sortCol: 'id',

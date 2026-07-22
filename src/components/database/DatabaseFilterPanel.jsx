@@ -4,9 +4,14 @@ import { Button, Input, Select, Card, Badge } from '../ui';
 import { Search, RotateCcw, Download } from 'lucide-react';
 import CategorySearchInput from './CategorySearchInput';
 import { fetchCategories, fetchPrefectures } from '../../lib/companyMasterApi';
+import { CALL_RESULTS } from '../../constants/callResults';
 
 const labelStyle = { fontSize: font.size.xs, color: color.textMid, marginBottom: 3, fontWeight: font.weight.semibold };
 const rowStyle = { display: 'flex', gap: space[1.5], alignItems: 'center' };
+
+// 架電ステータス抽出の選択肢。「いずれかのリストで該当」でヒット。
+// 特殊2つ（未架電=登録あり未架電 / 未登録=どのリストにも無し）＋実9ステータス。
+const CALL_STATUS_OPTIONS = ['未架電', '未登録', ...CALL_RESULTS.map(s => s.label)];
 
 export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onReset, onExport, loading, totalCount, hasSearched }) {
   const [categories, setCategories] = useState([]);
@@ -153,6 +158,29 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
           }}>
             代表・株主一致
           </button>
+        </div>
+      </div>
+
+      {/* Row 4.5: 架電ステータス（企業DB×リスト架電履歴の横断） */}
+      <div style={{ marginBottom: space[3] }}>
+        <div style={labelStyle}>架電ステータス<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>いずれかのリストで該当（複数選択＝OR）</span></div>
+        <div style={{ display: 'flex', gap: space[1.5], flexWrap: 'wrap' }}>
+          {CALL_STATUS_OPTIONS.map(label => {
+            const selected = (filters.callStatus || []).includes(label);
+            return (
+              <button key={label} onClick={() => {
+                const cur = filters.callStatus || [];
+                setFilter('callStatus', selected ? cur.filter(v => v !== label) : [...cur, label]);
+              }} style={{
+                padding: '5px 14px', fontSize: font.size.sm, fontWeight: font.weight.semibold, borderRadius: radius.lg, cursor: 'pointer',
+                border: `1px solid ${selected ? color.navy : color.border}`,
+                background: selected ? color.navy : color.white,
+                color: selected ? color.white : color.textMid,
+              }}>
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

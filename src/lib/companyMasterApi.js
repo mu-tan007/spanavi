@@ -207,6 +207,7 @@ export async function searchCompanies(filters) {
   if (filters.establishedMin != null && filters.establishedMin !== '') params.p_established_min = Number(filters.establishedMin);
   if (filters.establishedMax != null && filters.establishedMax !== '') params.p_established_max = Number(filters.establishedMax);
   if (filters.shareholderType?.length) params.p_shareholder_type_arr = filters.shareholderType;
+  if (filters.callStatus?.length) params.p_call_status_arr = filters.callStatus;
   if (filters.repShareholderMatch) params.p_rep_shareholder_match = true;
   params.p_logic = filters.logic || 'AND';
   if (filters.sortCol) params.p_sort_col = filters.sortCol;
