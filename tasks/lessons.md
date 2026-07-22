@@ -178,3 +178,18 @@ const needRestoreClient = !loading && session && isClientRole && !inClientArea
 1. **SPA の `<Navigate>` は URL ハッシュを消す。auth コールバック（access_token/code をハッシュ・クエリで受ける）が着地し得るルートでは、auth-js がトークンを読み終える前に絶対に Navigate させない**。「着地を同期検知 → 確立まで待つ」をルーティングの最優先ガードに置く。
 2. **auth-js の URL 処理は同期ではなく Web Locks 後の非同期**。`onAuthStateChange`/`getSession` のイベント頼みは、レンダー側がハッシュを消すと負ける。確実な着地検知は `window.location.hash` をモジュール読込時に同期で読む（`isInviteFlow` 方式）。
 3. **invite で効いている同期捕捉ガードは recovery/magiclink にも横展開する**。片方だけ守ると非対称バグになる。auth 経路を足したら全 type（invite/recovery/magiclink/error）で着地挙動を机上シミュレートする（lessons #2026-06-08 と同じ原則）。
+
+## 2026-07-22 スパキャリ新タブ(revenue)追加で「開いた瞬間に顧客一覧へ戻る」
+
+**症状**: 新タブのボタンを押すと一瞬で既定ページ(customers)へリダイレクト。
+**根因**: SpanaviApp.jsx には事業ごとに**ハードコードされたタブ許可リストが複数箇所**あり、`CAREER_TABS`(遷移ガード, 事業切替時に `!includes(currentTab)` で既定へ戻す)に新キーを入れ忘れた。
+**教訓（自分宛）**: スパキャリ/ソーシングに新タブを足すときは、以下を**全て**更新する。1つでも漏れると無言でリダイレクトされる:
+1. `src/constants/pageRegistry.js`（権限UIのマスタ）
+2. `SpacareerAdminSidebar.jsx` の `ACTIVE_IDS` ＋ セクション定義
+3. `SpanaviApp.jsx` の描画分岐（`currentTab === 'xxx'`）
+4. `SpanaviApp.jsx` の **`CAREER_TABS` 遷移ガード配列**（← 今回漏れた。事業切替useEffect内）
+5. `SpanaviApp.jsx` の canViewPage 既定タブ解決配列（line ~762）
+6. `SpanaviApp.jsx` の キーボード循環 `tabs` 配列（line ~823）
+7. `EngagementComingSoon` の除外配列（line ~1397 の `!includes` リスト）
+8. DB: `member_page_permissions` シード（非admin公開時。admin限定ならバイパスで不要）
+grep 一発点検: `grep -n "'templates','analytics'" src/components/SpanaviApp.jsx` で全リストを洗い出してから足す。
