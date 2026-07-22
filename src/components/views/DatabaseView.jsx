@@ -93,33 +93,41 @@ export default function DatabaseView({ isAdmin }) {
           if (n && p) pairs.push({ n, p });
         }
       } else {
-        // 列番号を特定して cell.text で取り出す（row.values の添字ズレ・リッチテキスト化けを防ぐ）
+        // ブラウザ版 exceljs は空セルのある行で col 番号をズラして報告するため、
+        // col 引数でなく cell.address（例 "U2"=21列目）から真の列を割り出して照合する。
         const ExcelJS = (await import('exceljs')).default;
         const wb = new ExcelJS.Workbook();
         await wb.xlsx.load(await file.arrayBuffer());
         const ws = wb.worksheets[0];
+        const colOf = (addr) => {
+          const m = String(addr || '').match(/^([A-Z]+)/);
+          if (!m) return -1;
+          let n = 0; for (const ch of m[1]) n = n * 26 + (ch.charCodeAt(0) - 64);
+          return n;
+        };
         let nameCol = -1, phoneCol = -1;
-        ws.getRow(1).eachCell({ includeEmpty: false }, (cell, col) => {
+        ws.getRow(1).eachCell({ includeEmpty: false }, (cell) => {
+          const c = colOf(cell.address);
           const h = norm(cell.text);
-          if (nameCol < 0 && NAME_H.includes(h)) nameCol = col;
-          if (phoneCol < 0 && PHONE_H.includes(h)) phoneCol = col;
+          if (nameCol < 0 && NAME_H.includes(h)) nameCol = c;
+          if (phoneCol < 0 && PHONE_H.includes(h)) phoneCol = c;
         });
+        window.__ma_debug_cols = `nameCol=${nameCol} phoneCol=${phoneCol}`;
         if (nameCol < 0 || phoneCol < 0) { alert('「企業名」「電話番号」の列が見つかりませんでした。'); return; }
-        // getCell(col) はブラウザ版 exceljs だと空セルのある行で列番号がズレる（スパース索引化）。
-        // eachCell の col（真の列番号）で照合して確実に電話番号/企業名を拾う。
         ws.eachRow({ includeEmpty: false }, (row, rn) => {
           if (rn === 1) return;
           let n = '', p = '';
-          row.eachCell({ includeEmpty: false }, (cell, col) => {
-            if (col === nameCol) n = String(cell.text || '').trim();
-            else if (col === phoneCol) p = String(cell.text || '').trim();
+          row.eachCell({ includeEmpty: false }, (cell) => {
+            const c = colOf(cell.address);
+            if (c === nameCol) n = String(cell.text || '').trim();
+            else if (c === phoneCol) p = String(cell.text || '').trim();
           });
           if (n && p) pairs.push({ n, p });
         });
       }
       if (!pairs.length) { alert('取り込める行がありませんでした（企業名・電話番号の列をご確認ください）。'); return; }
       // 【一時診断】ブラウザが実際に何を読めているか確認する（原因特定後に削除）
-      if (!window.confirm(`【診断】読取件数=${pairs.length}\n先頭: ${JSON.stringify(pairs[0])}\n2件目: ${JSON.stringify(pairs[1])}\n3件目: ${JSON.stringify(pairs[2])}\n\nこの内容でOKなら「OK」を押すと取込を続行します`)) { return; }
+      if (!window.confirm(`【診断】${window.__ma_debug_cols || ''}\n読取件数=${pairs.length}\n先頭: ${JSON.stringify(pairs[0])}\n2件目: ${JSON.stringify(pairs[1])}\n3件目: ${JSON.stringify(pairs[2])}\n\nこの内容でOKなら「OK」を押すと取込を続行します`)) { return; }
 
       let matched = 0, inserted = 0;
       const B = 1500;
@@ -193,7 +201,7 @@ export default function DatabaseView({ isAdmin }) {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="企業DB"
-        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-23 08:00・診断版2)`}
+        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-23 08:15・診断版3)`}
         style={{ marginBottom: 24 }}
         right={
           <>
