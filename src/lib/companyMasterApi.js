@@ -225,6 +225,7 @@ export async function searchCompanies(filters) {
   if (filters.shareholderType?.length) params.p_shareholder_type_arr = filters.shareholderType;
   if (filters.callStatus?.length) params.p_call_status_arr = filters.callStatus;
   if (filters.callCategory?.length) params.p_call_category_arr = filters.callCategory;
+  if (filters.dbLabel?.length) params.p_db_label_arr = filters.dbLabel;
   if (filters.repShareholderMatch) params.p_rep_shareholder_match = true;
   params.p_logic = filters.logic || 'AND';
   if (filters.sortCol) params.p_sort_col = filters.sortCol;
@@ -251,6 +252,42 @@ export async function searchCompanies(filters) {
     if (error.code && !error.message?.includes('Failed to fetch')) break;
   }
   throw lastError;
+}
+
+/** 企業DBラベルの選択肢（現状は 'M&Aニーズあり' 固定。将来DB化可） */
+export const DB_LABEL_OPTIONS = ['M&Aニーズあり'];
+
+/** 指定企業(company_master.id)に付いている企業DBラベル一覧を取得 */
+export async function fetchCompanyLabels(companyMasterId) {
+  if (!companyMasterId) return [];
+  const { data, error } = await supabase
+    .from('company_db_labels')
+    .select('label')
+    .eq('org_id', getOrgId())
+    .eq('company_master_id', companyMasterId);
+  if (error) { console.warn('[companyMasterApi] fetchCompanyLabels error:', error.message); return []; }
+  return (data || []).map(r => r.label);
+}
+
+/** 企業DBラベルの手動ON/OFF。on=true で付与、false で解除 */
+export async function toggleCompanyLabel(companyMasterId, label, on, createdByName) {
+  if (!companyMasterId || !label) return { error: null };
+  if (on) {
+    const { error } = await supabase
+      .from('company_db_labels')
+      .upsert(
+        { org_id: getOrgId(), company_master_id: companyMasterId, label, source: 'manual', created_by_name: createdByName || null },
+        { onConflict: 'org_id,company_master_id,label', ignoreDuplicates: true }
+      );
+    return { error };
+  }
+  const { error } = await supabase
+    .from('company_db_labels')
+    .delete()
+    .eq('org_id', getOrgId())
+    .eq('company_master_id', companyMasterId)
+    .eq('label', label);
+  return { error };
 }
 
 /**

@@ -3,7 +3,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { CALL_RESULTS } from '../../constants/callResults';
-import { fetchCompanyCallHistory } from '../../lib/companyMasterApi';
+import { fetchCompanyCallHistory, fetchCompanyLabels, toggleCompanyLabel, DB_LABEL_OPTIONS } from '../../lib/companyMasterApi';
 
 // 架電ステータスのラベル→色（企業DB詳細の履歴バッジ用）。org既定=CALL_RESULTS。
 const STATUS_STYLE = CALL_RESULTS.reduce((m, s) => { m[s.label] = { color: s.color, bg: s.bg }; return m; }, {});
@@ -75,18 +75,31 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
   const [selectedRow, setSelectedRow] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [labels, setLabels] = useState([]);
+  const [labelBusy, setLabelBusy] = useState(false);
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // 詳細モーダルを開いたら、その企業（企業名＋電話一致）の全リスト架電履歴を取得
+  // 詳細モーダルを開いたら、その企業（企業名＋電話一致）の全リスト架電履歴＋企業DBラベルを取得
   useEffect(() => {
-    if (!selectedRow) { setHistory([]); return; }
+    if (!selectedRow) { setHistory([]); setLabels([]); return; }
     let cancelled = false;
     setHistoryLoading(true);
     fetchCompanyCallHistory(selectedRow.company_name, selectedRow.phone)
       .then(({ rows }) => { if (!cancelled) setHistory(rows); })
       .finally(() => { if (!cancelled) setHistoryLoading(false); });
+    fetchCompanyLabels(selectedRow.id).then(ls => { if (!cancelled) setLabels(ls); });
     return () => { cancelled = true; };
   }, [selectedRow]);
+
+  const handleToggleLabel = async (label) => {
+    if (!selectedRow || labelBusy) return;
+    const on = !labels.includes(label);
+    setLabelBusy(true);
+    const { error } = await toggleCompanyLabel(selectedRow.id, label, on);
+    if (!error) setLabels(prev => on ? [...new Set([...prev, label])] : prev.filter(l => l !== label));
+    else alert('ラベル更新に失敗しました: ' + (error.message || '不明なエラー'));
+    setLabelBusy(false);
+  };
 
   // リスト単位にまとめる（各リストのラウンド別レコード）
   const historyByList = useMemo(() => {
@@ -227,6 +240,26 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
             </div>
             {/* Modal body */}
             <div style={{ flex: 1, overflow: 'auto', padding: space[5] }}>
+              {/* 企業DBラベル（会社属性タグ。ON/OFF可） */}
+              <div style={{ marginBottom: space[4], display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
+                <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>企業DBラベル</span>
+                {DB_LABEL_OPTIONS.map(label => {
+                  const on = labels.includes(label);
+                  return (
+                    <button key={label} onClick={() => handleToggleLabel(label)} disabled={labelBusy} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      padding: '4px 12px', borderRadius: radius.pill, cursor: labelBusy ? 'default' : 'pointer',
+                      fontSize: font.size.xs, fontWeight: font.weight.bold,
+                      border: `1px solid ${on ? color.gold : color.border}`,
+                      background: on ? color.gold : color.white,
+                      color: on ? color.navyDeep : color.textMid,
+                    }} title={on ? 'クリックで解除' : 'クリックで付与'}>
+                      <span style={{ fontSize: 13 }}>{on ? '●' : '○'}</span>{label}
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* 架電履歴（全リスト横断・企業名＋電話一致） */}
               <div style={{ marginBottom: space[5] }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2] }}>

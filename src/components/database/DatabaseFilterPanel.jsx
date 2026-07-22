@@ -3,7 +3,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { Search, RotateCcw, Download } from 'lucide-react';
 import CategorySearchInput from './CategorySearchInput';
-import { fetchCategories, fetchPrefectures, fetchBusinessCategories } from '../../lib/companyMasterApi';
+import { fetchCategories, fetchPrefectures, fetchBusinessCategories, DB_LABEL_OPTIONS } from '../../lib/companyMasterApi';
 import { CALL_RESULTS } from '../../constants/callResults';
 
 const labelStyle = { fontSize: font.size.xs, color: color.textMid, marginBottom: 3, fontWeight: font.weight.semibold };
@@ -160,6 +160,29 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
           }}>
             代表・株主一致
           </button>
+        </div>
+      </div>
+
+      {/* Row 4.4: 企業DBラベル（M&Aニーズあり 等） */}
+      <div style={{ marginBottom: space[3] }}>
+        <div style={labelStyle}>企業DBラベル<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>会社属性タグ（架電ステータスとは別軸。掛け合わせ可）</span></div>
+        <div style={{ display: 'flex', gap: space[1.5], flexWrap: 'wrap' }}>
+          {DB_LABEL_OPTIONS.map(label => {
+            const selected = (filters.dbLabel || []).includes(label);
+            return (
+              <button key={label} onClick={() => {
+                const cur = filters.dbLabel || [];
+                setFilter('dbLabel', selected ? cur.filter(v => v !== label) : [...cur, label]);
+              }} style={{
+                padding: '5px 14px', fontSize: font.size.sm, fontWeight: font.weight.semibold, borderRadius: radius.lg, cursor: 'pointer',
+                border: `1px solid ${selected ? color.gold : color.border}`,
+                background: selected ? color.gold : color.white,
+                color: selected ? color.navyDeep : color.textMid,
+              }}>
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
