@@ -42,6 +42,7 @@ export const PAGE_REGISTRY = {
     { key: 'templates', label: 'テンプレート管理', group: 'CONTENT' },
     { key: 'session_records', label: 'セッション記録', group: 'ANALYTICS' },
     { key: 'analytics', label: '分析レポート', group: 'ANALYTICS' },
+    { key: 'revenue', label: '売上管理', group: 'ANALYTICS' }, // Stripe請求書ミラー。admin限定。
     // 設定は「全社管理 → 対象事業=スパキャリ」へ移行済み（admin限定）。
   ],
 };

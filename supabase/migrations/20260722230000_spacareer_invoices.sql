@@ -55,6 +55,7 @@ create table if not exists public.spacareer_invoices (
   stripe_created_at timestamptz,
 
   raw jsonb,                                   -- Stripe Invoice オブジェクト全体
+  excluded boolean not null default false,     -- スパキャリ対象外（他事業請求書等）として消込画面で除外
   synced_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -66,6 +67,7 @@ create index if not exists idx_sc_invoices_customer on public.spacareer_invoices
 create index if not exists idx_sc_invoices_status on public.spacareer_invoices(status);
 create index if not exists idx_sc_invoices_paid_at on public.spacareer_invoices(paid_at);
 create index if not exists idx_sc_invoices_created on public.spacareer_invoices(stripe_created_at);
+create index if not exists idx_sc_invoices_excluded on public.spacareer_invoices(excluded);
 
 comment on table public.spacareer_invoices is
   'スパキャリ Stripe 請求書ミラー。stripe-spacareer-webhook/sync が service_role で upsert。閲覧は admin のみ。';
@@ -106,6 +108,20 @@ drop policy if exists sc_invoices_admin_select on public.spacareer_invoices;
 create policy sc_invoices_admin_select on public.spacareer_invoices
   for select to authenticated
   using (
+    org_id = public.get_user_org_id()
+    and exists (select 1 from public.users where users.id = auth.uid() and users.role = 'admin')
+  );
+
+-- 消込画面での手動リンク / 対象外設定を admin が行えるようにする UPDATE ポリシー。
+-- これが無いと PostgREST の UPDATE が RLS で0行更新になり無言で失敗する。
+drop policy if exists sc_invoices_admin_update on public.spacareer_invoices;
+create policy sc_invoices_admin_update on public.spacareer_invoices
+  for update to authenticated
+  using (
+    org_id = public.get_user_org_id()
+    and exists (select 1 from public.users where users.id = auth.uid() and users.role = 'admin')
+  )
+  with check (
     org_id = public.get_user_org_id()
     and exists (select 1 from public.users where users.id = auth.uid() and users.role = 'admin')
   );

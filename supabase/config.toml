@@ -30,6 +30,12 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.stripe-spacareer-webhook]
+verify_jwt = false
+
+[functions.stripe-spacareer-sync]
+verify_jwt = false
+
 [functions.receive-zoom-webhook]
 verify_jwt = false
 

@@ -16,6 +16,7 @@ const ACTIVE_IDS = new Set([
   'ai_courses',
   'templates',
   'analytics',
+  'revenue',
 ]);
 
 export default function SpacareerAdminSidebar({
@@ -52,6 +53,7 @@ export default function SpacareerAdminSidebar({
     { label: 'ANALYTICS', items: [
       { id: 'session_records', label: 'セッション記録' },
       { id: 'analytics', label: '分析レポート' },
+      { id: 'revenue', label: '売上管理' },
     ]},
     // 「設定」は全社管理 → 対象事業=スパキャリ へ移行（admin限定）。
   ];
