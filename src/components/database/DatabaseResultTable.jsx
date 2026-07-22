@@ -1,7 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { CALL_RESULTS } from '../../constants/callResults';
+import { fetchCompanyCallHistory } from '../../lib/companyMasterApi';
+
+// 架電ステータスのラベル→色（企業DB詳細の履歴バッジ用）。org既定=CALL_RESULTS。
+const STATUS_STYLE = CALL_RESULTS.reduce((m, s) => { m[s.label] = { color: s.color, bg: s.bg }; return m; }, {});
+const statusStyle = (label) => STATUS_STYLE[label] || { color: '#6B7280', bg: '#6B728018' };
 
 const thStyle = {
   padding: `${space[2]}px ${space[2.5]}px`, textAlign: 'left', fontSize: font.size.xs, fontWeight: font.weight.bold,
@@ -67,7 +73,42 @@ function formatNumber(val) {
 
 export default function DatabaseResultTable({ results, totalCount, page, pageSize, onPageChange, loading, sortCol, sortDir, onSort }) {
   const [selectedRow, setSelectedRow] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const totalPages = Math.ceil(totalCount / pageSize);
+
+  // 詳細モーダルを開いたら、その企業（企業名＋電話一致）の全リスト架電履歴を取得
+  useEffect(() => {
+    if (!selectedRow) { setHistory([]); return; }
+    let cancelled = false;
+    setHistoryLoading(true);
+    fetchCompanyCallHistory(selectedRow.company_name, selectedRow.phone)
+      .then(({ rows }) => { if (!cancelled) setHistory(rows); })
+      .finally(() => { if (!cancelled) setHistoryLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedRow]);
+
+  // リスト単位にまとめる（各リストのラウンド別レコード）
+  const historyByList = useMemo(() => {
+    const map = new Map();
+    for (const r of history) {
+      if (!map.has(r.list_id)) {
+        map.set(r.list_id, {
+          list_id: r.list_id, list_name: r.list_name,
+          is_archived: r.is_archived, item_call_status: r.item_call_status, records: [],
+        });
+      }
+      if (r.round != null || r.status != null) map.get(r.list_id).records.push(r);
+    }
+    return [...map.values()];
+  }, [history]);
+
+  // この企業が持つ架電ステータス一式（複数リストで異なりうるので全て表示）
+  const distinctStatuses = useMemo(() => {
+    const seen = new Set(); const out = [];
+    for (const r of history) { if (r.status && !seen.has(r.status)) { seen.add(r.status); out.push(r.status); } }
+    return out;
+  }, [history]);
 
   const handleHeaderClick = (col) => {
     if (!col.sortable) return;
@@ -186,6 +227,80 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
             </div>
             {/* Modal body */}
             <div style={{ flex: 1, overflow: 'auto', padding: space[5] }}>
+              {/* 架電履歴（全リスト横断・企業名＋電話一致） */}
+              <div style={{ marginBottom: space[5] }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2] }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>架電履歴</div>
+                  {!historyLoading && distinctStatuses.length > 0 && (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {distinctStatuses.map(s => {
+                        const st = statusStyle(s);
+                        return (
+                          <span key={s} style={{
+                            fontSize: 10, fontWeight: font.weight.bold, color: st.color, background: st.bg,
+                            padding: '2px 7px', borderRadius: radius.pill, whiteSpace: 'nowrap',
+                          }}>{s}</span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {historyLoading ? (
+                  <div style={{ fontSize: font.size.xs, color: color.textLight }}>照合中...</div>
+                ) : !selectedRow.phone ? (
+                  <div style={{ fontSize: font.size.xs, color: color.textLight }}>
+                    電話番号が未登録のため架電履歴を照合できません。
+                  </div>
+                ) : historyByList.length === 0 ? (
+                  <div style={{ fontSize: font.size.xs, color: color.textMid }}>
+                    どのリストにも未登録です（架電履歴なし）。
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: space[2] }}>
+                    {historyByList.map(g => (
+                      <div key={g.list_id} style={{
+                        border: `1px solid ${color.border}`, borderRadius: radius.md, padding: `${space[2]}px ${space[3]}px`,
+                        background: g.is_archived ? color.snow : color.white,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: g.records.length ? 6 : 0 }}>
+                          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.textDark }}>{g.list_name}</span>
+                          {g.is_archived && (
+                            <span style={{
+                              fontSize: 9, fontWeight: font.weight.bold, color: color.textMid, background: alpha(color.textMid, 0.1),
+                              padding: '1px 6px', borderRadius: radius.pill,
+                            }}>アーカイブ</span>
+                          )}
+                        </div>
+                        {g.records.length === 0 ? (
+                          <span style={{ fontSize: font.size.xs, color: color.textLight }}>未架電</span>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {g.records.map((r, ri) => {
+                              const st = statusStyle(r.status);
+                              return (
+                                <div key={ri} style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.xs }}>
+                                  <span style={{ color: color.textMid, minWidth: 44 }}>{r.round != null ? `${r.round}回目` : '—'}</span>
+                                  <span style={{
+                                    fontSize: 10, fontWeight: font.weight.bold, color: st.color, background: st.bg,
+                                    padding: '2px 7px', borderRadius: radius.pill, whiteSpace: 'nowrap',
+                                  }}>{r.status || '—'}</span>
+                                  <span style={{ color: color.textLight, fontFamily: font.family.mono }}>
+                                    {r.called_at ? String(r.called_at).slice(0, 10) : ''}
+                                  </span>
+                                  {r.getter_name && <span style={{ color: color.textLight }}>{r.getter_name}</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 企業マスタ詳細 */}
               {DETAIL_FIELDS.map(f => {
                 const val = selectedRow[f.key];
                 if (val == null || val === '') return null;

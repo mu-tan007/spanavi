@@ -234,3 +234,24 @@ export async function searchCompanies(filters) {
   }
   throw lastError;
 }
+
+/**
+ * 企業DBの1社について、その企業（企業名＋電話一致）が含まれる全リスト
+ * （稼働中＋アーカイブ）での架電履歴を取得する。
+ * 突合・正規化はRPC(get_company_call_history)側で完結するため、生の企業名・電話を渡す。
+ * @returns {Promise<{ rows: Array, error: any }>}
+ *   rows: { list_id, list_name, is_archived, item_id, item_company, item_call_status,
+ *           round, status, called_at, getter_name }
+ */
+export async function fetchCompanyCallHistory(company, phone) {
+  if (!company || !phone) return { rows: [], error: null };
+  const { data, error } = await supabase.rpc('get_company_call_history', {
+    p_company: company,
+    p_phone: phone,
+  });
+  if (error) {
+    console.warn('[companyMasterApi] fetchCompanyCallHistory error:', error.message);
+    return { rows: [], error };
+  }
+  return { rows: data || [], error: null };
+}
