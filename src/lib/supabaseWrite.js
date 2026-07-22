@@ -1393,6 +1393,22 @@ export async function insertCallListItems(listId, rows) {
   return { data: null, error: null }
 }
 
+/**
+ * 取り込み直後、他リストで「除外」済みの同一企業（企業名かつ電話番号一致）を自動除外する。
+ * 判定・書き込みは set-based の RPC 側で完結（既存トリガーが call_status / mv_excluded_items を同期）。
+ * @param {string} listId - 取り込んだリストの supabase id
+ * @returns {Promise<{ count: number, error: any }>} 自動除外した件数
+ */
+export async function autoExcludeKnownExcluded(listId) {
+  if (!listId) return { count: 0, error: null }
+  const { data, error } = await supabase.rpc('auto_exclude_known_excluded', { p_list_id: listId })
+  if (error) {
+    console.warn('[DB] autoExcludeKnownExcluded error:', error.message)
+    return { count: 0, error }
+  }
+  return { count: typeof data === 'number' ? data : 0, error: null }
+}
+
 // ============================================================
 // Members (従業員)
 // ============================================================
