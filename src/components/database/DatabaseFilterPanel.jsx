@@ -26,19 +26,22 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
     fetchEngagementTypes().then(setEngagementTypes).catch(console.error);
   }, []);
 
-  // タイプ（engagement）は「選択中の商材配下」だけ表示する（未選択時は出さない＝羅列を防ぐ）。
+  // 表示するタイプ = 「選択中の商材配下のタイプ」∪「現在選択中のタイプ」。
+  // → 商材の選択を外しても、選択済みタイプはそのタイプを外すまで残る。
   const selectedCats = filters.callCategory || [];
+  const selectedEng = filters.callEngagement || [];
   const visibleTypes = useMemo(() => {
-    if (!selectedCats.length) return [];
     const catName = Object.fromEntries(businessCategories.map(c => [c.id, c.name]));
-    const list = engagementTypes.filter(e => selectedCats.includes(e.category_id));
-    // 複数商材を選択中のみ、どの商材のタイプか分かるよう商材名を接頭
-    const multi = selectedCats.length > 1;
+    const list = engagementTypes.filter(
+      e => selectedCats.includes(e.category_id) || selectedEng.includes(e.id)
+    );
+    // 表示タイプが複数商材にまたがる時だけ、どの商材のタイプか分かるよう商材名を接頭
+    const catCount = new Set(list.map(e => e.category_id)).size;
     return list.map(e => ({
       id: e.id,
-      label: (multi && catName[e.category_id]) ? `${catName[e.category_id]}／${e.name}` : e.name,
+      label: (catCount > 1 && catName[e.category_id]) ? `${catName[e.category_id]}／${e.name}` : e.name,
     }));
-  }, [engagementTypes, businessCategories, selectedCats]);
+  }, [engagementTypes, businessCategories, selectedCats, selectedEng]);
 
   const daibunruiList = useMemo(() => {
     return [...new Set(categories.map(c => c.daibunrui))];
