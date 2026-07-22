@@ -27,6 +27,7 @@ const INITIAL_FILTERS = {
   establishedMax: '',
   shareholderType: [],  // ['individual', 'corporate', 'mixed', 'empty']
   callStatus: [],   // 架電ステータス抽出（'未架電'/'未登録'/9ステータス）。いずれか該当でヒット
+  callCategory: [], // 商材(business_categories id)。架電ステータスを商材スコープで評価。複数=OR
   repShareholderMatch: false,  // 代表者名が株主欄に含まれるか
   logic: 'AND',     // AND / OR
   sortCol: 'id',

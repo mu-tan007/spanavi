@@ -3,7 +3,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { Search, RotateCcw, Download } from 'lucide-react';
 import CategorySearchInput from './CategorySearchInput';
-import { fetchCategories, fetchPrefectures } from '../../lib/companyMasterApi';
+import { fetchCategories, fetchPrefectures, fetchBusinessCategories } from '../../lib/companyMasterApi';
 import { CALL_RESULTS } from '../../constants/callResults';
 
 const labelStyle = { fontSize: font.size.xs, color: color.textMid, marginBottom: 3, fontWeight: font.weight.semibold };
@@ -16,10 +16,12 @@ const CALL_STATUS_OPTIONS = ['未架電', '未登録', ...CALL_RESULTS.map(s => 
 export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onReset, onExport, loading, totalCount, hasSearched }) {
   const [categories, setCategories] = useState([]);
   const [prefectures, setPrefectures] = useState([]);
+  const [businessCategories, setBusinessCategories] = useState([]); // 商材(M&A/人材/IFA/…)
 
   useEffect(() => {
     fetchCategories().then(setCategories).catch(console.error);
     fetchPrefectures().then(setPrefectures).catch(console.error);
+    fetchBusinessCategories().then(setBusinessCategories).catch(console.error);
   }, []);
 
   const daibunruiList = useMemo(() => {
@@ -161,9 +163,34 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
         </div>
       </div>
 
-      {/* Row 4.5: 架電ステータス（企業DB×リスト架電履歴の横断） */}
+      {/* Row 4.5: 商材 × 架電ステータス（企業DB×リスト架電履歴の横断） */}
+      {businessCategories.length > 0 && (
+        <div style={{ marginBottom: space[3] }}>
+          <div style={labelStyle}>商材<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>架電ステータスを商材で絞る（複数選択＝OR。未選択＝全商材）</span></div>
+          <div style={{ display: 'flex', gap: space[1.5], flexWrap: 'wrap' }}>
+            {businessCategories.map(bc => {
+              const selected = (filters.callCategory || []).includes(bc.id);
+              return (
+                <button key={bc.id} onClick={() => {
+                  const cur = filters.callCategory || [];
+                  setFilter('callCategory', selected ? cur.filter(v => v !== bc.id) : [...cur, bc.id]);
+                }} style={{
+                  padding: '5px 14px', fontSize: font.size.sm, fontWeight: font.weight.semibold, borderRadius: radius.lg, cursor: 'pointer',
+                  border: `1px solid ${selected ? color.navy : color.border}`,
+                  background: selected ? color.navy : color.white,
+                  color: selected ? color.white : color.textMid,
+                }}>
+                  {bc.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 架電ステータス */}
       <div style={{ marginBottom: space[3] }}>
-        <div style={labelStyle}>架電ステータス<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>いずれかのリストで該当（複数選択＝OR）</span></div>
+        <div style={labelStyle}>架電ステータス<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>いずれかのリストで該当（複数選択＝OR）{(filters.callCategory || []).length > 0 ? '・上の商材内で判定' : ''}</span></div>
         <div style={{ display: 'flex', gap: space[1.5], flexWrap: 'wrap' }}>
           {CALL_STATUS_OPTIONS.map(label => {
             const selected = (filters.callStatus || []).includes(label);

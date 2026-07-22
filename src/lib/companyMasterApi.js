@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getOrgId } from './orgContext';
 
 /**
  * 会社名を company_master.normalized_name と照合するための正規化。
@@ -168,6 +169,21 @@ export async function fetchPrefectures() {
   return PREFECTURES;
 }
 
+/** 商材一覧（business_categories: M&A/人材/IFA/コンサル/SaaS）。架電ステータス抽出の商材軸で使用 */
+let _businessCategoryCache = null;
+export async function fetchBusinessCategories() {
+  if (_businessCategoryCache) return _businessCategoryCache;
+  const { data, error } = await supabase
+    .from('business_categories')
+    .select('id,name,slug,display_order')
+    .eq('org_id', getOrgId())
+    .eq('is_active', true)
+    .order('display_order');
+  if (error) { console.warn('[companyMasterApi] fetchBusinessCategories error:', error.message); return []; }
+  _businessCategoryCache = data || [];
+  return _businessCategoryCache;
+}
+
 /** 企業検索（RPC） - 複数選択・AND/OR対応 */
 export async function searchCompanies(filters) {
   const params = {};
@@ -208,6 +224,7 @@ export async function searchCompanies(filters) {
   if (filters.establishedMax != null && filters.establishedMax !== '') params.p_established_max = Number(filters.establishedMax);
   if (filters.shareholderType?.length) params.p_shareholder_type_arr = filters.shareholderType;
   if (filters.callStatus?.length) params.p_call_status_arr = filters.callStatus;
+  if (filters.callCategory?.length) params.p_call_category_arr = filters.callCategory;
   if (filters.repShareholderMatch) params.p_rep_shareholder_match = true;
   params.p_logic = filters.logic || 'AND';
   if (filters.sortCol) params.p_sort_col = filters.sortCol;
