@@ -74,35 +74,45 @@ export default function DatabaseView({ isAdmin }) {
     if (!file) return;
     setLabelImporting(true);
     try {
-      let hdrs = [], rows = [];
+      const norm = (s) => String(s || '').replace(/[\s　]/g, '').replace(/\(.*?\)|（.*?）/g, '');
+      const NAME_H = ['企業名', '会社名', '法人名', '社名'];
+      const PHONE_H = ['電話番号', '電話', 'TEL', 'tel', 'Tel'];
+      const pairs = [];
       const ext = file.name.split('.').pop().toLowerCase();
       if (ext === 'csv' || ext === 'tsv') {
         const text = await file.text();
         const sep = ext === 'tsv' ? '\t' : ',';
         const lines = text.split(/\r?\n/).filter(l => l.trim());
         const split = (l) => l.split(sep).map(s => s.replace(/^﻿/, '').replace(/^"|"$/g, '').trim());
-        hdrs = split(lines[0]); rows = lines.slice(1).map(split);
+        const hdrs = split(lines[0]);
+        const nameIdx = hdrs.findIndex(h => NAME_H.includes(norm(h)));
+        const phoneIdx = hdrs.findIndex(h => PHONE_H.includes(norm(h)));
+        if (nameIdx < 0 || phoneIdx < 0) { alert('「企業名」「電話番号」の列が見つかりませんでした。'); return; }
+        for (const r of lines.slice(1).map(split)) {
+          const n = (r[nameIdx] || '').trim(), p = (r[phoneIdx] || '').trim();
+          if (n && p) pairs.push({ n, p });
+        }
       } else {
+        // 列番号を特定して cell.text で取り出す（row.values の添字ズレ・リッチテキスト化けを防ぐ）
         const ExcelJS = (await import('exceljs')).default;
         const wb = new ExcelJS.Workbook();
         await wb.xlsx.load(await file.arrayBuffer());
         const ws = wb.worksheets[0];
-        ws.eachRow((row, i) => {
-          const vals = row.values.slice(1).map(v => v == null ? '' : String(v));
-          if (i === 1) hdrs = vals; else rows.push(vals);
+        let nameCol = -1, phoneCol = -1;
+        ws.getRow(1).eachCell({ includeEmpty: false }, (cell, col) => {
+          const h = norm(cell.text);
+          if (nameCol < 0 && NAME_H.includes(h)) nameCol = col;
+          if (phoneCol < 0 && PHONE_H.includes(h)) phoneCol = col;
+        });
+        if (nameCol < 0 || phoneCol < 0) { alert('「企業名」「電話番号」の列が見つかりませんでした。'); return; }
+        ws.eachRow({ includeEmpty: false }, (row, rn) => {
+          if (rn === 1) return;
+          const n = String(row.getCell(nameCol).text || '').trim();
+          const p = String(row.getCell(phoneCol).text || '').trim();
+          if (n && p) pairs.push({ n, p });
         });
       }
-      const norm = (s) => String(s || '').replace(/[\s　]/g, '').replace(/\(.*?\)|（.*?）/g, '');
-      const nameIdx = hdrs.findIndex(h => ['企業名', '会社名', '法人名', '社名'].includes(norm(h)));
-      const phoneIdx = hdrs.findIndex(h => ['電話番号', '電話', 'TEL', 'tel', 'Tel'].includes(norm(h)));
-      if (nameIdx < 0 || phoneIdx < 0) {
-        alert('「企業名」「電話番号」の列が見つかりませんでした。ヘッダー名をご確認ください。');
-        return;
-      }
-      const pairs = rows
-        .map(r => ({ n: (r[nameIdx] || '').trim(), p: (r[phoneIdx] || '').trim() }))
-        .filter(x => x.n && x.p);
-      if (!pairs.length) { alert('取り込める行がありませんでした。'); return; }
+      if (!pairs.length) { alert('取り込める行がありませんでした（企業名・電話番号の列をご確認ください）。'); return; }
 
       let matched = 0, inserted = 0;
       const B = 1500;

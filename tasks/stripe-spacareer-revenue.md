@@ -53,6 +53,23 @@
 - [ ] 全同期でバックフィルし、Stripe総額と突合
 - [ ] main へ commit & push（自動）＋ Edge Function 本番deploy＋1件検証
 
-## Review（実装後に記入）
-```
-```
+## Review（2026-07-22 実装完了）
+- 本番DB(baiiznjzvzhxwwqzsozn)に spacareer_invoices / spacareer_invoice_items 作成、RLS(admin select/update)＋excluded列＋updated_atトリガー適用済
+- Edge Function 2本を本番deploy: stripe-spacareer-webhook(署名検証有効/verify_jwt=false), stripe-spacareer-sync(admin限定/全件バックフィル)
+  - 疎通OK: sync→401(認証要求) / webhook→400(invalid signature)
+- UI: スパキャリ「売上管理」タブ(revenue) 追加。pageRegistry/サイドバー/SpanaviApp配線＋SpacareerRevenueView(4ビュー)。vite build成功
+- 権限: admin バイパスで閲覧(売上=経営情報)。非adminには非表示
+- 突合: Stripe customer.email = members.email(ilike) → spacareer_customers。手動リンク/excludedは再同期で保護
+- 設計判断: 売上=入金日(paid_at)ベース月次集計 / 全件取込＋消込で対象外除外
+
+### インシデント
+- 作業中、並行セッションの企業DB revertコミット(556f305)に本作業の変更が巻き込まれ、画面本体 SpacareerRevenueView.jsx だけ漏れてmainがビルド破損状態でpush済みだった。
+- 289e59a で不足分を前進コミットして補修・push（履歴書換えは非破壊優先で回避）。
+
+### むー様の残作業（リアルタイム連携を有効化する場合）
+1. Stripe→開発者→Webhook→エンドポイント追加
+   URL: https://baiiznjzvzhxwwqzsozn.supabase.co/functions/v1/stripe-spacareer-webhook
+   イベント: invoice.created/finalized/updated/paid/payment_succeeded/payment_failed/marked_uncollectible/voided, charge.refunded
+2. 署名シークレット whsec_... を Supabase に登録: STRIPE_SPACAREER_WEBHOOK_SECRET
+   （Dashboard→Edge Functions→Secrets、または supabase secrets set）
+※ 過去分の取込(バックフィル)はwebhook設定不要。売上管理タブの「今すぐ同期」で即実行可（既存 STRIPE_SECRET_KEY 使用）。
