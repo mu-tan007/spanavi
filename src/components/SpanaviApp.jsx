@@ -759,7 +759,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         return null;
       }
       if (engSlug === 'spartia_career') {
-        return ['customers','recruiting','sessions','trainer_schedule','session_records','homework','social_style','ai_courses','templates','analytics'].find(k => canViewPage('spartia_career', k));
+        return ['customers','recruiting','sessions','trainer_schedule','session_records','homework','social_style','ai_courses','templates','analytics','revenue'].find(k => canViewPage('spartia_career', k));
       }
       return null;
     })();
