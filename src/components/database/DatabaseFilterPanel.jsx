@@ -208,14 +208,14 @@ export default function DatabaseFilterPanel({ filters, setFilter, onSearch, onRe
       {/* Row 4.5: 商材 × 架電ステータス（企業DB×リスト架電履歴の横断） */}
       {businessCategories.length > 0 && (
         <div style={{ marginBottom: space[3] }}>
-          <div style={labelStyle}>商材<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>架電ステータスを商材で絞る（複数選択＝OR。未選択＝全商材）</span></div>
+          <div style={labelStyle}>商材<span style={{ color: color.textLight, fontWeight: font.weight.regular, marginLeft: 6 }}>1つ選ぶとその商材のタイプが出る（別の商材を押すと切替。選択済みのタイプは残る）</span></div>
           <div style={{ display: 'flex', gap: space[1.5], flexWrap: 'wrap' }}>
             {businessCategories.map(bc => {
               const selected = (filters.callCategory || []).includes(bc.id);
               return (
                 <button key={bc.id} onClick={() => {
-                  const cur = filters.callCategory || [];
-                  setFilter('callCategory', selected ? cur.filter(v => v !== bc.id) : [...cur, bc.id]);
+                  // 単一選択（別の商材を押すと切替。もう一度押すと解除）。選択済みタイプは callEngagement に残る
+                  setFilter('callCategory', selected ? [] : [bc.id]);
                 }} style={{
                   padding: '5px 14px', fontSize: font.size.sm, fontWeight: font.weight.semibold, borderRadius: radius.lg, cursor: 'pointer',
                   border: `1px solid ${selected ? color.navy : color.border}`,

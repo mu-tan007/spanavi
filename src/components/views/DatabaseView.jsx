@@ -186,7 +186,7 @@ export default function DatabaseView({ isAdmin }) {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="企業DB"
-        description={dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : undefined}
+        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-22 23:07)`}
         style={{ marginBottom: 24 }}
         right={
           <>
