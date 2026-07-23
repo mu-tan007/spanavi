@@ -142,19 +142,31 @@ function Funnel({ data }) {
   );
 }
 
-/* ============================ segment table ============================ */
-function SegBarCell({ display, good }) {
-  const w = Math.max(6, Math.round(good * 100));
+/* ============================ bar with adaptive label ============================ */
+// 数値ラベルは「バーの右端」を基準に配置する。
+//  - バーが十分長い(pct>=閾値): バー内側の右端に白文字(必ず色の上)
+//  - バーが短い: バーの右外側に濃紺文字(必ず白地の上)
+// これで白文字が薄いトラックに載って消える事故を防ぐ。
+function TrackBar({ pct, color, label, insideThreshold = 40 }) {
+  const w = Math.max(3, Math.min(100, pct));
+  const inside = w >= insideThreshold;
   return (
-    <div style={{ position: 'relative', height: 30, background: '#eef1f7', borderRadius: dora.radius.sm, overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${w}%`, background: barColor(good), borderRadius: dora.radius.sm }} />
+    <div style={{ position: 'relative', height: 30, background: '#eef1f7', borderRadius: dora.radius.sm }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${w}%`, background: color, borderRadius: dora.radius.sm }} />
       <span style={{
-        position: 'absolute', right: 8, top: 0, bottom: 0, display: 'flex', alignItems: 'center',
+        position: 'absolute', top: 0, bottom: 0, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
         fontSize: 12, fontWeight: 700, fontFamily: dora.font.num,
-        color: good > 0.58 ? '#fff' : dora.color.ink,
-      }}>{display}</span>
+        ...(inside
+          ? { right: `calc(${100 - w}% + 8px)`, color: '#fff' }
+          : { left: `calc(${w}% + 8px)`, color: dora.color.ink }),
+      }}>{label}</span>
     </div>
   );
+}
+
+/* ============================ segment table ============================ */
+function SegBarCell({ display, good }) {
+  return <TrackBar pct={Math.round(good * 100)} color={barColor(good)} label={display} />;
 }
 function SegmentTable() {
   const [tab, setTab] = useState('業界');
@@ -225,17 +237,7 @@ function ReactionCard() {
         {REACTION.map((r) => (
           <div key={r.label} style={{ display: 'grid', gridTemplateColumns: '84px 1fr', alignItems: 'center', gap: dora.space.md }}>
             <span style={{ fontSize: 12.5, color: dora.color.inkMid }}>{r.label}</span>
-            <div style={{ position: 'relative', height: 30, background: '#eef1f7', borderRadius: dora.radius.sm, overflow: 'hidden' }}>
-              <div style={{
-                position: 'absolute', inset: 0, width: `${(r.pct / max) * 100}%`,
-                background: r.strong ? dora.color.navy : '#c4cad7', borderRadius: dora.radius.sm,
-              }} />
-              <span style={{
-                position: 'absolute', right: 10, top: 0, bottom: 0, display: 'flex', alignItems: 'center',
-                fontSize: 12.5, fontWeight: 700, fontFamily: dora.font.num,
-                color: r.strong ? '#fff' : dora.color.ink,
-              }}>{r.pct}%</span>
-            </div>
+            <TrackBar pct={(r.pct / max) * 100} color={r.strong ? dora.color.navy : '#c4cad7'} label={`${r.pct}%`} />
           </div>
         ))}
       </div>
