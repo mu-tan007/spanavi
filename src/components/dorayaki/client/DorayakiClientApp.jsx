@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { dora } from './theme';
 import DorayakiClientSidebar from './DorayakiClientSidebar';
 import PlaceholderView from './views/PlaceholderView';
+import AnalyticsView from './views/AnalyticsView';
 import { IconBell } from './icons';
 
 // dorayaki.AI クライアントポータル(叩き)
@@ -51,7 +52,7 @@ export default function DorayakiClientApp() {
 
         {/* コンテンツ */}
         <main style={{ flex: 1, padding: `${dora.space.lg}px ${dora.space.xl}px ${dora.space.xxl}px` }}>
-          <PlaceholderView section={tab} />
+          {tab === 'analytics' ? <AnalyticsView /> : <PlaceholderView section={tab} />}
         </main>
       </div>
     </div>

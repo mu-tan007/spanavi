@@ -60,7 +60,8 @@ export const dora = {
   },
 
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
-  radius: { sm: 6, md: 10, lg: 14, pill: 999 },
+  // 角丸は控えめに(スタイリッシュ/プロフェッショナル志向)。円形が要る箇所のみ pill。
+  radius: { sm: 2, md: 4, lg: 6, pill: 999 },
   shadow: {
     card: '0 1px 2px rgba(15,27,52,0.04), 0 8px 24px rgba(15,27,52,0.06)',
     pop: '0 12px 40px rgba(8,26,58,0.28)',

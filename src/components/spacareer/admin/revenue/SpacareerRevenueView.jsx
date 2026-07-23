@@ -166,15 +166,16 @@ export default function SpacareerRevenueView() {
     const m = now.getMonth();
     let start, end, label;
     switch (preset) {
-      case 'this_month': start = new Date(y, m, 1); end = new Date(y, m + 1, 1); label = '今月'; break;
+      // 「現在まで」系は end=now（Stripeの月次現在までと揃える）
+      case 'this_month': start = new Date(y, m, 1); end = now; label = '今月'; break;
       case 'last_month': start = new Date(y, m - 1, 1); end = new Date(y, m, 1); label = '先月'; break;
-      case 'last3': start = new Date(y, m - 2, 1); end = new Date(y, m + 1, 1); label = '過去3ヶ月'; break;
-      case 'last6': start = new Date(y, m - 5, 1); end = new Date(y, m + 1, 1); label = '過去6ヶ月'; break;
-      case 'this_year': start = new Date(y, 0, 1); end = new Date(y + 1, 0, 1); label = '今年'; break;
+      case 'last3': start = new Date(y, m - 2, 1); end = now; label = '過去3ヶ月'; break;
+      case 'last6': start = new Date(y, m - 5, 1); end = now; label = '過去6ヶ月'; break;
+      case 'this_year': start = new Date(y, 0, 1); end = now; label = '今年'; break;
       case 'all': {
         let earliest = new Date(y, m, 1);
         active.forEach((i) => { const d = i.stripe_created_at ? new Date(i.stripe_created_at) : null; if (d && d < earliest) earliest = d; });
-        start = new Date(earliest.getFullYear(), earliest.getMonth(), 1); end = new Date(y, m + 1, 1); label = '全期間'; break;
+        start = new Date(earliest.getFullYear(), earliest.getMonth(), 1); end = now; label = '全期間'; break;
       }
       case 'month': {
         if (pickMonth) { const [yy, mm] = pickMonth.split('-').map(Number); start = new Date(yy, mm - 1, 1); end = new Date(yy, mm, 1); label = `${yy}年${mm}月`; }
@@ -265,7 +266,7 @@ export default function SpacareerRevenueView() {
     const spendMap = {};
     active.forEach((i) => {
       if (!i.paid_at || !inRange(i.paid_at, start, end)) return;
-      const key = i.spacareer_customer_id ? custName[i.spacareer_customer_id] : (i.customer_name || i.customer_email || '—');
+      const key = (i.spacareer_customer_id && custName[i.spacareer_customer_id]) || i.customer_name || i.customer_email || '—';
       spendMap[key] = (spendMap[key] || 0) + Number(i.amount_paid || 0);
     });
     const topCustomers = Object.entries(spendMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 6);
@@ -445,7 +446,7 @@ export default function SpacareerRevenueView() {
                 </div>
               )}
               <div style={{ fontSize: font.size.xs, color: color.textLight }}>
-                {fmtDate(rangeInfo.start)} 〜 {fmtDate(new Date(rangeInfo.end.getTime() - 86400000))}（前期間比）
+                {fmtDate(rangeInfo.start)} 〜 {fmtDate(new Date(rangeInfo.end.getTime() - 1))}（前期間比）
               </div>
             </div>
 
