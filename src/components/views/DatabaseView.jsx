@@ -10,7 +10,7 @@ import ImportModal from '../database/ImportModal';
 import DatabaseExportColumnModal from '../database/DatabaseExportColumnModal';
 import TsrIndustryModal from '../TsrIndustryModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
-import { searchCompanies, bulkLabelFromPairs } from '../../lib/companyMasterApi';
+import { searchCompanies } from '../../lib/companyMasterApi';
 import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
 
@@ -65,100 +65,6 @@ export default function DatabaseView({ isAdmin }) {
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
   const [dbTotal, setDbTotal] = useState(null);
-  const [labelImporting, setLabelImporting] = useState(false);
-
-  // 【一時】「M&Aニーズあり」Excel/CSV一括取込。1回投入したらこのボタン群は撤去する。
-  const handleMaNeedsImport = useCallback(async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setLabelImporting(true);
-    try {
-      const norm = (s) => String(s || '').replace(/[\s　]/g, '').replace(/\(.*?\)|（.*?）/g, '');
-      const NAME_H = ['企業名', '会社名', '法人名', '社名'];
-      const PHONE_H = ['電話番号', '電話', 'TEL', 'tel', 'Tel'];
-      const pairs = [];
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (ext === 'csv' || ext === 'tsv') {
-        const text = await file.text();
-        const sep = ext === 'tsv' ? '\t' : ',';
-        const lines = text.split(/\r?\n/).filter(l => l.trim());
-        const split = (l) => l.split(sep).map(s => s.replace(/^﻿/, '').replace(/^"|"$/g, '').trim());
-        const hdrs = split(lines[0]);
-        const nameIdx = hdrs.findIndex(h => NAME_H.includes(norm(h)));
-        const phoneIdx = hdrs.findIndex(h => PHONE_H.includes(norm(h)));
-        if (nameIdx < 0 || phoneIdx < 0) { alert('「企業名」「電話番号」の列が見つかりませんでした。'); return; }
-        for (const r of lines.slice(1).map(split)) {
-          const n = (r[nameIdx] || '').trim(), p = (r[phoneIdx] || '').trim();
-          if (n && p) pairs.push({ n, p });
-        }
-      } else {
-        // ブラウザ版 exceljs は空セルのある行で列位置を誤る＋日本語ふりがな(rPh)で値が化けるため使わない。
-        // xlsx(ZIP)内の XML を直接読み、セルの実アドレス(r属性)で列を確定、ふりがなは除去する。
-        const JSZip = (await import('jszip')).default;
-        const zip = await JSZip.loadAsync(await file.arrayBuffer());
-        const dec = (s) => String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
-        const colNum = (l) => { let n = 0; for (const ch of l) n = n * 26 + (ch.charCodeAt(0) - 64); return n; };
-        // 共有文字列（ふりがな rPh は本文でないため除去）
-        const sst = [];
-        const sstFile = zip.file('xl/sharedStrings.xml');
-        if (sstFile) {
-          const sstXml = await sstFile.async('string');
-          for (const m of sstXml.matchAll(/<si>([\s\S]*?)<\/si>/g)) {
-            const inner = m[1].replace(/<rPh[\s\S]*?<\/rPh>/g, '');
-            let t = ''; for (const tm of inner.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)) t += tm[1];
-            sst.push(dec(t));
-          }
-        }
-        // 最初のシート
-        let sheetFile = zip.file('xl/worksheets/sheet1.xml');
-        if (!sheetFile) { const arr = zip.file(/xl\/worksheets\/sheet\d+\.xml$/); sheetFile = arr && arr[0]; }
-        const sheetXml = await sheetFile.async('string');
-        const rows = {};
-        for (const rm of sheetXml.matchAll(/<row [^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
-          const rn = Number(rm[1]); const o = {};
-          for (const cm of rm[2].matchAll(/<c ([^>]*?)>([\s\S]*?)<\/c>/g)) {
-            const attrs = cm[1], cinner = cm[2];
-            const rM = attrs.match(/r="([A-Z]+)\d+"/); if (!rM) continue;
-            const col = colNum(rM[1]); const tM = attrs.match(/t="([^"]+)"/); const t = tM ? tM[1] : null;
-            let val = '';
-            if (t === 's') { const v = cinner.match(/<v>([\s\S]*?)<\/v>/); if (v) val = sst[Number(v[1])] || ''; }
-            else if (t === 'inlineStr') { const inr = cinner.replace(/<rPh[\s\S]*?<\/rPh>/g, ''); for (const im of inr.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)) val += dec(im[1]); }
-            else { const v = cinner.match(/<v>([\s\S]*?)<\/v>/); if (v) val = dec(v[1]); }
-            o[col] = val;
-          }
-          rows[rn] = o;
-        }
-        const header = rows[1] || {};
-        let nameCol = -1, phoneCol = -1;
-        for (const [c, v] of Object.entries(header)) {
-          const h = norm(v);
-          if (nameCol < 0 && NAME_H.includes(h)) nameCol = Number(c);
-          if (phoneCol < 0 && PHONE_H.includes(h)) phoneCol = Number(c);
-        }
-        if (nameCol < 0 || phoneCol < 0) { alert('「企業名」「電話番号」の列が見つかりませんでした。'); return; }
-        for (const r of Object.keys(rows).map(Number).filter(x => x > 1).sort((a, b) => a - b)) {
-          const n = (rows[r][nameCol] || '').trim();
-          const p = (rows[r][phoneCol] || '').trim();
-          if (n && p) pairs.push({ n, p });
-        }
-      }
-      if (!pairs.length) { alert('取り込める行がありませんでした（企業名・電話番号の列をご確認ください）。'); return; }
-
-      let matched = 0, inserted = 0;
-      const B = 1500;
-      for (let i = 0; i < pairs.length; i += B) {
-        const res = await bulkLabelFromPairs('M&Aニーズあり', pairs.slice(i, i + B));
-        if (res?.error) { alert('取込に失敗しました: ' + (res.error.message || '')); return; }
-        matched += res.matched || 0; inserted += res.inserted || 0;
-      }
-      alert(`「M&Aニーズあり」取込完了\n対象 ${pairs.length.toLocaleString()}件 / 企業DB突合 ${matched.toLocaleString()}件 / 新規付与 ${inserted.toLocaleString()}件\n（突合できなかった先はTSR企業DB未収録です）`);
-    } catch (err) {
-      alert('取込エラー: ' + err.message);
-    } finally {
-      setLabelImporting(false);
-    }
-  }, []);
 
   useEffect(() => {
     supabase.from('company_master').select('id', { count: 'exact', head: true })
@@ -217,7 +123,7 @@ export default function DatabaseView({ isAdmin }) {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="企業DB"
-        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-23 11:20・確定版)`}
+        description={dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : undefined}
         style={{ marginBottom: 24 }}
         right={
           <>
@@ -227,19 +133,6 @@ export default function DatabaseView({ isAdmin }) {
             <Button variant="secondary" size="sm" onClick={() => setShowTsrModal(true)}>
               TSR業種分類一覧
             </Button>
-            {isAdmin && (
-              <label style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '6px 12px', borderRadius: radius.md, cursor: labelImporting ? 'default' : 'pointer',
-                fontSize: font.size.sm, fontWeight: font.weight.medium, fontFamily: font.family.sans,
-                border: `1px solid ${color.gold}`, background: color.white, color: color.navyDeep,
-                opacity: labelImporting ? 0.6 : 1, whiteSpace: 'nowrap',
-              }} title="【一時】Excelを1回アップロードするとM&Aニーズありを付与。完了後に撤去します。">
-                <Upload size={14} />
-                {labelImporting ? '取込中...' : 'M&Aニーズあり取込（一時）'}
-                <input type="file" accept=".xlsx,.csv,.tsv" onChange={handleMaNeedsImport} disabled={labelImporting} style={{ display: 'none' }} />
-              </label>
-            )}
             {isAdmin && (
               <Button size="sm" iconLeft={<Upload size={14} />} onClick={() => setShowImport(true)}>
                 リストインポート

@@ -65,7 +65,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
     setError(null);
 
     try {
-      const { insertAppointment, invokeSendAppoReport, ensureProspectingClient, createGcalEvent, updateAppointmentMeta } = await import('../../lib/supabaseWrite');
+      const { insertAppointment, invokeSendAppoReport, ensureProspectingClient, createGcalEvent } = await import('../../lib/supabaseWrite');
 
       const startISO = `${date}T${meetTime}:00+09:00`;
       // デフォルト30分枠

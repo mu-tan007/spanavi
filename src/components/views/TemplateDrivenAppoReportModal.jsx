@@ -6,7 +6,7 @@ import { applyTaxIfPretax } from '../../utils/money';
 import {
   insertAppointment, invokeTranscribeAndExtract,
   invokeLookupCompanyHomepage, invokeGetZoomRecording, updateCallListItem,
-  ensureProspectingClient, createGcalEvent, updateAppointmentMeta,
+  ensureProspectingClient, createGcalEvent,
   fetchZoomUserId, invokeAppoAiReport,
 } from '../../lib/supabaseWrite';
 import {
