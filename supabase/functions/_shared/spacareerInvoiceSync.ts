@@ -80,6 +80,70 @@ async function resolveCustomer(
   return { member_id: m.id, spacareer_customer_id: c?.id ?? null }
 }
 
+/** サブスク items から月次正規化した MRR（円）を算出 */
+function computeMrr(sub: any): number {
+  const items: any[] = sub.items?.data ?? []
+  let mrr = 0
+  for (const it of items) {
+    const price = it.price ?? {}
+    const unit = price.unit_amount ?? 0
+    const qty = it.quantity ?? 1
+    const recurring = price.recurring ?? {}
+    const interval = recurring.interval ?? 'month'
+    const count = recurring.interval_count ?? 1
+    // 月あたりに正規化
+    let monthly = unit * qty
+    if (interval === 'year') monthly = (unit * qty) / (12 * count)
+    else if (interval === 'week') monthly = (unit * qty) * (52 / 12) / count
+    else if (interval === 'day') monthly = (unit * qty) * (365 / 12) / count
+    else monthly = (unit * qty) / count // month
+    mrr += monthly
+  }
+  return Math.round(mrr)
+}
+
+/** 1件の Subscription を upsert（未リンクなら email 自動紐付け） */
+export async function syncSubscription(supabase: any, orgId: string, sub: any): Promise<void> {
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id ?? null
+  const customerEmail =
+    (typeof sub.customer === 'object' ? sub.customer?.email ?? null : null) ?? null
+  const totalQty = (sub.items?.data ?? []).reduce((a: number, it: any) => a + (it.quantity ?? 0), 0)
+  const row: Record<string, any> = {
+    id: sub.id,
+    org_id: orgId,
+    stripe_customer_id: customerId,
+    customer_email: customerEmail,
+    customer_name: null,
+    status: sub.status ?? null,
+    currency: sub.currency ?? 'jpy',
+    mrr: ['active', 'trialing', 'past_due'].includes(sub.status) ? computeMrr(sub) : 0,
+    quantity: totalQty || null,
+    current_period_start: unixToIso(sub.current_period_start),
+    current_period_end: unixToIso(sub.current_period_end),
+    start_date: unixToIso(sub.start_date),
+    canceled_at: unixToIso(sub.canceled_at),
+    items: sub.items?.data ?? null,
+    raw: sub,
+    synced_at: new Date().toISOString(),
+  }
+  const { error } = await supabase
+    .from('spacareer_subscriptions')
+    .upsert(row, { onConflict: 'id' })
+  if (error) throw new Error(`subscription upsert失敗 (${sub.id}): ${error.message}`)
+
+  // email が取れる場合のみ、未リンク時に自動紐付け
+  if (customerEmail) {
+    const cust = await resolveCustomer(supabase, orgId, customerEmail)
+    if (cust.spacareer_customer_id) {
+      await supabase
+        .from('spacareer_subscriptions')
+        .update({ spacareer_customer_id: cust.spacareer_customer_id, member_id: cust.member_id })
+        .eq('id', sub.id)
+        .is('spacareer_customer_id', null)
+    }
+  }
+}
+
 /** 1件の Invoice を upsert し、明細を洗い替え、未リンクなら email 自動紐付け */
 export async function syncInvoice(supabase: any, orgId: string, inv: any): Promise<void> {
   // 1) 本体 upsert（リンク列・excluded は payload に含めない → 既存の手動設定を保持）
