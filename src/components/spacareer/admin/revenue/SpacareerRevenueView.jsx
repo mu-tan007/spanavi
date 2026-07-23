@@ -193,8 +193,19 @@ export default function SpacareerRevenueView() {
       default: start = new Date(y, m, 1); end = new Date(y, m + 1, 1); label = '今月';
     }
     const span = end.getTime() - start.getTime();
-    const prevStart = new Date(start.getTime() - span);
-    const prevEnd = new Date(start.getTime());
+    // 前期間はStripe同様「暦で1単位ずらす」（MTDは前月同期間）。カスタムのみ同一長で直前。
+    const shiftMonths = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
+    let prevStart, prevEnd;
+    switch (preset) {
+      case 'this_month':
+      case 'last_month':
+      case 'month':   prevStart = shiftMonths(start, -1);  prevEnd = shiftMonths(end, -1);  break;
+      case 'last3':   prevStart = shiftMonths(start, -3);  prevEnd = shiftMonths(end, -3);  break;
+      case 'last6':   prevStart = shiftMonths(start, -6);  prevEnd = shiftMonths(end, -6);  break;
+      case 'this_year': prevStart = shiftMonths(start, -12); prevEnd = shiftMonths(end, -12); break;
+      case 'all':     prevStart = start; prevEnd = start; break; // 比較対象なし
+      default:        prevStart = new Date(start.getTime() - span); prevEnd = new Date(start.getTime());
+    }
     return { start, end, prevStart, prevEnd, label, span };
   }, [preset, pickMonth, customStart, customEnd, active]);
 
