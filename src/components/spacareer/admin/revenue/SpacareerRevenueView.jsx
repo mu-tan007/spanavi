@@ -106,6 +106,7 @@ export default function SpacareerRevenueView() {
   const [items, setItems] = useState([]);
   const [subs, setSubs] = useState([]);
   const [refunds, setRefunds] = useState([]);
+  const [stripeCustomers, setStripeCustomers] = useState([]); // { id, created }
   const [customers, setCustomers] = useState([]); // { id, name, member_id }
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -120,17 +121,19 @@ export default function SpacareerRevenueView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [inv, it, sb, rf, cust] = await Promise.all([
+    const [inv, it, sb, rf, sc, cust] = await Promise.all([
       supabase.from('spacareer_invoices').select('*').order('stripe_created_at', { ascending: false }),
       supabase.from('spacareer_invoice_items').select('invoice_id, description, amount, product_name'),
       supabase.from('spacareer_subscriptions').select('*'),
       supabase.from('spacareer_refunds').select('id, amount, created, status'),
+      supabase.from('spacareer_stripe_customers').select('id, created'),
       supabase.from('spacareer_customers').select('id, nickname, member_id, member:members(name)'),
     ]);
     setInvoices(inv.data || []);
     setItems(it.data || []);
     setSubs(sb.data || []);
     setRefunds(rf.data || []);
+    setStripeCustomers(sc.data || []);
     setCustomers((cust.data || []).map((c) => ({
       id: c.id,
       member_id: c.member_id,
@@ -255,15 +258,8 @@ export default function SpacareerRevenueView() {
     const prevNet = sumNet(prevStart, prevEnd) - sumRefund(prevStart, prevEnd);
     const netDelta = prevNet > 0 ? ((netVolume - prevNet) / prevNet) * 100 : null;
 
-    // 新規顧客: 顧客ごとの初回請求日が期間内
-    const firstSeen = {};
-    active.forEach((i) => {
-      const key = i.stripe_customer_id || i.customer_email;
-      if (!key || !i.stripe_created_at) return;
-      const t = new Date(i.stripe_created_at).getTime();
-      if (!firstSeen[key] || t < firstSeen[key]) firstSeen[key] = t;
-    });
-    const countNew = (s, e) => Object.values(firstSeen).filter((t) => t >= s.getTime() && t < e.getTime()).length;
+    // 新規顧客: Stripeと同じ「顧客(Customer)作成日」ベース
+    const countNew = (s, e) => stripeCustomers.filter((c) => c.created && inRange(c.created, s, e)).length;
     const newCustomers = countNew(start, end);
     const prevNew = countNew(prevStart, prevEnd);
     const newDelta = prevNew > 0 ? ((newCustomers - prevNew) / prevNew) * 100 : null;
@@ -330,7 +326,7 @@ export default function SpacareerRevenueView() {
       mrr, activeSubscribers: activeSubs.length,
       topCustomers, trend, spark, netSpark,
     };
-  }, [active, subs, refunds, custName, rangeInfo]);
+  }, [active, subs, refunds, stripeCustomers, custName, rangeInfo]);
 
   // ── 受講生別 / コース別 / 消込（全期間ベース）─────────
   const byCustomer = useMemo(() => {

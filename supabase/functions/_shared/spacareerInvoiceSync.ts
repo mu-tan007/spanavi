@@ -144,6 +144,22 @@ export async function syncSubscription(supabase: any, orgId: string, sub: any): 
   }
 }
 
+/** 1件の Stripe Customer を upsert（新規顧客カウントの作成日ソース） */
+export async function syncStripeCustomer(supabase: any, orgId: string, cus: any): Promise<void> {
+  const row = {
+    id: cus.id,
+    org_id: orgId,
+    email: cus.email ?? null,
+    name: cus.name ?? null,
+    created: unixToIso(cus.created),
+    livemode: cus.livemode ?? null,
+    raw: cus,
+    synced_at: new Date().toISOString(),
+  }
+  const { error } = await supabase.from('spacareer_stripe_customers').upsert(row, { onConflict: 'id' })
+  if (error) throw new Error(`customer upsert失敗 (${cus.id}): ${error.message}`)
+}
+
 /** 1件の Refund（返金）を upsert */
 export async function syncRefund(supabase: any, orgId: string, refund: any): Promise<void> {
   const row = {

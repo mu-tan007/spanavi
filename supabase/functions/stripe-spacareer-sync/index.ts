@@ -3,7 +3,7 @@
 // 初回移行にも使用。管理者(users.role='admin')のみ許可。
 import Stripe from 'https://esm.sh/stripe@17?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { resolveSpacareerOrgId, syncInvoice, syncSubscription, syncRefund } from '../_shared/spacareerInvoiceSync.ts'
+import { resolveSpacareerOrgId, syncInvoice, syncSubscription, syncRefund, syncStripeCustomer } from '../_shared/spacareerInvoiceSync.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -117,8 +117,25 @@ Deno.serve(async (req) => {
       else rHasMore = false
     }
 
-    console.log(`spacareer sync 完了: 請求書${synced}件 / サブスク${syncedSubs}件 / 返金${syncedRefunds}件`)
-    return json(200, { ok: true, synced, syncedSubs, syncedRefunds })
+    // ── 顧客も取り込む（新規顧客を作成日ベースで数えるため）──
+    let syncedCustomers = 0
+    let cHasMore = true
+    let cAfter: string | undefined = undefined
+    while (cHasMore) {
+      const cParams: Stripe.CustomerListParams = { limit: 100 }
+      if (cAfter) cParams.starting_after = cAfter
+      const cPage = await stripe.customers.list(cParams)
+      for (const cus of cPage.data) {
+        await syncStripeCustomer(supabase, orgId, cus)
+        syncedCustomers++
+      }
+      cHasMore = cPage.has_more
+      if (cPage.data.length > 0) cAfter = cPage.data[cPage.data.length - 1].id
+      else cHasMore = false
+    }
+
+    console.log(`spacareer sync 完了: 請求書${synced} / サブスク${syncedSubs} / 返金${syncedRefunds} / 顧客${syncedCustomers}`)
+    return json(200, { ok: true, synced, syncedSubs, syncedRefunds, syncedCustomers })
   } catch (err) {
     console.error('spacareer sync エラー:', (err as Error).message)
     return json(500, { error: (err as Error).message })

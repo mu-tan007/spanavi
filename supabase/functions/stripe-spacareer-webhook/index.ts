@@ -4,7 +4,7 @@
 // 署名検証を有効化（STRIPE_SPACAREER_WEBHOOK_SECRET）。
 import Stripe from 'https://esm.sh/stripe@17?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { resolveSpacareerOrgId, syncInvoice, syncSubscription, syncRefund } from '../_shared/spacareerInvoiceSync.ts'
+import { resolveSpacareerOrgId, syncInvoice, syncSubscription, syncRefund, syncStripeCustomer } from '../_shared/spacareerInvoiceSync.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,6 +58,12 @@ Deno.serve(async (req) => {
       case 'invoice.marked_uncollectible':
       case 'invoice.voided': {
         await syncInvoice(supabase, orgId, event.data.object, stripe)
+        break
+      }
+
+      case 'customer.created':
+      case 'customer.updated': {
+        await syncStripeCustomer(supabase, orgId, event.data.object)
         break
       }
 
