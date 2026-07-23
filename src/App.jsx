@@ -8,6 +8,7 @@ import ClientPortalApp from './components/client/ClientPortalApp'
 import SpacareerClientApp from './components/spacareer/client/SpacareerClientApp'
 import SpacareerLoginPage from './components/spacareer/client/SpacareerLoginPage'
 import DesignPreview from './components/views/DesignPreview'
+import DorayakiClientApp from './components/dorayaki/client/DorayakiClientApp'
 import { isPasswordSetupFlow, isAuthCallbackError } from './lib/supabase'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
@@ -246,6 +247,8 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/design-preview" element={<DesignPreview />} />
+      {/* dorayaki.AI クライアントポータル(叩き・認証なしプレビュー可) */}
+      <Route path="/dorayaki/*" element={<DorayakiClientApp />} />
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route path="/client/*" element={<ClientPortalApp />} />
       <Route path="/spacareer/login" element={<SpacareerLoginPage />} />

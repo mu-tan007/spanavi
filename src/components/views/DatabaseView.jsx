@@ -93,41 +93,57 @@ export default function DatabaseView({ isAdmin }) {
           if (n && p) pairs.push({ n, p });
         }
       } else {
-        // ブラウザ版 exceljs は空セルのある行で col 番号をズラして報告するため、
-        // col 引数でなく cell.address（例 "U2"=21列目）から真の列を割り出して照合する。
-        const ExcelJS = (await import('exceljs')).default;
-        const wb = new ExcelJS.Workbook();
-        await wb.xlsx.load(await file.arrayBuffer());
-        const ws = wb.worksheets[0];
-        const colOf = (addr) => {
-          const m = String(addr || '').match(/^([A-Z]+)/);
-          if (!m) return -1;
-          let n = 0; for (const ch of m[1]) n = n * 26 + (ch.charCodeAt(0) - 64);
-          return n;
-        };
+        // ブラウザ版 exceljs は空セルのある行で列位置を誤る＋日本語ふりがな(rPh)で値が化けるため使わない。
+        // xlsx(ZIP)内の XML を直接読み、セルの実アドレス(r属性)で列を確定、ふりがなは除去する。
+        const JSZip = (await import('jszip')).default;
+        const zip = await JSZip.loadAsync(await file.arrayBuffer());
+        const dec = (s) => String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+        const colNum = (l) => { let n = 0; for (const ch of l) n = n * 26 + (ch.charCodeAt(0) - 64); return n; };
+        // 共有文字列（ふりがな rPh は本文でないため除去）
+        const sst = [];
+        const sstFile = zip.file('xl/sharedStrings.xml');
+        if (sstFile) {
+          const sstXml = await sstFile.async('string');
+          for (const m of sstXml.matchAll(/<si>([\s\S]*?)<\/si>/g)) {
+            const inner = m[1].replace(/<rPh[\s\S]*?<\/rPh>/g, '');
+            let t = ''; for (const tm of inner.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)) t += tm[1];
+            sst.push(dec(t));
+          }
+        }
+        // 最初のシート
+        let sheetFile = zip.file('xl/worksheets/sheet1.xml');
+        if (!sheetFile) { const arr = zip.file(/xl\/worksheets\/sheet\d+\.xml$/); sheetFile = arr && arr[0]; }
+        const sheetXml = await sheetFile.async('string');
+        const rows = {};
+        for (const rm of sheetXml.matchAll(/<row [^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
+          const rn = Number(rm[1]); const o = {};
+          for (const cm of rm[2].matchAll(/<c ([^>]*?)>([\s\S]*?)<\/c>/g)) {
+            const attrs = cm[1], cinner = cm[2];
+            const rM = attrs.match(/r="([A-Z]+)\d+"/); if (!rM) continue;
+            const col = colNum(rM[1]); const tM = attrs.match(/t="([^"]+)"/); const t = tM ? tM[1] : null;
+            let val = '';
+            if (t === 's') { const v = cinner.match(/<v>([\s\S]*?)<\/v>/); if (v) val = sst[Number(v[1])] || ''; }
+            else if (t === 'inlineStr') { const inr = cinner.replace(/<rPh[\s\S]*?<\/rPh>/g, ''); for (const im of inr.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)) val += dec(im[1]); }
+            else { const v = cinner.match(/<v>([\s\S]*?)<\/v>/); if (v) val = dec(v[1]); }
+            o[col] = val;
+          }
+          rows[rn] = o;
+        }
+        const header = rows[1] || {};
         let nameCol = -1, phoneCol = -1;
-        ws.getRow(1).eachCell({ includeEmpty: false }, (cell) => {
-          const c = colOf(cell.address);
-          const h = norm(cell.text);
-          if (nameCol < 0 && NAME_H.includes(h)) nameCol = c;
-          if (phoneCol < 0 && PHONE_H.includes(h)) phoneCol = c;
-        });
-        window.__ma_debug_cols = `nameCol=${nameCol} phoneCol=${phoneCol}`;
+        for (const [c, v] of Object.entries(header)) {
+          const h = norm(v);
+          if (nameCol < 0 && NAME_H.includes(h)) nameCol = Number(c);
+          if (phoneCol < 0 && PHONE_H.includes(h)) phoneCol = Number(c);
+        }
         if (nameCol < 0 || phoneCol < 0) { alert('「企業名」「電話番号」の列が見つかりませんでした。'); return; }
-        ws.eachRow({ includeEmpty: false }, (row, rn) => {
-          if (rn === 1) return;
-          let n = '', p = '';
-          row.eachCell({ includeEmpty: false }, (cell) => {
-            const c = colOf(cell.address);
-            if (c === nameCol) n = String(cell.text || '').trim();
-            else if (c === phoneCol) p = String(cell.text || '').trim();
-          });
+        for (const r of Object.keys(rows).map(Number).filter(x => x > 1).sort((a, b) => a - b)) {
+          const n = (rows[r][nameCol] || '').trim();
+          const p = (rows[r][phoneCol] || '').trim();
           if (n && p) pairs.push({ n, p });
-        });
+        }
       }
       if (!pairs.length) { alert('取り込める行がありませんでした（企業名・電話番号の列をご確認ください）。'); return; }
-      // 【一時診断】ブラウザが実際に何を読めているか確認する（原因特定後に削除）
-      if (!window.confirm(`【診断】${window.__ma_debug_cols || ''}\n読取件数=${pairs.length}\n先頭: ${JSON.stringify(pairs[0])}\n2件目: ${JSON.stringify(pairs[1])}\n3件目: ${JSON.stringify(pairs[2])}\n\nこの内容でOKなら「OK」を押すと取込を続行します`)) { return; }
 
       let matched = 0, inserted = 0;
       const B = 1500;
@@ -201,7 +217,7 @@ export default function DatabaseView({ isAdmin }) {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="企業DB"
-        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-23 08:15・診断版3)`}
+        description={`${dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : ''}　(UI更新 07-23 11:20・確定版)`}
         style={{ marginBottom: 24 }}
         right={
           <>
