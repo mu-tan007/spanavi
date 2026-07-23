@@ -193,3 +193,9 @@ const needRestoreClient = !loading && session && isClientRole && !inClientArea
 7. `EngagementComingSoon` の除外配列（line ~1397 の `!includes` リスト）
 8. DB: `member_page_permissions` シード（非admin公開時。admin限定ならバイパスで不要）
 grep 一発点検: `grep -n "'templates','analytics'" src/components/SpanaviApp.jsx` で全リストを洗い出してから足す。
+
+## 2026-07-23 追記: 新タブのハードリロードで既定ページに戻る
+上記(2026-07-22)のタブ許可リストには **もう1箇所** あった: `SpanaviApp.jsx` の `_VALID_TABS`
+（currentTab を localStorage から復元する際の検証リスト, line ~405）。ここに新keyが無いと
+**ハードリロード時**に保存済みタブが無効判定され既定(customers)へ戻る。
+→ 新タブ追加チェックリストに「_VALID_TABS」を追加。CAREER_TABS=クリック遷移、_VALID_TABS=リロードの2系統。
