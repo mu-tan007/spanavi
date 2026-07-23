@@ -4,7 +4,7 @@
 // 署名検証を有効化（STRIPE_SPACAREER_WEBHOOK_SECRET）。
 import Stripe from 'https://esm.sh/stripe@17?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { resolveSpacareerOrgId, syncInvoice, syncSubscription } from '../_shared/spacareerInvoiceSync.ts'
+import { resolveSpacareerOrgId, syncInvoice, syncSubscription, syncRefund } from '../_shared/spacareerInvoiceSync.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,11 +71,15 @@ Deno.serve(async (req) => {
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge
         const invoiceId = typeof charge.invoice === 'string' ? charge.invoice : charge.invoice?.id
+        // 返金レコードを保存（純売上高の控除用）
+        for (const rf of (charge.refunds?.data ?? [])) {
+          await syncRefund(supabase, orgId, rf)
+        }
         if (invoiceId) {
           const inv = await stripe.invoices.retrieve(invoiceId)
           await syncInvoice(supabase, orgId, inv, stripe)
         } else {
-          console.log('請求書に紐づかない返金、スキップ')
+          console.log('請求書に紐づかない返金は返金レコードのみ保存')
         }
         break
       }

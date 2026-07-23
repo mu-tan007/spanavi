@@ -144,6 +144,24 @@ export async function syncSubscription(supabase: any, orgId: string, sub: any): 
   }
 }
 
+/** 1件の Refund（返金）を upsert */
+export async function syncRefund(supabase: any, orgId: string, refund: any): Promise<void> {
+  const row = {
+    id: refund.id,
+    org_id: orgId,
+    charge_id: typeof refund.charge === 'string' ? refund.charge : refund.charge?.id ?? null,
+    amount: refund.amount ?? 0,
+    currency: refund.currency ?? 'jpy',
+    reason: refund.reason ?? null,
+    status: refund.status ?? null,
+    created: unixToIso(refund.created),
+    raw: refund,
+    synced_at: new Date().toISOString(),
+  }
+  const { error } = await supabase.from('spacareer_refunds').upsert(row, { onConflict: 'id' })
+  if (error) throw new Error(`refund upsert失敗 (${refund.id}): ${error.message}`)
+}
+
 /** 入金済 Invoice の決済手数料 / 純額を balance_transaction から取得（円） */
 async function computeFeeNet(stripe: any, inv: any): Promise<{ fee: number | null; net: number | null }> {
   if (!stripe || inv.status !== 'paid') return { fee: null, net: null }

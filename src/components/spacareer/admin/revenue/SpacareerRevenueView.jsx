@@ -105,6 +105,7 @@ export default function SpacareerRevenueView() {
   const [invoices, setInvoices] = useState([]);
   const [items, setItems] = useState([]);
   const [subs, setSubs] = useState([]);
+  const [refunds, setRefunds] = useState([]);
   const [customers, setCustomers] = useState([]); // { id, name, member_id }
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -119,15 +120,17 @@ export default function SpacareerRevenueView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [inv, it, sb, cust] = await Promise.all([
+    const [inv, it, sb, rf, cust] = await Promise.all([
       supabase.from('spacareer_invoices').select('*').order('stripe_created_at', { ascending: false }),
       supabase.from('spacareer_invoice_items').select('invoice_id, description, amount, product_name'),
       supabase.from('spacareer_subscriptions').select('*'),
+      supabase.from('spacareer_refunds').select('id, amount, created, status'),
       supabase.from('spacareer_customers').select('id, nickname, member_id, member:members(name)'),
     ]);
     setInvoices(inv.data || []);
     setItems(it.data || []);
     setSubs(sb.data || []);
+    setRefunds(rf.data || []);
     setCustomers((cust.data || []).map((c) => ({
       id: c.id,
       member_id: c.member_id,
@@ -230,12 +233,14 @@ export default function SpacareerRevenueView() {
     const prevGross = sumPaid(prevStart, prevEnd);
     const grossDelta = prevGross > 0 ? ((grossVolume - prevGross) / prevGross) * 100 : null;
 
-    // 純売上高（Stripe手数料控除後）。netが未取得の請求は入金額で代用
+    // 純売上高（Stripe完全一致）= Σ純額（手数料控除後） − Σ返金（返金日ベース）
     const sumNet = (s, e) => active.reduce((a, i) => a + (i.paid_at && inRange(i.paid_at, s, e) ? Number(i.net ?? i.amount_paid ?? 0) : 0), 0);
-    const netVolume = sumNet(start, end);
-    const prevNet = sumNet(prevStart, prevEnd);
+    const sumRefund = (s, e) => refunds.reduce((a, r) => a + (r.created && inRange(r.created, s, e) ? Number(r.amount || 0) : 0), 0);
+    const feeTotal = grossVolume - sumNet(start, end);           // 手数料合計
+    const refundTotal = sumRefund(start, end);                    // 返金合計
+    const netVolume = sumNet(start, end) - refundTotal;
+    const prevNet = sumNet(prevStart, prevEnd) - sumRefund(prevStart, prevEnd);
     const netDelta = prevNet > 0 ? ((netVolume - prevNet) / prevNet) * 100 : null;
-    const feeTotal = grossVolume - netVolume;
 
     // 新規顧客: 顧客ごとの初回請求日が期間内
     const firstSeen = {};
@@ -294,18 +299,25 @@ export default function SpacareerRevenueView() {
       }
       active.forEach((i) => { if (i.paid_at && inRange(i.paid_at, start, end)) { const k = monthKey(i.paid_at); if (map[k]) { map[k]['入金額'] += Number(i.amount_paid || 0); map[k]['純額'] += Number(i.net ?? i.amount_paid ?? 0); } } });
     }
+    // 返金を純額バケットから差し引く（返金日ベース）
+    refunds.forEach((r) => {
+      if (!r.created || !inRange(r.created, start, end)) return;
+      const k = daily ? toDateInput(new Date(r.created)) : monthKey(r.created);
+      if (map[k]) map[k]['純額'] -= Number(r.amount || 0);
+    });
+
     const trend = buckets.map((k) => map[k]);
     const spark = trend.map((t) => t['入金額']);
     const netSpark = trend.map((t) => t['純額']);
 
     return {
-      grossVolume, grossDelta, netVolume, netDelta, feeTotal,
+      grossVolume, grossDelta, netVolume, netDelta, feeTotal, refundTotal,
       newCustomers, newDelta,
       failedAmount, failedCount: failedList.length,
       mrr, activeSubscribers: activeSubs.length,
       topCustomers, trend, spark, netSpark,
     };
-  }, [active, subs, custName, rangeInfo]);
+  }, [active, subs, refunds, custName, rangeInfo]);
 
   // ── 受講生別 / コース別 / 消込（全期間ベース）─────────
   const byCustomer = useMemo(() => {
@@ -454,9 +466,11 @@ export default function SpacareerRevenueView() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: space[3] }}>
               <MetricCard label="総売上高" value={yen(metrics.grossVolume)} delta={metrics.grossDelta}
                 spark={metrics.spark} sparkColor={color.navy} accent={color.navy} />
-              <MetricCard label="純売上高（手数料控除後）" value={yen(metrics.netVolume)} delta={metrics.netDelta}
+              <MetricCard label="純売上高" value={yen(metrics.netVolume)} delta={metrics.netDelta}
                 spark={metrics.netSpark} sparkColor={color.navyDark} accent={color.navyDark}
-                hint={`Stripe手数料 ${yen(metrics.feeTotal)} を控除`} />
+                hint={metrics.refundTotal > 0
+                  ? `手数料 ${yen(metrics.feeTotal)} ・返金 ${yen(metrics.refundTotal)} を控除`
+                  : `Stripe手数料 ${yen(metrics.feeTotal)} を控除`} />
               <MetricCard label="MRR（月次経常収益）" value={yen(metrics.mrr)} accent={color.navyLight} sparkColor={color.navyLight}
                 hint="有効サブスクの月次換算・現時点" />
               <MetricCard label="新規顧客" value={`${metrics.newCustomers}名`} delta={metrics.newDelta}

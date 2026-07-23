@@ -3,7 +3,7 @@
 // 初回移行にも使用。管理者(users.role='admin')のみ許可。
 import Stripe from 'https://esm.sh/stripe@17?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { resolveSpacareerOrgId, syncInvoice, syncSubscription } from '../_shared/spacareerInvoiceSync.ts'
+import { resolveSpacareerOrgId, syncInvoice, syncSubscription, syncRefund } from '../_shared/spacareerInvoiceSync.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -100,8 +100,25 @@ Deno.serve(async (req) => {
       else subsHasMore = false
     }
 
-    console.log(`spacareer sync 完了: 請求書${synced}件 / サブスク${syncedSubs}件`)
-    return json(200, { ok: true, synced, syncedSubs })
+    // ── 返金も取り込む（純売上高の控除用）──
+    let syncedRefunds = 0
+    let rHasMore = true
+    let rAfter: string | undefined = undefined
+    while (rHasMore) {
+      const rParams: Stripe.RefundListParams = { limit: 100 }
+      if (rAfter) rParams.starting_after = rAfter
+      const rPage = await stripe.refunds.list(rParams)
+      for (const rf of rPage.data) {
+        await syncRefund(supabase, orgId, rf)
+        syncedRefunds++
+      }
+      rHasMore = rPage.has_more
+      if (rPage.data.length > 0) rAfter = rPage.data[rPage.data.length - 1].id
+      else rHasMore = false
+    }
+
+    console.log(`spacareer sync 完了: 請求書${synced}件 / サブスク${syncedSubs}件 / 返金${syncedRefunds}件`)
+    return json(200, { ok: true, synced, syncedSubs, syncedRefunds })
   } catch (err) {
     console.error('spacareer sync エラー:', (err as Error).message)
     return json(500, { error: (err as Error).message })
