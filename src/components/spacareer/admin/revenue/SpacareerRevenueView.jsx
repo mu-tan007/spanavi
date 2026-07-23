@@ -229,6 +229,13 @@ export default function SpacareerRevenueView() {
     const prevGross = sumPaid(prevStart, prevEnd);
     const grossDelta = prevGross > 0 ? ((grossVolume - prevGross) / prevGross) * 100 : null;
 
+    // 純売上高（Stripe手数料控除後）。netが未取得の請求は入金額で代用
+    const sumNet = (s, e) => active.reduce((a, i) => a + (i.paid_at && inRange(i.paid_at, s, e) ? Number(i.net ?? i.amount_paid ?? 0) : 0), 0);
+    const netVolume = sumNet(start, end);
+    const prevNet = sumNet(prevStart, prevEnd);
+    const netDelta = prevNet > 0 ? ((netVolume - prevNet) / prevNet) * 100 : null;
+    const feeTotal = grossVolume - netVolume;
+
     // 新規顧客: 顧客ごとの初回請求日が期間内
     const firstSeen = {};
     active.forEach((i) => {
@@ -271,29 +278,31 @@ export default function SpacareerRevenueView() {
       const d = new Date(start);
       while (d < end) {
         const key = toDateInput(d);
-        map[key] = { label: `${d.getMonth() + 1}/${d.getDate()}`, 入金額: 0 };
+        map[key] = { label: `${d.getMonth() + 1}/${d.getDate()}`, 入金額: 0, 純額: 0 };
         buckets.push(key);
         d.setDate(d.getDate() + 1);
       }
-      active.forEach((i) => { if (i.paid_at && inRange(i.paid_at, start, end)) { const k = toDateInput(new Date(i.paid_at)); if (map[k]) map[k]['入金額'] += Number(i.amount_paid || 0); } });
+      active.forEach((i) => { if (i.paid_at && inRange(i.paid_at, start, end)) { const k = toDateInput(new Date(i.paid_at)); if (map[k]) { map[k]['入金額'] += Number(i.amount_paid || 0); map[k]['純額'] += Number(i.net ?? i.amount_paid ?? 0); } } });
     } else {
       const d = new Date(start.getFullYear(), start.getMonth(), 1);
       while (d < end) {
         const key = monthKey(d);
-        map[key] = { label: `${d.getMonth() + 1}月`, 入金額: 0 };
+        map[key] = { label: `${d.getMonth() + 1}月`, 入金額: 0, 純額: 0 };
         buckets.push(key);
         d.setMonth(d.getMonth() + 1);
       }
-      active.forEach((i) => { if (i.paid_at && inRange(i.paid_at, start, end)) { const k = monthKey(i.paid_at); if (map[k]) map[k]['入金額'] += Number(i.amount_paid || 0); } });
+      active.forEach((i) => { if (i.paid_at && inRange(i.paid_at, start, end)) { const k = monthKey(i.paid_at); if (map[k]) { map[k]['入金額'] += Number(i.amount_paid || 0); map[k]['純額'] += Number(i.net ?? i.amount_paid ?? 0); } } });
     }
     const trend = buckets.map((k) => map[k]);
     const spark = trend.map((t) => t['入金額']);
+    const netSpark = trend.map((t) => t['純額']);
 
     return {
-      grossVolume, grossDelta, newCustomers, newDelta,
+      grossVolume, grossDelta, netVolume, netDelta, feeTotal,
+      newCustomers, newDelta,
       failedAmount, failedCount: failedList.length,
       mrr, activeSubscribers: activeSubs.length,
-      topCustomers, trend, spark,
+      topCustomers, trend, spark, netSpark,
     };
   }, [active, subs, custName, rangeInfo]);
 
@@ -413,12 +422,13 @@ export default function SpacareerRevenueView() {
             {/* 期間コントロール */}
             <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap', marginBottom: space[4] }}>
               <div style={{ fontSize: font.size.sm, color: color.textMid, fontWeight: font.weight.semibold }}>期間</div>
-              <div style={{ width: 160 }}>
-                <Select options={presetOptions} value={preset} onChange={(e) => setPreset(e.target.value)} />
+              <div style={{ width: 128 }}>
+                <Select size="sm" options={presetOptions} value={preset} onChange={(e) => setPreset(e.target.value)} />
               </div>
               {preset === 'month' && (
-                <div style={{ width: 160 }}>
+                <div style={{ width: 132 }}>
                   <Select
+                    size="sm"
                     options={monthOptions.length ? monthOptions : [{ value: '', label: '—' }]}
                     value={pickMonth || (monthOptions[0]?.value ?? '')}
                     onChange={(e) => setPickMonth(e.target.value)}
@@ -443,6 +453,9 @@ export default function SpacareerRevenueView() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: space[3] }}>
               <MetricCard label="総売上高" value={yen(metrics.grossVolume)} delta={metrics.grossDelta}
                 spark={metrics.spark} sparkColor={color.navy} accent={color.navy} />
+              <MetricCard label="純売上高（手数料控除後）" value={yen(metrics.netVolume)} delta={metrics.netDelta}
+                spark={metrics.netSpark} sparkColor={color.navyDark} accent={color.navyDark}
+                hint={`Stripe手数料 ${yen(metrics.feeTotal)} を控除`} />
               <MetricCard label="MRR（月次経常収益）" value={yen(metrics.mrr)} accent={color.navyLight} sparkColor={color.navyLight}
                 hint="有効サブスクの月次換算・現時点" />
               <MetricCard label="新規顧客" value={`${metrics.newCustomers}名`} delta={metrics.newDelta}

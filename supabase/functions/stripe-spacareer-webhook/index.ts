@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       case 'invoice.payment_failed':
       case 'invoice.marked_uncollectible':
       case 'invoice.voided': {
-        await syncInvoice(supabase, orgId, event.data.object)
+        await syncInvoice(supabase, orgId, event.data.object, stripe)
         break
       }
 
@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
         const invoiceId = typeof charge.invoice === 'string' ? charge.invoice : charge.invoice?.id
         if (invoiceId) {
           const inv = await stripe.invoices.retrieve(invoiceId)
-          await syncInvoice(supabase, orgId, inv)
+          await syncInvoice(supabase, orgId, inv, stripe)
         } else {
           console.log('請求書に紐づかない返金、スキップ')
         }

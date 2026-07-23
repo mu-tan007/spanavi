@@ -144,10 +144,37 @@ export async function syncSubscription(supabase: any, orgId: string, sub: any): 
   }
 }
 
-/** 1件の Invoice を upsert し、明細を洗い替え、未リンクなら email 自動紐付け */
-export async function syncInvoice(supabase: any, orgId: string, inv: any): Promise<void> {
+/** 入金済 Invoice の決済手数料 / 純額を balance_transaction から取得（円） */
+async function computeFeeNet(stripe: any, inv: any): Promise<{ fee: number | null; net: number | null }> {
+  if (!stripe || inv.status !== 'paid') return { fee: null, net: null }
+  try {
+    let chargeId = typeof inv.charge === 'string' ? inv.charge : inv.charge?.id ?? null
+    if (!chargeId && inv.payment_intent) {
+      const piId = typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent?.id
+      if (piId) {
+        const pi = await stripe.paymentIntents.retrieve(piId)
+        chargeId = pi.latest_charge ?? null
+      }
+    }
+    if (!chargeId) return { fee: null, net: null }
+    const charge = await stripe.charges.retrieve(chargeId, { expand: ['balance_transaction'] })
+    const bt = charge.balance_transaction
+    if (bt && typeof bt === 'object') return { fee: bt.fee ?? null, net: bt.net ?? null }
+  } catch (_e) {
+    // 手数料が取れなくても本体保存は続行
+  }
+  return { fee: null, net: null }
+}
+
+/** 1件の Invoice を upsert し、明細を洗い替え、未リンクなら email 自動紐付け
+ *  stripe を渡すと入金済請求の手数料(fee)/純額(net)も取得して保存する。 */
+export async function syncInvoice(supabase: any, orgId: string, inv: any, stripe?: any): Promise<void> {
   // 1) 本体 upsert（リンク列・excluded は payload に含めない → 既存の手動設定を保持）
   const row = mapInvoiceToRow(inv, orgId)
+  // 手数料・純額（取得できたときだけ payload に含める＝既存値を壊さない）
+  const { fee, net } = await computeFeeNet(stripe, inv)
+  if (fee !== null) row.fee = fee
+  if (net !== null) row.net = net
   const { error } = await supabase
     .from('spacareer_invoices')
     .upsert(row, { onConflict: 'id' })

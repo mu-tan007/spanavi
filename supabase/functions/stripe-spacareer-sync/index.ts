@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
 
       const page = await stripe.invoices.list(params)
       for (const inv of page.data) {
-        await syncInvoice(supabase, orgId, inv)
+        await syncInvoice(supabase, orgId, inv, stripe)
         synced++
       }
       hasMore = page.has_more
