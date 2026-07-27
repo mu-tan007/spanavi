@@ -33,7 +33,7 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
       const headersOriginal = parseCSVLine(lines[0]);
       const headers = headersOriginal.map(normalizeHeader);
       const dataRows = lines.slice(1).map(parseCSVLine);
-      const { mapping, units } = buildDefaultMapping(headers);
+      const { mapping, units } = buildDefaultMapping(headers, dataRows);
       setPendingImport({ fileName: file.name, headers, headersOriginal, dataRows, mapping, units });
     };
     reader.readAsText(file, "UTF-8");

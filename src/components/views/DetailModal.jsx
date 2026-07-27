@@ -9,6 +9,8 @@ import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListC
 import { Badge } from '../common/Badge';
 import { ScorePill } from '../common/ScorePill';
 import CallHistoryPanel from './CallHistoryPanel';
+import CSVColumnMappingModal from './CSVColumnMappingModal';
+import { normalizeHeader, parseCSVLine, buildDefaultMapping, buildRowsFromMapping } from './csvImportUtils';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -26,6 +28,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
 
   const [csvImported, setCsvImported] = useState(false);
   const [csvImporting, setCsvImporting] = useState(false);
+  const [pendingImport, setPendingImport] = useState(null); // カラム紐付け待ちのCSV
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteList = async () => {
@@ -70,6 +73,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
 
   const availablePrefs = [...new Set(csvData.map(r => extractPref(r.address)).filter(Boolean))].sort();
 
+  // CSV選択 → パースしてカラム紐付けモーダルを開く
+  // （ヘッダー名がスパナビの項目名と違っても、モーダルで列を選び直せる）
   const handleCSVImport = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -78,153 +83,33 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       return;
     }
     const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const text = ev.target.result;
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
+    reader.onload = (ev) => {
+      const lines = ev.target.result.split(/\r?\n/).filter(l => l.trim());
       if (lines.length < 2) {
         alert('CSVが空か、データ行がありません。');
         return;
       }
+      const headersOriginal = parseCSVLine(lines[0]);
+      const headers = headersOriginal.map(normalizeHeader);
+      const dataRows = lines.slice(1).map(parseCSVLine);
+      const { mapping, units } = buildDefaultMapping(headers, dataRows);
+      setPendingImport({ fileName: file.name, headers, headersOriginal, dataRows, mapping, units });
+    };
+    reader.readAsText(file, "UTF-8");
+    e.target.value = ''; // 同じファイルを選び直せるようにリセット
+  };
 
-      const normalizeHeader = (s) => s
-        .replace(/^\uFEFF/, '').trim()
-        .replace(/\u3000/g, ' ')
-        .replace(/（/g, '(').replace(/）/g, ')')
-        .replace(/．/g, '.').replace(/／/g, '/')
-        .replace(/[Ａ-Ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
-        .replace(/[ａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
-        .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
-
-      const parseCSVLine = (line) => {
-        const result = []; let cur = ''; let inQ = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (ch === '"') {
-            if (!inQ) { inQ = true; }
-            else if (line[i + 1] === '"') { cur += '"'; i++; }
-            else { inQ = false; }
-          } else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
-          else { cur += ch; }
-        }
-        result.push(cur.trim());
-        return result;
-      };
-
-      const rawHeaders = parseCSVLine(lines[0]).map(normalizeHeader);
-
-      const detectUnit = (h) => {
-        if (h.includes('(億円)')) return '億円';
-        if (h.includes('(百万円)')) return '百万円';
-        if (h.includes('(千円)')) return '千円';
-        if (h.includes('(円)')) return '円';
-        return '千円';
-      };
-      const toSenEn = (val, unit) => {
-        const n = parseFloat(String(val).replace(/,/g, '').replace(/[^\d.-]/g, ''));
-        if (isNaN(n)) return null;
-        if (unit === '円') return Math.floor(n / 1000);
-        if (unit === '百万円') return Math.floor(n * 1000);
-        if (unit === '億円') return Math.floor(n * 100000);
-        return Math.floor(n);
-      };
-      const parseNum = (val) => {
-        if (!val && val !== 0) return null;
-        const n = parseFloat(String(val).replace(/,/g, '').replace(/[^\d.-]/g, ''));
-        return isNaN(n) ? null : n;
-      };
-      const getField = (h) => {
-        const base = h.replace(/\(.*?\)/g, '').trim();
-        if (/^(No\.|NO|no|No|番号)$/.test(h)) return 'no';
-        if (base === '企業名' || base === '会社名' || base === '社名') return 'company';
-        if (base === '事業内容' || base === '事業概要' || base === '業種' || base === '業態') return 'business';
-        if (base === '代表者名' || base === '代表者' || base === '代表') return 'representative';
-        if (base === '電話番号' || base === '電話' || base.toUpperCase() === 'TEL') return 'phone';
-        if (base === '住所' || base === '所在地') return 'address';
-        if (base === '都道府県') return 'pref';
-        if (base === '市区町村' || base === '市町村' || base === '区市町村') return 'city';
-        if (base === '番地' || base === '番地以降' || base === '番地・号' || base === '丁目番地') return 'ward';
-        if (base === '売上高' || base === '売上') return 'revenue';
-        if (base === '当期純利益' || base === '純利益') return 'net_income';
-        if (base === '備考' || base === 'メモ' || base === '注記') return 'memo_text';
-        if (base === '従業員数' || base === '社員数' || base === '従業員') return 'employees';
-        if (base === 'URL' || base === 'url' || base === 'HP' || base.includes('ホームページ')) return 'url';
-        if (base === '代表者年齢' || base === '年齢') return 'age';
-        return null;
-      };
-
-      const fieldIndices = {};
-      const unknownCols = [];
-      rawHeaders.forEach((h, idx) => {
-        const field = getField(h);
-        if (field) {
-          if (!fieldIndices[field]) {
-            const unit = (field === 'revenue' || field === 'net_income') ? detectUnit(h) : null;
-            fieldIndices[field] = { idx, unit };
-          }
-        } else {
-          unknownCols.push({ idx, header: h });
-        }
-      });
-
-      const revenueUnit = fieldIndices.revenue?.unit || '千円';
-      const netIncomeUnit = fieldIndices.net_income?.unit || '千円';
-
-      const rows = [];
-      for (let i = 1; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
-        if (cols.length < 2 || cols.every(c => !c)) continue;
-        const get = (field) => {
-          const fi = fieldIndices[field];
-          return fi ? ((cols[fi.idx] || '').trim()) : '';
-        };
-        const addrRaw = get('address');
-        const prefVal = get('pref');
-        const cityVal = get('city');
-        const wardVal = get('ward');
-        let address = '';
-        if (addrRaw) {
-          address = (prefVal && !addrRaw.startsWith(prefVal)) ? prefVal + addrRaw : addrRaw;
-        } else {
-          address = prefVal + cityVal + wardVal;
-        }
-        address = address.replace(/\/\s*$/, '');
-        const extraInfo = {};
-        const memoText = get('memo_text');
-        if (memoText) extraInfo.biko = memoText;
-        const ageVal = get('age');
-        if (ageVal) extraInfo.age = ageVal;
-        unknownCols.forEach(({ idx, header }) => {
-          const v = (cols[idx] || '').trim();
-          if (v) extraInfo[header] = v;
-        });
-        // フォーミュラインジェクション対策: =,+,-,@,タブ,改行で始まる文字列の先頭にシングルクォートを付加
-        const sanitizeCSV = (v) => (typeof v === 'string' && /^[=+\-@\t\r]/.test(v) ? "'" + v : v);
-        // 電話番号正規化: 数字のみ抽出 → 先頭0補完
-        const normalizePhone = (v) => { const d = v.replace(/[^\d]/g, ''); return d ? (d.startsWith('0') ? d : '0' + d) : ''; };
-
-        rows.push({
-          no: rows.length + 1,
-          company: sanitizeCSV(get('company') || ''),
-          business: sanitizeCSV(get('business') || ''),
-          address: sanitizeCSV(address),
-          representative: sanitizeCSV(get('representative') || ''),
-          phone: normalizePhone(get('phone') || ''),
-          revenue: (() => { const v = get('revenue'); return v ? toSenEn(v, revenueUnit) : null; })(),
-          net_income: (() => { const v = get('net_income'); return v ? toSenEn(v, netIncomeUnit) : null; })(),
-          employees: (() => { const v = get('employees'); return v ? parseNum(v) : null; })(),
-          url: get('url') || null,
-          memo: Object.keys(extraInfo).length > 0 ? JSON.stringify(extraInfo) : null,
-        });
-      }
-
+  // 紐付け確定 → 行を組み立てて取込
+  const doImport = async (mapping, units) => {
+    if (!pendingImport) return;
+    setCsvImporting(true);
+    try {
+      const rows = buildRowsFromMapping(pendingImport.dataRows, pendingImport.headers, mapping, units);
       if (rows.length === 0) {
-        alert('CSVのパース結果が0件です。ヘッダー名を確認してください。\n検出したヘッダー: ' + rawHeaders.join(', '));
+        alert('取り込める企業行がありません。「企業名」の列が正しく紐付いているか確認してください。');
         return;
       }
-
-      setCsvImporting(true);
       const { data, error } = await insertCallListItems(list._supaId, rows);
-      setCsvImporting(false);
       if (error) {
         console.error('[CSV取込] Supabase エラー:', error);
         alert('CSV取込に失敗しました: ' + (error.message || JSON.stringify(error)));
@@ -236,11 +121,14 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: newTotalCount } : l));
       setCsvImported(insertedCount);
       setItemCount(newTotalCount);
-    };
-    reader.readAsText(file, "UTF-8");
+      setPendingImport(null);
+    } finally {
+      setCsvImporting(false);
+    }
   };
 
   return (
+    <>
     <div onClick={onClose} style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       background: alpha('#0A1929', 0.6), backdropFilter: "blur(4px)",
@@ -578,5 +466,20 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         </div>
       </div>
     </div>
+
+    {pendingImport && (
+      <CSVColumnMappingModal
+        fileName={pendingImport.fileName}
+        headers={pendingImport.headers}
+        headersOriginal={pendingImport.headersOriginal}
+        dataRows={pendingImport.dataRows}
+        initialMapping={pendingImport.mapping}
+        initialUnits={pendingImport.units}
+        busy={csvImporting}
+        onCancel={() => { if (!csvImporting) setPendingImport(null); }}
+        onConfirm={doImport}
+      />
+    )}
+    </>
   );
 }

@@ -82,39 +82,77 @@ export function parseNum(val) {
 }
 
 // ── ヘッダー名 → 標準フィールドの自動判定（マッピング初期値用）──
+// 「商号 / 営業種目 / 最新売上 / 最新利益」などクライアント支給CSV（TSR・LBC書式）の
+// 表記も拾う。カナ列（商号カナ・代表者カナ）は完全一致判定なので誤検出しない。
 export function detectField(h) {
   const base = (h || '').replace(/\(.*?\)/g, '').trim(); // 単位括弧を除去した基本名
   if (/^(No\.|NO|no|番号)$/.test(h)) return 'no';
-  if (base === '企業名' || base === '会社名' || base === '社名' || base === '法人名') return 'company';
-  if (base === '事業内容' || base === '事業概要' || base === '業種' || base === '業態' || base === '業績') return 'business';
-  if (base === '代表者名' || base === '代表者' || base === '代表') return 'representative';
+  if (base === '企業名' || base === '会社名' || base === '社名' || base === '法人名'
+    || base === '商号' || base === '商号又は名称' || base === '企業名称') return 'company';
+  if (base === '事業内容' || base === '事業概要' || base === '業種' || base === '業態' || base === '業績'
+    || base === '営業種目' || base === '主業' || base === '取扱品目') return 'business';
+  if (base === '代表者名' || base === '代表者' || base === '代表' || base === '代表取締役') return 'representative';
   if (base === '電話番号' || base === '電話' || base.toUpperCase() === 'TEL') return 'phone';
-  if (base === '住所' || base === '所在地') return 'address';
+  if (base === '住所' || base === '所在地' || base === '本社所在地') return 'address';
   if (base === '都道府県' || base.toLowerCase() === 'prefecture') return 'pref';
   if (base === '市区町村' || base === '市町村' || base === '区市町村') return 'city';
   if (base === '番地' || base === '番地以降' || base === '番地・号' || base === '丁目番地') return 'ward';
-  if (base === '売上高' || base === '売上') return 'revenue';
-  if (base === '当期純利益' || base === '純利益') return 'net_income';
+  if (base === '売上高' || base === '売上' || base === '最新売上' || base === '売上金額' || base === '直近売上') return 'revenue';
+  if (base === '当期純利益' || base === '純利益' || base === '最新利益' || base === '当期利益' || base === '最新純利益') return 'net_income';
   if (base === '備考' || base === 'メモ' || base === '注記') return 'memo_text';
   if (base === '従業員数' || base === '社員数' || base === '従業員') return 'employees';
-  if (base === 'URL' || base === 'url' || base === 'HP' || base.includes('ホームページ')) return 'url';
+  if (base === 'URL' || base === 'url' || base === 'HP' || base === '会社URL' || base === '会社HP' || base.includes('ホームページ')) return 'url';
   if (base === '代表者年齢' || base === '年齢') return 'age';
   return null;
+}
+
+// ── 金額列の実データから単位を推定 ────────────────────────────
+// ヘッダーに単位表記がないCSV（例: 最新売上=2900000000）を千円と解釈すると
+// 1000倍ずれる。中央値が1億以上なら「円」表記とみなす
+// （千円単位で中央値1億＝中央値1000億円となり実在しないため誤爆しない）。
+export function inferUnitFromValues(values) {
+  const nums = (values || [])
+    .map(v => parseFloat(String(v ?? '').replace(/,/g, '').replace(/[^\d.-]/g, '')))
+    .filter(n => !isNaN(n) && n > 0)
+    .sort((a, b) => a - b);
+  if (nums.length === 0) return null;
+  const median = nums[Math.floor(nums.length / 2)];
+  return median >= 100000000 ? '円' : null;
 }
 
 // ── ヘッダー配列から、マッピング初期値と単位初期値を構築 ────────
 // mapping: { field: colIndex }（最初にマッチした列を優先）
 // units:   { revenue: '千円', net_income: '千円' }
-export function buildDefaultMapping(headers) {
+// dataRows を渡すと、単位表記のない金額列を実データから推定する
+// （純利益は単体だと桁が小さく推定できないため、売上の推定結果を引き継ぐ）
+export function buildDefaultMapping(headers, dataRows) {
   const mapping = {};
   const units = { revenue: '千円', net_income: '千円' };
+  const explicit = {};
   headers.forEach((h, idx) => {
     const field = detectField(h);
     if (field && mapping[field] == null) {
       mapping[field] = idx;
-      if (field === 'revenue' || field === 'net_income') units[field] = detectUnit(h);
+      if (field === 'revenue' || field === 'net_income') {
+        units[field] = detectUnit(h);
+        explicit[field] = /\((億円|百万円|千円|円)\)/.test(h);
+      }
     }
   });
+
+  if (dataRows?.length) {
+    const sample = dataRows.slice(0, 200);
+    const colValues = (idx) => sample.map(cols => cols?.[idx]);
+    let revenueInferred = null;
+    if (mapping.revenue != null && !explicit.revenue) {
+      revenueInferred = inferUnitFromValues(colValues(mapping.revenue));
+      if (revenueInferred) units.revenue = revenueInferred;
+    }
+    if (mapping.net_income != null && !explicit.net_income) {
+      units.net_income = inferUnitFromValues(colValues(mapping.net_income)) || revenueInferred || units.net_income;
+    }
+  }
+
   return { mapping, units };
 }
 
