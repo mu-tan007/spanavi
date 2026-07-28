@@ -32,8 +32,8 @@ Claude 費用は月 $18.95。金額が判断を左右する規模ではないた
 - [x] AIタブ(AIAssistantView): 旧 Sonnet 4 → **Sonnet 5**
 - [x] 全 Sonnet 5 呼び出しに `thinking: { type: 'disabled' }` を追加
 - [x] フロントビルド確認（成功）
-- [ ] Edge Function デプロイ（10本）
-- [ ] 本番1件で動作確認
+- [x] Edge Function デプロイ（10本・supabase CLI からディスク直送）
+- [x] 本番で動作確認（下記レビュー参照）
 
 ## 据え置き（変更しない）
 
@@ -74,4 +74,31 @@ Claude 費用は月 $18.95。金額が判断を左右する規模ではないた
 
 ## レビュー
 
-（デプロイ・動作確認後に記入）
+### デプロイ済み（本番 baiiznjzvzhxwwqzsozn・全て ACTIVE）
+
+appo-ai-report / lookup-company-homepage / chat-to-filter / chat-to-filter-agency /
+chat-contract-assistant / extract-client-profile-for-contract /
+generate-spacareer-homework30 / generate-spacareer-monetization-report /
+generate-company-dossier / analyze-spacareer-session
+
+`supabase functions deploy` でディスクから直接アップロードしたため、
+本番の内容はリポジトリとバイト単位で一致する。
+
+### 本番での検証結果
+
+一時関数 tmp-model-check を立てて本番の ANTHROPIC_API_KEY で実測（検証後に削除済み）。
+
+1. **claude-sonnet-5 が使えること** — HTTP 200 / stop_reason=end_turn /
+   model_returned=claude-sonnet-5
+2. **thinking: disabled が効いていること** — `output_tokens_details.thinking_tokens = 0`
+3. **構造化出力(json_schema) + 思考オフの組み合わせ** — 議事録生成と同じ構成で
+   JSON.parse 成功・途中切れなし。議事録が過去に起こした「結果が空」は再発しない
+
+Edge Function ログにエラーなし。
+
+### 未実施・持ち越し
+
+- 実データでの品質確認（アポ添削・ドシエ・議事録）は、次に実際の案件が
+  流れたときに出力を目視すること。特にアポ添削は短い受付録音のケースを見る。
+- 9月以降 Sonnet 5 が通常価格($3/$15)になるとコストが月$24.75前後に上がる。
+  導入価格の期間が終わるタイミングで再確認する。
