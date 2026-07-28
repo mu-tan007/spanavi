@@ -77,8 +77,10 @@ ${rulesText}
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // NOTE: この fetch は x-api-key を送っていないため 401 になる（動作していない）。
+        // 動かすには Edge Function 経由に移す必要がある。APIキーをフロントに置いてはいけない。
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-5",
           max_tokens: 1000,
           system: buildSystemPrompt(),
           messages: apiMessages,

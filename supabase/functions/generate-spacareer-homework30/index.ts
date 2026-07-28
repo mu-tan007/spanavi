@@ -21,7 +21,7 @@ const corsHeaders = {
 }
 
 // 30問の設計は指示追従と品質が重要なため sonnet を使用（他のスパキャリAIと統一）。
-const MODEL = 'claude-sonnet-4-6'
+const MODEL = 'claude-sonnet-5'
 const MAX_TOKENS = 8192
 
 function json(body: unknown, status = 200) {
@@ -135,6 +135,8 @@ JSON配列だけを出力してください。`
       },
       body: JSON.stringify({
         model: MODEL,
+        // Sonnet 5 は thinking 未指定で adaptive(思考ON)。出力が途切れるので切る。
+        thinking: { type: 'disabled' },
         max_tokens: MAX_TOKENS,
         messages: [{ role: 'user', content: prompt }],
       }),

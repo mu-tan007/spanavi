@@ -185,7 +185,9 @@ Deno.serve(async (req) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
+        // Sonnet 5 は thinking 未指定で adaptive(思考ON)。JSON が途切れるので切る。
+        thinking: { type: 'disabled' },
         max_tokens: 2000,
         system: [
           {

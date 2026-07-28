@@ -36,12 +36,15 @@ const supabase = createClient(
 const STORAGE_BUCKET = 'spacareer-session-videos'
 
 // 議事録生成モデル。ロープレ(Haiku 4.5)より情報密度の濃い議事録が要件のため、
-// 長尺文字起こしの構造化に強い Sonnet 4.6 を使う（$3/$15 per 1M tokens）。
-const MINUTES_MODEL = 'claude-sonnet-4-6'
+// 長尺文字起こしの構造化に強い Sonnet 系を使う。
+// Sonnet 4.6 → Sonnet 5 に更新（長文脈の要約が改善している世代）。
+const MINUTES_MODEL = 'claude-sonnet-5'
 // 長尺セッション(60〜90分)の構造化議事録は出力が長くなりやすい。8192だと
 // 出力途中で max_tokens に達して JSON が途切れ →「結果が空」になっていたため引き上げる。
 const MINUTES_MAX_TOKENS = 16000
 // cost_usd 計算用 (USD per 1M tokens)
+// Sonnet 5 の通常価格。2026-08-31 までは導入価格 $2/$10 が適用されるため、
+// その期間だけ実費より多めに記録される（過小記録を避けるため通常価格で固定）。
 const COST_INPUT_PER_M = 3.0
 const COST_OUTPUT_PER_M = 15.0
 
@@ -337,6 +340,9 @@ async function callClaudeMinutes(
     },
     body: JSON.stringify({
       model: MINUTES_MODEL,
+      // Sonnet 5 は thinking 未指定だと adaptive(思考ON)になり、思考トークンが
+      // max_tokens を食って JSON が途切れる（過去に「結果が空」を起こした経路）。明示的に切る。
+      thinking: { type: 'disabled' },
       max_tokens: MINUTES_MAX_TOKENS,
       output_config: { format: { type: 'json_schema', schema: MINUTES_SCHEMA } },
       messages: [

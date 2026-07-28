@@ -437,7 +437,11 @@ async function callClaude(opts: {
   let res: Response
   try {
     const body: Record<string, unknown> = {
-      model: 'claude-sonnet-4-6',
+      // Sonnet 4.6 → Sonnet 5。HP本文の読み込みと Web 検索を跨いだ構造化に効く世代。
+      model: 'claude-sonnet-5',
+      // thinking 未指定だと adaptive(思考ON)になり、思考トークンが max_tokens を
+      // 食って JSON が途切れる。ドシエは JSON 必須なので明示的に切る。
+      thinking: { type: 'disabled' },
       max_tokens: opts.maxTokens,
       messages: [{ role: 'user', content: opts.prompt }],
     }

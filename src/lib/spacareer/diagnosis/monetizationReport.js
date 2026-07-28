@@ -8,8 +8,9 @@
 import { supabase } from '../../supabase';
 import { logSpacareerAiUsage } from '../ai/usageLog';
 
-// レポートは sonnet-4-6 を使用（$3/MTok 入力, $15/MTok 出力）
-const REPORT_MODEL = 'claude-sonnet-4-6';
+// レポートは sonnet-5 を使用（通常価格 $3/MTok 入力, $15/MTok 出力）。
+// 2026-08-31 までは導入価格 $2/$10 のため、下の見積りは実費より多めに出る。
+const REPORT_MODEL = 'claude-sonnet-5';
 function estimateSonnetCost(inputTokens = 0, outputTokens = 0) {
   const cost = (inputTokens / 1_000_000) * 3.0 + (outputTokens / 1_000_000) * 15.0;
   return Number(cost.toFixed(6));

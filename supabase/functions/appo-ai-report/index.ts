@@ -122,8 +122,14 @@ Deno.serve(async (req) => {
             'content-type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 1024,
+            // 報告書の添削は「トランスクリプトのどこが報告書に足りないか」の
+            // 文脈判断が要るため Sonnet 5 を使う。短い受付録音でも誤添削しにくい。
+            model: 'claude-sonnet-5',
+            // Sonnet 5 は thinking 未指定だと adaptive(思考ON)になり、
+            // 思考トークンが max_tokens を食って添削文が途中で切れる。明示的に切る。
+            thinking: { type: 'disabled' },
+            // 報告書は実測平均729文字。1024だと余裕がないので倍に取る。
+            max_tokens: 2048,
             messages: [{ role: 'user', content: prompt }],
           }),
         })

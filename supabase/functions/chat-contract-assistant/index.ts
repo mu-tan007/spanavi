@@ -88,7 +88,9 @@ ${reward_table_text || '(未設定)'}
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
+        // Sonnet 5 は thinking 未指定で adaptive(思考ON)。応答が切れるので切る。
+        thinking: { type: 'disabled' },
         max_tokens: 2048,
         system: systemPrompt,
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }],

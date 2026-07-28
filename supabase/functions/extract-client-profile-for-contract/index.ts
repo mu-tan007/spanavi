@@ -69,7 +69,9 @@ ${address_hint ? `住所のヒント: ${address_hint}\n` : ''}
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
+        // Sonnet 5 は thinking 未指定で adaptive(思考ON)。JSON が途切れるので切る。
+        thinking: { type: 'disabled' },
         max_tokens: 2048,
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
         messages: [{ role: 'user', content: userPrompt }],
