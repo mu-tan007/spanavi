@@ -51,12 +51,13 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
         return;
       }
       if (list._supaId) {
-        const { error } = await insertCallListItems(list._supaId, rows);
+        const { error, insertedCount, startNo, endNo } = await insertCallListItems(list._supaId, rows);
         if (error) { alert('CSV取込に失敗しました: ' + (error.message || '不明なエラー')); return; }
         const { count } = await autoExcludeKnownExcluded(list._supaId);
+        const head = `No.${startNo}〜${endNo} に${insertedCount}件を追加しました。`;
         alert(count > 0
-          ? `${rows.length}件を取り込みました。\nうち${count}件は他リストで除外済みの企業のため、自動的に「除外」にしました。`
-          : `${rows.length}件を取り込みました。`);
+          ? `${head}\nうち${count}件は他リストで除外済みの企業のため、自動的に「除外」にしました。`
+          : head);
       }
       setImportedCSVs(prev => ({ ...prev, [listId]: rows }));
       setExpanded(true);

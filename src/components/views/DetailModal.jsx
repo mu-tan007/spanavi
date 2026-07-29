@@ -26,7 +26,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
 
   const isOutsideHours = list.recommendation?.isOutsideHours;
 
-  const [csvImported, setCsvImported] = useState(false);
+  const [importResult, setImportResult] = useState(null); // { insertedCount, startNo, endNo, totalCount }
   const [csvImporting, setCsvImporting] = useState(false);
   const [pendingImport, setPendingImport] = useState(null); // カラム紐付け待ちのCSV
   const [deleting, setDeleting] = useState(false);
@@ -43,7 +43,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
     if (e3) { alert('件数更新に失敗しました: ' + (e3.message || JSON.stringify(e3))); setDeleting(false); return; }
     setDeleting(false);
     setItemCount(0);
-    setCsvImported(false);
+    setCsvData([]);
+    setImportResult(null);
     if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: 0 } : l));
     alert('CSVデータをクリアしました');
     onClose();
@@ -109,19 +110,22 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         alert('取り込める企業行がありません。「企業名」の列が正しく紐付いているか確認してください。');
         return;
       }
-      const { data, error } = await insertCallListItems(list._supaId, rows);
+      const { error, insertedCount, startNo, endNo, totalCount } = await insertCallListItems(list._supaId, rows);
       if (error) {
         console.error('[CSV取込] Supabase エラー:', error);
         alert('CSV取込に失敗しました: ' + (error.message || JSON.stringify(error)));
         return;
       }
-      const insertedCount = data?.length ?? rows.length;
-      const newTotalCount = (itemCount ?? 0) + insertedCount;
+      // 件数はDBの実件数で上書きする（CSVの行数で足すと、取込が一部落ちた時に表示だけ増える）
+      const newTotalCount = totalCount ?? ((itemCount ?? 0) + insertedCount);
       await updateCallListCount(list._supaId, newTotalCount);
       if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: newTotalCount } : l));
-      setCsvImported(insertedCount);
+      setImportResult({ insertedCount, startNo, endNo, totalCount: newTotalCount });
       setItemCount(newTotalCount);
       setPendingImport(null);
+      // 追加分をモーダル内の一覧・絞り込みにも反映
+      const { data: refreshed } = await fetchCallListItems(list._supaId);
+      if (refreshed) setCsvData(refreshed);
     } finally {
       setCsvImporting(false);
     }
@@ -455,9 +459,14 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               loading={deleting}
             >{deleting ? "クリア中..." : "CSVクリア"}</Button>
           )}
-          {csvImported && (
-            <span style={{ fontSize: font.size.xs, color: color.success, fontWeight: font.weight.semibold }}>
-              {csvImported}件をSupabaseに保存しました
+          {importResult && (
+            <span style={{
+              fontSize: font.size.xs, fontWeight: font.weight.semibold,
+              color: importResult.insertedCount > 0 ? color.success : color.danger,
+            }}>
+              {importResult.insertedCount > 0
+                ? `No.${importResult.startNo}〜${importResult.endNo} に${importResult.insertedCount}件を追加しました（合計${importResult.totalCount}件）`
+                : '1件も追加されませんでした（同じNo.の企業が既に存在します）'}
             </span>
           )}
           {!list._supaId && (

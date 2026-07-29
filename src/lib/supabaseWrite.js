@@ -1350,8 +1350,48 @@ function stripLabelPrefix(value, field) {
   return value
 }
 
+// リスト内の現在の最大 No.（未取込なら 0 / 取得失敗なら null）。
+// (list_id, no) の複合インデックスがあるので降順1件で引ける。
+export async function fetchMaxCallListItemNo(listId) {
+  if (!listId) return 0
+  const { data, error } = await supabase
+    .from('call_list_items')
+    .select('no')
+    .eq('list_id', listId)
+    .order('no', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) { console.error('[DB] fetchMaxCallListItemNo error:', error); return null }
+  return data?.no ?? 0
+}
+
+// リストの実在件数（取得失敗なら null）。取込前後の差分＝実際に入った件数。
+export async function countCallListItems(listId) {
+  if (!listId) return null
+  const { count, error } = await supabase
+    .from('call_list_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('list_id', listId)
+  if (error) { console.error('[DB] countCallListItems error:', error); return null }
+  return count ?? 0
+}
+
+// 戻り値: { error, insertedCount, startNo, endNo, totalCount }
+// insertedCount は取込前後の実件数の差分（CSVの行数ではない）。
 export async function insertCallListItems(listId, rows) {
-  if (!listId || !rows?.length) return { data: null, error: null }
+  const empty = { data: null, error: null, insertedCount: 0, startNo: null, endNo: null, totalCount: null }
+  if (!listId || !rows?.length) return empty
+
+  // 既存リストへの追加取込は No. を既存の続き（max+1）から振る。
+  // CSV側の採番は常に1始まりなので、そのまま入れると (list_id, no) のユニークインデックスと
+  // 衝突し、upsert+ignoreDuplicates によって1件も入らないまま成功扱いになる。
+  // CSVクリア後は既存が0件＝max無しなので、これまで通り No.1 から始まる。
+  const baseNo = await fetchMaxCallListItemNo(listId)
+  if (baseNo == null) {
+    return { ...empty, error: new Error('既存No.の取得に失敗したため取込を中止しました') }
+  }
+  const beforeCount = await countCallListItems(listId)
+
   // チャンクは100行: 500行だとDBの書き込みIOが劣化している時に
   // APIのstatement_timeout(約8秒)を超えて取込全体が失敗する
   // （2026-06-11 IO枯渇インシデントで500行=12秒を実測）
@@ -1359,10 +1399,10 @@ export async function insertCallListItems(listId, rows) {
   const totalChunks = Math.ceil(rows.length / CHUNK_SIZE)
   for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
     const chunk = rows.slice(i, i + CHUNK_SIZE)
-    const items = chunk.map(r => ({
+    const items = chunk.map((r, j) => ({
       org_id: getOrgId(),
       list_id: listId,
-      no: r.no,
+      no: baseNo + i + j + 1,
       company: stripLabelPrefix(r.company || '', 'company'),
       business: stripLabelPrefix(r.business || '', 'business'),
       representative: stripLabelPrefix(r.representative || '', 'representative'),
@@ -1387,10 +1427,22 @@ export async function insertCallListItems(listId, rows) {
     }
     if (error) {
       console.error(`[DB] insertCallListItems error (チャンク${chunkNo}/${totalChunks}):`, error)
-      return { data: null, error }
+      return { ...empty, error }
     }
   }
-  return { data: null, error: null }
+
+  const afterCount = await countCallListItems(listId)
+  const insertedCount = (beforeCount != null && afterCount != null)
+    ? afterCount - beforeCount
+    : rows.length
+  return {
+    data: null,
+    error: null,
+    insertedCount,
+    startNo: baseNo + 1,
+    endNo: baseNo + rows.length,
+    totalCount: afterCount,
+  }
 }
 
 /**
