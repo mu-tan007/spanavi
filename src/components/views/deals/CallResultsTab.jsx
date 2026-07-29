@@ -6,6 +6,7 @@ import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { useCallStatuses } from '../../../hooks/useCallStatuses';
 import ListApproachPage from './ListApproachPage';
+import ListScriptDrawer from './ListScriptDrawer';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -67,6 +68,10 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
   const [detailList, setDetailList] = useState(null);
   // list_id → engagement_id マップ (filterEngagementId が指定された時の post-filter 用)
   const [listEngMap, setListEngMap] = useState({});
+  // list_id → スクリプト情報 (テキスト型 script_body / ツリー型 script_tree)
+  const [listScriptMap, setListScriptMap] = useState({});
+  // スクリプト閲覧ドロワーで開いているリスト
+  const [scriptList, setScriptList] = useState(null);
 
   // 期間モード
   const [periodMode, setPeriodMode] = useState('total'); // 'total'|'monthly'|'weekly'|'daily'
@@ -114,16 +119,28 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
       if (cancelled) return;
       setRows(sumRes.data || []);
       setByDay(dayRes.data || []);
-      // call_lists の engagement_id マップを構築 (兼業クライアント post-filter 用)
+      // call_lists の engagement_id マップ (兼業クライアント post-filter 用) と
+      // スクリプト (テキスト型/ツリー型) をまとめて取得。
+      // ポータルからでも RLS (call_lists_select_client) で自社のリスト行だけが返る。
       const { data: listRows } = await supabase
         .from('call_lists')
-        .select('id, engagement_id')
+        .select('id, engagement_id, script_name, script_body, script_tree, rebuttal_data')
         .eq('org_id', orgId)
         .eq('client_id', client.id);
       if (!cancelled) {
         const map = {};
-        for (const l of (listRows || [])) map[l.id] = l.engagement_id;
+        const scriptMap = {};
+        for (const l of (listRows || [])) {
+          map[l.id] = l.engagement_id;
+          scriptMap[l.id] = {
+            scriptName: l.script_name || '',
+            scriptBody: l.script_body || '',
+            scriptTree: l.script_tree || null,
+            rebuttalData: l.rebuttal_data || null,
+          };
+        }
         setListEngMap(map);
+        setListScriptMap(scriptMap);
       }
       setLoading(false);
     })();
@@ -172,6 +189,16 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
   }
 
   if (!client) return <EmptyCard>クライアントを選択してください</EmptyCard>;
+
+  // 行の「スクリプト」ボタン用: テキスト型・ツリー型のどちらかがあれば閲覧可
+  const getScript = (listId) => {
+    const s = listScriptMap[listId];
+    if (!s) return null;
+    const hasText = !!(s.scriptBody || '').trim();
+    const hasTree = !!(s.scriptTree && Array.isArray(s.scriptTree.nodes) && s.scriptTree.nodes.length);
+    if (!hasText && !hasTree) return null;
+    return { ...s, hasText, hasTree };
+  };
 
   const ratePct = (num, den) => den > 0 ? `${((num / den) * 100).toFixed(1)}%` : '—';
   const rate2Pct = (num, den) => den > 0 ? `${((num / den) * 100).toFixed(2)}%` : '—';
@@ -265,6 +292,12 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
             rows={activeRows}
             totals={activeTotals}
             ratePct={ratePct} rate2Pct={rate2Pct}
+            getScript={getScript}
+            onOpenScript={(s) => setScriptList({
+              listId: s.list_id,
+              listName: s.industry || '(名称未設定)',
+              ...getScript(s.list_id),
+            })}
             onOpenDetail={(s) => setDetailList({ list_id: s.list_id, list_name: s.industry || '(名称未設定)' })}
           />
         )}
@@ -296,6 +329,12 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
               totals={archivedTotals}
               ratePct={ratePct} rate2Pct={rate2Pct}
               archivedStyle
+              getScript={getScript}
+              onOpenScript={(s) => setScriptList({
+                listId: s.list_id,
+                listName: s.industry || '(名称未設定)',
+                ...getScript(s.list_id),
+              })}
               onOpenDetail={(s) => setDetailList({ list_id: s.list_id, list_name: s.industry || '(名称未設定)' })}
             />
           )}
@@ -318,6 +357,12 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
         </SectionCard>
       )}
       </>)}
+
+      <ListScriptDrawer
+        open={!!scriptList}
+        list={scriptList}
+        onClose={() => setScriptList(null)}
+      />
     </div>
   );
 }
@@ -350,7 +395,7 @@ const th = { padding: '10px 12px', fontWeight: font.weight.semibold, color: colo
 const td = { padding: '8px 12px', fontSize: font.size.sm, color: color.textDark, textAlign: 'center', fontFamily: font.family.mono };
 
 // 共通テーブル: アクティブ / アーカイブで色味を変える
-function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, archivedStyle = false }) {
+function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, getScript, onOpenScript, archivedStyle = false }) {
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
       <thead>
@@ -361,6 +406,7 @@ function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, archi
           <th style={th}>キーマン接続率</th>
           <th style={th}>アポ獲得数</th>
           <th style={th}>アポ獲得率</th>
+          <th style={th}>スクリプト</th>
           <th style={th}>詳細</th>
         </tr>
       </thead>
@@ -369,6 +415,7 @@ function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, archi
           const calls = Number(s.calls || 0);
           const keyman = Number(s.keyman_connects || 0);
           const appos = Number(s.appos || 0);
+          const script = getScript ? getScript(s.list_id) : null;
           return (
             <tr key={s.list_id} style={{
               borderBottom: `1px solid ${color.borderLight}`,
@@ -384,6 +431,15 @@ function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, archi
               <td style={td}>{appos.toLocaleString()}</td>
               <td style={td}>{rate2Pct(appos, calls)}</td>
               <td style={td}>
+                {script ? (
+                  <Button size="sm" variant="outline" onClick={() => onOpenScript(s)}>
+                    {script.hasText && script.hasTree ? 'テキスト / ツリー' : script.hasTree ? 'ツリー型' : 'テキスト型'}
+                  </Button>
+                ) : (
+                  <span style={{ color: color.textLight }}>—</span>
+                )}
+              </td>
+              <td style={td}>
                 <Button size="sm" variant="outline" onClick={() => onOpenDetail(s)}>▶ 開く</Button>
               </td>
             </tr>
@@ -396,6 +452,7 @@ function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, archi
           <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{ratePct(totals.keymanConnects, totals.calls)}</td>
           <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.appos.toLocaleString()}</td>
           <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{rate2Pct(totals.appos, totals.calls)}</td>
+          <td style={td}></td>
           <td style={td}></td>
         </tr>
       </tbody>
