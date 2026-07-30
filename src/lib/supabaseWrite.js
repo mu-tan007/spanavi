@@ -4483,6 +4483,73 @@ export async function getPayrollInvoiceUrl(storagePath, expiresIn = 600, downloa
   return { url: data?.signedUrl || null, error }
 }
 
+// ── スパキャリ トレーナー報酬の請求書 ──
+// 営業代行の payroll_invoices は (org_id, member_id, pay_month) 一意で
+// maybeSingle() 前提の関数が複数あるため、テーブルは spacareer_trainer_invoices に分ける。
+// Storage は同じバケットを共有し、ファイル名を spacareer_ で分ける。
+// バケットのRLSは path の2番目(member_id)で判定しているのでポリシー変更は不要。
+function spacareerInvoicePath(orgId, memberId, payMonth) {
+  return `${orgId}/${memberId}/spacareer_${payMonth}.pdf`
+}
+
+export async function uploadSpacareerTrainerInvoice(memberId, payMonth, file, breakdown = {}) {
+  if (!memberId || !payMonth || !file) {
+    return { data: null, error: new Error('invalid args') }
+  }
+  if (file.type !== 'application/pdf') {
+    return { data: null, error: new Error('PDF のみアップロード可能です') }
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return { data: null, error: new Error('ファイルサイズは 5MB 以下にしてください') }
+  }
+  const orgId = getOrgId()
+  const path = spacareerInvoicePath(orgId, memberId, payMonth)
+
+  const { error: upErr } = await supabase.storage
+    .from(PAYROLL_INVOICE_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: true })
+  if (upErr) {
+    console.error('[DB] uploadSpacareerTrainerInvoice storage error:', upErr)
+    return { data: null, error: upErr }
+  }
+
+  const auth = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('spacareer_trainer_invoices')
+    .upsert({
+      org_id: orgId,
+      member_id: memberId,
+      pay_month: payMonth,
+      storage_path: path,
+      file_name: file.name,
+      mime_type: file.type,
+      file_size_bytes: file.size,
+      session_count: breakdown.sessionCount ?? 0,
+      session_amount: breakdown.sessionAmount ?? 0,
+      fixed_allowance: breakdown.fixedAllowance ?? 0,
+      total_amount: breakdown.totalAmount ?? 0,
+      uploaded_at: new Date().toISOString(),
+      uploaded_by: auth?.data?.user?.id || null,
+    }, { onConflict: 'org_id,member_id,pay_month' })
+    .select()
+    .single()
+
+  if (error) console.error('[DB] uploadSpacareerTrainerInvoice insert error:', error)
+  return { data, error }
+}
+
+export async function fetchSpacareerTrainerInvoices(payMonth) {
+  const orgId = getOrgId()
+  let q = supabase
+    .from('spacareer_trainer_invoices')
+    .select('*')
+    .eq('org_id', orgId)
+  if (payMonth) q = q.eq('pay_month', payMonth)
+  const { data, error } = await q
+  if (error) console.error('[DB] fetchSpacareerTrainerInvoices error:', error)
+  return { data: data || [], error }
+}
+
 // ── 請求書プロフィール（振込先・住所などメンバー単位の常駐情報） ──
 export async function fetchMemberInvoiceProfile(memberId) {
   if (!memberId) return { data: null, error: new Error('missing memberId') }

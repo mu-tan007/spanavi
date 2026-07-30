@@ -70,15 +70,20 @@
 - [ ] トレーナー本人が自分の分だけ見られる導線（営業代行の `PayrollSelfDetailView` 相当）
 - [ ] 実施トレーナーを後から手修正できる管理UI（誤りの是正用）
 
-### Phase 4 — ワンクリック請求書
+### Phase 4 — ワンクリック請求書 ✅ 適用済 20260730120000
 
 営業代行の既存資産を流用する。
 - `PayrollInvoiceGenerator.jsx` — 1アクションでPDF生成 → Storage 格納
 - `member_invoice_profiles` — 振込先・住所・インボイス番号がDB保存済み（再入力不要）
 - `MemberInvoicePDF.jsx` — メンバー個人 → 会社宛の業務委託請求書レイアウト
 
-- [ ] スパキャリ版の明細（セッション回数 × 単価、固定給）を渡してPDF生成
-- [ ] 生成物の保存先を営業代行と分離（`spacareer` プレフィクス）
+- [x] スパキャリ版の明細（セッション回数 × 単価、固定給）を渡してPDF生成 `SpacareerInvoiceModal.jsx`
+- [x] 生成物の保存先を営業代行と分離
+      テーブルは `spacareer_trainer_invoices` に分離（payroll_invoices は
+      (org_id,member_id,pay_month) 一意 + maybeSingle() 前提の関数が複数あり、
+      同一メンバーが同月に両事業で請求すると壊れるため相乗りしない）。
+      Storage は同バケットで `spacareer_YYYY-MM.pdf` とし、既存のバケットRLS
+      （path[2]=member_id 判定）をそのまま効かせる。
 
 ## 検証
 
@@ -91,7 +96,8 @@
 - Phase 1 / Phase 2 を本番へ適用済み。ロールバック検証トランザクションで
   「完了時の焼付」「担当変更後も帰属不変」「履歴の閉じ／開き」「変更後は新担当」の4点 OK を確認。
 - Phase 3 のうち集計切替と `trainer_rewards` タブを実装。`npm run build` 通過。
-- **残: 19件の帰属投入（むー様の申告待ち）／実施トレーナーの手修正UI／Phase 4 請求書**
+- Phase 4（ワンクリック請求書）まで実装・push 済み。
+- **残: 19件の帰属投入（むー様の申告待ち）／実施トレーナーの手修正UI**
 - 現時点の暫定集計（未確定19件を除く）:
   | 月 | トレーナー | 回数 | 担当人数 | 固定給 | 合計 |
   |---|---|---|---|---|---|

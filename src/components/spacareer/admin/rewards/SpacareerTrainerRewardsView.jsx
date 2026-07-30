@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { color, space, font, radius } from '../../../../constants/design';
-import { Card, Badge, DataTable, Select } from '../../../ui';
+import { Card, Badge, Button, DataTable, Select } from '../../../ui';
 import PageHeader from '../../../common/PageHeader';
 import KpiCard from '../_shared/KpiCard';
 import { supabase } from '../../../../lib/supabase';
+import { fetchSpacareerTrainerInvoices } from '../../../../lib/supabaseWrite';
+import SpacareerInvoiceModal from './SpacareerInvoiceModal';
 
 // ============================================================
 // トレーナー報酬（月次）
@@ -37,19 +39,23 @@ function dueLabel(v) {
 export default function SpacareerTrainerRewardsView() {
   const [rows, setRows] = useState([]);
   const [unattributed, setUnattributed] = useState(0);
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [monthFilter, setMonthFilter] = useState('all');
+  const [invoiceRow, setInvoiceRow] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [monthly, pending] = await Promise.all([
+      const [monthly, pending, inv] = await Promise.all([
         supabase.from('v_spacareer_trainer_monthly').select('*').order('month_key', { ascending: false }),
         supabase.from('v_spacareer_sessions_unattributed').select('session_id'),
+        fetchSpacareerTrainerInvoices(),
       ]);
       if (monthly.error) throw monthly.error;
       setRows(monthly.data || []);
       setUnattributed((pending.data || []).length);
+      setInvoices(inv.data || []);
     } catch (e) {
       console.error('[SpacareerTrainerRewardsView] load error:', e);
     } finally {
@@ -58,6 +64,12 @@ export default function SpacareerTrainerRewardsView() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const invoiceByKey = useMemo(() => {
+    const m = new Map();
+    invoices.forEach((i) => m.set(`${i.pay_month}_${i.member_id}`, i));
+    return m;
+  }, [invoices]);
 
   const monthOptions = useMemo(() => {
     const keys = [...new Set(rows.map((r) => r.month_key))].sort().reverse();
@@ -173,6 +185,20 @@ export default function SpacareerTrainerRewardsView() {
               cellStyle: { fontFamily: font.family.mono, fontWeight: font.weight.semibold } },
             { key: 'payment_due_date', label: '支払期限', width: 110, align: 'right',
               render: (r) => dueLabel(r.payment_due_date) },
+            { key: 'invoice', label: '請求書', width: 130, align: 'center',
+              render: (r) => {
+                const done = invoiceByKey.has(`${r.month_key}_${r.trainer_id}`);
+                return (
+                  <Button
+                    variant={done ? 'outline' : 'primary'}
+                    size="sm"
+                    disabled={r.total_amount <= 0}
+                    onClick={() => setInvoiceRow(r)}
+                  >
+                    {done ? '作成済み' : '作成'}
+                  </Button>
+                );
+              } },
           ]}
           rows={filtered}
           rowKey={(r) => `${r.month_key}_${r.trainer_id}`}
@@ -185,6 +211,15 @@ export default function SpacareerTrainerRewardsView() {
           固定給は、その月に1日でも担当していた受講生が3名以上のときに加算されます。
         </div>
       </div>
+
+      {invoiceRow && (
+        <SpacareerInvoiceModal
+          row={invoiceRow}
+          existing={invoiceByKey.get(`${invoiceRow.month_key}_${invoiceRow.trainer_id}`) || null}
+          onClose={() => setInvoiceRow(null)}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }
