@@ -11,6 +11,7 @@ const ACTIVE_IDS = new Set([
   'sessions',
   'trainer_schedule',
   'session_records',
+  'trainer_rewards',
   'homework',
   'social_style',
   'ai_courses',
@@ -52,6 +53,7 @@ export default function SpacareerAdminSidebar({
     ]},
     { label: 'ANALYTICS', items: [
       { id: 'session_records', label: 'セッション記録' },
+      { id: 'trainer_rewards', label: 'トレーナー報酬' },
       { id: 'analytics', label: '分析レポート' },
       { id: 'revenue', label: '売上管理' },
     ]},

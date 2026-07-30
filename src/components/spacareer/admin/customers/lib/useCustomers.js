@@ -44,21 +44,27 @@ export function useCustomersList() {
       const customerIds = (customers || []).map((c) => c.id);
       if (!customerIds.length) { setRows([]); setLoading(false); return; }
 
-      const [sessionsRes, homeworkRes, trainerRes] = await Promise.all([
+      const [sessionsRes, homeworkRes] = await Promise.all([
         supabase.from('spacareer_sessions')
-          .select('id, customer_id, session_no, part, scheduled_at, started_at, completed_at, status')
+          .select('id, customer_id, session_no, part, scheduled_at, started_at, completed_at, status, trainer_id')
           .in('customer_id', customerIds),
         supabase.from('spacareer_homework')
           .select('id, customer_id, session_no, status, due_at, notified_at, submitted_at')
           .in('customer_id', customerIds),
-        (() => {
-          const trainerIds = [...new Set((customers || []).map((c) => c.assigned_trainer_id).filter(Boolean))];
-          if (!trainerIds.length) return Promise.resolve({ data: [] });
-          return supabase.from('members').select('id, name, email').in('id', trainerIds);
-        })(),
       ]);
       if (sessionsRes.error) throw sessionsRes.error;
       if (homeworkRes.error) throw homeworkRes.error;
+
+      // 名前を引くトレーナーは「現担当」だけでは足りない。
+      // 担当を外れた後も、その人が実施したセッションの実績表示に名前が要るため、
+      // セッションの実施トレーナー(trainer_id)も合わせて引く。
+      const trainerIds = [...new Set([
+        ...(customers || []).map((c) => c.assigned_trainer_id),
+        ...(sessionsRes.data || []).map((s) => s.trainer_id),
+      ].filter(Boolean))];
+      const trainerRes = trainerIds.length
+        ? await supabase.from('members').select('id, name, email').in('id', trainerIds)
+        : { data: [] };
       if (trainerRes.error) throw trainerRes.error;
 
       const sessByCustomer = new Map();
@@ -76,8 +82,11 @@ export function useCustomersList() {
 
       const enriched = (customers || []).map((c) => ({
         ...c,
-        sessions: (sessByCustomer.get(c.id) || []).sort(
-          (a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1))),
+        // 各セッションに「実施トレーナー」を解決して持たせる。
+        // 現担当(c.trainer)ではなく、完了時に焼き付けた s.trainer_id が報酬算定の基準。
+        sessions: (sessByCustomer.get(c.id) || [])
+          .map((s) => ({ ...s, trainer: s.trainer_id ? trainerById.get(s.trainer_id) || null : null }))
+          .sort((a, b) => (a.session_no - b.session_no) || ((a.part || 1) - (b.part || 1))),
         homework: (hwByCustomer.get(c.id) || []).sort((a, b) => a.session_no - b.session_no),
         trainer: c.assigned_trainer_id ? trainerById.get(c.assigned_trainer_id) || null : null,
       }));

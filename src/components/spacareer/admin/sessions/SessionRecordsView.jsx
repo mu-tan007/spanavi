@@ -8,10 +8,13 @@ import { sessionLabel } from '../../../../lib/spacareer/sessionOrder';
 
 // ============================================================
 // セッション記録一覧
-//  - 完了済みセッション(status='completed')を、担当トレーナー別に集計。
+//  - 完了済みセッション(status='completed')を、実施トレーナー別に集計。
 //  - 「誰が」「何回」セッションを担当したかを一覧化。
 //  - 月ごと / 日ごとの単位を切り替えて表示・ソートできる。
-//  - トレーナー帰属は顧客の現担当(assigned_trainer_id)を用いる。
+//  - トレーナー帰属は、完了時に焼き付けた spacareer_sessions.trainer_id を用いる。
+//    以前は顧客の現担当(assigned_trainer_id)を後付けしていたため、担当が変わると
+//    過去の全セッションが新担当の実績に付け替わっていた（むー様指摘 2026-07-30）。
+//  - キックオフ(第0回)は報酬算定の対象外だが、実績表示としてはここに含める。
 // ============================================================
 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
@@ -49,8 +52,8 @@ export default function SessionRecordsView() {
         const d = new Date(s.completed_at);
         list.push({
           id: `${c.id}_${s.session_no}_${s.part || 1}`,
-          trainer_id: c.assigned_trainer_id || null,
-          trainer_name: c.trainer?.name || '未割当',
+          trainer_id: s.trainer_id || null,
+          trainer_name: s.trainer?.name || '未確定',
           customer_name: c.member?.name || '(無名)',
           session_no: s.session_no,
           part: s.part || 1,
@@ -63,13 +66,18 @@ export default function SessionRecordsView() {
     return list.sort((a, b) => b._t - a._t);
   }, [customers]);
 
+  // 帰属未確定（報酬算定対象の第1回以降のみ）。過去分の是正が必要な件数。
+  const unattributed = useMemo(
+    () => completed.filter((r) => !r.trainer_id && r.session_no >= 1).length,
+    [completed]);
+
   const trainerOptions = useMemo(() => {
     const byId = new Map();
     completed.forEach((r) => { if (r.trainer_id) byId.set(r.trainer_id, r.trainer_name); });
     const opts = [{ value: 'all', label: 'すべての担当' }];
     [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ja'))
       .forEach(([id, name]) => opts.push({ value: id, label: name }));
-    opts.push({ value: 'none', label: '未割当' });
+    opts.push({ value: 'none', label: '未確定' });
     return opts;
   }, [completed]);
 
@@ -116,9 +124,18 @@ export default function SessionRecordsView() {
     <div style={{ padding: 0, animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="セッション記録一覧"
-        description="完了済みセッションを担当トレーナー別に集計。誰が何回担当したかを月別／日別で確認できます。"
+        description="完了済みセッションを実施トレーナー別に集計。担当が変わっても、実施した本人の実績として残ります。"
         style={{ marginBottom: space[4] }}
       />
+
+      {unattributed > 0 && (
+        <Card padding="sm" style={{ marginBottom: space[4], borderLeft: `3px solid ${color.warn}` }}>
+          <div style={{ fontSize: font.size.sm, color: color.textDark }}>
+            実施トレーナーが未確定の完了セッションが <strong>{unattributed}件</strong> あります。
+            担当変更の履歴が残っていない期間の分のため、正しい担当を登録するまで集計に含まれません。
+          </div>
+        </Card>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: space[3], flexWrap: 'wrap', marginBottom: space[4] }}>
         <SubTabs

@@ -61,8 +61,10 @@ export default function SpacareerSessionsView({ isAdmin }) {
           hearing_sheet_completed: s.hearing_sheet_completed,
           // 事後課題は各回part1のみ（応用の(2)には課題なし）
           homework: (s.session_no >= 1 && s.session_no <= 8 && part === 1) ? homeworkBy[s.session_no] : null,
-          trainer_id: c.assigned_trainer_id || null,
-          trainer_name: c.trainer?.name || null,
+          // 完了済みは「実施したトレーナー」、未完了は「これから担当する現担当」で絞り込む。
+          // 完了後に担当が変わっても、実施済みの回は実施者側に残す（むー様指摘 2026-07-30）。
+          trainer_id: (s.status === 'completed' ? s.trainer_id : c.assigned_trainer_id) || null,
+          trainer_name: (s.status === 'completed' ? s.trainer?.name : c.trainer?.name) || null,
         });
       });
     });

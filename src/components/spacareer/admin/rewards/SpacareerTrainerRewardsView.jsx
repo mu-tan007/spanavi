@@ -1,0 +1,190 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { color, space, font, radius } from '../../../../constants/design';
+import { Card, Badge, DataTable, Select } from '../../../ui';
+import PageHeader from '../../../common/PageHeader';
+import KpiCard from '../_shared/KpiCard';
+import { supabase } from '../../../../lib/supabase';
+
+// ============================================================
+// トレーナー報酬（月次）
+// ----------------------------------------------------------------
+// むー様確定 2026-07-30:
+//   - 1セッション 5,000円（税込）。キックオフ(第0回)は算定対象外
+//   - 応用コースの (1)(2) は各1回として算定
+//   - 同時担当3名以上の月は固定給 50,000円（税込）を別枠で加算
+//     「3名以上」は月内に1日でも担当していた受講生の実人数で判定
+//   - 支払は翌月末
+//
+// 集計は DB ビュー v_spacareer_trainer_monthly が持つ。
+// 単価変更に画面が追随できるよう、金額計算をフロントに持たせない。
+// ビューは security_invoker なので、トレーナー本人が開くと自分の行だけが返る。
+// ============================================================
+
+const yen = (n) => `¥${Number(n || 0).toLocaleString('ja-JP')}`;
+
+function monthLabel(key) {
+  if (!key) return '—';
+  const [y, m] = key.split('-');
+  return `${y}年${Number(m)}月`;
+}
+
+function dueLabel(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+export default function SpacareerTrainerRewardsView() {
+  const [rows, setRows] = useState([]);
+  const [unattributed, setUnattributed] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [monthFilter, setMonthFilter] = useState('all');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [monthly, pending] = await Promise.all([
+        supabase.from('v_spacareer_trainer_monthly').select('*').order('month_key', { ascending: false }),
+        supabase.from('v_spacareer_sessions_unattributed').select('session_id'),
+      ]);
+      if (monthly.error) throw monthly.error;
+      setRows(monthly.data || []);
+      setUnattributed((pending.data || []).length);
+    } catch (e) {
+      console.error('[SpacareerTrainerRewardsView] load error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const monthOptions = useMemo(() => {
+    const keys = [...new Set(rows.map((r) => r.month_key))].sort().reverse();
+    return [{ value: 'all', label: 'すべての月' },
+      ...keys.map((k) => ({ value: k, label: monthLabel(k) }))];
+  }, [rows]);
+
+  const filtered = useMemo(
+    () => (monthFilter === 'all' ? rows : rows.filter((r) => r.month_key === monthFilter)),
+    [rows, monthFilter]);
+
+  const kpi = useMemo(() => filtered.reduce((a, r) => ({
+    sessions: a.sessions + (r.session_count || 0),
+    session_amount: a.session_amount + (r.session_amount || 0),
+    fixed: a.fixed + (r.fixed_allowance || 0),
+    total: a.total + (r.total_amount || 0),
+  }), { sessions: 0, session_amount: 0, fixed: 0, total: 0 }), [filtered]);
+
+  // トレーナー別の累計（担当が変わっても実施者の実績として積み上がる）
+  const byTrainer = useMemo(() => {
+    const map = new Map();
+    filtered.forEach((r) => {
+      if (!map.has(r.trainer_id)) {
+        map.set(r.trainer_id, { id: r.trainer_id, name: r.trainer_name, sessions: 0, total: 0 });
+      }
+      const t = map.get(r.trainer_id);
+      t.sessions += r.session_count || 0;
+      t.total += r.total_amount || 0;
+    });
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [filtered]);
+
+  return (
+    <div style={{ padding: 0, animation: 'fadeIn 0.3s ease' }}>
+      <PageHeader
+        title="トレーナー報酬"
+        description="実施トレーナー別の月次セッション回数と報酬。金額はすべて税込。支払は翌月末。"
+        style={{ marginBottom: space[4] }}
+      />
+
+      {unattributed > 0 && (
+        <Card padding="sm" style={{ marginBottom: space[4], borderLeft: `3px solid ${color.warn}` }}>
+          <div style={{ fontSize: font.size.sm, color: color.textDark }}>
+            実施トレーナーが未確定の完了セッションが <strong>{unattributed}件</strong> あります。
+            この分は下の集計に含まれていないため、確定するまで報酬額は暫定値です。
+          </div>
+        </Card>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: space[3], flexWrap: 'wrap', marginBottom: space[4] }}>
+        <div style={{ display: 'flex', gap: space[3], flexWrap: 'wrap' }}>
+          <KpiCard label="セッション回数" value={`${kpi.sessions}回`} />
+          <KpiCard label="セッション報酬" value={yen(kpi.session_amount)} />
+          <KpiCard label="固定給" value={yen(kpi.fixed)} />
+          <KpiCard label="支払合計（税込）" value={yen(kpi.total)} />
+        </div>
+        <div style={{ minWidth: 200 }}>
+          <Select
+            label="月で絞り込み"
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            options={monthOptions}
+          />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: space[5] }}>
+        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[2] }}>
+          トレーナー別 累計
+        </div>
+        <div style={{ display: 'flex', gap: space[3], flexWrap: 'wrap' }}>
+          {byTrainer.length === 0 ? (
+            <span style={{ color: color.textLight, fontSize: font.size.sm }}>該当する実績がありません。</span>
+          ) : byTrainer.map((t) => (
+            <Card key={t.id} padding="sm" style={{ minWidth: 190 }}>
+              <div style={{ fontSize: font.size.xs, color: color.textLight }}>{t.name}</div>
+              <div style={{ fontSize: font.size.xl, fontWeight: font.weight.bold, color: color.navy }}>
+                {t.sessions}<span style={{ fontSize: font.size.sm, fontWeight: font.weight.regular, marginLeft: 2 }}>回</span>
+              </div>
+              <div style={{ fontSize: font.size.sm, color: color.textMid, fontFamily: font.family.mono }}>
+                {yen(t.total)}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[2] }}>
+          月別明細
+        </div>
+        <DataTable
+          columns={[
+            { key: 'month_key', label: '月', width: 120, align: 'right',
+              render: (r) => monthLabel(r.month_key),
+              cellStyle: { fontWeight: font.weight.semibold } },
+            { key: 'trainer_name', label: 'トレーナー', width: 160, align: 'left' },
+            { key: 'session_count', label: 'セッション回数', width: 120, align: 'right',
+              render: (r) => `${r.session_count}回` },
+            { key: 'session_unit_price', label: '単価', width: 100, align: 'right',
+              render: (r) => yen(r.session_unit_price) },
+            { key: 'session_amount', label: 'セッション報酬', width: 130, align: 'right',
+              render: (r) => yen(r.session_amount),
+              cellStyle: { fontFamily: font.family.mono } },
+            { key: 'assigned_customer_count', label: '担当人数', width: 100, align: 'right',
+              render: (r) => `${r.assigned_customer_count}名` },
+            { key: 'fixed_allowance', label: '固定給', width: 120, align: 'right',
+              render: (r) => (r.fixed_allowance > 0
+                ? <Badge variant="info" dot>{yen(r.fixed_allowance)}</Badge>
+                : <span style={{ color: color.textLight }}>—</span>) },
+            { key: 'total_amount', label: '合計（税込）', width: 130, align: 'right',
+              render: (r) => yen(r.total_amount),
+              cellStyle: { fontFamily: font.family.mono, fontWeight: font.weight.semibold } },
+            { key: 'payment_due_date', label: '支払期限', width: 110, align: 'right',
+              render: (r) => dueLabel(r.payment_due_date) },
+          ]}
+          rows={filtered}
+          rowKey={(r) => `${r.month_key}_${r.trainer_id}`}
+          loading={loading}
+          fillWidth
+          emptyMessage="該当する報酬記録がありません"
+        />
+        <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.textLight, lineHeight: font.lineHeight.relaxed }}>
+          キックオフ（第0回）は算定対象外です。応用コースの「第N回(1)」「第N回(2)」は各1回として数えます。
+          固定給は、その月に1日でも担当していた受講生が3名以上のときに加算されます。
+        </div>
+      </div>
+    </div>
+  );
+}
