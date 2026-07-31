@@ -5007,3 +5007,18 @@ export async function fetchCumulativeFlagMismatches() {
   if (error) console.warn('[DB] fetchCumulativeFlagMismatches error:', error)
   return { data: data || [], error }
 }
+
+// 指定月のメンバー個別調整（特別ボーナス・控除）を一括取得し、member_id ごとの合計にする。
+// 報酬一覧の「④調整」列と合計支給額に使う（個人明細と表示を揃えるため）。
+export async function fetchMemberPayrollAdjustmentTotals(payMonth) {
+  const { data, error } = await supabase
+    .from('payroll_member_adjustments')
+    .select('member_id, amount')
+    .eq('pay_month', payMonth)
+  if (error) { console.warn('[DB] fetchMemberPayrollAdjustmentTotals error:', error); return { data: {}, error } }
+  const totals = {}
+  ;(data || []).forEach(r => {
+    totals[r.member_id] = (totals[r.member_id] || 0) + (parseInt(r.amount) || 0)
+  })
+  return { data: totals, error: null }
+}

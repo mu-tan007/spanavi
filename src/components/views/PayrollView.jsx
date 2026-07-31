@@ -4,7 +4,7 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 import { calcMonthlyPayroll, calcReferralBonuses, salesAmountOf } from '../../utils/money';
-import { fetchCumulativeSalesShortfalls, fetchCumulativeFlagMismatches } from '../../lib/supabaseWrite';
+import { fetchCumulativeSalesShortfalls, fetchCumulativeFlagMismatches, fetchMemberPayrollAdjustmentTotals } from '../../lib/supabaseWrite';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth, downloadPayrollInvoicesZip } from '../../lib/supabaseWrite';
@@ -39,6 +39,7 @@ const PAYROLL_COLS = [
   { key: 'incentive', width: 120, align: 'right' },
   { key: 'roleBonus', width: 110, align: 'right' },
   { key: 'referral', width: 80, align: 'right' },
+  { key: 'adjustment', width: 90, align: 'right' },
   { key: 'total', width: 120, align: 'right' },
   { key: 'invoice', width: 90, align: 'center' },
 ];
@@ -345,6 +346,29 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   };
 
   // 累計同期処理（管理者のみ）
+  // ── メンバー個別調整（特別ボーナス・控除）──
+  // 個人の給与明細ページでは④として加算しているが、一覧には出ていなかったため
+  // 一覧の合計支給額と明細・請求書の金額が食い違っていた。一覧にも列として出す。
+  const [adjTotals, setAdjTotals] = React.useState({});
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!payMonth) { setAdjTotals({}); return; }
+    fetchMemberPayrollAdjustmentTotals(payMonth).then(({ data }) => {
+      if (!cancelled) setAdjTotals(data || {});
+    });
+    return () => { cancelled = true; };
+  }, [payMonth]);
+  // 表示は名前キーで引くので member_id → 名前 に載せ替える
+  const adjByName = React.useMemo(() => {
+    const out = {};
+    (members || []).forEach(m => {
+      if (typeof m !== 'object' || !m.name) return;
+      const key = m._supaId || m.id;
+      if (key && adjTotals[key]) out[m.name] = adjTotals[key];
+    });
+    return out;
+  }, [members, adjTotals]);
+
   // ── 累計売上のズレ検知 ──
   // cumulative_sales はステータス変更時に足し引きするカウンターなので、
   // 更新失敗や同時編集で実績とズレる。ズレたままだとランク（＝適用率）が
@@ -416,7 +440,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     .filter(p => teamFilter === "all" || p.team === teamFilter)
     .sort((a, b) => b[sortKey] - a[sortKey]);
   const teams = [...new Set(data.map(p => p.team))];
-  const rawGrandTotal = data.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0);
+  const rawGrandTotal = data.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0) + (adjByName[p.name] || 0), 0);
   const rawGrandSales = data.reduce((s, p) => s + p.sales, 0);
   const salesDisc = adjustment.sales_discount || 0;
   const incDisc = adjustment.incentive_discount || 0;
@@ -435,6 +459,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     { h: "①インセンティブ",sk: "incentive",  align: "right"  },
     { h: "②役職ボーナス", sk: "teamBonus",  align: "right"  },
     { h: "③紹介",         sk: null,         align: "right"  },
+    { h: "④調整",         sk: null,         align: "right"  },
     { h: "合計支給額",     sk: "total",      align: "right"  },
     { h: "請求書",         sk: null,         align: "center" },
   ];
@@ -729,15 +754,28 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
             },
           },
           {
-            key: 'total', label: labelOf(COLS[8]), width: PAYROLL_COLS[8].width, align: PAYROLL_COLS[8].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG },
+            key: 'adjustment', label: labelOf(COLS[8]), width: PAYROLL_COLS[8].width, align: PAYROLL_COLS[8].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' },
             render: (p) => {
-              const refBonus = activeReferralMap[p.name] || 0;
-              return fmt(p.total + refBonus);
+              const adj = adjByName[p.name] || 0;
+              if (adj === 0) return <span style={{ color: color.textMid }}>-</span>;
+              return (
+                <span style={{ color: adj < 0 ? color.danger : color.navy }}>
+                  {(adj > 0 ? '+¥' : '-¥') + Math.abs(adj).toLocaleString()}
+                </span>
+              );
             },
           },
           {
-            key: 'invoice', label: labelOf(COLS[9]), width: PAYROLL_COLS[9].width, align: PAYROLL_COLS[9].align,
+            key: 'total', label: labelOf(COLS[9]), width: PAYROLL_COLS[9].width, align: PAYROLL_COLS[9].align,
+            cellStyle: { padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG },
+            render: (p) => {
+              const refBonus = activeReferralMap[p.name] || 0;
+              return fmt(p.total + refBonus + (adjByName[p.name] || 0));
+            },
+          },
+          {
+            key: 'invoice', label: labelOf(COLS[10]), width: PAYROLL_COLS[10].width, align: PAYROLL_COLS[10].align,
             cellStyle: { padding: cellPad },
             render: (p) => {
               const mid = memberIdByName[p.name];
@@ -753,7 +791,8 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
         const sumIncentive = filtered.reduce((s, p) => s + p.incentive, 0) - incDisc;
         const sumTeamBonus = filtered.reduce((s, p) => s + p.teamBonus, 0);
         const sumReferral = filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0);
-        const sumTotal = filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0), 0) - incDisc;
+        const sumAdjustment = filtered.reduce((s, p) => s + (adjByName[p.name] || 0), 0);
+        const sumTotal = filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0) + (adjByName[p.name] || 0), 0) - incDisc;
 
         // 合計行の grid template (DataTable の fillWidth と同じ動きにする)
         const totalGrid = PAYROLL_COLS.map(c => `minmax(${c.width}px, ${c.width}fr)`).join(' ');
@@ -810,7 +849,10 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
                   <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: color.success, textAlign: PAYROLL_COLS[7].align }}>
                     {sumReferral > 0 ? '¥' + sumReferral.toLocaleString() : '-'}
                   </div>
-                  <div style={{ padding: cellPad, fontSize: font.size.base, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG, textAlign: PAYROLL_COLS[8].align }}>
+                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: sumAdjustment < 0 ? color.danger : TH_BG, textAlign: PAYROLL_COLS[8].align }}>
+                    {sumAdjustment === 0 ? '-' : (sumAdjustment > 0 ? '+¥' : '-¥') + Math.abs(sumAdjustment).toLocaleString()}
+                  </div>
+                  <div style={{ padding: cellPad, fontSize: font.size.base, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG, textAlign: PAYROLL_COLS[9].align }}>
                     {'¥' + sumTotal.toLocaleString()}
                   </div>
                   <div style={{ padding: cellPad }} />
