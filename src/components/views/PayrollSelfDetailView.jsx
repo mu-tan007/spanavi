@@ -5,6 +5,7 @@ import { calcRankAndRate } from '../../utils/calculations';
 import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/money';
 import {
   fetchOrgSettings,
+  fetchPayrollSnapshots,
   fetchMemberPayrollAdjustments,
   insertMemberPayrollAdjustment,
   updateMemberPayrollAdjustment,
@@ -111,12 +112,12 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   }, [appoData, targetMember, payMonth]);
 
   // インセンティブ計算（クライアント開拓リスト由来でもインターン報酬は計上する）
-  const incentive = useMemo(
+  const liveIncentive = useMemo(
     () => myAppos.reduce((s, a) => s + (a.reward || 0), 0),
     [myAppos]
   );
   // クライアント開拓リスト由来のアポは売上集計から完全除外（件数は残す）
-  const monthlySales = useMemo(
+  const liveMonthlySales = useMemo(
     () => myAppos.reduce((s, a) => s + salesAmountOf(a), 0),
     [myAppos]
   );
@@ -132,7 +133,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   );
 
   // 役職ボーナス計算
-  const roleBonusInfo = useMemo(() => {
+  const liveRoleBonusInfo = useMemo(() => {
     if (!['リーダー', '副リーダー'].includes(memberRole)) {
       return { bonus: 0, teamSales: 0, rate: 0, members: 0, formula: '対象外' };
     }
@@ -218,7 +219,34 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     return out;
   }, [targetMember, members, appoData, payMonth, selectedMonth]);
 
-  const referralTotal = referrals.reduce((s, r) => s + r.amount, 0);
+  const liveReferralTotal = referrals.reduce((s, r) => s + r.amount, 0);
+
+  // ── 確定済みスナップショット ──
+  // 報酬が確定された月は、一覧画面と同じく確定時の値を表示する。
+  // ライブ再計算のままだと、確定後にチーム編成や役職が変わったときに
+  // 一覧（確定値）と明細・請求書（再計算値）が食い違ってしまう。
+  const [snapshot, setSnapshot] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!targetMember?.name || !payMonth) { setSnapshot(null); return; }
+    fetchPayrollSnapshots(payMonth).then(({ data }) => {
+      if (cancelled) return;
+      setSnapshot((data || []).find(r => r.member_name === targetMember.name) || null);
+    });
+    return () => { cancelled = true; };
+  }, [targetMember?.name, payMonth]);
+
+  const isConfirmed = !!snapshot;
+  const incentive     = isConfirmed ? (snapshot.incentive_amt || 0) : liveIncentive;
+  const monthlySales  = isConfirmed ? (snapshot.monthly_sales || 0) : liveMonthlySales;
+  const roleBonus     = isConfirmed ? (snapshot.team_bonus || 0)    : liveRoleBonusInfo.bonus;
+  const referralTotal = isConfirmed ? (snapshot.referral_bonus || 0) : liveReferralTotal;
+  const shownRole     = isConfirmed ? (snapshot.role || '')   : memberRole;
+  const shownTeam     = isConfirmed ? (snapshot.team_name || '') : (targetMember?.team || '');
+  const shownRank     = isConfirmed ? (snapshot.rank || '')   : rankInfo.rank;
+  const shownRate     = isConfirmed
+    ? (snapshot.incentive_rate ? (snapshot.incentive_rate * 100).toFixed(0) + '%' : '-')
+    : (rankInfo.rate ? (rankInfo.rate * 100).toFixed(0) + '%' : '-');
 
   // ── 任意調整項目（特別ボーナス / 控除など） ──
   const memberKey = targetMember?._supaId || targetMember?.id || null;
@@ -240,7 +268,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   }, [memberKey, payMonth]);
 
   const adjustmentTotal = adjustments.reduce((s, a) => s + (parseInt(a.amount) || 0), 0);
-  const totalPayout = incentive + roleBonusInfo.bonus + referralTotal + adjustmentTotal;
+  const totalPayout = incentive + roleBonus + referralTotal + adjustmentTotal;
 
   // 請求書PDFに渡す調整項目（ラベル空 or 金額0 は除外）
   const adjustmentsForInvoice = useMemo(
@@ -288,7 +316,6 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     return <div style={{ padding: space[5], color: color.textLight }}>メンバー情報が取得できません</div>;
   }
 
-  const memberRate = rankInfo.rate ? (rankInfo.rate * 100).toFixed(0) + '%' : '-';
 
   const apptColumns = [
     { key: 'date', label: '面談日', width: 110, align: 'right', cellStyle: { fontFamily: MONO },
@@ -344,11 +371,25 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         ))}
       </div>
 
+      {isConfirmed && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: space[2],
+          padding: '8px 14px', marginBottom: space[4],
+          borderRadius: radius.md, border: `1px solid ${color.border}`,
+          background: alpha(color.navy, 0.05),
+        }}>
+          <Badge variant="primary" size="sm">確定済み</Badge>
+          <span style={{ fontSize: font.size.xs, color: color.textMid }}>
+            {monthTab}分は報酬確定済みです。以下は確定時の金額を表示しています（その後のチーム編成・役職の変更は反映されません）。
+          </span>
+        </div>
+      )}
+
       {/* サマリーカード */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: space[5] }}>
         {[
           { label: '①インセンティブ', value: fmtYen(incentive), tone: color.success },
-          { label: '②役職ボーナス', value: fmtYen(roleBonusInfo.bonus), tone: color.navy },
+          { label: '②役職ボーナス', value: fmtYen(roleBonus), tone: color.navy },
           { label: '③紹介料', value: fmtYen(referralTotal), tone: color.success },
           {
             label: '④調整',
@@ -382,9 +423,9 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
           <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: 1.7 }}>
             <div style={{ marginBottom: 6 }}>
               <span style={{ color: color.textLight }}>ランク: </span>
-              <span style={{ fontWeight: font.weight.bold, color: color.navy }}>{rankInfo.rank}</span>
+              <span style={{ fontWeight: font.weight.bold, color: color.navy }}>{shownRank}</span>
               <span style={{ color: color.textLight, marginLeft: space[3] }}>適用率: </span>
-              <span style={{ fontFamily: MONO, fontWeight: font.weight.bold }}>{memberRate}</span>
+              <span style={{ fontFamily: MONO, fontWeight: font.weight.bold }}>{shownRate}</span>
               <span style={{ color: color.textLight, marginLeft: space[3] }}>累計売上: </span>
               <span style={{ fontFamily: MONO }}>{fmtYenZero(targetMember.totalSales)}</span>
             </div>
@@ -415,24 +456,43 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         <Card
           padding="md"
           title="②役職ボーナス計算式"
-          description={memberRole ? `${memberRole}（チーム: ${targetMember.team || '-'}）` : 'リーダー/副リーダーのみ対象'}
+          description={shownRole ? `${shownRole}（チーム: ${shownTeam || '-'}）` : 'リーダーのみ対象'}
         >
           <div style={{ fontSize: font.size.sm, color: color.textDark, lineHeight: 1.7 }}>
-            {['リーダー', '副リーダー'].includes(memberRole) ? (
+            {isConfirmed ? (
+              roleBonus > 0 ? (
+                <>
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ color: color.textLight }}>
+                      確定時の役職・チームで計算された金額です
+                    </span>
+                  </div>
+                  <div style={{
+                    padding: space[2], borderRadius: radius.md,
+                    background: alpha(color.navy, 0.06),
+                    fontFamily: MONO, color: color.navy, fontWeight: font.weight.bold,
+                  }}>
+                    {fmtYen(roleBonus)}
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: color.textLight }}>対象外（確定時点で役職ボーナスなし）</div>
+              )
+            ) : ['リーダー', '副リーダー'].includes(memberRole) ? (
               <>
                 <div style={{ marginBottom: 6 }}>
-                  <span style={{ color: color.textLight }}>{roleBonusInfo.label}</span>
+                  <span style={{ color: color.textLight }}>{liveRoleBonusInfo.label}</span>
                 </div>
                 <div style={{
                   padding: space[2], borderRadius: radius.md,
                   background: alpha(color.navy, 0.06),
                   fontFamily: MONO, color: color.navy, fontWeight: font.weight.bold,
                 }}>
-                  {roleBonusInfo.formula}
+                  {liveRoleBonusInfo.formula}
                 </div>
               </>
             ) : (
-              <div style={{ color: color.textLight }}>対象外（リーダー/副リーダーのみ計上）</div>
+              <div style={{ color: color.textLight }}>対象外（リーダーのみ計上）</div>
             )}
           </div>
         </Card>
@@ -440,7 +500,9 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
 
       {/* 紹介料明細 */}
       <Card padding="md" title="③紹介料明細" description="被紹介者が稼働開始から 30 日以内に売上 ¥100,000 以上を達成した場合、¥50,000 を支給" style={{ marginBottom: space[5] }}>
-        {referrals.length === 0 ? (
+        {isConfirmed && referralTotal === 0 ? (
+          <div style={{ fontSize: font.size.sm, color: color.textLight }}>当月対象なし（確定時点）</div>
+        ) : referrals.length === 0 ? (
           <div style={{ fontSize: font.size.sm, color: color.textLight }}>当月対象なし</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -596,7 +658,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         payrollMonths={payrollMonths}
         payMonthLabel={monthTab}
         incentive={incentive}
-        roleBonus={roleBonusInfo.bonus}
+        roleBonus={roleBonus}
         referrals={referrals}
         referralTotal={referralTotal}
         adjustments={adjustmentsForInvoice}
