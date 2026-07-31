@@ -233,6 +233,49 @@ export type ResumableUploadOptions = {
   onProgress?: (bytesUploaded: number, bytesTotal: number) => void;
 };
 
+// アクセストークンの残り寿命がこれ未満なら、チャンク送信前に先回りで更新する（秒）。
+// 6MB チャンク1回分の送信時間 + 余裕を見た値。
+const TOKEN_REFRESH_MARGIN_SEC = 180;
+
+/**
+ * TUS の各リクエスト直前に呼ぶ「常に有効なアクセストークン」取得。
+ *
+ * 数百MB〜GB級の動画は転送に1時間近くかかることがあり、開始時のトークンを
+ * 使い回すと途中の PATCH が
+ *   403 AccessDenied / "exp" claim timestamp check failed
+ * で落ちる（supabase-js がバックグラウンドで更新しても、tus が保持している
+ * Authorization ヘッダは古いままのため）。
+ * さらにタブが非アクティブだとブラウザのタイマー抑制で自動更新自体が遅れる。
+ * そこで期限が近い場合は明示的に refreshSession() する。
+ */
+async function getFreshAccessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const session = data?.session;
+  if (!session) return null;
+
+  const expiresAt = session.expires_at ?? 0; // UNIX秒
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (expiresAt - nowSec > TOKEN_REFRESH_MARGIN_SEC) return session.access_token;
+
+  const { data: refreshed, error } = await supabase.auth.refreshSession();
+  if (error) {
+    // 更新に失敗しても手持ちのトークンで一度は試す（tus 側の再試行に委ねる）。
+    console.warn('[videoUpload] refreshSession failed:', error);
+    return session.access_token;
+  }
+  return refreshed?.session?.access_token ?? session.access_token;
+}
+
+/** 認証期限切れ由来のエラーか判定する（HTTPは400で返り、本文に403が入るケースがある）。 */
+function isAuthExpiredError(err: unknown): boolean {
+  const res = (err as { originalResponse?: { getStatus?: () => number; getBody?: () => string } })
+    ?.originalResponse;
+  const status = res?.getStatus?.() ?? 0;
+  if (status === 401 || status === 403) return true;
+  const body = `${res?.getBody?.() ?? ''} ${(err as Error)?.message ?? ''}`;
+  return /exp["\s]*claim|AccessDenied|Unauthorized|jwt expired|token is expired/i.test(body);
+}
+
 /**
  * Supabase Storage に Resumable Upload (TUS) で動画を上げる。
  *
@@ -241,6 +284,9 @@ export type ResumableUploadOptions = {
  * TUS 経路は bucket 側の file_size_limit のみが効くため、2GB まで通る。
  * またネットワーク断時にも自動再開してくれる。
  *
+ * 認証は onBeforeRequest で毎リクエスト付け直す（長時間アップロードでの
+ * トークン期限切れ対策）。
+ *
  * chunkSize は Supabase 推奨の 6MB。
  */
 export async function uploadVideoResumable(
@@ -248,10 +294,9 @@ export async function uploadVideoResumable(
 ): Promise<{ error: unknown }> {
   const { bucket, path, file, contentType, upsert = false, onProgress } = opts;
 
-  const { data: sessionData, error: sessErr } = await supabase.auth.getSession();
-  const accessToken = sessionData?.session?.access_token;
-  if (sessErr || !accessToken) {
-    return { error: sessErr || new Error('not authenticated') };
+  const accessToken = await getFreshAccessToken();
+  if (!accessToken) {
+    return { error: new Error('not authenticated') };
   }
 
   const supabaseUrl = (import.meta as unknown as { env: Record<string, string> })
@@ -267,6 +312,20 @@ export async function uploadVideoResumable(
       headers: {
         authorization: `Bearer ${accessToken}`,
         'x-upsert': upsert ? 'true' : 'false',
+      },
+      // 毎リクエスト直前に最新トークンを付け直す。
+      // これが無いと長時間アップロードの途中で 403 "exp claim timestamp check failed" になる。
+      onBeforeRequest: async (req) => {
+        const token = await getFreshAccessToken();
+        if (token) req.setHeader('authorization', `Bearer ${token}`);
+      },
+      // tus は既定で 4xx を再試行しない（=期限切れで即中断）。
+      // 認証期限切れだけは再試行させ、onBeforeRequest が付け直した新トークンで続行する。
+      onShouldRetry: (err, retryAttempt) => {
+        if (isAuthExpiredError(err)) return retryAttempt < 5;
+        const status = err.originalResponse?.getStatus() ?? 0;
+        if (status >= 400 && status < 500 && status !== 409 && status !== 423) return false;
+        return true;
       },
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
