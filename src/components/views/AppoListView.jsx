@@ -3167,7 +3167,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
   });
 
   // Group by team
-  const teamOrder = ["代表取締役", "営業統括", "成尾", "高橋", "クライアント開拓"];
+  const teamOrder = ["代表取締役", "営業統括", "浅井", "瀬尾", "クライアント開拓"];
   const grouped = {};
   filtered.forEach(m => {
     const t = m.team || (m.role === "営業統括" ? "営業統括" : null);
@@ -3292,7 +3292,7 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
               ))}
             </div>
             {grouped[team].sort((a, b) => {
-              const order = { "チームリーダー": 0, "副リーダー": 1, "営業統括": 2, "メンバー": 3, "": 4 };
+              const order = { "チームリーダー": 0, "営業統括": 1, "メンバー": 2, "": 3 };
               return (order[a.role] ?? 4) - (order[b.role] ?? 4);
             }).map((m, idx) => (
               <div key={m.id} style={{
@@ -3308,8 +3308,6 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
                 <span style={{ textAlign: memCols[4]?.align }}>
                   {m.role === "チームリーダー" ? (
                     <Badge variant="primary" size="sm">チームリーダー</Badge>
-                  ) : m.role === "副リーダー" ? (
-                    <Badge variant="info" size="sm">副リーダー</Badge>
                   ) : m.role === "営業統括" ? (
                     <Badge variant="success" size="sm">営業統括</Badge>
                   ) : (
@@ -3416,8 +3414,8 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
                   <div>
                     <label style={labelStyle}>チーム</label>
                     <Select size="sm" value={editForm.team} onChange={e => u("team", e.target.value)} options={[
-                      { value: "成尾", label: "成尾" },
-                      { value: "高橋", label: "高橋" },
+                      { value: "浅井", label: "浅井" },
+                      { value: "瀬尾", label: "瀬尾" },
                       { value: "クライアント開拓", label: "クライアント開拓" },
                       { value: "", label: "営業統括" },
                     ]} />
@@ -3426,7 +3424,6 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
                     <label style={labelStyle}>役職</label>
                     <Select size="sm" value={editForm.role} onChange={e => u("role", e.target.value)} options={[
                       { value: "メンバー", label: "メンバー" },
-                      { value: "副リーダー", label: "副リーダー" },
                       { value: "チームリーダー", label: "チームリーダー" },
                       { value: "営業統括", label: "営業統括" },
                     ]} />
@@ -3521,8 +3518,8 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
                   <div>
                     <label style={labelStyle}>チーム</label>
                     <Select size="sm" value={addForm.team} onChange={e => u("team", e.target.value)} options={[
-                      { value: "成尾", label: "成尾" },
-                      { value: "高橋", label: "高橋" },
+                      { value: "浅井", label: "浅井" },
+                      { value: "瀬尾", label: "瀬尾" },
                       { value: "クライアント開拓", label: "クライアント開拓" },
                       { value: "", label: "営業統括" },
                     ]} />
@@ -3531,7 +3528,6 @@ export function MembersView({ members, setMembers, onDataRefetch }) {
                     <label style={labelStyle}>役職</label>
                     <Select size="sm" value={addForm.role} onChange={e => u("role", e.target.value)} options={[
                       { value: "メンバー", label: "メンバー" },
-                      { value: "副リーダー", label: "副リーダー" },
                       { value: "チームリーダー", label: "チームリーダー" },
                       { value: "営業統括", label: "営業統括" },
                     ]} />

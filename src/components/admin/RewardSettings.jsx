@@ -17,12 +17,6 @@ const FIELDS = [
     ],
   },
   {
-    section: '副リーダーボーナス',
-    items: [
-      { key: 'subleader_bonus_rate', label: 'チーム売上に対する料率', suffix: '%', min: 0, max: 100, step: 0.1 },
-    ],
-  },
-  {
     section: 'アポイント単価',
     items: [
       { key: 'appo_fee_under_500m', label: '5億円未満',       suffix: '円', min: 0, max: 9999999 },

@@ -87,9 +87,9 @@ export function useSpanaviData(authOrgId) {
         })
       }
       // engagement_roles.name → 既存コードが期待する legacy 役職名
+      // 副リーダーは 2026-08 の編成変更で廃止（過去月の給与はスナップショット済み）
       const ROLE_LEGACY_MAP = {
         'リーダー': 'チームリーダー',
-        '副リーダー': '副リーダー',
         'メンバー': 'メンバー',
       }
 
