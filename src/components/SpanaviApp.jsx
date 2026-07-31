@@ -612,18 +612,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     (isAdmin || (r._memoObj?.assignee || '') === currentUser)
   );
   // 事前確認未完了通知（面談1営業日前以内）
-  const _addBizDay = (d) => { const r = new Date(d); while (true) { r.setDate(r.getDate() + 1); if (r.getDay() !== 0 && r.getDay() !== 6) return r; } };
-  const _toDS = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  const _pcToday = new Date(); _pcToday.setHours(0, 0, 0, 0);
-  const _pcT1 = _addBizDay(_pcToday);
-  const preCheckPendingAppos = appoData.filter(a => {
-    if (a.status !== "アポ取得") return false;
-    if (['確認完了', 'リスケ', 'キャンセル'].includes(a.preCheckStatus)) return false;
-    const md = a.meetDate;
-    if (!md) return false;
-    if (md !== _toDS(_pcToday) && md !== _toDS(_pcT1)) return false;
-    return isAdmin || a.getter === currentUser;
-  });
+  // 事前確認は Slack 通知で運用しており、Spanavi UI 上の事前確認ページは 2026-06 に
+  // サイドバーから外して未使用。2026-07 にベル通知からの導線も撤去した（画面本体と
+  // URL ルーティングは残置）。復活させる場合は導線と併せてここの集計も戻すこと。
   const overdueCsvCount = 0;
 
   // ── アプリ内通知 inbox（バッジに溜まる）
@@ -646,7 +637,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   }, [refreshInbox]);
 
   const unreadInbox = inboxNotifications.filter(n => !n.read_at);
-  const overdueCount = preCheckPendingAppos.length + unreadInbox.length;
+  const overdueCount = unreadInbox.length;
 
   const markNotificationRead = async (id) => {
     setInboxNotifications(prev => prev.map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n));
@@ -1092,20 +1083,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                   )}
                 </div>
                 <div style={{ maxHeight: 360, overflowY: "auto" }}>
-                  {preCheckPendingAppos.length > 0 && (<>
-                    <div style={{ padding: "6px 14px", background: "#fff8ed", fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: C.orange, borderBottom: `1px solid ${color.borderLight}` }}>
-                      事前確認が必要なアポ（{preCheckPendingAppos.length}件）
-                    </div>
-                    {preCheckPendingAppos.map((a, i) => (
-                      <div key={i} onClick={() => { setCurrentTab("precheck"); setShowBellDropdown(false); }}
-                        onMouseEnter={e => { e.currentTarget.style.background = color.offWhite; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = ''; }}
-                        style={{ padding: "8px 14px", borderBottom: `1px solid ${color.borderLight}`, cursor: "pointer" }}>
-                        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>{a.company}</div>
-                        <div style={{ fontSize: 9, color: color.textLight }}>{a.client} ／ 面談: {a.meetDate?.slice(5)} ／ {a.preCheckStatus || '未確認'}</div>
-                      </div>
-                    ))}
-                  </>)}
                   {inboxNotifications.length > 0 && (<>
                     <div style={{ padding: "6px 14px", background: color.offWhite, fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.navy, borderBottom: `1px solid ${color.borderLight}` }}>
                       最新の通知（{unreadInbox.length}件未読 / {inboxNotifications.length}件）
@@ -1215,21 +1192,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                   通知（{overdueCount}件）
                 </div>
                 <div style={{ maxHeight: 280, overflowY: "auto" }}>
-                  {/* 事前確認未完了 */}
-                  {preCheckPendingAppos.length > 0 && (<>
-                    <div style={{ padding: "6px 14px", background: "#fff8ed", fontSize: 10, fontWeight: 700, color: C.orange, borderBottom: "1px solid " + C.borderLight }}>
-                      事前確認が必要なアポ（{preCheckPendingAppos.length}件）
-                    </div>
-                    {preCheckPendingAppos.map((a, i) => (
-                      <div key={i} onClick={() => { setCurrentTab("precheck"); setShowBellDropdown(false); }}
-                        onMouseEnter={e => { e.currentTarget.style.background = C.offWhite; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = ''; }}
-                        style={{ padding: "8px 14px", borderBottom: "1px solid " + C.borderLight, cursor: "pointer" }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: C.navy }}>{a.company}</div>
-                        <div style={{ fontSize: 9, color: C.textLight }}>{a.client} ／ 面談: {a.meetDate?.slice(5)} ／ {a.preCheckStatus || '未確認'}</div>
-                      </div>
-                    ))}
-                  </>)}
                   {/* 期限超過の再コール */}
                   {(overdueSupaRecalls.length + overdueCsvCount) > 0 && (<>
                     <div style={{ padding: "6px 14px", background: C.navy + "08", fontSize: 10, fontWeight: 700, color: C.navy, borderBottom: "1px solid " + C.borderLight }}>
@@ -1249,17 +1211,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                       </div>
                     )}
                   </>)}
-                  {overdueCount === 0 && (
+                  {/* このドロップダウンは再コールのみ表示するため、再コール件数で空判定する
+                      （事前確認セクション撤去前は overdueCount で判定していて実態とズレていた） */}
+                  {(overdueSupaRecalls.length + overdueCsvCount) === 0 && (
                     <div style={{ padding: "20px 14px", textAlign: "center", color: C.textLight, fontSize: 11 }}>通知なし</div>
                   )}
                 </div>
                 <div style={{ padding: "8px 14px", borderTop: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 6 }}>
-                  {preCheckPendingAppos.length > 0 && (
-                    <button onClick={() => { setCurrentTab("precheck"); setShowBellDropdown(false); }}
-                      style={{ width: "100%", padding: "6px", borderRadius: 5, border: "none", background: C.orange, color: C.white, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
-                      事前確認ページを開く
-                    </button>
-                  )}
                   <button onClick={() => { setCurrentTab("recall"); setShowBellDropdown(false); }}
                     style={{ width: "100%", padding: "6px", borderRadius: 5, border: "none",
                       background: C.navy, color: C.white, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
