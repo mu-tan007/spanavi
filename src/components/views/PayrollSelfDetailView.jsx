@@ -254,6 +254,9 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   const [adjLoading, setAdjLoading] = useState(false);
   const [adjBusy, setAdjBusy] = useState(false);
   const adjSaveTimers = useRef({});
+  // debounce 待ちの変更内容。項目ごとに patch を蓄積する
+  // （label を直した直後に amount を直すと、以前は先の変更が握り潰されていた）
+  const adjPending = useRef({});
 
   useEffect(() => {
     let cancelled = false;
@@ -293,15 +296,37 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     if (data) setAdjustments(prev => [...prev, data]);
   };
 
+  // debounce 待ちの変更をまとめて書き込む。
+  // 一覧へ戻る前にこれを待つことで、一覧の「④調整」が古い値のまま出るのを防ぐ。
+  const flushAdjustments = async () => {
+    const pending = adjPending.current;
+    adjPending.current = {};
+    const ids = Object.keys(pending);
+    ids.forEach(id => {
+      if (adjSaveTimers.current[id]) { clearTimeout(adjSaveTimers.current[id]); delete adjSaveTimers.current[id]; }
+    });
+    if (!ids.length) return;
+    await Promise.all(ids.map(id => updateMemberPayrollAdjustment(id, pending[id])));
+  };
+
   const handleAdjustmentChange = (id, patch) => {
     setAdjustments(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
+    adjPending.current[id] = { ...(adjPending.current[id] || {}), ...patch };
     // debounce 600ms で upsert
     if (adjSaveTimers.current[id]) clearTimeout(adjSaveTimers.current[id]);
-    adjSaveTimers.current[id] = setTimeout(async () => {
-      await updateMemberPayrollAdjustment(id, patch);
-      delete adjSaveTimers.current[id];
-    }, 600);
+    adjSaveTimers.current[id] = setTimeout(() => { flushAdjustments(); }, 600);
   };
+
+  // 画面を離れる時の保険。戻るボタン以外の離脱でも書き込みを取りこぼさない
+  useEffect(() => () => {
+    const pending = adjPending.current;
+    Object.keys(pending).forEach(id => {
+      if (adjSaveTimers.current[id]) clearTimeout(adjSaveTimers.current[id]);
+      updateMemberPayrollAdjustment(id, pending[id]);
+    });
+    adjPending.current = {};
+    adjSaveTimers.current = {};
+  }, []);
 
   const handleDeleteAdjustment = async (id) => {
     if (!window.confirm('この調整項目を削除しますか？')) return;
@@ -309,6 +334,8 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     const { error } = await deleteMemberPayrollAdjustment(id);
     setAdjBusy(false);
     if (error) { window.alert('削除に失敗しました: ' + (error.message || '不明')); return; }
+    if (adjSaveTimers.current[id]) { clearTimeout(adjSaveTimers.current[id]); delete adjSaveTimers.current[id]; }
+    delete adjPending.current[id];
     setAdjustments(prev => prev.filter(a => a.id !== id));
   };
 
@@ -351,7 +378,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
       )}
       {embedded && onBack && (
         <div style={{ marginBottom: space[3] }}>
-          <Button variant="outline" size="sm" onClick={onBack}>← 一覧に戻る</Button>
+          <Button variant="outline" size="sm" onClick={async () => { await flushAdjustments(); onBack(); }}>← 一覧に戻る</Button>
           <span style={{ marginLeft: space[3], fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>
             {targetMember.name} の {payMonth} 分支給内訳
           </span>
