@@ -39,7 +39,7 @@ const PAYROLL_COLS = [
   { key: 'incentive', width: 120, align: 'right' },
   { key: 'roleBonus', width: 110, align: 'right' },
   { key: 'referral', width: 80, align: 'right' },
-  { key: 'adjustment', width: 90, align: 'right' },
+  { key: 'adjustment', width: 110, align: 'right' },  // 符号付き（+¥134,100）で桁が伸びるため広めに取る
   { key: 'total', width: 120, align: 'right' },
   { key: 'invoice', width: 90, align: 'center' },
 ];
