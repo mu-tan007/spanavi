@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { Button, Card, Badge, DataTable } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
-import { PAYROLL_COUNTABLE } from '../../utils/money';
+import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/money';
 import {
   fetchOrgSettings,
   fetchMemberPayrollAdjustments,
@@ -104,10 +104,10 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   // 当月の自分のアポ
   const myAppos = useMemo(() => {
     if (!targetMember) return [];
-    return (appoData || []).filter(a => {
-      const dateKey = (a.meetDate || a.getDate || '').slice(0, 7);
-      return a.getter === targetMember.name && dateKey === payMonth && PAYROLL_COUNTABLE.has(a.status);
-    });
+    // 面談実施日ベース。面談日が未設定のアポは当月に計上しない
+    return (appoData || []).filter(a =>
+      a.getter === targetMember.name && salesMonthOf(a) === payMonth && PAYROLL_COUNTABLE.has(a.status)
+    );
   }, [appoData, targetMember, payMonth]);
 
   // インセンティブ計算（クライアント開拓リスト由来でもインターン報酬は計上する）
@@ -117,7 +117,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   );
   // クライアント開拓リスト由来のアポは売上集計から完全除外（件数は残す）
   const monthlySales = useMemo(
-    () => myAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0),
+    () => myAppos.reduce((s, a) => s + salesAmountOf(a), 0),
     [myAppos]
   );
   const prospectingCount = useMemo(
@@ -138,16 +138,15 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     }
     const team = targetMember?.team || '';
     // 同じチームの全メンバーの当月売上を集計
-    const monthAppos = (appoData || []).filter(a => {
-      const dateKey = (a.meetDate || a.getDate || '').slice(0, 7);
-      return dateKey === payMonth && PAYROLL_COUNTABLE.has(a.status);
-    });
+    const monthAppos = (appoData || []).filter(a =>
+      salesMonthOf(a) === payMonth && PAYROLL_COUNTABLE.has(a.status)
+    );
     const teamMembers = (members || []).filter(m => typeof m === 'object' && m.team === team);
     const teamMemberNames = new Set(teamMembers.map(m => m.name));
     // クライアント開拓由来のアポは役職ボーナス計算からも除外
     const teamSales = monthAppos
-      .filter(a => teamMemberNames.has(a.getter) && !a.isProspecting)
-      .reduce((s, a) => s + (a.sales || 0), 0);
+      .filter(a => teamMemberNames.has(a.getter))
+      .reduce((s, a) => s + salesAmountOf(a), 0);
 
     // 同じチームのリーダー / 副リーダー人数（role_map から）
     const sameRoleCount = teamMembers.filter(m => memberRoleMap[m.id] === memberRole).length || 1;
@@ -200,13 +199,12 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
       const salesWithin30 = (appoData || [])
         .filter(a =>
           a.getter === m.name &&
-          !a.isProspecting &&
           PAYROLL_COUNTABLE.has(a.status) &&
           a.appointmentDate &&
           new Date(a.appointmentDate) >= opDate &&
           new Date(a.appointmentDate) <= deadline
         )
-        .reduce((s, a) => s + (a.sales || 0), 0);
+        .reduce((s, a) => s + salesAmountOf(a), 0);
       if (salesWithin30 >= 100000 && opDate <= monthEnd && deadline >= monthStart) {
         out.push({
           name: m.name,
@@ -294,7 +292,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
 
   const apptColumns = [
     { key: 'date', label: '面談日', width: 110, align: 'right', cellStyle: { fontFamily: MONO },
-      render: (a) => a.meetDate || a.getDate || '-' },
+      render: (a) => a.meetDate || '-' },
     { key: 'client', label: 'クライアント', width: 180, align: 'left', render: (a) => a.client || '-' },
     { key: 'company', label: '企業名', width: 220, align: 'left',
       render: (a) => (

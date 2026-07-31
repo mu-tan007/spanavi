@@ -14,6 +14,7 @@ import {
   fetchBusinessOverviewMemberPerformance,
 } from '../../lib/supabaseWrite';
 import { useImeSafeInput } from '../../lib/useImeSafe';
+import { salesAmountOf } from '../../utils/money';
 
 const COUNTABLE_STATUSES = new Set(['面談済', '事前確認済', 'アポ取得']);
 const SELF_CLIENT_NAME = 'M&Aソーシングパートナーズ株式会社';
@@ -199,7 +200,7 @@ export default function BusinessOverviewView({
       const eng = engagementMap[engId];
       if (!eng) return;
       const isAxis2 = eng.type === 'client_acquisition';
-      const sales = Number(a.sales || 0);
+      const sales = salesAmountOf(a);
       const reward = Number(a.reward || 0);
       const cat = eng.category_name || '—';
       if (isAxis2) {
@@ -1771,7 +1772,7 @@ function SectionG({ appoData, callListData, engagementMap, month, selfClient }) 
       if (selfClient && cname === selfClient.company) return;
       const cur = map.get(cname) || { count: 0, sales: 0 };
       cur.count++;
-      cur.sales += Number(a.sales || 0);
+      cur.sales += salesAmountOf(a);
       map.set(cname, cur);
     });
     return Array.from(map.entries()).map(([name, v]) => ({ name, ...v }))

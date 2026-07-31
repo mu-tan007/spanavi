@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
+import { salesAmountOf } from '../../utils/money';
 
 export default function AIAssistantView({ appoData, members, callListData, industryRules, currentUser }) {
   const [messages, setMessages] = useState([]);
@@ -16,7 +17,7 @@ export default function AIAssistantView({ appoData, members, callListData, indus
   const buildSystemPrompt = () => {
     const countableStatuses = new Set(["面談済", "事前確認済", "アポ取得"]);
     const activeAppo = appoData.filter(a => countableStatuses.has(a.status));
-    const totalSales = activeAppo.reduce((s, a) => s + a.sales, 0);
+    const totalSales = activeAppo.reduce((s, a) => s + salesAmountOf(a), 0);
     const totalReward = activeAppo.reduce((s, a) => s + a.reward, 0);
 
     const teamSummary = {};

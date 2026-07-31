@@ -5,7 +5,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
-import { applyTaxIfPretax, calcInvoiceTax, calcInternReward } from '../../utils/money';
+import { applyTaxIfPretax, calcInvoiceTax, calcInternReward, salesAmountOf } from '../../utils/money';
 import { formatCurrency } from '../../utils/formatters';
 import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
@@ -639,7 +639,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const countableStatuses = ["面談済", "事前確認済", "アポ取得"];
   const countable = filtered.filter(a => countableStatuses.includes(a.status));
   // クライアント開拓リスト由来のアポは売上集計から除外（件数とインターン報酬は残す）
-  const totalSales = countable.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0);
+  const totalSales = countable.reduce((s, a) => s + salesAmountOf(a), 0);
   const totalReward = countable.reduce((s, a) => s + (a.reward || 0), 0);
 
   const monthStats = AVAILABLE_MONTHS.map(({ label, yyyymm }) => {
@@ -647,7 +647,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       a.meetDate && a.meetDate.slice(0, 7) === yyyymm && countableStatuses.includes(a.status)
     );
     return { month: label, count: items.length,
-      sales: items.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0),
+      sales: items.reduce((s, a) => s + salesAmountOf(a), 0),
       reward: items.reduce((s, a) => s + (a.reward || 0), 0) };
   });
 

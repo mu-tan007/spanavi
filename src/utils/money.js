@@ -15,6 +15,9 @@
 //  4. 給与集計の対象 status は PAYROLL_COUNTABLE。
 //     クライアント開拓リスト由来(isProspecting)のアポは売上・チームボーナスから除外し、
 //     インターン報酬のみ計上する。
+//  4-2. 売上は「面談実施日(meetDate)」ベース。面談日が未設定のアポは売上も報酬も立てない。
+//     アポ登録日(getDate)で代替してはいけない（過去に代替していて7月分が過大計上になった）。
+//     判定は salesMonthOf() / salesAmountOf() に集約してあるので、画面側で自前計算しないこと。
 //  5. 紹介フィー: 被紹介者の稼働開始から30日以内の売上が10万円以上になったら
 //     紹介者に¥50,000。被紹介者単位で1回のみ（referralPaidPayMonth で月跨ぎ二重支給防止）。
 // ============================================================
@@ -22,6 +25,27 @@ import { calcRankAndRate } from './calculations';
 
 /** 給与・売上集計でカウントするアポstatus */
 export const PAYROLL_COUNTABLE = new Set(['アポ取得', '事前確認済', '面談済']);
+
+/**
+ * 売上の計上月(YYYY-MM)を返す。面談日が未設定なら null（＝どの月にも計上しない）。
+ * 売上は面談実施日ベース。アポ登録日(getDate)で代替してはいけない。
+ * @param {object} a アポ（meetDate: 'YYYY-MM-DD'）
+ */
+export function salesMonthOf(a) {
+  return a && a.meetDate ? a.meetDate.slice(0, 7) : null;
+}
+
+/**
+ * 売上として加算してよい金額を返す。加算対象外は 0。
+ *  - 面談日が未設定 → 0（面談が実施されて初めて売上が立つ）
+ *  - クライアント開拓リスト由来(isProspecting) → 0（インターン報酬のみ計上する）
+ * 画面ごとに期間の切り方は違ってよいが、この2条件はどの画面でも共通。
+ * @param {object} a アポ（meetDate / isProspecting / sales）
+ */
+export function salesAmountOf(a) {
+  if (!a || !a.meetDate || a.isProspecting) return 0;
+  return Number(a.sales || 0);
+}
 
 /** 紹介フィーの金額と成立条件 */
 export const REFERRAL_BONUS_AMOUNT = 50000;
@@ -101,10 +125,11 @@ export function getLeaderRate(sales, leaderTiers = DEFAULT_LEADER_TIERS) {
  */
 export function calcMonthlyPayroll({ appoData, members, payMonth, orgSettings = {}, memberRoleMap = {} }) {
   const yyyymm = payMonth;
-  const monthAppos = (appoData || []).filter(a => {
-    const dateKey = (a.meetDate || a.getDate || '').slice(0, 7);
-    return dateKey === yyyymm && PAYROLL_COUNTABLE.has(a.status);
-  });
+  // 面談実施日で当月を判定する。面談日が未設定のアポは売上も報酬も立てない
+  // （面談日が入った時点で、その面談月に計上される）
+  const monthAppos = (appoData || []).filter(a =>
+    salesMonthOf(a) === yyyymm && PAYROLL_COUNTABLE.has(a.status)
+  );
   const memberMap = {};
   (members || []).forEach(m => { if (typeof m === 'object' && m.name) memberMap[m.name] = m; });
   // 役割は member_engagements.role_id 経由で判定（members.position は使わない）
@@ -125,10 +150,9 @@ export function calcMonthlyPayroll({ appoData, members, payMonth, orgSettings = 
     }
     // クライアント開拓リスト由来のアポは売上集計・チームボーナス計算から除外
     // インターン報酬（reward / intern_reward）はクライアント開拓でも計上する
-    if (!a.isProspecting) {
-      byGetter[a.getter].sales += a.sales || 0;
-      teamSales[team] = (teamSales[team] || 0) + (a.sales || 0);
-    }
+    const salesAmt = salesAmountOf(a);
+    byGetter[a.getter].sales += salesAmt;
+    teamSales[team] = (teamSales[team] || 0) + salesAmt;
     byGetter[a.getter].incentive += a.reward || 0;
   });
   (members || []).forEach(m => {
@@ -200,11 +224,10 @@ export function calcReferralBonuses({ members, appoData, payMonth, monthStart, m
     const salesWithin30Days = (appoData || [])
       .filter(a =>
         a.getter === m.name &&
-        !a.isProspecting &&
         PAYROLL_COUNTABLE.has(a.status) &&
         a.appointmentDate && new Date(a.appointmentDate) >= opDate && new Date(a.appointmentDate) <= deadline
       )
-      .reduce((sum, a) => sum + (a.sales || 0), 0);
+      .reduce((sum, a) => sum + salesAmountOf(a), 0);
     if (salesWithin30Days >= REFERRAL_SALES_THRESHOLD && opDate <= monthEnd && deadline >= monthStart) {
       bonusByReferrer[m.referrerName] = (bonusByReferrer[m.referrerName] || 0) + REFERRAL_BONUS_AMOUNT;
       if (m._supaId) paidMemberIds.push(m._supaId);

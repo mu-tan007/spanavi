@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { color, font, radius } from '../../../constants/design';
 import { formatCurrency } from '../../../utils/formatters';
+import { salesAmountOf } from '../../../utils/money';
 
 const NAVY = '#0D2247';
 const STAGE_COLORS = ['#0D2247', '#1E40AF', '#2563EB', '#3B82F6', '#C8A84B', '#C8A84B'];
@@ -26,8 +27,8 @@ export default function Funnel({
     const activeAppos = (appoData || []).filter(a => MEETING_DONE.has(a.status) && inRange(a));
     const meetingDone = activeAppos.filter(a => a.status === '面談済' || a.status === '事前確認済').length;
     // 受注・売上はクライアント開拓由来を除外（件数系の上流ステージは残す）
-    const closed = activeAppos.filter(a => !a.isProspecting && (a.sales || 0) > 0).length;
-    const sales = activeAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0);
+    const closed = activeAppos.filter(a => salesAmountOf(a) > 0).length;
+    const sales = activeAppos.reduce((s, a) => s + salesAmountOf(a), 0);
 
     return [
       { label: '架電',       value: calls,        unit: '件', denom: calls },

@@ -7,6 +7,7 @@ import PageHeader from '../common/PageHeader';
 import { useRecordingPlayer } from '../common/RecordingPlayerProvider';
 import { useCallQueue } from './smart-queue/useCallQueue';
 import { fetchCallActivity, fetchAllRecallRecords, fetchMemberReapproach, fetchMemberHeatmap } from '../../lib/supabaseWrite';
+import { salesAmountOf } from '../../utils/money';
 
 // 個人ダッシュボード（個人の数字専用）。
 // メンバー切替で誰でも見られる。目標/達成率/全社ランキングは置かない。
@@ -117,7 +118,7 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
       SALES_STATUSES.includes(a.status) &&
       inSalesPeriod(a.meetDate)
     );
-    const sales = mine.filter(a => !a.isProspecting).reduce((s, a) => s + Number(a.sales || 0), 0);
+    const sales = mine.reduce((s, a) => s + salesAmountOf(a), 0);
     const incentive = mine.reduce((s, a) => s + Number(a.reward || 0), 0);
     const breakdown = mine
       .filter(a => Number(a.reward || 0) > 0)

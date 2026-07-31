@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import { Card } from '../../ui';
 import { fetchMemberPerformance } from '../../../lib/supabaseWrite';
+import { salesAmountOf } from '../../../utils/money';
 
 // チーム比較: 各チームの架電・接続率・アポ・シフト時間・実稼働時間・当社売上。
 // 各チームのメンバー別の数字を常時展開表示する（アコーディオン廃止・常に全開）。
@@ -93,7 +94,7 @@ export default function TeamComparison({ appoData, range, memberDir = {} }) {
       if (!SALES_STATUSES.includes(a.status) || a.isProspecting) return;
       if (!a.meetDate || a.meetDate < range.from || a.meetDate > range.to) return;
       if (!a.getter) return;
-      m[a.getter] = (m[a.getter] || 0) + Number(a.sales || 0);
+      m[a.getter] = (m[a.getter] || 0) + salesAmountOf(a);
     });
     return m;
   }, [appoData, range.from, range.to]);

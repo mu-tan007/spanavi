@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { color, space, font } from '../../../constants/design';
 import { Card } from '../../ui';
 import { isSalesAppo } from './salesPeriod';
+import { salesAmountOf } from '../../../utils/money';
 
 // タブ統合後の実績サマリー（目標なし・実績のみ）。
 // 行動量は scopedStats（行動日ベース集計）、当社売上は appoData（面談実施日ベース・
@@ -10,7 +11,7 @@ export default function OverallSummary({ stats, appoData, range, period, monthSt
   const sales = useMemo(() => {
     return (appoData || [])
       .filter(a => isSalesAppo(a, period, range, monthStr))
-      .reduce((s, a) => s + Number(a.sales || 0), 0);
+      .reduce((s, a) => s + salesAmountOf(a), 0);
   }, [appoData, range, period, monthStr]);
 
   const connectRate = stats.calls ? (stats.keymanConnect / stats.calls) * 100 : 0;

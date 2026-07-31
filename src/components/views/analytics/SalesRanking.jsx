@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { color, space, radius, font, alpha, shadow } from '../../../constants/design';
 import { isSalesAppo } from './salesPeriod';
+import { salesAmountOf } from '../../../utils/money';
 
 // 個人別 当社売上ランキング（面談実施日ベース・アポ一覧と一致）。
 // Spanaviのデザイン規約（navy/gold トークン、絵文字なし、金融プロフェッショナル感）に沿う。
@@ -12,7 +13,7 @@ export default function SalesRanking({ appoData, range, period, monthStr, teamMa
       const name = a.getter || '—';
       if (!map.has(name)) map.set(name, { name, sales: 0, appo: 0 });
       const o = map.get(name);
-      o.sales += Number(a.sales || 0);
+      o.sales += salesAmountOf(a);
       o.appo += 1;
     });
     return [...map.values()]

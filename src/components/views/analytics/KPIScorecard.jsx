@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../../ui';
 import { formatCurrency } from '../../../utils/formatters';
+import { salesAmountOf } from '../../../utils/money';
 
 const COUNTABLE = new Set(['面談済', '事前確認済', 'アポ取得']);
 
@@ -99,10 +100,17 @@ export default function KPIScorecard({
       return (!r.from || d >= r.from) && (!r.to || d <= r.to);
     };
     const periodAppos = (appoData || []).filter(a => COUNTABLE.has(a.status) && inRange(a, range));
-    // クライアント開拓リスト由来のアポは売上集計から除外（件数 KPI には含める）
-    const sales = periodAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0);
-    const prevPeriodAppos = prevRange ? (appoData || []).filter(a => COUNTABLE.has(a.status) && inRange(a, prevRange)) : [];
-    const prevSales = prevPeriodAppos.reduce((s, a) => s + (a.isProspecting ? 0 : (a.sales || 0)), 0);
+    // 件数KPIはアポ取得日ベースだが、売上は面談実施日ベースで集計する。
+    // 面談日が未設定のアポは売上に入れない（salesAmountOf がクライアント開拓分も除外する）
+    const inSalesRange = (a, r) => {
+      const d = (a.meetDate || '').slice(0, 10);
+      return !!d && (!r.from || d >= r.from) && (!r.to || d <= r.to);
+    };
+    const sumSales = (r) => (appoData || [])
+      .filter(a => COUNTABLE.has(a.status) && inSalesRange(a, r))
+      .reduce((s, a) => s + salesAmountOf(a), 0);
+    const sales = sumSales(range);
+    const prevSales = prevRange ? sumSales(prevRange) : 0;
 
     const reschedInRange = (appoData || []).filter(a => inRange(a, range) && a.status === 'リスケ中').length;
     const cancelInRange = (appoData || []).filter(a => inRange(a, range) && a.status === 'キャンセル').length;

@@ -3,7 +3,7 @@ import React from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
-import { calcMonthlyPayroll, calcReferralBonuses } from '../../utils/money';
+import { calcMonthlyPayroll, calcReferralBonuses, salesAmountOf } from '../../utils/money';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth, downloadPayrollInvoicesZip } from '../../lib/supabaseWrite';
@@ -364,8 +364,8 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       const deltas = {};
       // クライアント開拓リスト由来のアポは累計売上に加算しない（後で再加算しないようis_counted_in_cumulativeフラグだけ立てる）
       uncounted.forEach(a => {
-        if (a.isProspecting) return;
-        deltas[a.getter] = (deltas[a.getter] || 0) + (a.sales || 0);
+        // 面談日が無いアポ・クライアント開拓由来は累計売上に加算しない（ランク判定に効くため）
+        deltas[a.getter] = (deltas[a.getter] || 0) + salesAmountOf(a);
       });
       for (const [getterName, delta] of Object.entries(deltas)) {
         const member = memberMap[getterName];

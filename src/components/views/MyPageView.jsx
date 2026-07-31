@@ -13,7 +13,7 @@ import {
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed, resetPushSubscription } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
 import { calcRankAndRate, getNextRankInfo } from '../../utils/calculations';
-import { PAYROLL_COUNTABLE } from '../../utils/money';
+import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/money';
 
 const fmtYen = (v) => '¥' + Math.round(v || 0).toLocaleString();
 
@@ -136,7 +136,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
   const rankInfo = useMemo(() => calcRankAndRate(totalSales, orgSettings), [totalSales, orgSettings]);
   const nextRank = useMemo(() => getNextRankInfo(totalSales, orgSettings), [totalSales, orgSettings]);
 
-  // 当月のアポ・売上・インセンティブ（給与計算と同じ規約: PAYROLL_COUNTABLE / meetDate優先 / 開拓除外）
+  // 当月のアポ・売上・インセンティブ（給与計算と同じ規約: PAYROLL_COUNTABLE / 面談実施日ベース / 開拓除外）
   const payMonth = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -148,11 +148,11 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     const mine = appoData.filter(a =>
       a.getter === name &&
       PAYROLL_COUNTABLE.has(a.status) &&
-      (a.meetDate || a.getDate || '').slice(0, 7) === payMonth
+      salesMonthOf(a) === payMonth
     );
     return {
       count: mine.length,
-      sales: mine.filter(a => !a.isProspecting).reduce((s, a) => s + (a.sales || 0), 0),
+      sales: mine.reduce((s, a) => s + salesAmountOf(a), 0),
       incentive: mine.reduce((s, a) => s + (a.reward || 0), 0),
     };
   }, [appoData, memberInfo?.name, currentUser, payMonth]);

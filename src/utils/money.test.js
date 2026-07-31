@@ -91,14 +91,14 @@ const baseMembers = [
 ];
 
 describe('calcMonthlyPayroll（月次報酬計算）', () => {
-  it('対象月(meetDate優先)・対象statusのアポだけ集計する', () => {
+  it('対象月(面談実施日)・対象statusのアポだけ集計する', () => {
     const rows = calcMonthlyPayroll({
       appoData: [
-        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-01', sales: 110000, reward: 24200 },
-        // meetDate が対象月外なら getDate が対象月でも集計されない（meetDate優先）
+        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-01', meetDate: '2026-06-10', sales: 110000, reward: 24200 },
+        // meetDate が対象月外なら getDate が対象月でも集計されない（面談実施日で判定）
         { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-15', meetDate: '2026-07-02', sales: 110000, reward: 24200 },
         // 対象外status
-        { getter: '鍛冶', status: 'キャンセル', getDate: '2026-06-20', sales: 110000, reward: 24200 },
+        { getter: '鍛冶', status: 'キャンセル', getDate: '2026-06-20', meetDate: '2026-06-20', sales: 110000, reward: 24200 },
       ],
       members: baseMembers,
       payMonth: '2026-06',
@@ -111,8 +111,8 @@ describe('calcMonthlyPayroll（月次報酬計算）', () => {
   it('クライアント開拓(isProspecting)は売上から除外、インターン報酬のみ計上', () => {
     const rows = calcMonthlyPayroll({
       appoData: [
-        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-01', sales: 110000, reward: 24200 },
-        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-02', sales: 50000, reward: 11000, isProspecting: true },
+        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-01', meetDate: '2026-06-10', sales: 110000, reward: 24200 },
+        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-02', meetDate: '2026-06-11', sales: 50000, reward: 11000, isProspecting: true },
       ],
       members: baseMembers,
       payMonth: '2026-06',
@@ -125,7 +125,7 @@ describe('calcMonthlyPayroll（月次報酬計算）', () => {
   it('リーダーボーナス: チーム売上×段階料率、複数リーダーは均等配分。アポ無しリーダーも行が立つ', () => {
     const rows = calcMonthlyPayroll({
       appoData: [
-        { getter: '吉川', status: 'アポ取得', getDate: '2026-06-01', sales: 1500000, reward: 330000 },
+        { getter: '吉川', status: 'アポ取得', getDate: '2026-06-01', meetDate: '2026-06-10', sales: 1500000, reward: 330000 },
       ],
       members: baseMembers,
       payMonth: '2026-06',
@@ -145,10 +145,42 @@ describe('calcMonthlyPayroll（月次報酬計算）', () => {
     expect(yoshikawa.total).toBe(330000);
   });
 
+  // 2026-07 の過大計上の再発防止。面談日が無いアポをアポ登録日で当月に計上していた。
+  it('面談日が無いアポは売上にもインターン報酬にも一切計上しない', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: [
+        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-10', meetDate: '2026-06-20', sales: 110000, reward: 24200 },
+        // 6月にアポは取ったが面談日が未設定 → 6月に計上してはいけない
+        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-11', meetDate: '', sales: 110000, reward: 24200 },
+        { getter: '鍛冶', status: 'アポ取得', getDate: '2026-06-12', sales: 110000, reward: 24200 },
+      ],
+      members: baseMembers,
+      payMonth: '2026-06',
+    });
+    const kaji = rows.find(r => r.name === '鍛冶');
+    expect(kaji.sales).toBe(110000);
+    expect(kaji.incentive).toBe(24200);
+  });
+
+  it('面談日が無いアポはチームボーナスの母数にも入らない', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: [
+        { getter: '吉川', status: 'アポ取得', getDate: '2026-06-01', meetDate: '2026-06-05', sales: 900000, reward: 0 },
+        // これが混ざると100万円を超えて料率が0.5%→1.0%に上がってしまっていた
+        { getter: '吉川', status: 'アポ取得', getDate: '2026-06-02', sales: 900000, reward: 0 },
+      ],
+      members: baseMembers,
+      payMonth: '2026-06',
+      memberRoleMap: { m1: 'リーダー' },
+    });
+    // チーム売上90万 → 0.5% → 4,500（180万で1.5%=27,000 になってはいけない）
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(4500);
+  });
+
   it('org_settings の leader_bonus_tiers / subleader_bonus_rate を反映する', () => {
     const rows = calcMonthlyPayroll({
       appoData: [
-        { getter: '吉川', status: 'アポ取得', getDate: '2026-06-01', sales: 1000000, reward: 0 },
+        { getter: '吉川', status: 'アポ取得', getDate: '2026-06-01', meetDate: '2026-06-10', sales: 1000000, reward: 0 },
       ],
       members: baseMembers,
       payMonth: '2026-06',
@@ -173,7 +205,7 @@ describe('calcReferralBonuses（紹介フィー¥50k）', () => {
   };
   const qualifyingAppo = {
     getter: '吉川', status: 'アポ取得',
-    appointmentDate: '2026-06-20', sales: 110000,
+    appointmentDate: '2026-06-20', meetDate: '2026-06-25', sales: 110000,
   };
 
   it('30日以内売上10万以上で紹介者に¥50,000', () => {
