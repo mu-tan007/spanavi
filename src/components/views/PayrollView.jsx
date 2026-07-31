@@ -4,6 +4,7 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 import { calcMonthlyPayroll, calcReferralBonuses, salesAmountOf } from '../../utils/money';
+import { fetchCumulativeSalesShortfalls, fetchCumulativeFlagMismatches } from '../../lib/supabaseWrite';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth, downloadPayrollInvoicesZip } from '../../lib/supabaseWrite';
@@ -344,6 +345,23 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   };
 
   // 累計同期処理（管理者のみ）
+  // ── 累計売上のズレ検知 ──
+  // cumulative_sales はステータス変更時に足し引きするカウンターなので、
+  // 更新失敗や同時編集で実績とズレる。ズレたままだとランク（＝適用率）が
+  // 正しく上がらないため、管理者に気づける形で常時警告する。
+  const [salesAudit, setSalesAudit] = React.useState({ shortfalls: [], mismatches: [] });
+  React.useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    Promise.all([fetchCumulativeSalesShortfalls(), fetchCumulativeFlagMismatches()])
+      .then(([a, b]) => {
+        if (cancelled) return;
+        setSalesAudit({ shortfalls: a.data || [], mismatches: b.data || [] });
+      });
+    return () => { cancelled = true; };
+  }, [isAdmin, appoData]);
+  const hasAuditIssue = salesAudit.shortfalls.length > 0 || salesAudit.mismatches.length > 0;
+
   const uncountedCount = React.useMemo(() =>
     (appoData || []).filter(a => a.status === '面談済' && !a.isCounted).length,
     [appoData]
@@ -539,6 +557,9 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
                 {uncountedCount > 0 && (
                   <span style={{ fontSize: font.size.xs - 1, color: color.textMid, fontWeight: font.weight.semibold }}>未加算: {uncountedCount}件</span>
                 )}
+                {hasAuditIssue && (
+                  <Badge variant="warn" dot size="sm">累計売上にズレ</Badge>
+                )}
                 <Button variant="secondary" size="sm" loading={syncing} onClick={handleSync} style={{ borderColor: TH_BG, color: TH_BG }}>
                   {syncing ? '同期中...' : '累計同期'}
                 </Button>
@@ -570,6 +591,72 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
         <div style={{ marginBottom: 8, fontSize: font.size.xs - 1, color: color.textLight }}>
           ※ 未確定（リアルタイム計算）。月末に「報酬確定」を押すとスナップショットとして保存されます。
         </div>
+      )}
+
+      {/* ── 累計売上のズレ警告 ────────────────────────────────── */}
+      {isAdmin && hasAuditIssue && (
+        <Card padding="md" style={{ marginBottom: space[4], borderColor: color.warn }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2] }}>
+            <Badge variant="warn" dot>要確認</Badge>
+            <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>
+              累計売上がアポ実績と一致していません
+            </span>
+          </div>
+          <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[3], lineHeight: 1.7 }}>
+            累計売上はステータス変更のたびに足し引きするカウンターのため、更新失敗や同時編集でズレることがあります。
+            ズレたままだとランク（＝インセンティブ適用率）が正しく上がりません。
+          </div>
+
+          {salesAudit.shortfalls.length > 0 && (
+            <div style={{ marginBottom: space[3] }}>
+              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.textDark, marginBottom: 6 }}>
+                加算漏れ（{salesAudit.shortfalls.length}名）— 面談済アポの合計より累計売上が少ない
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {salesAudit.shortfalls.map(r => (
+                  <div key={r.member_id} style={{
+                    display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap',
+                    padding: '6px 10px', borderRadius: radius.md,
+                    background: alpha(color.warn, 0.07), fontSize: font.size.xs,
+                  }}>
+                    <span style={{ fontWeight: font.weight.semibold, color: color.navy, minWidth: 110 }}>{r.name}</span>
+                    <span style={{ color: color.textLight }}>現在</span>
+                    <span style={{ fontFamily: MONO }}>¥{Number(r.recorded_sales || 0).toLocaleString()}</span>
+                    <span style={{ color: color.textLight }}>→ 実績</span>
+                    <span style={{ fontFamily: MONO, fontWeight: font.weight.bold, color: color.navy }}>
+                      ¥{Number(r.expected_sales || 0).toLocaleString()}
+                    </span>
+                    <span style={{ fontFamily: MONO, color: color.danger, fontWeight: font.weight.bold }}>
+                      （不足 ¥{Number(r.diff || 0).toLocaleString()}）
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {salesAudit.mismatches.length > 0 && (
+            <div>
+              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.textDark, marginBottom: 6 }}>
+                減算漏れの疑い（{salesAudit.mismatches.length}件）— 面談済から外れたのに累計加算済みのまま
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {salesAudit.mismatches.map(r => (
+                  <div key={r.appointment_id} style={{
+                    display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap',
+                    padding: '6px 10px', borderRadius: radius.md,
+                    background: alpha(color.warn, 0.07), fontSize: font.size.xs,
+                  }}>
+                    <span style={{ fontWeight: font.weight.semibold, color: color.navy, minWidth: 110 }}>{r.getter_name}</span>
+                    <span>{r.company_name}</span>
+                    <Badge variant="neutral" size="sm">{r.status}</Badge>
+                    <span style={{ fontFamily: MONO }}>¥{Number(r.sales_amount || 0).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
       )}
 
       {/* ── Table ────────────────────────────────────────────────── */}

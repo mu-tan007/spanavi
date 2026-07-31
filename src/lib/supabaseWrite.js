@@ -4983,3 +4983,27 @@ export async function fetchListDrillDown(listId, kind) {
   if (error) console.error('[DB] fetchListDrillDown error:', error)
   return { data: data || [], error }
 }
+
+// 累計売上(members.cumulative_sales)のズレ検知。
+// shortfall>0 = 加算漏れ（必ずバグ）。過大側は稼働開始がアポデータ開始(2026-03)より
+// 前のメンバーでシステム外実績が入っているため、判断が要るので検知対象にしない。
+export async function fetchCumulativeSalesShortfalls() {
+  const { data, error } = await supabase
+    .from('v_member_cumulative_sales_audit')
+    .select('member_id, name, is_active, recorded_sales, expected_sales, diff')
+    .eq('org_id', getOrgId())
+    .gt('shortfall', 0)
+    .order('shortfall', { ascending: false })
+  if (error) console.warn('[DB] fetchCumulativeSalesShortfalls error:', error)
+  return { data: data || [], error }
+}
+
+// 面談済から外れたのに累計加算済みフラグが残っているアポ（減算漏れの疑い）
+export async function fetchCumulativeFlagMismatches() {
+  const { data, error } = await supabase
+    .from('v_appointment_cumulative_flag_mismatch')
+    .select('appointment_id, getter_name, company_name, status, sales_amount')
+    .eq('org_id', getOrgId())
+  if (error) console.warn('[DB] fetchCumulativeFlagMismatches error:', error)
+  return { data: data || [], error }
+}

@@ -3,7 +3,9 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, DataTable } from '../ui';
 import { CALL_RESULTS } from '../../constants/callResults';
-import { updatePreCheckResult, fetchCallListItemByAppo, invokeSendAppoReport, invokeSendEmail } from '../../lib/supabaseWrite';
+import { updatePreCheckResult, updateAppoCounted, updateMemberReward, fetchCallListItemByAppo, invokeSendAppoReport, invokeSendEmail } from '../../lib/supabaseWrite';
+import { cumulativeSalesDelta, shouldBeCountedInCumulative } from '../../utils/cumulativeSales';
+import { calcRankAndRate } from '../../utils/calculations';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
@@ -319,7 +321,7 @@ const preCheckBadgeVariant = (pcs) => {
   return 'neutral';
 };
 
-export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {} }) {
+export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {}, members = [], setMembers = null, onDataRefetch = null }) {
   const isMobile = useIsMobile();
   const [selectedAppo, setSelectedAppo] = useState(null);
   const [reportAppo, setReportAppo] = useState(null);
@@ -341,6 +343,39 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
     if (!selectedAppo?._supaId) { alert('保存先が見つかりません'); return; }
     const error = await updatePreCheckResult(selectedAppo._supaId, saveData);
     if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
+
+    // 面談済だったアポをキャンセル/リスケにした場合は累計売上から減算する。
+    // （この画面から面談済を外す経路で減算が漏れ、累計売上がズレていた）
+    const delta = cumulativeSalesDelta({
+      prevStatus: selectedAppo.status,
+      nextStatus: saveData.status,
+      prevSales: selectedAppo.sales,
+      nextSales: selectedAppo.sales,
+    });
+    if (delta !== 0 && setMembers) {
+      const member = (members || []).find(m => typeof m !== 'string' && m.name === selectedAppo.getter);
+      if (member?._supaId) {
+        const newTotal = Math.max(0, (member.totalSales || 0) + delta);
+        const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
+        const rewardErr = await updateMemberReward(member._supaId, {
+          cumulativeSales: newTotal, rank: newRank, incentiveRate: newRate,
+        });
+        if (rewardErr) {
+          alert('累計売上の更新に失敗しました。管理者に連絡してください。');
+        } else {
+          setMembers(prev => prev.map(m =>
+            (typeof m !== 'string' && m._supaId === member._supaId)
+              ? { ...m, totalSales: newTotal, rank: newRank, rate: newRate }
+              : m
+          ));
+        }
+      }
+    }
+    // 加算済みフラグはステータスと常に一致させる（不一致は減算漏れの痕跡になる）
+    if (shouldBeCountedInCumulative(selectedAppo.status) !== shouldBeCountedInCumulative(saveData.status)) {
+      await updateAppoCounted(selectedAppo._supaId, shouldBeCountedInCumulative(saveData.status));
+    }
+    if (delta !== 0 && onDataRefetch) setTimeout(onDataRefetch, 500);
     setAppoData(prev => prev.map(a =>
       a._supaId === selectedAppo._supaId
         ? { ...a, status: saveData.status, preCheckStatus: saveData.preCheckStatus, preCheckMemo: saveData.preCheckMemo, rescheduledAt: saveData.rescheduledAt, cancelReason: saveData.cancelReason }

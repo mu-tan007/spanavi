@@ -6,6 +6,7 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { AVAILABLE_MONTHS } from '../../constants/availableMonths';
 import { calcRankAndRate } from '../../utils/calculations';
 import { applyTaxIfPretax, calcInvoiceTax, calcInternReward, salesAmountOf } from '../../utils/money';
+import { cumulativeSalesDelta } from '../../utils/cumulativeSales';
 import { formatCurrency } from '../../utils/formatters';
 import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
@@ -684,10 +685,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       // 1. getter名でデルタを集計
       const memberDeltas = {};
       for (const appo of targetAppos) {
-        const wasKanryo = appo.status === '面談済';
-        const isKanryo = bulkStatus === '面談済';
-        if (wasKanryo === isKanryo) continue;
-        const delta = isKanryo ? (appo.sales || 0) : -(appo.sales || 0);
+        const delta = cumulativeSalesDelta({
+          prevStatus: appo.status, nextStatus: bulkStatus,
+          prevSales: appo.sales, nextSales: appo.sales,
+        });
         if (delta === 0) continue;
         if (!memberDeltas[appo.getter]) memberDeltas[appo.getter] = { delta: 0, appos: [] };
         memberDeltas[appo.getter].delta += delta;
@@ -2620,10 +2621,10 @@ MASP 篠宮`}
                         // 2) 面談済→アポ取得: -元売上
                         // 3) 面談済→面談済 (額変更): +(新売上-元売上) ← 売上額編集の差分
                         // 4) 両方面談済以外: 0
-                        const delta = (isKanryo && !wasKanryo)  ?  (updated.sales  || 0)
-                                    : (!isKanryo && wasKanryo)  ? -(original.sales || 0)
-                                    : (isKanryo && wasKanryo)   ?  ((updated.sales || 0) - (original.sales || 0))
-                                    : 0;
+                        const delta = cumulativeSalesDelta({
+                          prevStatus: original?.status, nextStatus: updated.status,
+                          prevSales: original?.sales, nextSales: updated.sales,
+                        });
                         if (delta !== 0) {
                           const newTotal = Math.max(0, (member.totalSales || 0) + delta);
                           const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
@@ -2815,10 +2816,10 @@ MASP 篠宮`}
                         const member = members.find(m => typeof m !== 'string' && m.name === updated.getter);
                         if (member?._supaId) {
                           // 4パターン: ①取得→面談済 +新売上 / ②面談済→取得 -元売上 / ③面談済→面談済 売上額差分 / ④それ以外 0
-                          const delta = (isKanryo && !wasKanryo) ? (updated.sales || 0)
-                                      : (!isKanryo && wasKanryo) ? -(original.sales || 0)
-                                      : (isKanryo && wasKanryo)  ? ((updated.sales || 0) - (original.sales || 0))
-                                      : 0;
+                          const delta = cumulativeSalesDelta({
+                            prevStatus: original?.status, nextStatus: updated.status,
+                            prevSales: original?.sales, nextSales: updated.sales,
+                          });
                           if (delta !== 0) {
                             const newTotal = Math.max(0, (member.totalSales || 0) + delta);
                             const { rank: newRank, rate: newRate } = calcRankAndRate(newTotal);
