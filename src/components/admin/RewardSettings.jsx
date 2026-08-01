@@ -48,18 +48,21 @@ const DEFAULT_RANKS = [
   { name: 'トレーニー',          threshold: 0 },
 ];
 
+// 2026-08 以降のリーダーボーナス段階料率（チーム合算売上に対して適用）。
+// money.js の COMBINED_LEADER_TIERS と同じ値。旧チーム別テーブル(leader_bonus_tiers)は
+// 2026-07 以前の確定済み月の再計算にしか使わないので、この画面からは編集しない。
 const DEFAULT_LEADER_TIERS = [
-  { threshold: 0,        rate: 0.5 },
-  { threshold: 1000000,  rate: 1.0 },
-  { threshold: 2000000,  rate: 1.5 },
-  { threshold: 3000000,  rate: 2.0 },
-  { threshold: 4000000,  rate: 2.5 },
-  { threshold: 5000000,  rate: 3.0 },
-  { threshold: 6000000,  rate: 3.5 },
-  { threshold: 7000000,  rate: 4.0 },
-  { threshold: 8000000,  rate: 4.5 },
-  { threshold: 9000000,  rate: 5.0 },
-  { threshold: 10000000, rate: 5.5 },
+  { threshold: 0,        rate: 0.25 },
+  { threshold: 1000000,  rate: 0.5 },
+  { threshold: 2000000,  rate: 0.75 },
+  { threshold: 3000000,  rate: 1.0 },
+  { threshold: 4000000,  rate: 1.25 },
+  { threshold: 5000000,  rate: 1.5 },
+  { threshold: 6000000,  rate: 1.75 },
+  { threshold: 7000000,  rate: 2.0 },
+  { threshold: 8000000,  rate: 2.25 },
+  { threshold: 9000000,  rate: 2.5 },
+  { threshold: 10000000, rate: 2.75 },
 ];
 
 const fmtYen = (n) => {
@@ -92,9 +95,9 @@ export default function RewardSettings({ onToast }) {
           if (Array.isArray(parsed) && parsed.length > 0) setRanks(parsed);
         } catch { /* use defaults */ }
       }
-      if (map.leader_bonus_tiers) {
+      if (map.leader_bonus_tiers_combined) {
         try {
-          const parsed = JSON.parse(map.leader_bonus_tiers);
+          const parsed = JSON.parse(map.leader_bonus_tiers_combined);
           if (Array.isArray(parsed) && parsed.length > 0) setLeaderTiers(parsed);
         } catch { /* use defaults */ }
       }
@@ -136,10 +139,10 @@ export default function RewardSettings({ onToast }) {
       setting_value: JSON.stringify(ranks),
       updated_at: new Date().toISOString(),
     });
-    // リーダーボーナス段階料率を保存
+    // リーダーボーナス段階料率（チーム合算方式）を保存
     upsertRows.push({
       org_id: getOrgId(),
-      setting_key: 'leader_bonus_tiers',
+      setting_key: 'leader_bonus_tiers_combined',
       setting_value: JSON.stringify(leaderTiers),
       updated_at: new Date().toISOString(),
     });
@@ -212,9 +215,9 @@ export default function RewardSettings({ onToast }) {
       {/* リーダーボーナス段階料率セクション */}
       <Card variant="default" padding="none" style={sectionCardStyle}>
         <div style={sectionTitleStyle(true)}>
-          リーダーボーナス（段階料率）
+          リーダーボーナス（段階料率・チーム合算）
         </div>
-        <p style={descStyle}>チーム売上に応じた料率を設定します。売上が該当する最も高い閾値の料率が適用されます。</p>
+        <p style={descStyle}>各リーダーが率いるチームの売上を合算した額に応じて料率が決まります。売上が該当する最も高い閾値の料率が適用され、原資はリーダー全員で均等に分けます。2026年8月分から適用されます。</p>
 
         <div style={{ display: 'flex', gap: space[2], marginBottom: space[2], paddingLeft: 28 }}>
           <span style={{ flex: 1, fontSize: 10, color: color.gray400, fontWeight: font.weight.semibold }}>売上閾値</span>

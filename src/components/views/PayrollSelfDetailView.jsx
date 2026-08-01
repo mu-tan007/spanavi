@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { Button, Card, Badge, DataTable } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
-import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/money';
+import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf, calcMonthlyPayroll } from '../../utils/money';
 import {
   fetchOrgSettings,
   fetchPayrollSnapshots,
@@ -132,55 +132,32 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
     [targetMember, orgSettings]
   );
 
-  // 役職ボーナス計算
+  // 役職ボーナス計算。計算式は money.js の calcMonthlyPayroll が唯一の正で、
+  // ここは自分の行を取り出して内訳(bonusBasis)を文言にするだけにしている。
+  // （以前はこの画面が独自に再計算していて、報酬一覧と金額が食い違う原因になっていた）
   const liveRoleBonusInfo = useMemo(() => {
-    if (!['リーダー', '副リーダー'].includes(memberRole)) {
+    if (!['リーダー', '副リーダー'].includes(memberRole) || !targetMember?.name) {
       return { bonus: 0, teamSales: 0, rate: 0, members: 0, formula: '対象外' };
     }
-    const team = targetMember?.team || '';
-    // 同じチームの全メンバーの当月売上を集計
-    const monthAppos = (appoData || []).filter(a =>
-      salesMonthOf(a) === payMonth && PAYROLL_COUNTABLE.has(a.status)
-    );
-    const teamMembers = (members || []).filter(m => typeof m === 'object' && m.team === team);
-    const teamMemberNames = new Set(teamMembers.map(m => m.name));
-    // クライアント開拓由来のアポは役職ボーナス計算からも除外
-    const teamSales = monthAppos
-      .filter(a => teamMemberNames.has(a.getter))
-      .reduce((s, a) => s + salesAmountOf(a), 0);
-
-    // 同じチームのリーダー / 副リーダー人数（role_map から）
-    const sameRoleCount = teamMembers.filter(m => memberRoleMap[m.id] === memberRole).length || 1;
-
-    let rate = 0;
-    let label = '';
-    if (memberRole === 'リーダー') {
-      // 段階料率
-      let tiers = [
-        { threshold: 0, rate: 0.5 }, { threshold: 1000000, rate: 1.0 }, { threshold: 2000000, rate: 1.5 },
-        { threshold: 3000000, rate: 2.0 }, { threshold: 4000000, rate: 2.5 }, { threshold: 5000000, rate: 3.0 },
-        { threshold: 6000000, rate: 3.5 }, { threshold: 7000000, rate: 4.0 }, { threshold: 8000000, rate: 4.5 },
-        { threshold: 9000000, rate: 5.0 }, { threshold: 10000000, rate: 5.5 },
-      ];
-      if (orgSettings.leader_bonus_tiers) {
-        try {
-          const parsed = JSON.parse(orgSettings.leader_bonus_tiers);
-          if (Array.isArray(parsed) && parsed.length > 0) tiers = parsed;
-        } catch { /* use defaults */ }
-      }
-      const sorted = [...tiers].sort((a, b) => b.threshold - a.threshold);
-      const tier = sorted.find(t => teamSales >= t.threshold);
-      rate = tier ? tier.rate : 0;
-      label = `リーダー段階料率（チーム売上 ${fmtYenZero(teamSales)} → ${rate}%）`;
-    } else {
-      rate = parseFloat(orgSettings.subleader_bonus_rate) || 1.2;
-      label = `副リーダー料率（${rate}%）`;
+    const rows = calcMonthlyPayroll({ appoData, members, payMonth, orgSettings, memberRoleMap });
+    const mine = rows.find(r => r.name === targetMember.name);
+    const basis = mine?.bonusBasis;
+    if (!mine || !basis) {
+      return { bonus: 0, teamSales: 0, rate: 0, members: 0, role: memberRole, formula: '対象外' };
     }
-    const pool = Math.round(teamSales * rate / 100);
-    const bonus = Math.round(pool / sameRoleCount);
+    const label = basis.mode === 'combined'
+      ? `リーダー段階料率（チーム合算売上 ${fmtYenZero(basis.sales)} → ${basis.rate}%）`
+      : memberRole === 'リーダー'
+        ? `リーダー段階料率（チーム売上 ${fmtYenZero(basis.sales)} → ${basis.rate}%）`
+        : `副リーダー料率（${basis.rate}%）`;
     return {
-      bonus, teamSales, rate, members: sameRoleCount, role: memberRole, label,
-      formula: `${fmtYenZero(teamSales)} × ${rate}% ÷ ${sameRoleCount}名 = ${fmtYen(bonus)}`,
+      bonus: mine.teamBonus,
+      teamSales: basis.sales,
+      rate: basis.rate,
+      members: basis.sharedBy,
+      role: memberRole,
+      label,
+      formula: `${fmtYenZero(basis.sales)} × ${basis.rate}% ÷ ${basis.sharedBy}名 = ${fmtYen(mine.teamBonus)}`,
     };
   }, [memberRole, members, appoData, payMonth, orgSettings, targetMember, memberRoleMap]);
 

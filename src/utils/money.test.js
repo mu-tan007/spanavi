@@ -195,6 +195,89 @@ describe('calcMonthlyPayroll（月次報酬計算）', () => {
   });
 });
 
+// ── リーダーボーナス チーム合算方式（2026-08〜）────────────────────
+describe('calcMonthlyPayroll（チーム合算リーダーボーナス）', () => {
+  // 2チーム制。鍛冶=Aチームのリーダー、佐藤=Bチームのリーダー
+  const twoTeamMembers = [
+    { id: 'm1', _supaId: 'm1', name: '鍛冶', team: 'A', totalSales: 0 },
+    { id: 'm2', _supaId: 'm2', name: '吉川', team: 'A', totalSales: 0 },
+    { id: 'm3', _supaId: 'm3', name: '佐藤', team: 'B', totalSales: 0 },
+    { id: 'm4', _supaId: 'm4', name: '田中', team: 'B', totalSales: 0 },
+    { id: 'm5', _supaId: 'm5', name: '無所属', team: '', totalSales: 0 },
+  ];
+  const roles = { m1: 'リーダー', m3: 'リーダー' };
+  const appos = [
+    { getter: '吉川', status: 'アポ取得', meetDate: '2026-08-05', sales: 4000000, reward: 0 },
+    { getter: '田中', status: 'アポ取得', meetDate: '2026-08-06', sales: 2000000, reward: 0 },
+  ];
+
+  it('2チームの売上を合算し、合算用段階料率をリーダー人数で均等配分する', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: appos, members: twoTeamMembers, payMonth: '2026-08', memberRoleMap: roles,
+    });
+    // 合算600万 → 合算テーブル1.75% → 原資105,000 → 2名で均等割り
+    const kaji = rows.find(r => r.name === '鍛冶');
+    const sato = rows.find(r => r.name === '佐藤');
+    expect(kaji.teamBonus).toBe(52500);
+    expect(sato.teamBonus).toBe(52500);
+    expect(kaji.teamBonus).toBe(sato.teamBonus); // チームの売上差に関わらず同額
+    expect(kaji.bonusBasis).toEqual({ mode: 'combined', sales: 6000000, rate: 1.75, sharedBy: 2, teams: ['A', 'B'] });
+  });
+
+  it('チーム未所属メンバーの売上は合算に含めない', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: [...appos, { getter: '無所属', status: 'アポ取得', meetDate: '2026-08-07', sales: 1500000, reward: 0 }],
+      members: twoTeamMembers, payMonth: '2026-08', memberRoleMap: roles,
+    });
+    // 無所属の150万を足すと750万で2.0%になってしまうが、合算対象外なので600万・1.75%のまま
+    expect(rows.find(r => r.name === '鍛冶').bonusBasis.sales).toBe(6000000);
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(52500);
+  });
+
+  it('2026-07以前はチーム別の旧方式のまま（確定済みの金額を動かさない）', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: appos.map(a => ({ ...a, meetDate: a.meetDate.replace('2026-08', '2026-07') })),
+      members: twoTeamMembers, payMonth: '2026-07', memberRoleMap: roles,
+    });
+    // Aチーム400万 → 2.5% = 100,000 / Bチーム200万 → 1.5% = 30,000
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(100000);
+    expect(rows.find(r => r.name === '佐藤').teamBonus).toBe(30000);
+  });
+
+  it('合算方式では副リーダーにボーナスを出さない', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: appos, members: twoTeamMembers, payMonth: '2026-08',
+      memberRoleMap: { m1: 'リーダー', m3: 'リーダー', m2: '副リーダー' },
+    });
+    expect(rows.find(r => r.name === '吉川').teamBonus).toBe(0);
+  });
+
+  it('org_settings の leader_bonus_tiers_combined を反映する', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: appos, members: twoTeamMembers, payMonth: '2026-08', memberRoleMap: roles,
+      orgSettings: { leader_bonus_tiers_combined: JSON.stringify([{ threshold: 0, rate: 3.0 }]) },
+    });
+    // 600万 × 3.0% = 180,000 → 2名で90,000ずつ
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(90000);
+  });
+
+  it('旧ルール用の leader_bonus_tiers は合算方式に流用されない', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: appos, members: twoTeamMembers, payMonth: '2026-08', memberRoleMap: roles,
+      orgSettings: { leader_bonus_tiers: JSON.stringify([{ threshold: 0, rate: 10.0 }]) },
+    });
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(52500); // 合算デフォルトのまま
+  });
+
+  it('面談日が無いアポは合算売上に入らない', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: [...appos, { getter: '吉川', status: 'アポ取得', getDate: '2026-08-10', meetDate: '', sales: 3000000, reward: 0 }],
+      members: twoTeamMembers, payMonth: '2026-08', memberRoleMap: roles,
+    });
+    expect(rows.find(r => r.name === '鍛冶').bonusBasis.sales).toBe(6000000);
+  });
+});
+
 // ── 紹介フィー ───────────────────────────────────────────────
 describe('calcReferralBonuses（紹介フィー¥50k）', () => {
   const monthStart = new Date(2026, 5, 1);  // 2026-06-01

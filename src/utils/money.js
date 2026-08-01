@@ -20,6 +20,8 @@
 //     判定は salesMonthOf() / salesAmountOf() に集約してあるので、画面側で自前計算しないこと。
 //  5. 紹介フィー: 被紹介者の稼働開始から30日以内の売上が10万円以上になったら
 //     紹介者に¥50,000。被紹介者単位で1回のみ（referralPaidPayMonth で月跨ぎ二重支給防止）。
+//  6. リーダーボーナスは 2026-08 分から「リーダーが率いる全チームの合算売上 × 段階料率(合算用)を
+//     リーダー人数で均等配分」。それ以前の月はチーム別方式のまま（確定済みの金額を動かさないため）。
 // ============================================================
 import { calcRankAndRate } from './calculations';
 
@@ -96,13 +98,40 @@ export function calcInternReward(sales, rate, calcType) {
   return r ? Math.round(s * r) : 0;
 }
 
-/** リーダーボーナスのデフォルト段階料率（% 表記） */
+/** リーダーボーナスのデフォルト段階料率（% 表記）。チーム別方式（〜2026-07）で使う */
 export const DEFAULT_LEADER_TIERS = [
   { threshold: 0, rate: 0.5 }, { threshold: 1000000, rate: 1.0 }, { threshold: 2000000, rate: 1.5 },
   { threshold: 3000000, rate: 2.0 }, { threshold: 4000000, rate: 2.5 }, { threshold: 5000000, rate: 3.0 },
   { threshold: 6000000, rate: 3.5 }, { threshold: 7000000, rate: 4.0 }, { threshold: 8000000, rate: 4.5 },
   { threshold: 9000000, rate: 5.0 }, { threshold: 10000000, rate: 5.5 },
 ];
+
+/**
+ * チーム合算方式（2026-08〜）の段階料率。
+ * 売上を合算すると段階が上がって原資が膨らむため、チーム別方式の料率をそのまま半分にしてある。
+ */
+export const COMBINED_LEADER_TIERS = [
+  { threshold: 0, rate: 0.25 }, { threshold: 1000000, rate: 0.5 }, { threshold: 2000000, rate: 0.75 },
+  { threshold: 3000000, rate: 1.0 }, { threshold: 4000000, rate: 1.25 }, { threshold: 5000000, rate: 1.5 },
+  { threshold: 6000000, rate: 1.75 }, { threshold: 7000000, rate: 2.0 }, { threshold: 8000000, rate: 2.25 },
+  { threshold: 9000000, rate: 2.5 }, { threshold: 10000000, rate: 2.75 },
+];
+
+/**
+ * リーダーボーナスがチーム合算・均等配分に切り替わる支払月（この月以降が新方式）。
+ * これより前の月は確定済みなので、再計算しても旧方式のまま同じ金額になる必要がある。
+ */
+export const COMBINED_LEADER_BONUS_FROM = '2026-08';
+
+/** org_settings に入っている段階料率JSONを読む。未設定・壊れている場合は fallback を返す */
+export function parseTiers(rawJson, fallback) {
+  if (!rawJson) return fallback;
+  try {
+    const parsed = JSON.parse(rawJson);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch { /* use fallback */ }
+  return fallback;
+}
 
 /** チーム売上に応じたリーダーボーナス料率(%)を返す */
 export function getLeaderRate(sales, leaderTiers = DEFAULT_LEADER_TIERS) {
@@ -121,7 +150,8 @@ export function getLeaderRate(sales, leaderTiers = DEFAULT_LEADER_TIERS) {
  * @param {string} p.payMonth       'YYYY-MM'
  * @param {object} [p.orgSettings]  org_settings の {key: value} マップ
  * @param {object} [p.memberRoleMap] { [member.id]: 'リーダー'|'副リーダー'|... }
- * @returns {Array<{name, team, rank, rate, role, totalSales, sales, incentive, teamBonus, total}>}
+ * @returns {Array<{name, team, rank, rate, role, totalSales, sales, incentive, teamBonus, total, bonusBasis}>}
+ *          bonusBasis は役職ボーナスの内訳（{mode:'combined'|'team', sales, rate, sharedBy, teams}）。役職なしは null
  */
 export function calcMonthlyPayroll({ appoData, members, payMonth, orgSettings = {}, memberRoleMap = {} }) {
   const yyyymm = payMonth;
@@ -145,7 +175,7 @@ export function calcMonthlyPayroll({ appoData, members, payMonth, orgSettings = 
         name: a.getter, team, rank, rate,
         role: getRole(mem),
         totalSales: mem.totalSales || 0,
-        sales: 0, incentive: 0, teamBonus: 0, total: 0,
+        sales: 0, incentive: 0, teamBonus: 0, total: 0, bonusBasis: null,
       };
     }
     // クライアント開拓リスト由来のアポは売上集計・チームボーナス計算から除外
@@ -164,31 +194,49 @@ export function calcMonthlyPayroll({ appoData, members, payMonth, orgSettings = 
     byGetter[m.name] = {
       name: m.name, team: m.team || '', rank, rate,
       role, totalSales: m.totalSales || 0,
-      sales: 0, incentive: 0, teamBonus: 0, total: 0,
+      sales: 0, incentive: 0, teamBonus: 0, total: 0, bonusBasis: null,
     };
   });
-  // リーダーボーナス段階料率（org_settingsから取得、なければデフォルト）
-  let leaderTiers = DEFAULT_LEADER_TIERS;
-  if (orgSettings.leader_bonus_tiers) {
-    try {
-      const parsed = JSON.parse(orgSettings.leader_bonus_tiers);
-      if (Array.isArray(parsed) && parsed.length > 0) leaderTiers = parsed;
-    } catch { /* use defaults */ }
-  }
-  const subleaderRate = parseFloat(orgSettings.subleader_bonus_rate) || 1.2;
+  if (yyyymm >= COMBINED_LEADER_BONUS_FROM) {
+    // 2026-08〜: リーダーが率いる全チームの売上を合算し、原資をリーダー全員で均等配分する。
+    // 副リーダー枠はこの方式では計算しない（役職自体を廃止したため）。
+    const tiers = parseTiers(orgSettings.leader_bonus_tiers_combined, COMBINED_LEADER_TIERS);
+    const leaders = Object.values(byGetter).filter(p => p.role === 'リーダー');
+    // チーム未所属メンバーの売上は合算に含めない（リーダーの見ているチームの売上だけを原資にする）
+    const leaderTeams = new Set(leaders.map(p => p.team).filter(Boolean));
+    const combinedSales = [...leaderTeams].reduce((s, t) => s + (teamSales[t] || 0), 0);
+    const rate = getLeaderRate(combinedSales, tiers);
+    const pool = Math.round(combinedSales * rate / 100);
+    const each = leaders.length ? Math.round(pool / leaders.length) : 0;
+    leaders.forEach(p => {
+      p.teamBonus = each;
+      p.bonusBasis = { mode: 'combined', sales: combinedSales, rate, sharedBy: leaders.length, teams: [...leaderTeams] };
+    });
+  } else {
+    // 〜2026-07: チーム別に段階料率をかけ、同じ役職の人数で分ける旧方式
+    const leaderTiers = parseTiers(orgSettings.leader_bonus_tiers, DEFAULT_LEADER_TIERS);
+    const subleaderRate = parseFloat(orgSettings.subleader_bonus_rate) || 1.2;
 
-  [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
-    const sales = teamSales[team] || 0;
-    const tm = Object.values(byGetter).filter(p => p.team === team);
-    const leaders = tm.filter(p => p.role === 'リーダー');
-    const subs = tm.filter(p => p.role === '副リーダー');
-    // リーダー: チーム売上 × 段階料率（リーダーが複数の場合は均等配分）
-    const leaderPool = Math.round(sales * getLeaderRate(sales, leaderTiers) / 100);
-    leaders.forEach(p => { p.teamBonus = leaders.length ? Math.round(leaderPool / leaders.length) : 0; });
-    // 副リーダー: チーム売上 × 副リーダー率 ÷ 副リーダー人数
-    const subPool = Math.round(sales * subleaderRate / 100);
-    subs.forEach(p => { p.teamBonus = subs.length ? Math.round(subPool / subs.length) : 0; });
-  });
+    [...new Set(Object.values(byGetter).map(p => p.team))].forEach(team => {
+      const sales = teamSales[team] || 0;
+      const tm = Object.values(byGetter).filter(p => p.team === team);
+      const leaders = tm.filter(p => p.role === 'リーダー');
+      const subs = tm.filter(p => p.role === '副リーダー');
+      // リーダー: チーム売上 × 段階料率（リーダーが複数の場合は均等配分）
+      const leaderRate = getLeaderRate(sales, leaderTiers);
+      const leaderPool = Math.round(sales * leaderRate / 100);
+      leaders.forEach(p => {
+        p.teamBonus = leaders.length ? Math.round(leaderPool / leaders.length) : 0;
+        p.bonusBasis = { mode: 'team', sales, rate: leaderRate, sharedBy: leaders.length, teams: [team] };
+      });
+      // 副リーダー: チーム売上 × 副リーダー率 ÷ 副リーダー人数
+      const subPool = Math.round(sales * subleaderRate / 100);
+      subs.forEach(p => {
+        p.teamBonus = subs.length ? Math.round(subPool / subs.length) : 0;
+        p.bonusBasis = { mode: 'team', sales, rate: subleaderRate, sharedBy: subs.length, teams: [team] };
+      });
+    });
+  }
   Object.values(byGetter).forEach(p => { p.total = p.incentive + p.teamBonus; });
   return Object.values(byGetter);
 }

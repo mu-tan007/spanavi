@@ -146,6 +146,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [unconfirming, setUnconfirming] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
 
   // 選択月の YYYY-MM 文字列
@@ -238,6 +239,13 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   const confirmedAt = isConfirmed
     ? new Date(snapshots[0].confirmed_at).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
     : null;
+  // 再計算した月はその時刻も出す（確定日と区別がつくように）
+  const recalculatedAt = React.useMemo(() => {
+    const latest = snapshots.map(s => s.recalculated_at).filter(Boolean).sort().pop();
+    return latest
+      ? new Date(latest).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : null;
+  }, [snapshots]);
 
   // リファラル採用インセンティブ計算（ロジック本体は utils/money.js でテスト固定）
   const referralCalc = React.useMemo(() => {
@@ -320,6 +328,133 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       setActionMsg('確定に失敗しました: ' + (e.message || '不明'));
     } finally {
       setConfirming(false);
+    }
+  };
+
+  // 確定済みの月を最新のアポデータで引き直す（後日キャンセル対応）。
+  // チーム・役職・ランク・適用率は確定時の値を固定したまま、金額だけ更新する。
+  // 確定解除→再確定だと現在の編成・役職・累計で全部引き直されてしまい、過去月の金額が動く。
+  // 再計算用の入力。チーム編成と役職を確定時の状態に戻してから計算する。
+  // これをしないと、確定後にチームを組み替えた月の役職ボーナスが別人に移ってしまう。
+  const snapshotMembers = React.useMemo(() => {
+    if (!isConfirmed) return members;
+    const byName = new Map(snapshots.map(s => [s.member_name, s]));
+    return (members || []).map(m => {
+      if (typeof m !== 'object' || !m.name) return m;
+      const s = byName.get(m.name);
+      return s ? { ...m, team: s.team_name || '' } : m;
+    });
+  }, [isConfirmed, members, snapshots]);
+
+  const snapshotRoleMap = React.useMemo(() => {
+    if (!isConfirmed) return memberRoleMap;
+    const idByName = new Map(
+      (members || []).filter(m => typeof m === 'object' && m.name && m.id).map(m => [m.name, m.id])
+    );
+    const map = {};
+    snapshots.forEach(s => {
+      const id = idByName.get(s.member_name);
+      if (id && s.role) map[id] = s.role;
+    });
+    return map;
+  }, [isConfirmed, members, snapshots, memberRoleMap]);
+
+  const recalcData = React.useMemo(
+    () => calcMonthlyPayroll({ appoData, members: snapshotMembers, payMonth, orgSettings, memberRoleMap: snapshotRoleMap }),
+    [appoData, snapshotMembers, payMonth, orgSettings, snapshotRoleMap],
+  );
+
+  const recalcRows = React.useMemo(() => {
+    if (!isConfirmed) return [];
+    const byName = new Map(recalcData.map(p => [p.name, p]));
+    const now = new Date().toISOString();
+    const rows = snapshots.map(s => {
+      const p = byName.get(s.member_name);
+      byName.delete(s.member_name);
+      const incentive = p ? p.incentive : 0;
+      const teamBonus = p ? p.teamBonus : 0;
+      const referral = s.referral_bonus || 0;
+      return {
+        ...s,
+        monthly_sales: p ? p.sales : 0,
+        incentive_amt: incentive,
+        team_bonus: teamBonus,
+        total_payout: incentive + teamBonus + referral,
+        recalculated_at: now,
+      };
+    });
+    // 確定後に当月へ入ってきたメンバー（面談日が当月に移動した等）は新規行として追加する
+    byName.forEach(p => {
+      if (!p.sales && !p.incentive && !p.teamBonus) return;
+      rows.push({
+        org_id: getOrgId(),
+        pay_month: payMonth,
+        member_name: p.name,
+        team_name: p.team,
+        role: p.role,
+        rank: p.rank,
+        incentive_rate: p.rate || 0,
+        monthly_sales: p.sales,
+        incentive_amt: p.incentive,
+        team_bonus: p.teamBonus,
+        referral_bonus: 0,
+        total_payout: p.total,
+        confirmed_by: currentUser || '管理者',
+        recalculated_at: now,
+      });
+    });
+    return rows;
+  }, [isConfirmed, snapshots, recalcData, payMonth, currentUser]);
+
+  // 再計算で金額が変わる人の差分
+  const recalcDiffs = React.useMemo(() => {
+    const before = new Map(snapshots.map(s => [s.member_name, s]));
+    return recalcRows
+      .map(r => {
+        const b = before.get(r.member_name);
+        return {
+          name: r.member_name,
+          beforeTotal: b ? b.total_payout : 0,
+          afterTotal: r.total_payout,
+          isNew: !b,
+        };
+      })
+      .filter(d => d.beforeTotal !== d.afterTotal);
+  }, [recalcRows, snapshots]);
+
+  const handleRecalc = async () => {
+    if (!isAdmin || recalculating) return;
+    if (recalcDiffs.length === 0) {
+      setActionMsg(`${monthTab}は最新のアポデータと一致しています（変更なし）`);
+      setTimeout(() => setActionMsg(''), 5000);
+      return;
+    }
+    const lines = recalcDiffs.map(d => {
+      const delta = d.afterTotal - d.beforeTotal;
+      const sign = delta > 0 ? '+' : '−';
+      return `・${d.name}${d.isNew ? '（新規）' : ''}: ¥${d.beforeTotal.toLocaleString()} → ¥${d.afterTotal.toLocaleString()}（${sign}¥${Math.abs(delta).toLocaleString()}）`;
+    });
+    const invoiceWarn = invoiceMemberIdSet.size > 0
+      ? `\n\n※ ${monthTab}は請求書が${invoiceMemberIdSet.size}件格納済みです。金額が変わる方は請求書の出し直しが必要です。`
+      : '';
+    if (!window.confirm(
+      `${monthTab}の報酬を最新のアポデータで再計算します。\n`
+      + `チーム・役職・ランク・適用率は確定時のまま固定し、金額だけ更新します。\n\n`
+      + `${lines.join('\n')}${invoiceWarn}\n\n実行しますか？`
+    )) return;
+    setRecalculating(true);
+    setActionMsg('');
+    try {
+      const { error } = await upsertPayrollSnapshots(recalcRows);
+      if (error) throw error;
+      const { data: fresh } = await fetchPayrollSnapshots(payMonth);
+      setSnapshots(fresh || []);
+      setActionMsg(`${monthTab}を再計算しました（${recalcDiffs.length}名の金額を更新）`);
+      setTimeout(() => setActionMsg(''), 8000);
+    } catch (e) {
+      setActionMsg('再計算に失敗しました: ' + (e.message || '不明'));
+    } finally {
+      setRecalculating(false);
     }
   };
 
@@ -572,7 +707,11 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
               <>
                 <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.bold, color: color.success, borderLeft: `3px solid ${color.success}`, paddingLeft: 8 }}>
                   ✓ 確定済 {confirmedAt}
+                  {recalculatedAt && <span style={{ display: 'block', color: color.textMid, fontWeight: font.weight.semibold }}>再計算 {recalculatedAt}</span>}
                 </span>
+                <Button variant="primary" size="sm" loading={recalculating} onClick={handleRecalc} style={{ background: TH_BG }}>
+                  {recalculating ? '再計算中...' : `再計算${recalcDiffs.length > 0 ? `（${recalcDiffs.length}名）` : ''}`}
+                </Button>
                 <Button variant="secondary" size="sm" loading={unconfirming} onClick={handleUnconfirm} style={{ borderColor: TH_BG, color: TH_BG }}>
                   {unconfirming ? '解除中...' : '確定解除'}
                 </Button>
