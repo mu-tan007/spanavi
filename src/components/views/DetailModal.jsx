@@ -57,6 +57,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [revenueMin, setRevenueMin] = useState('');
   const [revenueMax, setRevenueMax] = useState('');
   const [prefFilters, setPrefFilters] = useState([]);
+  const [prefMode, setPrefMode] = useState('include');  // include=選んだ県だけ / exclude=選んだ県を除く
   const [prefDropOpen, setPrefDropOpen] = useState(false);
   const [callCountMin, setCallCountMin] = useState('');
   const [callCountMax, setCallCountMax] = useState('');
@@ -287,7 +288,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             disabled={!flowStartNo || !flowEndNo}
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
+              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
             }}
           >検索</Button>
           <Button
@@ -296,7 +297,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             title="ナンバーを入力せず、リスト全件を一覧で開く"
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
+              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
             }}
           >全件</Button>
           {itemCount !== null && (
@@ -373,15 +374,22 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               {prefDropOpen && (
                 <div onClick={() => setPrefDropOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
               )}
-              <button onClick={() => setPrefDropOpen(v => !v)} style={{
-                padding: '4px 8px', borderRadius: radius.md,
-                border: `1px solid ${prefFilters.length > 0 ? color.navy : color.border}`,
-                background: prefFilters.length > 0 ? '#EAF4FF' : color.white,
-                fontSize: font.size.xs, fontFamily: font.family.sans, cursor: 'pointer',
-                color: color.navy, whiteSpace: 'nowrap',
-              }}>
-                {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : '都道府県▼'}
-              </button>
+              {(() => {
+                const on = prefFilters.length > 0;
+                const isExclude = prefMode === 'exclude';
+                const accent = isExclude ? color.danger : color.navy;
+                return (
+                  <button onClick={() => setPrefDropOpen(v => !v)} style={{
+                    padding: '4px 8px', borderRadius: radius.md,
+                    border: `1px solid ${on ? accent : color.border}`,
+                    background: on ? alpha(isExclude ? color.danger : color.navyLight, 0.08) : color.white,
+                    fontSize: font.size.xs, fontFamily: font.family.sans, cursor: 'pointer',
+                    color: on ? accent : color.navy, whiteSpace: 'nowrap',
+                  }}>
+                    {on ? `${isExclude ? '都道府県を除く' : '都道府県'}(${prefFilters.length})▼` : '都道府県▼'}
+                  </button>
+                );
+              })()}
               {prefDropOpen && (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, zIndex: 101,
@@ -389,6 +397,22 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                   borderRadius: radius.lg, boxShadow: shadow.md,
                   minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
                 }}>
+                  {/* 含む / 除く の切替（選んだ県だけに絞る / 選んだ県を落とす） */}
+                  <div style={{ display: 'flex', gap: 2, padding: `0 6px ${space[1]}px`, borderBottom: `1px solid ${color.border}`, marginBottom: space[1] }}>
+                    {[{ v: 'include', l: '含む' }, { v: 'exclude', l: '除く' }].map(o => {
+                      const active = prefMode === o.v;
+                      const activeColor = o.v === 'exclude' ? color.danger : color.navy;
+                      return (
+                        <button key={o.v} onClick={() => setPrefMode(o.v)} style={{
+                          flex: 1, padding: '3px 0', borderRadius: radius.sm, cursor: 'pointer',
+                          fontSize: font.size.xs - 1, fontFamily: font.family.sans, fontWeight: font.weight.semibold,
+                          background: active ? activeColor : color.white,
+                          color: active ? color.white : color.textMid,
+                          border: `1px solid ${active ? activeColor : color.border}`,
+                        }}>{o.l}</button>
+                      );
+                    })}
+                  </div>
                   {prefFilters.length > 0 && (
                     <div onClick={() => setPrefFilters([])} style={{
                       padding: '4px 10px', fontSize: font.size.xs - 1, color: color.navy, cursor: 'pointer',

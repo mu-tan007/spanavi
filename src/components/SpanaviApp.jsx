@@ -318,6 +318,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           revenueMin: callFlowScreen.revenueMin ?? null,
           revenueMax: callFlowScreen.revenueMax ?? null,
           prefFilter: callFlowScreen.prefFilter ?? null,
+          prefMode: callFlowScreen.prefMode ?? 'include',
           callCountMin: callFlowScreen.callCountMin ?? null,
           callCountMax: callFlowScreen.callCountMax ?? null,
         }));
@@ -358,7 +359,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             // restoreQueue が setCallFlowScreen を呼ぶので callFlowScreen 単独復元は不要
             restoreQueue(savedQueue.items, savedQueue.idx || 0);
           } else if (savedData) {
-            const { listSupaId, startNo, endNo, defaultItemId, defaultListMode, statusFilter, revenueMin, revenueMax, prefFilter, callCountMin, callCountMax } = savedData;
+            const { listSupaId, startNo, endNo, defaultItemId, defaultListMode, statusFilter, revenueMin, revenueMax, prefFilter, prefMode, callCountMin, callCountMax } = savedData;
             const list = supabaseData.callLists.find(l => l._supaId === listSupaId);
             if (list) setCallFlowScreen({
               list,
@@ -371,6 +372,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
               revenueMin: revenueMin ?? null,
               revenueMax: revenueMax ?? null,
               prefFilter: prefFilter ?? null,
+              prefMode: prefMode ?? 'include',
               callCountMin: callCountMin ?? null,
               callCountMax: callCountMax ?? null,
             });
@@ -1434,7 +1436,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       {callFlowScreen && (
         <>
           <div style={{ display: callFlowMinimized ? 'none' : 'contents' }}>
-            <CallFlowView key={callFlowScreen.defaultItemId || callFlowScreen.list?._supaId || 'cf'} list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => { setCallFlowMinimized(false); setCallFlowScreen(null); }} onMinimize={isMobile ? undefined : () => setCallFlowMinimized(true)} isMinimized={callFlowMinimized} summaryRef={callFlowSummaryRef} closeRef={callFlowCloseRef} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} initialRevenueMin={callFlowScreen.revenueMin ?? null} initialRevenueMax={callFlowScreen.revenueMax ?? null} initialPrefFilter={callFlowScreen.prefFilter ?? null} initialCallCountMin={callFlowScreen.callCountMin ?? null} initialCallCountMax={callFlowScreen.callCountMax ?? null} appoData={appoData} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} setCallListData={setCallListData} singleItemMode={callFlowScreen.singleItemMode ?? false} autoDialOnLoad={callFlowScreen.autoDialOnLoad ?? false} onResultSubmit={callFlowScreen.onResultSubmit ?? null} onQueuePrev={callFlowScreen.onQueuePrev ?? null} onQueueNext={callFlowScreen.onQueueNext ?? null} queuePos={callFlowScreen.queuePos ?? null} initialRecordingUrl={callFlowScreen.initialRecordingUrl ?? ''} autoOpenAppoModal={callFlowScreen.autoOpenAppoModal ?? false} initialDialedPhone={callFlowScreen.initialDialedPhone ?? ''} />
+            <CallFlowView key={callFlowScreen.defaultItemId || callFlowScreen.list?._supaId || 'cf'} list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => { setCallFlowMinimized(false); setCallFlowScreen(null); }} onMinimize={isMobile ? undefined : () => setCallFlowMinimized(true)} isMinimized={callFlowMinimized} summaryRef={callFlowSummaryRef} closeRef={callFlowCloseRef} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} initialRevenueMin={callFlowScreen.revenueMin ?? null} initialRevenueMax={callFlowScreen.revenueMax ?? null} initialPrefFilter={callFlowScreen.prefFilter ?? null} initialPrefMode={callFlowScreen.prefMode ?? 'include'} initialCallCountMin={callFlowScreen.callCountMin ?? null} initialCallCountMax={callFlowScreen.callCountMax ?? null} appoData={appoData} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} setCallListData={setCallListData} singleItemMode={callFlowScreen.singleItemMode ?? false} autoDialOnLoad={callFlowScreen.autoDialOnLoad ?? false} onResultSubmit={callFlowScreen.onResultSubmit ?? null} onQueuePrev={callFlowScreen.onQueuePrev ?? null} onQueueNext={callFlowScreen.onQueueNext ?? null} queuePos={callFlowScreen.queuePos ?? null} initialRecordingUrl={callFlowScreen.initialRecordingUrl ?? ''} autoOpenAppoModal={callFlowScreen.autoOpenAppoModal ?? false} initialDialedPhone={callFlowScreen.initialDialedPhone ?? ''} />
           </div>
           {callFlowMinimized && (
             <PiPWidget

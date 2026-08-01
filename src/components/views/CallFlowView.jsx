@@ -180,7 +180,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialCallCountMin = null, initialCallCountMax = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -243,6 +243,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [revenueMin, setRevenueMin] = useState(initialRevenueMin ? String(initialRevenueMin) : '');  // 千円単位（例: 100000 = 1億円）
   const [revenueMax, setRevenueMax] = useState(initialRevenueMax ? String(initialRevenueMax) : '');  // 空文字 = 上限なし
   const [prefFilters, setPrefFilters] = useState(Array.isArray(initialPrefFilter) ? initialPrefFilter : (initialPrefFilter ? [initialPrefFilter] : []));
+  const [prefMode, setPrefMode] = useState(initialPrefMode === 'exclude' ? 'exclude' : 'include');  // include=選んだ県だけ / exclude=選んだ県を除く
   const [callCountMin, setCallCountMin] = useState(initialCallCountMin != null ? String(initialCallCountMin) : '');  // 架電回数の下限（空=指定なし）
   const [callCountMax, setCallCountMax] = useState(initialCallCountMax != null ? String(initialCallCountMax) : '');  // 架電回数の上限（空=指定なし）
   const [prefDropOpen, setPrefDropOpen] = useState(false);
@@ -641,7 +642,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         if (item.revenue == null || Number(item.revenue) > Number(revenueMax)) return false;
       }
       if (prefFilters.length > 0) {
-        if (!prefFilters.includes(extractPref(item.address))) return false;
+        // exclude: 選んだ県を落とす。住所から県を取れない行は「該当なし」扱いで残す
+        const hit = prefFilters.includes(extractPref(item.address));
+        if (prefMode === 'exclude' ? hit : !hit) return false;
       }
       // 架電回数フィルタ（call_records の件数 = テーブルの「N回」表示と一致）
       if (callCountMin !== '' || callCountMax !== '') {
@@ -2142,15 +2145,22 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     {prefDropOpen && (
                       <div onClick={() => setPrefDropOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }} />
                     )}
-                    <button onClick={() => setPrefDropOpen(v => !v)} style={{
-                      padding: '3px 8px', borderRadius: radius.md,
-                      border: `1px solid ${prefFilters.length > 0 ? color.navyDeep : color.gray200}`,
-                      background: prefFilters.length > 0 ? alpha(color.navyLight, 0.08) : color.white,
-                      fontSize: font.size.xs - 1, fontFamily: font.family.sans, cursor: 'pointer',
-                      color: color.navyDeep, whiteSpace: 'nowrap',
-                    }}>
-                      {prefFilters.length > 0 ? `都道府県(${prefFilters.length})▼` : '都道府県▼'}
-                    </button>
+                    {(() => {
+                      const on = prefFilters.length > 0;
+                      const isExclude = prefMode === 'exclude';
+                      const accent = isExclude ? color.danger : color.navyDeep;
+                      return (
+                        <button onClick={() => setPrefDropOpen(v => !v)} style={{
+                          padding: '3px 8px', borderRadius: radius.md,
+                          border: `1px solid ${on ? accent : color.gray200}`,
+                          background: on ? alpha(isExclude ? color.danger : color.navyLight, 0.08) : color.white,
+                          fontSize: font.size.xs - 1, fontFamily: font.family.sans, cursor: 'pointer',
+                          color: on ? accent : color.navyDeep, whiteSpace: 'nowrap',
+                        }}>
+                          {on ? `${isExclude ? '都道府県を除く' : '都道府県'}(${prefFilters.length})▼` : '都道府県▼'}
+                        </button>
+                      );
+                    })()}
                     {prefDropOpen && (
                       <div style={{
                         position: 'absolute', top: '100%', left: 0, zIndex: 101,
@@ -2158,6 +2168,22 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         borderRadius: radius.md, boxShadow: shadow.md,
                         minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
                       }}>
+                        {/* 含む / 除く の切替（選んだ県だけに絞る / 選んだ県を落とす） */}
+                        <div style={{ display: 'flex', gap: 2, padding: `0 6px ${space[1]}px`, borderBottom: `1px solid ${color.gray200}`, marginBottom: space[1] }}>
+                          {[{ v: 'include', l: '含む' }, { v: 'exclude', l: '除く' }].map(o => {
+                            const active = prefMode === o.v;
+                            const activeColor = o.v === 'exclude' ? color.danger : color.navy;
+                            return (
+                              <button key={o.v} onClick={() => { setPrefMode(o.v); setPage(0); }} style={{
+                                flex: 1, padding: '3px 0', borderRadius: radius.sm, cursor: 'pointer',
+                                fontSize: font.size.xs - 1, fontFamily: font.family.sans, fontWeight: font.weight.semibold,
+                                background: active ? activeColor : color.white,
+                                color: active ? color.white : color.textMid,
+                                border: `1px solid ${active ? activeColor : color.gray200}`,
+                              }}>{o.l}</button>
+                            );
+                          })}
+                        </div>
                         {prefFilters.length > 0 && (
                           <div onClick={() => { setPrefFilters([]); setPage(0); }} style={{
                             padding: '4px 10px', fontSize: font.size.xs - 1, color: color.navyDeep, cursor: 'pointer',
