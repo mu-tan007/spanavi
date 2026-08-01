@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select } from '../ui';
@@ -59,6 +59,22 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [prefFilters, setPrefFilters] = useState([]);
   const [prefMode, setPrefMode] = useState('include');  // include=選んだ県だけ / exclude=選んだ県を除く
   const [prefDropOpen, setPrefDropOpen] = useState(false);
+  // モーダル本体は overflowY:auto なので、absolute のままだと下端で切れる。
+  // fixed + ボタン座標で描画し、下に余白がなければ上向きに開く
+  const prefBtnRef = useRef(null);
+  const [prefDropPos, setPrefDropPos] = useState(null);
+  const DROP_MAX_H = 220;
+  const togglePrefDrop = () => {
+    if (prefDropOpen) { setPrefDropOpen(false); return; }
+    const r = prefBtnRef.current?.getBoundingClientRect();
+    if (r) {
+      const spaceBelow = window.innerHeight - r.bottom;
+      setPrefDropPos(spaceBelow < DROP_MAX_H + 24
+        ? { left: r.left, bottom: window.innerHeight - r.top + 4, maxHeight: Math.min(DROP_MAX_H, r.top - 24) }
+        : { left: r.left, top: r.bottom + 4, maxHeight: Math.min(DROP_MAX_H, spaceBelow - 24) });
+    }
+    setPrefDropOpen(true);
+  };
   const [callCountMin, setCallCountMin] = useState('');
   const [callCountMax, setCallCountMax] = useState('');
 
@@ -379,7 +395,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                 const isExclude = prefMode === 'exclude';
                 const accent = isExclude ? color.danger : color.navy;
                 return (
-                  <button onClick={() => setPrefDropOpen(v => !v)} style={{
+                  <button ref={prefBtnRef} onClick={togglePrefDrop} style={{
                     padding: '4px 8px', borderRadius: radius.md,
                     border: `1px solid ${on ? accent : color.border}`,
                     background: on ? alpha(isExclude ? color.danger : color.navyLight, 0.08) : color.white,
@@ -392,13 +408,13 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               })()}
               {prefDropOpen && (
                 <div style={{
-                  position: 'absolute', top: '100%', left: 0, zIndex: 101,
+                  position: 'fixed', zIndex: 101, ...(prefDropPos || { top: '100%', left: 0 }),
                   background: color.white, border: `1px solid ${color.border}`,
                   borderRadius: radius.lg, boxShadow: shadow.md,
-                  minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
+                  minWidth: 150, overflowY: 'auto', padding: '4px 0',
                 }}>
                   {/* 含む / 除く の切替（選んだ県だけに絞る / 選んだ県を落とす） */}
-                  <div style={{ display: 'flex', gap: 2, padding: `0 6px ${space[1]}px`, borderBottom: `1px solid ${color.border}`, marginBottom: space[1] }}>
+                  <div style={{ display: 'flex', gap: 2, padding: `0 6px ${space[1]}px`, borderBottom: `1px solid ${color.border}`, marginBottom: space[1], position: 'sticky', top: -4, background: color.white, zIndex: 1 }}>
                     {[{ v: 'include', l: '含む' }, { v: 'exclude', l: '除く' }].map(o => {
                       const active = prefMode === o.v;
                       const activeColor = o.v === 'exclude' ? color.danger : color.navy;

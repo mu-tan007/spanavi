@@ -247,6 +247,22 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [callCountMin, setCallCountMin] = useState(initialCallCountMin != null ? String(initialCallCountMin) : '');  // 架電回数の下限（空=指定なし）
   const [callCountMax, setCallCountMax] = useState(initialCallCountMax != null ? String(initialCallCountMax) : '');  // 架電回数の上限（空=指定なし）
   const [prefDropOpen, setPrefDropOpen] = useState(false);
+  // リストのカードは overflow:hidden なので、absolute のままだと行数が少ない時に切れる。
+  // fixed + ボタン座標で描画し、下に余白がなければ上向きに開く
+  const prefBtnRef = useRef(null);
+  const [prefDropPos, setPrefDropPos] = useState(null);
+  const PREF_DROP_MAX_H = 220;
+  const togglePrefDrop = () => {
+    if (prefDropOpen) { setPrefDropOpen(false); return; }
+    const r = prefBtnRef.current?.getBoundingClientRect();
+    if (r) {
+      const spaceBelow = window.innerHeight - r.bottom;
+      setPrefDropPos(spaceBelow < PREF_DROP_MAX_H + 24
+        ? { left: r.left, bottom: window.innerHeight - r.top + 4, maxHeight: Math.min(PREF_DROP_MAX_H, r.top - 24) }
+        : { left: r.left, top: r.bottom + 4, maxHeight: Math.min(PREF_DROP_MAX_H, spaceBelow - 24) });
+    }
+    setPrefDropOpen(true);
+  };
   const [statusFilterLocal, setStatusFilterLocal] = useState(() => Array.isArray(statusFilter) ? statusFilter : []); // DetailModalの選択を引き継ぎ
   const [recallModal, setRecallModal] = useState(null); // { row, statusId, round, label }
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
@@ -2150,7 +2166,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       const isExclude = prefMode === 'exclude';
                       const accent = isExclude ? color.danger : color.navyDeep;
                       return (
-                        <button onClick={() => setPrefDropOpen(v => !v)} style={{
+                        <button ref={prefBtnRef} onClick={togglePrefDrop} style={{
                           padding: '3px 8px', borderRadius: radius.md,
                           border: `1px solid ${on ? accent : color.gray200}`,
                           background: on ? alpha(isExclude ? color.danger : color.navyLight, 0.08) : color.white,
@@ -2163,13 +2179,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     })()}
                     {prefDropOpen && (
                       <div style={{
-                        position: 'absolute', top: '100%', left: 0, zIndex: 101,
+                        position: 'fixed', zIndex: 101, ...(prefDropPos || { top: '100%', left: 0 }),
                         background: color.white, border: `1px solid ${color.gray200}`,
                         borderRadius: radius.md, boxShadow: shadow.md,
-                        minWidth: 130, maxHeight: 220, overflowY: 'auto', padding: '4px 0',
+                        minWidth: 150, overflowY: 'auto', padding: '4px 0',
                       }}>
                         {/* 含む / 除く の切替（選んだ県だけに絞る / 選んだ県を落とす） */}
-                        <div style={{ display: 'flex', gap: 2, padding: `0 6px ${space[1]}px`, borderBottom: `1px solid ${color.gray200}`, marginBottom: space[1] }}>
+                        <div style={{ display: 'flex', gap: 2, padding: `0 6px ${space[1]}px`, borderBottom: `1px solid ${color.gray200}`, marginBottom: space[1], position: 'sticky', top: -4, background: color.white, zIndex: 1 }}>
                           {[{ v: 'include', l: '含む' }, { v: 'exclude', l: '除く' }].map(o => {
                             const active = prefMode === o.v;
                             const activeColor = o.v === 'exclude' ? color.danger : color.navy;
