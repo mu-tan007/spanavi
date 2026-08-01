@@ -114,8 +114,18 @@ export default function LibraryView({
   const [editTitle, setEditTitle] = useState('');
   const [editDate, setEditDate] = useState('');
   const startEdit = (m) => { setEditingMeetingId(m.id); setEditTitle(m.title || ''); setEditDate(m.meeting_date || ''); };
+  const [editSaving, setEditSaving] = useState(false);
   const saveEdit = async () => {
-    await updateWeeklyMeetingVideo(editingMeetingId, { title: editTitle.trim() || null, meeting_date: editDate || null });
+    setEditSaving(true);
+    const { data, error } = await updateWeeklyMeetingVideo(editingMeetingId, {
+      title: editTitle.trim() || null, meeting_date: editDate || null,
+    });
+    setEditSaving(false);
+    // 更新権限がないと 0 行更新のまま成功したように見えるため、明示的に失敗を伝える
+    if (error || !data) {
+      window.alert('保存できませんでした。更新権限がない可能性があります。');
+      return;
+    }
     setEditingMeetingId(null);
     refreshMeetings();
   };
@@ -280,8 +290,8 @@ export default function LibraryView({
                           </div>
                           {isEditing ? (
                             <>
-                              <Button size="sm" onClick={saveEdit}>保存</Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingMeetingId(null)}>キャンセル</Button>
+                              <Button size="sm" onClick={saveEdit} loading={editSaving}>保存</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingMeetingId(null)} disabled={editSaving}>キャンセル</Button>
                             </>
                           ) : (
                             <>
