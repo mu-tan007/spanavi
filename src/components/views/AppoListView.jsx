@@ -37,6 +37,29 @@ const EMAIL_STATUS_LABELS = {
   failed: { label: '失敗', color: '#EF4444', bg: '#FEE2E2' },
 };
 
+// 支払期限: 対象月(yyyy-mm)を基準にクライアントの支払サイトから算出（既定は翌月末）
+// 請求書PDF・一括作成一覧の両方から使う唯一の算出ロジック
+const calcPaymentDeadline = (paySite, month) => {
+  const [y, m] = String(month || '').split('-').map(Number);
+  if (!y || !m) return '';
+  const ps = paySite || '';
+  let pd;
+  if (ps.includes('翌月15日')) pd = new Date(y, m, 15);            // 対象月の翌月15日
+  else if (ps.includes('翌月25日')) pd = new Date(y, m, 25);       // 対象月の翌月25日
+  else if (ps.includes('翌月末')) pd = new Date(y, m + 1, 0);      // 対象月の翌月末日
+  else if (ps.includes('翌々月')) {
+    pd = ps.includes('15日') ? new Date(y, m + 1, 15)              // 対象月の翌々月15日
+      : ps.includes('25日') ? new Date(y, m + 1, 25)               // 対象月の翌々月25日
+        : new Date(y, m + 2, 0);                                   // 対象月の翌々月末日
+  } else pd = new Date(y, m + 1, 0);                               // 既定: 翌月末
+  return `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
+};
+
+// 請求書送付メールの既定文面（単発送信・一斉送信で共通）
+const buildInvoiceMailSubject = (monthLabel) => `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`;
+const buildInvoiceMailBody = (clientName, monthLabel) =>
+  `${clientName} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
+
 export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
   const [show, setShow] = React.useState(false);
@@ -511,6 +534,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [bulkSendTo, setBulkSendTo] = useState({});      // { clientName: email } — 選択した送信先
   const [bulkSendStatus, setBulkSendStatus] = useState({}); // { clientName: 'idle'|'sending'|'sent'|'error' }
   const [bulkSending, setBulkSending] = useState(false);
+  const [bulkSendDrafts, setBulkSendDrafts] = useState({});          // { clientName: { subject, body } } — 編集済みのクライアントのみ保持
+  const [bulkSendPreviewClient, setBulkSendPreviewClient] = useState(''); // プレビュー表示中のクライアント名（空なら先頭）
   // ── 請求書一括作成（ZIP） ──
   const [bulkInvoiceModal, setBulkInvoiceModal] = useState(false);
   const [bulkInvoiceMonth, setBulkInvoiceMonth] = useState(AVAILABLE_MONTHS[0]?.yyyymm || '');
@@ -777,7 +802,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const monthLabel = monthNum + '月';
 
       // 発行日: ユーザー選択の日付を使用
-      const [y, m] = invoiceMonth.split('-').map(Number);
       const [iy, im, id] = invoiceIssueDate.split('-').map(Number);
       const issueDate = `${iy}年${String(im).padStart(2, '0')}月${String(id).padStart(2, '0')}日`;
 
@@ -786,29 +810,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       const invoiceNumber = `${iy}${String(im).padStart(2, '0')}${String(id).padStart(2, '0')}-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
 
       // 支払期限: 対象月を基準にpaySiteから算出（翌月末をデフォルト）
-      let paymentDeadline = '';
-      const paySite = client.paySite || '';
-      if (paySite.includes('翌月15日')) {
-        const pd = new Date(y, m, 15); // 対象月の翌月15日
-        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月15日`;
-      } else if (paySite.includes('翌月25日')) {
-        const pd = new Date(y, m, 25); // 対象月の翌月25日
-        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月25日`;
-      } else if (paySite.includes('翌月末')) {
-        const pd = new Date(y, m + 1, 0); // 対象月の翌月末日
-        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
-      } else if (paySite.includes('翌々月')) {
-        const pd = paySite.includes('15日')
-          ? new Date(y, m + 1, 15) // 対象月の翌々月15日
-          : paySite.includes('25日')
-            ? new Date(y, m + 1, 25) // 対象月の翌々月25日
-            : new Date(y, m + 2, 0); // 対象月の翌々月末日
-        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
-      } else {
-        // デフォルト: 翌月末
-        const pd = new Date(y, m + 1, 0);
-        paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
-      }
+      const paymentDeadline = calcPaymentDeadline(client.paySite, invoiceMonth);
 
       // コンポーネント描画 → html2canvas → jsPDF
       const { default: InvoicePDF } = await import('./InvoicePDF');
@@ -897,28 +899,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     }
     const clientIdx = clientData.filter(c => c.status === '支援中').findIndex(c => c.company === clientName);
     const invoiceNumber = `${issueDateForNumber}-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
-    const paySite = client.paySite || '';
-    let paymentDeadline = '';
-    if (paySite.includes('翌月15日')) {
-      const pd = new Date(y, m, 15); // 対象月の翌月15日
-      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月15日`;
-    } else if (paySite.includes('翌月25日')) {
-      const pd = new Date(y, m, 25); // 対象月の翌月25日
-      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月25日`;
-    } else if (paySite.includes('翌月末')) {
-      const pd = new Date(y, m + 1, 0); // 対象月の翌月末日
-      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
-    } else if (paySite.includes('翌々月')) {
-      const pd = paySite.includes('15日')
-        ? new Date(y, m + 1, 15) // 対象月の翌々月15日
-        : paySite.includes('25日')
-          ? new Date(y, m + 1, 25) // 対象月の翌々月25日
-          : new Date(y, m + 2, 0); // 対象月の翌々月末日
-      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
-    } else {
-      const pd = new Date(y, m + 1, 0); // デフォルト: 翌月末
-      paymentDeadline = `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
-    }
+    const paymentDeadline = calcPaymentDeadline(client.paySite, month);
 
     const { default: InvoicePDF } = await import('./InvoicePDF');
     const ReactDOM = await import('react-dom/client');
@@ -971,9 +952,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       try {
         const { pdfBase64, filename } = await generateInvoicePdfBase64(clientName, bulkSendMonth);
         const client = clientData.find(c => c.company === clientName);
-        const emailBody = `${clientName} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
-
-        const subject = `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`;
+        // プレビューで編集済みならその内容を、未編集なら既定文面を送る
+        const draft = bulkSendDrafts[clientName];
+        const emailBody = draft?.body ?? buildInvoiceMailBody(clientName, monthLabel);
+        const subject = draft?.subject ?? buildInvoiceMailSubject(monthLabel);
         const { error } = await invokeSendEmail({
           to: bulkSendTo[clientName],
           subject,
@@ -1717,7 +1699,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             subtotal = appos.reduce((s, a) => s + (isTaxExcl ? Math.round((a.sales || 0) / 1.1) : (a.sales || 0)), 0);
           }
           const total = isTaxExcl ? subtotal + Math.floor(subtotal * 0.1) : subtotal;
-          return { name, count, total, edited: !!draft };
+          // 支払期限: 請求書PDFに印字されるものと同じ算出ロジック
+          const paymentDeadline = c ? calcPaymentDeadline(c.paySite, bulkInvoiceMonth) : '';
+          return { name, count, total, paymentDeadline, paySite: c?.paySite || '', edited: !!draft };
         });
         const allChecked = clientInfos.length > 0 && clientInfos.every(ci => bulkInvoiceChecked.has(ci.name));
         const statusLabel = { idle: '', generating: '生成中...', done: '生成済', error: '失敗' };
@@ -1738,7 +1722,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 720, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
+            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 840, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
               <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15, flexShrink: 0 }}>
                 請求書一括作成（ZIP）
               </div>
@@ -1767,7 +1751,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
                 {/* クライアント一覧テーブル */}
                 <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 56px 70px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 116px 56px 70px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700, alignItems: 'center' }}>
                     <span style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={allChecked} onChange={() => {
                         if (allChecked) setBulkInvoiceChecked(new Set());
@@ -1777,6 +1761,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <span>クライアント</span>
                     <span style={{ textAlign: 'center' }}>件数</span>
                     <span style={{ textAlign: 'right' }}>請求金額</span>
+                    <span style={{ textAlign: 'right' }}>支払期限</span>
                     <span style={{ textAlign: 'center' }}>編集</span>
                     <span style={{ textAlign: 'center' }}>状態</span>
                   </div>
@@ -1785,7 +1770,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   ) : clientInfos.map(ci => {
                     const st = bulkInvoiceStatus[ci.name] || 'idle';
                     return (
-                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 56px 70px', gap: 4, padding: '6px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center', fontSize: font.size.xs }}>
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 60px 110px 116px 56px 70px', gap: 4, padding: '6px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center', fontSize: font.size.xs }}>
                         <span style={{ display: 'flex', justifyContent: 'center' }}>
                           <input type="checkbox" checked={bulkInvoiceChecked.has(ci.name)} disabled={bulkInvoiceGenerating}
                             onChange={() => setBulkInvoiceChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
@@ -1797,6 +1782,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         </span>
                         <span style={{ textAlign: 'center', fontFamily: "'JetBrains Mono'", color: color.navy }}>{ci.count}</span>
                         <span style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontWeight: font.weight.semibold, color: color.navy }}>{formatCurrency(ci.total)}</span>
+                        <span title={ci.paySite ? `支払サイト: ${ci.paySite}` : '支払サイト未設定（翌月末で算出）'}
+                          style={{ textAlign: 'right', fontFamily: "'JetBrains Mono'", fontSize: 10, color: ci.paySite ? color.textMid : color.textLight }}>
+                          {ci.paymentDeadline || '-'}
+                        </span>
                         <span style={{ textAlign: 'center' }}>
                           <Button onClick={() => openEditDraft(ci.name)} disabled={bulkInvoiceGenerating}
                             variant="outline" size="sm">
@@ -1827,6 +1816,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       setBulkSendStatus({});
                       setBulkSendCc({});
                       setBulkSendTo({});
+                      setBulkSendDrafts({});
+                      setBulkSendPreviewClient('');
                       setBulkInvoiceModal(false);
                       setBulkSendModal(true);
                     }}
@@ -1868,12 +1859,17 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         });
         const allChecked = clientInfos.length > 0 && clientInfos.every(ci => bulkSendChecked.has(ci.name));
         const monthNum = parseInt(bulkSendMonth.split('-')[1], 10);
+        const monthLabel = monthNum + '月';
         const statusLabel = { idle: '', sending: '送信中...', sent: '送信済', error: '失敗' };
         const statusColor = { idle: '', sending: '#F59E0B', sent: '#10B981', error: '#EF4444' };
+        // プレビュー対象（未選択・対象外なら先頭のクライアント）
+        const previewName = clientInfos.some(ci => ci.name === bulkSendPreviewClient)
+          ? bulkSendPreviewClient
+          : (clientInfos[0]?.name || '');
 
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 780, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
+            <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 880, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
               <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15, flexShrink: 0 }}>
                 請求書一斉送信
               </div>
@@ -1881,7 +1877,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 {/* 月選択 */}
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4, display: 'block' }}>対象月</label>
-                  <select value={bulkSendMonth} onChange={e => { setBulkSendMonth(e.target.value); setBulkSendChecked(new Set()); setBulkSendStatus({}); }}
+                  <select value={bulkSendMonth} onChange={e => { setBulkSendMonth(e.target.value); setBulkSendChecked(new Set()); setBulkSendStatus({}); setBulkSendDrafts({}); setBulkSendPreviewClient(''); }}
                     style={{ padding: "8px 10px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.sm, fontFamily: "'Noto Sans JP'", outline: "none" }}>
                     {AVAILABLE_MONTHS.map(m => <option key={m.yyyymm} value={m.yyyymm}>{m.label}</option>)}
                   </select>
@@ -1889,7 +1885,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
                 {/* クライアント一覧テーブル */}
                 <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.md, overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 50px 90px 180px 60px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 50px 90px 180px 52px 60px', gap: 0, background: color.gray100, padding: '6px 10px', fontSize: 10, fontWeight: font.weight.semibold, color: color.gray700, alignItems: 'center' }}>
                     <span style={{ display: 'flex', justifyContent: 'center' }}>
                       <input type="checkbox" checked={allChecked} onChange={() => {
                         if (allChecked) setBulkSendChecked(new Set());
@@ -1901,6 +1897,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <span style={{ textAlign: 'center' }}>件数</span>
                     <span style={{ textAlign: 'right' }}>請求金額</span>
                     <span style={{ paddingLeft: 8 }}>CC（任意・担当者選択可）</span>
+                    <span style={{ textAlign: 'center' }}>本文</span>
                     <span style={{ textAlign: 'center' }}>状態</span>
                   </div>
                   {clientInfos.length === 0 ? (
@@ -1915,13 +1912,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     const setCc = (arr) => setBulkSendCc(prev => ({ ...prev, [ci.name]: arr.join(', ') }));
                     const labelFor = (em) => { const ct = ci.contacts.find(c => c.email === em); return ct ? ct.label.split(' <')[0] : em; };
                     return (
-                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 50px 90px 180px 60px', gap: 4, padding: '6px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center', fontSize: font.size.xs }}>
+                      <div key={ci.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 180px 50px 90px 180px 52px 60px', gap: 4, padding: '6px 10px', borderTop: `1px solid ${color.border}`, alignItems: 'center', fontSize: font.size.xs, background: ci.name === previewName ? alpha(color.navyLight, 0.08) : 'transparent' }}>
                         <span style={{ display: 'flex', justifyContent: 'center' }}>
                           <input type="checkbox" checked={bulkSendChecked.has(ci.name)} disabled={st === 'sent'}
                             onChange={() => setBulkSendChecked(prev => { const next = new Set(prev); if (next.has(ci.name)) next.delete(ci.name); else next.add(ci.name); return next; })}
                             style={{ cursor: st === 'sent' ? 'default' : 'pointer' }} />
                         </span>
-                        <span style={{ fontWeight: font.weight.medium, color: color.navy }}>{ci.name}</span>
+                        <span style={{ fontWeight: font.weight.medium, color: color.navy, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {ci.name}
+                          {bulkSendDrafts[ci.name] && <Badge variant="success" size="sm">編集済</Badge>}
+                        </span>
                         {ci.contacts.length > 0 ? (
                           <select value={bulkSendTo[ci.name] || ''} onChange={e => {
                               const v = e.target.value;
@@ -1967,37 +1967,63 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                               style={{ padding: '3px 6px', borderRadius: 3, border: `1px solid ${color.border}`, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none' }} />
                           )}
                         </div>
+                        {/* 本文: 下のプレビュー欄をこのクライアントに切り替える */}
+                        <span style={{ textAlign: 'center' }}>
+                          <Button onClick={() => setBulkSendPreviewClient(ci.name)}
+                            variant={ci.name === previewName ? 'primary' : 'outline'} size="sm">
+                            表示
+                          </Button>
+                        </span>
                         <span style={{ textAlign: 'center', fontSize: 10, fontWeight: font.weight.semibold, color: statusColor[st] }}>{statusLabel[st]}</span>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* メール本文プレビュー */}
-                <div style={{ marginTop: 16, padding: 12, background: '#F8F9FA', borderRadius: radius.md, border: `1px solid ${color.border}` }}>
-                  <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 6 }}>メール本文（プレビュー）</div>
-                  <pre style={{ fontSize: 10, color: color.gray700, lineHeight: 1.6, fontFamily: "'Noto Sans JP'", whiteSpace: 'pre-wrap', margin: 0 }}>
-{`〇〇 様
-
-お世話になっております。
-M&Aソーシングパートナーズの篠宮でございます。
-
-このたび、${monthNum}月分の請求書を添付にてお送り申し上げます。
-記載日までに、下記口座へお振込みいただけますと幸甚に存じます。
-
-― 振込先口座 ―
- GMOあおぞらネット銀行　法人営業部（101）
- 普通預金　2370528
- M&Aソーシングパートナーズ株式会社
-
-今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、
-変わらぬご高配を賜れますようお願い申し上げます。
-何卒よろしくお願い申し上げます。
-
-MASP 篠宮`}
-                  </pre>
-                  <div style={{ fontSize: 9, color: color.gray400, marginTop: 4 }}>※「〇〇」は各クライアント名に自動置換されます</div>
-                </div>
+                {/* メール本文プレビュー（クライアント別・編集可） */}
+                {previewName && (() => {
+                  const draft = bulkSendDrafts[previewName];
+                  const subject = draft?.subject ?? buildInvoiceMailSubject(monthLabel);
+                  const body = draft?.body ?? buildInvoiceMailBody(previewName, monthLabel);
+                  // 送信済み・送信中は編集させない（送った内容と表示がずれるため）
+                  const locked = bulkSending || (bulkSendStatus[previewName] || 'idle') === 'sent';
+                  const patchDraft = (patch) => setBulkSendDrafts(prev => ({ ...prev, [previewName]: { subject, body, ...patch } }));
+                  const resetDraft = () => setBulkSendDrafts(prev => { const next = { ...prev }; delete next[previewName]; return next; });
+                  const inputStyle = {
+                    width: '100%', padding: '6px 10px', border: `1px solid ${color.border}`, borderRadius: radius.sm,
+                    fontSize: font.size.xs, color: color.textDark, outline: 'none', boxSizing: 'border-box',
+                    fontFamily: "'Noto Sans JP'", background: locked ? color.gray50 : color.white,
+                  };
+                  return (
+                    <div style={{ marginTop: 16, padding: 12, background: color.offWhite, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy }}>送信メール（クライアント別）</span>
+                          <select value={previewName} onChange={e => setBulkSendPreviewClient(e.target.value)}
+                            style={{ padding: '4px 8px', borderRadius: radius.sm, border: `1px solid ${color.border}`, fontSize: 10, fontFamily: "'Noto Sans JP'", outline: 'none', maxWidth: 320 }}>
+                            {clientInfos.map(ci => (
+                              <option key={ci.name} value={ci.name}>{ci.name}{bulkSendDrafts[ci.name] ? '（編集済）' : ''}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {draft && !locked && (
+                          <Button onClick={resetDraft} variant="ghost" size="sm">既定に戻す</Button>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, marginBottom: 4 }}>件名</div>
+                      <input value={subject} disabled={locked}
+                        onChange={e => patchDraft({ subject: e.target.value })}
+                        style={inputStyle} />
+                      <div style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.textLight, margin: '8px 0 4px' }}>本文</div>
+                      <textarea value={body} disabled={locked} rows={16}
+                        onChange={e => patchDraft({ body: e.target.value })}
+                        style={{ ...inputStyle, lineHeight: 1.6, resize: 'vertical' }} />
+                      <div style={{ fontSize: 9, color: color.textLight, marginTop: 4 }}>
+                        {locked ? '送信済みのため編集できません' : '編集した内容がこのクライアントへの送信内容になります（他のクライアントには影響しません）'}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ padding: "12px 24px", borderTop: `1px solid ${color.border}`, display: "flex", justifyContent: "space-between", alignItems: 'center', flexShrink: 0 }}>
                 <span style={{ fontSize: 10, color: color.textMid }}>{bulkSendChecked.size}社選択中</span>
@@ -2482,14 +2508,14 @@ MASP 篠宮`}
                         let defaultChannel = 'email';
                         if (cm === 'Slack' && client?.slackWebhookUrl) defaultChannel = 'slack';
                         else if (cm === 'Chatwork' && client?.chatworkRoomId) defaultChannel = 'chatwork';
-                        const body = `${invoiceClient} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
+                        const body = buildInvoiceMailBody(invoiceClient, monthLabel);
                         setInvoiceMailPreview({
                           channel: defaultChannel,
                           toIds: primary ? [primary.id] : [],
                           ccIds: [],
                           extraTo: '',
                           extraCc: '',
-                          subject: `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`,
+                          subject: buildInvoiceMailSubject(monthLabel),
                           body, filename, pdfBase64, monthLabel,
                           contacts: contacts.map(ct => ({ id: ct.id, name: ct.name, email: ct.email, isPrimary: ct.isPrimary })),
                           slackWebhookUrl: client?.slackWebhookUrl || '',
