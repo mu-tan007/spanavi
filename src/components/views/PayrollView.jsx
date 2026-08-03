@@ -4,11 +4,13 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag, DataTable } from '../ui';
 import { calcMonthlyPayroll, calcReferralBonuses, salesAmountOf } from '../../utils/money';
+import { buildRecalcRows } from '../../utils/payrollRecalc';
 import { fetchCumulativeSalesShortfalls, fetchCumulativeFlagMismatches, fetchMemberPayrollAdjustmentTotals } from '../../lib/supabaseWrite';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
 import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth, downloadPayrollInvoicesZip } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
+import { PAYROLL_SYNCED_EVENT } from '../../lib/payrollAutoSync';
 // 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
 import PageHeader from '../common/PageHeader';
 import PayrollSelfDetailView from './PayrollSelfDetailView';
@@ -182,6 +184,18 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     });
   }, [payMonth]);
 
+  // アポ側の更新で自動再計算が走ったら、表示中の月なら取り直して最新の金額を出す
+  useEffect(() => {
+    const onSynced = (e) => {
+      if (e.detail?.payMonth !== payMonth) return;
+      fetchPayrollSnapshots(payMonth).then(({ data }) => setSnapshots(data || []));
+      setActionMsg(`アポの変更にあわせて${monthTab}を再計算しました（${e.detail.diffs.length}名の金額を更新）`);
+      setTimeout(() => setActionMsg(''), 8000);
+    };
+    window.addEventListener(PAYROLL_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(PAYROLL_SYNCED_EVENT, onSynced);
+  }, [payMonth, monthTab]);
+
   // name → member_id（_supaId）の引き当てマップ。一覧の各行は p.name のみ持つため必要
   const memberIdByName = React.useMemo(() => {
     const m = {};
@@ -334,93 +348,16 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   // 確定済みの月を最新のアポデータで引き直す（後日キャンセル対応）。
   // チーム・役職・ランク・適用率は確定時の値を固定したまま、金額だけ更新する。
   // 確定解除→再確定だと現在の編成・役職・累計で全部引き直されてしまい、過去月の金額が動く。
-  // 再計算用の入力。チーム編成と役職を確定時の状態に戻してから計算する。
-  // これをしないと、確定後にチームを組み替えた月の役職ボーナスが別人に移ってしまう。
-  const snapshotMembers = React.useMemo(() => {
-    if (!isConfirmed) return members;
-    const byName = new Map(snapshots.map(s => [s.member_name, s]));
-    return (members || []).map(m => {
-      if (typeof m !== 'object' || !m.name) return m;
-      const s = byName.get(m.name);
-      return s ? { ...m, team: s.team_name || '' } : m;
-    });
-  }, [isConfirmed, members, snapshots]);
-
-  const snapshotRoleMap = React.useMemo(() => {
-    if (!isConfirmed) return memberRoleMap;
-    const idByName = new Map(
-      (members || []).filter(m => typeof m === 'object' && m.name && m.id).map(m => [m.name, m.id])
-    );
-    const map = {};
-    snapshots.forEach(s => {
-      const id = idByName.get(s.member_name);
-      if (id && s.role) map[id] = s.role;
-    });
-    return map;
-  }, [isConfirmed, members, snapshots, memberRoleMap]);
-
-  const recalcData = React.useMemo(
-    () => calcMonthlyPayroll({ appoData, members: snapshotMembers, payMonth, orgSettings, memberRoleMap: snapshotRoleMap }),
-    [appoData, snapshotMembers, payMonth, orgSettings, snapshotRoleMap],
+  // 再計算の行組み立ては utils/payrollRecalc.js に集約。
+  // アポ更新時の自動再計算（lib/payrollAutoSync.js）も同じ関数を使うので、
+  // 手動ボタンと自動処理で結果が食い違うことがない。
+  const { rows: recalcRows, diffs: recalcDiffs } = React.useMemo(
+    () => buildRecalcRows({
+      snapshots, appoData, members, payMonth, orgSettings,
+      orgId: getOrgId(), currentUser,
+    }),
+    [snapshots, appoData, members, payMonth, orgSettings, currentUser],
   );
-
-  const recalcRows = React.useMemo(() => {
-    if (!isConfirmed) return [];
-    const byName = new Map(recalcData.map(p => [p.name, p]));
-    const now = new Date().toISOString();
-    const rows = snapshots.map(s => {
-      const p = byName.get(s.member_name);
-      byName.delete(s.member_name);
-      const incentive = p ? p.incentive : 0;
-      const teamBonus = p ? p.teamBonus : 0;
-      const referral = s.referral_bonus || 0;
-      return {
-        ...s,
-        monthly_sales: p ? p.sales : 0,
-        incentive_amt: incentive,
-        team_bonus: teamBonus,
-        total_payout: incentive + teamBonus + referral,
-        recalculated_at: now,
-      };
-    });
-    // 確定後に当月へ入ってきたメンバー（面談日が当月に移動した等）は新規行として追加する
-    byName.forEach(p => {
-      if (!p.sales && !p.incentive && !p.teamBonus) return;
-      rows.push({
-        org_id: getOrgId(),
-        pay_month: payMonth,
-        member_name: p.name,
-        team_name: p.team,
-        role: p.role,
-        rank: p.rank,
-        incentive_rate: p.rate || 0,
-        monthly_sales: p.sales,
-        incentive_amt: p.incentive,
-        team_bonus: p.teamBonus,
-        referral_bonus: 0,
-        total_payout: p.total,
-        confirmed_by: currentUser || '管理者',
-        recalculated_at: now,
-      });
-    });
-    return rows;
-  }, [isConfirmed, snapshots, recalcData, payMonth, currentUser]);
-
-  // 再計算で金額が変わる人の差分
-  const recalcDiffs = React.useMemo(() => {
-    const before = new Map(snapshots.map(s => [s.member_name, s]));
-    return recalcRows
-      .map(r => {
-        const b = before.get(r.member_name);
-        return {
-          name: r.member_name,
-          beforeTotal: b ? b.total_payout : 0,
-          afterTotal: r.total_payout,
-          isNew: !b,
-        };
-      })
-      .filter(d => d.beforeTotal !== d.afterTotal);
-  }, [recalcRows, snapshots]);
 
   const handleRecalc = async () => {
     if (!isAdmin || recalculating) return;
