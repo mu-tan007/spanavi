@@ -309,15 +309,22 @@ export async function uploadVideoResumable(
     const upload = new tus.Upload(file, {
       endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
+      // 認証ヘッダはここに書かない（下の onBeforeRequest だけで付ける）。
+      // tus-js-client はまず headers オプションを XMLHttpRequest.setRequestHeader で
+      // セットし、その後 onBeforeRequest でもう一度セットする。XHR の仕様では
+      // 同名ヘッダは連結されるため、両方に書くと実際に飛ぶのは
+      //   authorization: Bearer <A>, Bearer <B>
+      // となり、Storage 側が JWT として読めず
+      //   403 AccessDenied / "Invalid Compact JWS"
+      // でアップロード開始（POST /upload/resumable）が即失敗する。
       headers: {
-        authorization: `Bearer ${accessToken}`,
         'x-upsert': upsert ? 'true' : 'false',
       },
       // 毎リクエスト直前に最新トークンを付け直す。
       // これが無いと長時間アップロードの途中で 403 "exp claim timestamp check failed" になる。
       onBeforeRequest: async (req) => {
-        const token = await getFreshAccessToken();
-        if (token) req.setHeader('authorization', `Bearer ${token}`);
+        const token = (await getFreshAccessToken()) || accessToken;
+        req.setHeader('authorization', `Bearer ${token}`);
       },
       // tus は既定で 4xx を再試行しない（=期限切れで即中断）。
       // 認証期限切れだけは再試行させ、onBeforeRequest が付け直した新トークンで続行する。
