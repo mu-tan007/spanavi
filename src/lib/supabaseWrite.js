@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { getOrgId } from './orgContext'
 import { statusIdToLabel } from '../hooks/useCallStatuses'
-import { enqueuePayrollSyncForMeetingDates } from './payrollAutoSync'
 
 // ============================================================
 // Drive CORS Proxy
@@ -659,13 +658,6 @@ export async function deleteClient(supaId) {
 
 export async function updateAppointment(supaId, data) {
   if (!supaId) { console.warn('[DB] updateAppointment: no supaId'); return null }
-  // 確定済み報酬の自動再計算用に、更新前の面談日を控える。
-  // 面談日を別の月へ動かした場合は旧月・新月の両方を引き直す必要があるため。
-  const { data: before } = await supabase
-    .from('appointments')
-    .select('meeting_date')
-    .eq('id', supaId)
-    .maybeSingle()
   const { error } = await supabase
     .from('appointments')
     .update({
@@ -684,7 +676,6 @@ export async function updateAppointment(supaId, data) {
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateAppointment error:', error)
-  else enqueuePayrollSyncForMeetingDates(before?.meeting_date, data.meetDate)
   return error
 }
 
@@ -918,11 +909,10 @@ export async function insertAppointment(data, engagementId = null) {
   //   トリガーは UPDATE では発火しないので弾かれず、二重行も作られない。
   //   見つからなければ従来どおり insert（トリガーが安全に通す）。
   let existingId = null
-  let existingMeetingDate = null
   if (payload.list_id && payload.company_name && payload.appointment_date && payload.getter_name) {
     const { data: dupRows } = await supabase
       .from('appointments')
-      .select('id, status, item_id, sales_amount, appo_report, meeting_date')
+      .select('id, status, item_id, sales_amount, appo_report')
       .eq('org_id', orgId)
       .eq('list_id', payload.list_id)
       .eq('company_name', payload.company_name)
@@ -935,7 +925,6 @@ export async function insertAppointment(data, engagementId = null) {
       !(r.item_id == null && (r.sales_amount || 0) === 0 && !((r.appo_report || '').trim()))
     )
     existingId = match?.id || null
-    existingMeetingDate = match?.meeting_date || null
   }
 
   let result, error
@@ -957,9 +946,6 @@ export async function insertAppointment(data, engagementId = null) {
     if (error) console.error('[DB] insertAppointment error:', error)
   }
 
-  // 確定済み報酬の自動再計算。上書き保存で面談日が別の月へ動いた場合は旧月も引き直す。
-  if (!error) enqueuePayrollSyncForMeetingDates(existingMeetingDate, payload.meeting_date)
-
   // Fire push notification for new appointment (best-effort, don't block)
   // 既存行の上書き（再送・冪等保存）では通知しない。新規 insert のみ通知する。
   if (result && !error && !existingId) {
@@ -973,12 +959,6 @@ export async function insertAppointment(data, engagementId = null) {
 
 export async function updatePreCheckResult(supaId, data) {
   if (!supaId) { console.warn('[DB] updatePreCheckResult: no supaId'); return null }
-  // この経路は面談日を変えないので、現在の面談日の月だけ引き直せばよい
-  const { data: before } = await supabase
-    .from('appointments')
-    .select('meeting_date')
-    .eq('id', supaId)
-    .maybeSingle()
   const { error } = await supabase
     .from('appointments')
     .update({
@@ -990,23 +970,16 @@ export async function updatePreCheckResult(supaId, data) {
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updatePreCheckResult error:', error)
-  else enqueuePayrollSyncForMeetingDates(before?.meeting_date)
   return error
 }
 
 export async function deleteAppointment(supaId) {
   if (!supaId) { console.warn('[DB] deleteAppointment: no supaId'); return null }
-  const { data: before } = await supabase
-    .from('appointments')
-    .select('meeting_date')
-    .eq('id', supaId)
-    .maybeSingle()
   const { error } = await supabase
     .from('appointments')
     .delete()
     .eq('id', supaId)
   if (error) console.error('[DB] deleteAppointment error:', error)
-  else enqueuePayrollSyncForMeetingDates(before?.meeting_date)
   return error
 }
 

@@ -13,7 +13,6 @@ import {
 } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
-import { PAYROLL_SYNCED_EVENT } from '../../lib/payrollAutoSync';
 import PageHeader from '../common/PageHeader';
 import PayrollInvoiceGenerator from './PayrollInvoiceGenerator';
 
@@ -204,8 +203,6 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   // ライブ再計算のままだと、確定後にチーム編成や役職が変わったときに
   // 一覧（確定値）と明細・請求書（再計算値）が食い違ってしまう。
   const [snapshot, setSnapshot] = useState(null);
-  // アポ側の更新で自動再計算が走った時にも取り直す（reloadKey を進めて再取得させる）
-  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
     let cancelled = false;
     if (!targetMember?.name || !payMonth) { setSnapshot(null); return; }
@@ -214,15 +211,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
       setSnapshot((data || []).find(r => r.member_name === targetMember.name) || null);
     });
     return () => { cancelled = true; };
-  }, [targetMember?.name, payMonth, reloadKey]);
-
-  useEffect(() => {
-    const onSynced = (e) => {
-      if (e.detail?.payMonth === payMonth) setReloadKey(k => k + 1);
-    };
-    window.addEventListener(PAYROLL_SYNCED_EVENT, onSynced);
-    return () => window.removeEventListener(PAYROLL_SYNCED_EVENT, onSynced);
-  }, [payMonth]);
+  }, [targetMember?.name, payMonth]);
 
   const isConfirmed = !!snapshot;
   const incentive     = isConfirmed ? (snapshot.incentive_amt || 0) : liveIncentive;
