@@ -216,3 +216,24 @@ grep 一発点検: `grep -n "'templates','analytics'" src/components/SpanaviApp.
 3. 累計売上はステータス変更のたびに増減するカウンターで、`src/utils/cumulativeSales.js` の
    `cumulativeSalesDelta()` が全経路（アポ一覧の一括変更・編集モーダル2箇所・事前確認画面）に
    入っている。ここに別処理から二重に足し引きしないこと。
+
+## 2026-08-03 遅いSQLの原因を関数コストと決めつけて外した
+
+**症状**: 企業DB検索の statement timeout（17.9秒）を調査し、WHERE句にある
+`classify_shareholder_type()`（1行0.4ms・内部でSPI問い合わせ）を犯人と断定。
+算出列 `shareholder_type` に置き換えて49万行のバックフィルまで実施したが、
+**16.7秒のまま何も改善しなかった**。
+
+**根因**: 支配的だったのはCPUではなくランダムなディスク読み込み。
+部分索引が `(net_income_k, revenue_k)` の2列しか持たず、43,168件を1行ずつ
+本体テーブルから読んでいた（0.33ms × 43,168回 ≒ 16秒）。
+`EXPLAIN (ANALYZE, BUFFERS)` の `read=26,634` を最初に見ていれば即分かった。
+
+**教訓（自分宛）**:
+1. 遅いSQLは **まず `EXPLAIN (ANALYZE, BUFFERS)`**。`read` の数 × 0.3ms が実行時間の
+   どれだけを占めるか計算する。見た目が重い関数に飛びつかない。
+2. `Rows Removed by Filter` が数万 かつ buffers が行数と同オーダー＝「索引→本体のランダム読み」。
+   索引に絞り込み列を足して index only scan（Heap Fetches: 0）にするのが正解。
+3. 対処したら **同じ計測をやり直す**。変わらなかったら見立てが違うので、そこで引き返す。
+4. 被覆索引を作ったら **旧索引は必ず drop**。残すとプランナが「安く見える」旧索引を選び続ける。
+5. 大量UPDATEの直後は可視性マップが未整備。`VACUUM (ANALYZE)` してから計測する（1.4秒→94ms）。
