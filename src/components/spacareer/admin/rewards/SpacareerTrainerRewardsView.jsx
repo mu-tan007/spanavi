@@ -5,6 +5,8 @@ import PageHeader from '../../../common/PageHeader';
 import KpiCard from '../_shared/KpiCard';
 import { supabase } from '../../../../lib/supabase';
 import { fetchSpacareerTrainerInvoices } from '../../../../lib/supabaseWrite';
+import { useAuth } from '../../../../hooks/useAuth';
+import { isSpacareerAdmin } from '../../../../lib/spacareer/permissions';
 import SpacareerInvoiceModal from './SpacareerInvoiceModal';
 
 // ============================================================
@@ -38,6 +40,11 @@ function dueLabel(v) {
 }
 
 export default function SpacareerTrainerRewardsView() {
+  const { profile } = useAuth();
+  // 運営は全トレーナー分、トレーナー本人は自分の分だけ（むー様指示 2026-08-03）。
+  // 本人モードは必ず RPC を通す。ビューを直接引くと、自分の担当受講生の回を
+  // 代打で他トレーナーが実施していた場合に、その人の行が欠けた数字で見えてしまうため。
+  const isAdmin = isSpacareerAdmin(profile);
   const [rows, setRows] = useState([]);
   const [unattributed, setUnattributed] = useState(0);
   const [invoices, setInvoices] = useState([]);
@@ -48,6 +55,17 @@ export default function SpacareerTrainerRewardsView() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      if (!isAdmin) {
+        const [mine, inv] = await Promise.all([
+          supabase.rpc('spacareer_my_trainer_monthly'),
+          fetchSpacareerTrainerInvoices(),
+        ]);
+        if (mine.error) throw mine.error;
+        setRows(mine.data || []);
+        setUnattributed(0);
+        setInvoices(inv.data || []);
+        return;
+      }
       const [monthly, pending, inv] = await Promise.all([
         supabase.from('v_spacareer_trainer_monthly').select('*').order('month_key', { ascending: false }),
         supabase.from('v_spacareer_sessions_unattributed').select('session_id'),
@@ -62,7 +80,7 @@ export default function SpacareerTrainerRewardsView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -106,8 +124,10 @@ export default function SpacareerTrainerRewardsView() {
   return (
     <div style={{ padding: 0, animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="トレーナー報酬"
-        description="実施トレーナー別の月次セッション回数と報酬。金額はすべて税込。支払は翌月末。"
+        title={isAdmin ? 'トレーナー報酬' : '自分の報酬'}
+        description={isAdmin
+          ? '実施トレーナー別の月次セッション回数と報酬。金額はすべて税込。支払は翌月末。'
+          : '自分が実施したセッションの月次報酬です。金額はすべて税込。支払は翌月末。'}
         style={{ marginBottom: space[4] }}
       />
 
@@ -137,7 +157,7 @@ export default function SpacareerTrainerRewardsView() {
         </div>
       </div>
 
-      <div style={{ marginBottom: space[5] }}>
+      <div style={{ marginBottom: space[5], display: isAdmin ? 'block' : 'none' }}>
         <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: space[2] }}>
           トレーナー別 累計
         </div>
@@ -167,7 +187,8 @@ export default function SpacareerTrainerRewardsView() {
             { key: 'month_key', label: '月', width: 120, align: 'right',
               render: (r) => monthLabel(r.month_key),
               cellStyle: { fontWeight: font.weight.semibold } },
-            { key: 'trainer_name', label: 'トレーナー', width: 160, align: 'left' },
+            // 本人モードでは自分の行しか無いのでトレーナー列は出さない
+            ...(isAdmin ? [{ key: 'trainer_name', label: 'トレーナー', width: 160, align: 'left' }] : []),
             { key: 'session_count', label: 'セッション回数', width: 120, align: 'right',
               render: (r) => `${r.session_count}回` },
             { key: 'session_unit_price', label: '単価', width: 100, align: 'right',

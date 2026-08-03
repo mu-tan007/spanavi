@@ -37,3 +37,16 @@ export const SPACAREER_ARCHIVE_CUSTOMER_EMAILS = [
 export function canArchiveCustomer(email) {
   return SPACAREER_ARCHIVE_CUSTOMER_EMAILS.includes(String(email || '').trim().toLowerCase());
 }
+
+// スパキャリの運営（全トレーナーの報酬を見られる人）。
+// DB側の spacareer_is_admin()（rank='admin' もしくは小山）と範囲を揃える。
+// これに当たらない人がトレーナー報酬タブを開くと、自分の報酬だけが表示される。
+export const SPACAREER_ADMIN_EMAILS = [
+  'koyama@ma-sp.co', // 小山（スパキャリ事業責任者）
+];
+
+export function isSpacareerAdmin(profile) {
+  if (!profile) return false;
+  if (profile.role === 'admin') return true;
+  return SPACAREER_ADMIN_EMAILS.includes(String(profile.email || '').trim().toLowerCase());
+}
