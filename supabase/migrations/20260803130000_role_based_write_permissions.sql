@@ -83,6 +83,8 @@ create policy payroll_snapshots_write_admin on public.payroll_snapshots
 
 -- ============================================================
 -- 2. payroll_adjustments（月次のディスカウント）: 管理者のみ
+--    ※この機能は 2026-08-03 に画面から撤去した（アポ側を直して再計算すれば足りるため）。
+--      過去データが1件も無いテーブルだが、消さずに残したまま権限だけ閉じておく。
 -- ============================================================
 drop policy if exists payroll_adjustments_select on public.payroll_adjustments;
 drop policy if exists payroll_adjustments_insert on public.payroll_adjustments;

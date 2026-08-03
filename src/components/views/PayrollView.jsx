@@ -8,7 +8,7 @@ import { buildRecalcRows } from '../../utils/payrollRecalc';
 import { fetchCumulativeSalesShortfalls, fetchCumulativeFlagMismatches, fetchMemberPayrollAdjustmentTotals } from '../../lib/supabaseWrite';
 import { calcRankAndRate } from '../../utils/calculations';
 import { supabase } from '../../lib/supabase';
-import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, fetchPayrollAdjustment, upsertPayrollAdjustment, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth, downloadPayrollInvoicesZip } from '../../lib/supabaseWrite';
+import { updateMemberReward, updateAppoCounted, fetchPayrollSnapshots, upsertPayrollSnapshots, deletePayrollSnapshots, fetchOrgSettings, markMembersReferralPaid, clearMembersReferralPaid, fetchPayrollInvoicesByMonth, downloadPayrollInvoicesZip } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { PAYROLL_SYNCED_EVENT } from '../../lib/payrollAutoSync';
 // 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
@@ -157,28 +157,18 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     return `${sel.year}-${String(sel.month).padStart(2, '0')}`;
   }, [monthTab]);
 
-  // 調整（ディスカウント）
-  const [adjustment, setAdjustment] = useState({ sales_discount: 0, incentive_discount: 0, note: '' });
-  const [showAdjustForm, setShowAdjustForm] = useState(false);
-  const [adjForm, setAdjForm] = useState({ sales: '', incentive: '', note: '' });
-  const [adjSaving, setAdjSaving] = useState(false);
-
   // 請求書格納済みの member_id セット（月単位）
   const [invoiceMemberIdSet, setInvoiceMemberIdSet] = useState(new Set());
   const [downloadingZip, setDownloadingZip] = useState(false);
 
-  // monthTab 変更時にスナップショット＆調整＆請求書一覧を取得
+  // monthTab 変更時にスナップショットと請求書一覧を取得
   useEffect(() => {
     setSnapshotLoading(true);
     Promise.all([
       fetchPayrollSnapshots(payMonth),
-      fetchPayrollAdjustment(payMonth),
       fetchPayrollInvoicesByMonth(payMonth),
-    ]).then(([snapRes, adjRes, invRes]) => {
+    ]).then(([snapRes, invRes]) => {
       setSnapshots(snapRes.data || []);
-      const adj = adjRes.data || { sales_discount: 0, incentive_discount: 0, note: '' };
-      setAdjustment(adj);
-      setAdjForm({ sales: adj.sales_discount || '', incentive: adj.incentive_discount || '', note: adj.note || '' });
       setInvoiceMemberIdSet(new Set((invRes.data || []).map(r => r.member_id)));
       setSnapshotLoading(false);
     });
@@ -232,21 +222,6 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     } finally {
       setDownloadingZip(false);
     }
-  };
-
-  const handleSaveAdjustment = async () => {
-    setAdjSaving(true);
-    const { error } = await upsertPayrollAdjustment({
-      payMonth,
-      salesDiscount: parseInt(adjForm.sales) || 0,
-      incentiveDiscount: parseInt(adjForm.incentive) || 0,
-      note: adjForm.note,
-    });
-    if (!error) {
-      setAdjustment({ sales_discount: parseInt(adjForm.sales) || 0, incentive_discount: parseInt(adjForm.incentive) || 0, note: adjForm.note });
-      setShowAdjustForm(false);
-    }
-    setAdjSaving(false);
   };
 
   const isConfirmed = snapshots.length > 0;
@@ -533,10 +508,8 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   const teams = [...new Set(data.map(p => p.team))];
   const rawGrandTotal = data.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0) + (adjByName[p.name] || 0), 0);
   const rawGrandSales = data.reduce((s, p) => s + p.sales, 0);
-  const salesDisc = adjustment.sales_discount || 0;
-  const incDisc = adjustment.incentive_discount || 0;
-  const grandTotal = rawGrandTotal - incDisc;
-  const grandSales = rawGrandSales - salesDisc;
+  const grandTotal = rawGrandTotal;
+  const grandSales = rawGrandSales;
   const paidCount = data.filter(p => p.total > 0).length;
   const fmt = (v) => v > 0 ? "¥" + v.toLocaleString() : "-";
 
@@ -580,52 +553,6 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
         ))}
       </div>
 
-      {/* ── 調整（ディスカウント）──────────────────────────────────── */}
-      {(salesDisc > 0 || incDisc > 0) && !showAdjustForm && (
-        <div style={{ marginBottom: space[3], padding: '8px 16px', borderRadius: radius.md, background: '#FEF3C7', border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: '#92400E' }}>調整適用中:</span>
-          {salesDisc > 0 && <span style={{ fontSize: font.size.xs, color: '#92400E' }}>売上 -¥{salesDisc.toLocaleString()}</span>}
-          {incDisc > 0 && <span style={{ fontSize: font.size.xs, color: '#92400E' }}>インセンティブ -¥{incDisc.toLocaleString()}</span>}
-          {adjustment.note && <span style={{ fontSize: font.size.xs - 1, color: '#B45309' }}>({adjustment.note})</span>}
-          {isAdmin && <button onClick={() => setShowAdjustForm(true)} style={{ fontSize: font.size.xs - 1, background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', textDecoration: 'underline', padding: 0 }}>編集</button>}
-        </div>
-      )}
-      {isAdmin && showAdjustForm && (
-        <div style={{ marginBottom: space[3], padding: '12px 16px', borderRadius: radius.md, background: '#FEF3C7', border: '1px solid #FDE68A' }}>
-          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: '#92400E', marginBottom: 8 }}>Payroll調整（ディスカウント）</div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: font.size.xs - 1, color: '#92400E' }}>
-              売上ディスカウント
-              <input type="number" value={adjForm.sales} onChange={e => setAdjForm(p => ({ ...p, sales: e.target.value }))}
-                style={{ marginLeft: 6, width: 110, padding: '4px 8px', borderRadius: radius.md, border: '1px solid #FDE68A', fontSize: font.size.xs, fontFamily: MONO }} />
-            </label>
-            <label style={{ fontSize: font.size.xs - 1, color: '#92400E' }}>
-              インセンティブディスカウント
-              <input type="number" value={adjForm.incentive} onChange={e => setAdjForm(p => ({ ...p, incentive: e.target.value }))}
-                style={{ marginLeft: 6, width: 110, padding: '4px 8px', borderRadius: radius.md, border: '1px solid #FDE68A', fontSize: font.size.xs, fontFamily: MONO }} />
-            </label>
-            <label style={{ fontSize: font.size.xs - 1, color: '#92400E' }}>
-              備考
-              <input value={adjForm.note} onChange={e => setAdjForm(p => ({ ...p, note: e.target.value }))}
-                style={{ marginLeft: 6, width: 160, padding: '4px 8px', borderRadius: radius.md, border: '1px solid #FDE68A', fontSize: font.size.xs }} />
-            </label>
-            <Button variant="primary" size="sm" loading={adjSaving} onClick={handleSaveAdjustment} style={{ background: TH_BG }}>
-              {adjSaving ? '保存中...' : '保存'}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setShowAdjustForm(false)} style={{ borderColor: TH_BG, color: TH_BG }}>
-              キャンセル
-            </Button>
-          </div>
-        </div>
-      )}
-      {isAdmin && !showAdjustForm && salesDisc === 0 && incDisc === 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <button onClick={() => setShowAdjustForm(true)}
-            style={{ fontSize: font.size.xs - 1, background: 'none', border: 'none', cursor: 'pointer', color: color.textLight, textDecoration: 'underline', padding: 0 }}>
-            + 調整（ディスカウント）を追加
-          </button>
-        </div>
-      )}
 
       {/* ── Filters + 確定ボタン ──────────────────────────────────── */}
       <div style={{ display: "flex", gap: 8, marginBottom: space[3], alignItems: "center", flexWrap: "wrap" }}>
@@ -882,12 +809,12 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
         ];
 
         // 合計値の事前計算
-        const sumSales = filtered.reduce((s, p) => s + p.sales, 0) - salesDisc;
-        const sumIncentive = filtered.reduce((s, p) => s + p.incentive, 0) - incDisc;
+        const sumSales = filtered.reduce((s, p) => s + p.sales, 0);
+        const sumIncentive = filtered.reduce((s, p) => s + p.incentive, 0);
         const sumTeamBonus = filtered.reduce((s, p) => s + p.teamBonus, 0);
         const sumReferral = filtered.reduce((s, p) => s + (activeReferralMap[p.name] || 0), 0);
         const sumAdjustment = filtered.reduce((s, p) => s + (adjByName[p.name] || 0), 0);
-        const sumTotal = filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0) + (adjByName[p.name] || 0), 0) - incDisc;
+        const sumTotal = filtered.reduce((s, p) => s + p.total + (activeReferralMap[p.name] || 0) + (adjByName[p.name] || 0), 0);
 
         // 合計行の grid template (DataTable の fillWidth と同じ動きにする)
         const totalGrid = PAYROLL_COLS.map(c => `minmax(${c.width}px, ${c.width}fr)`).join(' ');
