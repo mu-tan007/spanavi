@@ -55,6 +55,16 @@ const calcPaymentDeadline = (paySite, month) => {
   return `${pd.getFullYear()}年${String(pd.getMonth() + 1).padStart(2, '0')}月${String(pd.getDate()).padStart(2, '0')}日`;
 };
 
+// 請求書の備考欄に「担当者名＋様」を自動で入れるクライアント。
+// フラーレンは案件を担当者ごとに分けており、請求書の備考でどの担当者のアポかを示す運用のため。
+const INVOICE_NOTE_CONTACT_CLIENTS = ['株式会社フラーレン'];
+
+// 「高野 柊平」→「高野様」。姓のみを使う（全角・半角どちらの空白でも区切る）
+const contactHonorific = (fullName) => {
+  const surname = String(fullName || '').trim().split(/[\s　]+/)[0];
+  return surname ? `${surname}様` : '';
+};
+
 // 請求書送付メールの既定文面（単発送信・一斉送信で共通）
 const buildInvoiceMailSubject = (monthLabel) => `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`;
 const buildInvoiceMailBody = (clientName, monthLabel) =>
@@ -763,6 +773,18 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   };
 
   // ── 請求書PDF生成 ──────────────────────────────────────
+  // 明細行の備考: 対象クライアントのみ、そのアポの担当者（クライアント側）名を「〇〇様」で自動付与。
+  // 担当者は「そのアポが載っている架電リストに紐付いたクライアント担当者」で決まる。
+  const invoiceNoteFor = (clientName, appo) => {
+    if (!INVOICE_NOTE_CONTACT_CLIENTS.includes(clientName)) return '';
+    const list = callListData.find(l => l._supaId === appo.list_id);
+    const contactId = list?.contactIds?.[0];
+    if (!contactId) return '';
+    const client = clientData.find(c => c.company === clientName);
+    const contact = (client?._supaId ? (contactsByClient[client._supaId] || []) : []).find(ct => ct.id === contactId);
+    return contactHonorific(contact?.name);
+  };
+
   // クライアント選択時に明細行を自動生成
   // appoData.sales は消費税込みの金額 → 税別クライアントは税抜単価に変換
   const initInvoiceItems = (clientName, month) => {
@@ -776,7 +798,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     setInvoiceItems(appos.map(a => {
       const raw = a.sales || 0;
       const unitPrice = isTaxExcl ? Math.round(raw / 1.1) : raw;
-      return { company: a.company, quantity: 1, unitPrice, amount: unitPrice, note: '' };
+      return { company: a.company, quantity: 1, unitPrice, amount: unitPrice, note: invoiceNoteFor(clientName, a) };
     }));
   };
 
@@ -876,7 +898,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       items = targetAppos.map(a => {
         const raw = a.sales || 0;
         const unitPrice = isTaxExcl ? Math.round(raw / 1.1) : raw;
-        return { company: a.company, quantity: 1, unitPrice, amount: unitPrice, note: '' };
+        return { company: a.company, quantity: 1, unitPrice, amount: unitPrice, note: invoiceNoteFor(clientName, a) };
       });
     }
     if (items.length === 0) throw new Error('対象の面談済アポがありません');
