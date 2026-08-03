@@ -266,8 +266,18 @@ create policy clients_write_admin on public.clients
   using (org_id = public.get_user_org_id() and public.is_org_admin())
   with check (org_id = public.get_user_org_id() and public.is_org_admin());
 
--- 開拓リスト由来のクライアントだけを作る。既にあればその id を返す。
-create or replace function public.ensure_prospecting_client(p_name text)
+-- 架電から開拓アポを登録する時の clients 書き込みだけをシステム権限で通す。
+-- 新規作成だけでなく、既存クライアントの次回接触日・担当者・ステータス更新も
+-- 同じ導線で走るため、両方をここで受ける（アプリ側の ensureProspectingClient と同じ挙動）。
+create or replace function public.ensure_prospecting_client(
+  p_name text,
+  p_engagement_id uuid default null,
+  p_industry text default null,
+  p_contact_person text default null,
+  p_contact_email text default null,
+  p_contact_phone text default null,
+  p_next_contact_at timestamptz default null
+)
 returns uuid
 language plpgsql
 security definer
@@ -275,23 +285,45 @@ set search_path = public, pg_catalog
 as $$
 declare
   v_org uuid := public.get_user_org_id();
-  v_id uuid;
+  v_row public.clients%rowtype;
 begin
   if v_org is null or coalesce(trim(p_name), '') = '' then
     raise exception 'クライアント名が空です';
   end if;
-  select id into v_id from public.clients where org_id = v_org and name = p_name limit 1;
-  if v_id is not null then
-    return v_id;
+
+  select * into v_row from public.clients
+  where org_id = v_org and name = p_name limit 1;
+
+  if found then
+    update public.clients set
+      next_contact_at = coalesce(p_next_contact_at, next_contact_at),
+      contact_person  = coalesce(nullif(p_contact_person, ''), contact_person),
+      contact_email   = coalesce(nullif(p_contact_email, ''), contact_email),
+      contact_phone   = coalesce(nullif(p_contact_phone, ''), contact_phone),
+      industry        = coalesce(nullif(p_industry, ''), industry),
+      -- engagement_id が空のレガシー行は埋め直す
+      engagement_id   = coalesce(engagement_id, p_engagement_id),
+      -- 既に進行段階が進んでいる場合は status を巻き戻さない
+      status = case when status in ('支援中', '準備中') then status else '面談予定' end,
+      status_changed_at = case when status in ('支援中', '準備中') then status_changed_at else now() end
+    where id = v_row.id;
+    return v_row.id;
   end if;
-  insert into public.clients (org_id, name, status)
-  values (v_org, p_name, '支援中')
-  returning id into v_id;
-  return v_id;
+
+  insert into public.clients (
+    org_id, engagement_id, name, status, contract_status, industry,
+    contact_person, contact_email, contact_phone, next_contact_at, status_changed_at
+  ) values (
+    v_org, p_engagement_id, p_name, '面談予定', '未', coalesce(p_industry, ''),
+    nullif(p_contact_person, ''), nullif(p_contact_email, ''), nullif(p_contact_phone, ''),
+    p_next_contact_at, now()
+  )
+  returning id into v_row.id;
+  return v_row.id;
 end;
 $$;
 
-grant execute on function public.ensure_prospecting_client(text) to authenticated;
+grant execute on function public.ensure_prospecting_client(text, uuid, text, text, text, text, timestamptz) to authenticated;
 
 -- ============================================================
 -- 7. daily_reports（日報）: フィードバックの記入は管理者のみ
