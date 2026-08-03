@@ -270,8 +270,10 @@ export async function searchCompanies(filters) {
   throw lastError;
 }
 
-/** 企業DBラベルの選択肢（現状は 'M&Aニーズあり' 固定。将来DB化可） */
-export const DB_LABEL_OPTIONS = ['M&Aニーズあり'];
+/** 企業DBラベルの選択肢（固定リスト。将来DB化可）
+ *  - M&Aニーズあり : 売り手側。売り手ソーシングのアポ獲得で自動付与もされる
+ *  - 買収候補先     : 買い手側。自社で買収したい会社を手動でON/OFFする */
+export const DB_LABEL_OPTIONS = ['M&Aニーズあり', '買収候補先'];
 
 /** 指定企業(company_master.id)に付いている企業DBラベル一覧を取得 */
 export async function fetchCompanyLabels(companyMasterId) {
