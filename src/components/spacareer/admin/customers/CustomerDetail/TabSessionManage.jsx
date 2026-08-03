@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { color, space, radius, font, alpha } from '../../../../../constants/design';
-import { Button, Input, Card, Badge } from '../../../../ui';
+import { Button, Input, Card, Badge, Select } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import SessionCompleteFlow from './SessionCompleteFlow';
 import HomeworkVariableEditor from './HomeworkVariableEditor';
 import { useSessionJobs } from './SessionJobsContext';
 import { useSessionCompletion } from './useSessionCompletion';
+import { useTrainers } from '../lib/useCustomers';
 import { useFileDrop } from '../../../_shared/useFileDrop';
 import SessionVideoModal from '../../_shared/SessionVideoModal';
 import { useAuth } from '../../../../../hooks/useAuth';
@@ -96,6 +97,16 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
   const [savedAt, setSavedAt] = useState(null);
   const videoFileRef = useRef(null);
 
+  // この回を実施したトレーナー（むー様指示 2026-08-03）。
+  // 既定は専属担当だが、代打で実施した回はここで差し替える。差し替えても顧客の専属担当は
+  // 変わらないので、固定給の担当人数には影響しない（この回の 5,000円 だけが移る）。
+  // 未設定のまま完了すると、DBトリガーがその時点の専属担当を焼き付ける。
+  const trainers = useTrainers();
+  const assignedTrainerId = customer?.assigned_trainer_id || '';
+  const [trainerPick, setTrainerPick] = useState(targetSession?.trainer_id || assignedTrainerId);
+  const [trainerSavedAt, setTrainerSavedAt] = useState(null);
+  const [trainerSaving, setTrainerSaving] = useState(false);
+
   // 動画アップロード/AI議事録は常駐ジョブProvider側で実行（タブ移動しても継続）
   const { jobs, startUpload, startMinutes } = useSessionJobs();
   const job = targetSession ? jobs[targetSession.id] : null;
@@ -110,6 +121,34 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
   // 「動画・AI議事録」カードのドラッグ＆ドロップアップロード。
   const { isOver: dropOver, dropHandlers } = useFileDrop(
     (f) => { if (targetSession) startUpload(targetSession, f); }, uploading);
+
+  // 実施トレーナーの選択は、セッション切替時と専属担当の変更時に初期化する。
+  useEffect(() => {
+    setTrainerPick(targetSession?.trainer_id || assignedTrainerId);
+    setTrainerSavedAt(null);
+  }, [targetSession?.id, targetSession?.trainer_id, assignedTrainerId]);
+
+  // 実施トレーナーを選んだ瞬間に保存する（次回日時・締切と同じ作法）。
+  // 完了後でも変更できる（帰属の訂正用）。変更するとその回の 5,000円 が移るため、
+  // 過去月の報酬額も変わる。
+  async function handleTrainerChange(value) {
+    setTrainerPick(value);
+    setTrainerSavedAt(null);
+    if (!targetSession) return;
+    setTrainerSaving(true);
+    try {
+      const { error } = await supabase.from('spacareer_sessions')
+        .update({ trainer_id: value || null }).eq('id', targetSession.id);
+      if (error) throw error;
+      setTrainerSavedAt(new Date());
+    } catch (e) {
+      console.error('[TabSessionManage] trainer_id save error:', e);
+      alert(`実施トレーナーの保存に失敗しました: ${e.message || e}`);
+      setTrainerPick(targetSession?.trainer_id || assignedTrainerId);
+    } finally {
+      setTrainerSaving(false);
+    }
+  }
 
   // ヒアリングシートのチェック/質問記録は、セッション切替時(id変化)のみ初期化する。
   // hearing_sheet_json の変化では上書きしない（動画アップロード完了や次回日時の自動保存で
@@ -187,6 +226,8 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
   const [playerOpen, setPlayerOpen] = useState(false);
   const hasMinutes = !!(targetSession?.minutes_draft || targetSession?.minutes_final);
   const sessionStatus = targetSession?.status;
+  // 専属担当と違う人が選ばれている＝代打の回
+  const isSubstitute = !!trainerPick && !!assignedTrainerId && trainerPick !== assignedTrainerId;
 
   function handleVideoUpload(e) {
     const f = e.target.files?.[0];
@@ -245,6 +286,35 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
 
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
+      <Card padding="md"
+        title={`${sessionLabelText} 実施トレーナー`}
+        description="この回を実際に実施した人です。既定は専属担当で、代打で実施したときだけ変更してください。ここで変えても専属担当は変わりません（この回の報酬だけが移ります）。"
+        action={isSubstitute
+          ? <Badge variant="warn" dot>代打</Badge>
+          : <Badge variant="neutral" dot>専属担当</Badge>}
+      >
+        <Select label="実施トレーナー"
+          value={trainerPick}
+          disabled={trainerSaving}
+          onChange={(e) => handleTrainerChange(e.target.value)}
+          options={[
+            { value: '', label: '— 未設定（完了時に専属担当を記録） —' },
+            ...trainers.map((t) => ({
+              value: t.id,
+              label: t.id === assignedTrainerId ? `${t.name}（専属担当）` : t.name,
+            })),
+          ]}
+          hint={sessionStatus === 'completed'
+            ? '選んだ瞬間に保存されます。完了後の変更も可能ですが、その回の報酬が移るため過去月の金額が変わります。'
+            : '選んだ瞬間に保存されます（保存ボタン不要）。'}
+        />
+        {trainerSavedAt && (
+          <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.success }}>
+            自動保存しました（{trainerSavedAt.toLocaleTimeString()}）
+          </div>
+        )}
+      </Card>
+
       <Card padding="md"
         title={`前回（${prevLabel}）からの引き継ぎ`}
         description="前回のお客様からの質問記録と議事録です。今回のセッションで解消できるよう、まず確認してください。">

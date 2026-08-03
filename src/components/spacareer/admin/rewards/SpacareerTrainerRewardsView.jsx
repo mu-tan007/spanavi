@@ -14,7 +14,8 @@ import SpacareerInvoiceModal from './SpacareerInvoiceModal';
 //   - 1セッション 5,000円（税込）。キックオフ(第0回)は算定対象外
 //   - 応用コースの (1)(2) は各1回として算定
 //   - 同時担当3名以上の月は固定給 50,000円（税込）を別枠で加算
-//     「3名以上」は月内に1日でも担当していた受講生の実人数で判定
+//     「3名以上」は月末時点（進行中の月は現時点）の担当人数で判定。
+//     月の途中で下回った月は付かず、増えた月は付く（むー様確定 2026-08-03）
 //   - 支払は翌月末
 //
 // 集計は DB ビュー v_spacareer_trainer_monthly が持つ。
@@ -208,7 +209,9 @@ export default function SpacareerTrainerRewardsView() {
         />
         <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.textLight, lineHeight: font.lineHeight.relaxed }}>
           キックオフ（第0回）は算定対象外です。応用コースの「第N回(1)」「第N回(2)」は各1回として数えます。
-          固定給は、その月に1日でも担当していた受講生が3名以上のときに加算されます。
+          固定給は、月末時点で担当している受講生が3名以上のときに加算されます（進行中の月は現時点の人数です）。
+          月の途中で3名を下回った月は加算されず、逆に月の途中で3名に増えた月は加算されます。
+          卒業・解約した受講生は、その時点で担当人数から外れます。
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { color, space, font, radius } from '../../../../../constants/design';
 import { Card, Button, Select, Badge } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
@@ -8,6 +8,14 @@ import { useTrainers } from '../lib/useCustomers';
 // 8. メンバータブ
 // 仕様書 §7.1 中央タブ#8：担当トレーナー・運営の一覧 + アサイン操作
 // ============================================================
+// spacareer_customers.status の表示名（DB制約 pre_kickoff/in_progress/graduated/cancelled と一致）
+const STATUS_LABEL = {
+  pre_kickoff: 'キックオフ前',
+  in_progress: '受講中',
+  graduated: '卒業',
+  cancelled: '解約',
+};
+
 function fmtDate(v) {
   if (!v) return '—';
   const d = new Date(v);
@@ -23,6 +31,11 @@ export default function TabMembers({ detail, isAdmin, canAssign, onRefresh }) {
   const trainers = useTrainers();
   const [pick, setPick] = useState(customer?.assigned_trainer_id || '');
   const [saving, setSaving] = useState(false);
+  // 受講ステータス。卒業・解約にするとDBトリガーが担当期間を閉じ、以降そのトレーナーの
+  // 固定給の担当人数から外れる（むー様指示 2026-08-03）。
+  const [statusPick, setStatusPick] = useState(customer?.status || 'in_progress');
+  const [statusSaving, setStatusSaving] = useState(false);
+  useEffect(() => { setStatusPick(customer?.status || 'in_progress'); }, [customer?.status]);
 
   async function handleAssign() {
     if (!customerId) return;
@@ -42,6 +55,31 @@ export default function TabMembers({ detail, isAdmin, canAssign, onRefresh }) {
       alert(`アサインに失敗しました: ${e.message || e}`);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleStatusSave() {
+    if (!customerId) return;
+    const ending = statusPick === 'graduated' || statusPick === 'cancelled';
+    if (ending && !window.confirm(
+      `この受講生を「${STATUS_LABEL[statusPick]}」にします。\n担当トレーナーの担当期間がこの時点で終了し、以降は固定給の担当人数に数えられなくなります。\n\nよろしいですか？`)) return;
+    setStatusSaving(true);
+    try {
+      const { error } = await supabase
+        .from('spacareer_customers')
+        .update({
+          status: statusPick,
+          // 卒業・解約の時点を契約終了日として残す（未設定のときだけ入れる）
+          ...(ending && !customer?.contract_ended_at ? { contract_ended_at: new Date().toISOString() } : {}),
+        })
+        .eq('id', customerId);
+      if (error) throw error;
+      onRefresh && onRefresh();
+    } catch (e) {
+      console.error('[TabMembers] status update error:', e);
+      alert(`ステータスの変更に失敗しました: ${e.message || e}`);
+    } finally {
+      setStatusSaving(false);
     }
   }
 
@@ -89,6 +127,22 @@ export default function TabMembers({ detail, isAdmin, canAssign, onRefresh }) {
               ]} />
             <Button variant="primary" loading={saving} onClick={handleAssign}>
               アサイン
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {canAssignTrainer && (
+        <Card padding="md" title="受講ステータス（運営のみ）"
+          description="卒業・解約にすると、その時点で担当トレーナーの担当期間が終了します。以降はトレーナー報酬の固定給の担当人数に数えられません。受講中に戻すと、戻した時点から数え直します。">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: space[2], alignItems: 'end' }}>
+            <Select label="ステータス"
+              value={statusPick} onChange={(e) => setStatusPick(e.target.value)}
+              options={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Button variant="primary" loading={statusSaving}
+              disabled={statusPick === (customer?.status || 'in_progress')}
+              onClick={handleStatusSave}>
+              変更
             </Button>
           </div>
         </Card>
