@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { color, space, font, radius, shadow, alpha } from '../../../../constants/design';
 import { Button, Input, Select, Badge } from '../../../ui';
 import { handleChunkLoadError } from '../../../../utils/chunkReload';
+import { supabase } from '../../../../lib/supabase';
 import {
   fetchMemberInvoiceProfile,
   upsertMemberInvoiceProfile,
@@ -28,7 +29,7 @@ function fmtJpDate(d) {
   return `${d.getFullYear()}年${p(d.getMonth() + 1)}月${p(d.getDate())}日`;
 }
 
-export default function SpacareerInvoiceModal({ row, existing, onClose, onSaved }) {
+export default function SpacareerInvoiceModal({ row, existing, canConfirm = false, onClose, onSaved }) {
   const [profile, setProfile] = useState({
     postalCode: '', address: '', phone: '', email: '',
     bankName: '', branchName: '', accountType: '普通',
@@ -154,7 +155,22 @@ export default function SpacareerInvoiceModal({ row, existing, onClose, onSaved 
       });
       if (error) throw error;
 
-      setMsg('請求書を作成しました');
+      // 請求書を出した＝金額を相手に伝えた時点なので、その月をここで確定させる。
+      // 確定ボタンの押し忘れで過去月の金額が動くのを防ぐ（むー様指示 2026-08-03）。
+      // 確定できるのは運営のみ。トレーナー本人が自分の請求書を作った場合は確定しない。
+      let extra = '';
+      if (canConfirm && !row.is_confirmed) {
+        const { error: confErr } = await supabase.rpc(
+          'spacareer_confirm_trainer_reward_month', { p_month: row.month_key });
+        if (confErr) {
+          console.error('[SpacareerInvoiceModal] confirm error:', confErr);
+          extra = '（ただし月次確定に失敗しました。報酬一覧から確定してください）';
+        } else {
+          extra = `（${monthLabel}分を確定しました）`;
+        }
+      }
+
+      setMsg(`請求書を作成しました${extra}`);
       onSaved && onSaved();
     } catch (e) {
       console.error('[SpacareerInvoiceModal]', e);

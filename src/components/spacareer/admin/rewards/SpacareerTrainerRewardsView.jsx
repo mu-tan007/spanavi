@@ -33,6 +33,12 @@ function monthLabel(key) {
   return `${y}年${Number(m)}月`;
 }
 
+// 支払期限を過ぎているのにまだ確定していない月（＝確定の押し忘れ）
+function isOverdue(r) {
+  if (r.is_confirmed || !r.payment_due_date) return false;
+  return new Date(r.payment_due_date) < new Date();
+}
+
 function dueLabel(v) {
   if (!v) return '—';
   const d = new Date(v);
@@ -51,6 +57,7 @@ export default function SpacareerTrainerRewardsView() {
   const [loading, setLoading] = useState(true);
   const [monthFilter, setMonthFilter] = useState('all');
   const [invoiceRow, setInvoiceRow] = useState(null);
+  const [confirming, setConfirming] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,7 +74,7 @@ export default function SpacareerTrainerRewardsView() {
         return;
       }
       const [monthly, pending, inv] = await Promise.all([
-        supabase.from('v_spacareer_trainer_monthly').select('*').order('month_key', { ascending: false }),
+        supabase.from('v_spacareer_trainer_monthly_display').select('*').order('month_key', { ascending: false }),
         supabase.from('v_spacareer_sessions_unattributed').select('session_id'),
         fetchSpacareerTrainerInvoices(),
       ]);
@@ -99,6 +106,49 @@ export default function SpacareerTrainerRewardsView() {
   const filtered = useMemo(
     () => (monthFilter === 'all' ? rows : rows.filter((r) => r.month_key === monthFilter)),
     [rows, monthFilter]);
+
+  // 確定は月まるごと。トレーナーごとに確定すると基準日がばらつくため行単位にはしない。
+  const monthConfirmed = useMemo(
+    () => monthFilter !== 'all' && filtered.length > 0 && filtered.some((r) => r.is_confirmed),
+    [filtered, monthFilter]);
+
+  async function handleConfirmMonth() {
+    const label = monthLabel(monthFilter);
+    const sum = filtered.reduce((a, r) => a + (r.total_amount || 0), 0);
+    if (!window.confirm(
+      `${label}のトレーナー報酬を確定します。\n対象 ${filtered.length}名 ／ 合計 ${yen(sum)}（税込）\n\n`
+      + '確定した月は、以後セッションの帰属や担当を直しても金額が動かなくなります。\n'
+      + '直したいときは「再計算」で確定値を作り直してください。\n\nよろしいですか？')) return;
+    setConfirming(true);
+    try {
+      const { error } = await supabase.rpc('spacareer_confirm_trainer_reward_month', { p_month: monthFilter });
+      if (error) throw error;
+      await load();
+    } catch (e) {
+      console.error('[SpacareerTrainerRewardsView] confirm error:', e);
+      alert(`確定に失敗しました: ${e.message || e}`);
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  async function handleRecalcMonth() {
+    const label = monthLabel(monthFilter);
+    if (!window.confirm(
+      `${label}の確定値を、現在のデータで作り直します。\n`
+      + '金額が変わる場合があります。作成済みの請求書は自動では作り直されません。\n\nよろしいですか？')) return;
+    setConfirming(true);
+    try {
+      const { error } = await supabase.rpc('spacareer_recalculate_trainer_reward_month', { p_month: monthFilter });
+      if (error) throw error;
+      await load();
+    } catch (e) {
+      console.error('[SpacareerTrainerRewardsView] recalculate error:', e);
+      alert(`再計算に失敗しました: ${e.message || e}`);
+    } finally {
+      setConfirming(false);
+    }
+  }
 
   const kpi = useMemo(() => filtered.reduce((a, r) => ({
     sessions: a.sessions + (r.session_count || 0),
@@ -147,13 +197,28 @@ export default function SpacareerTrainerRewardsView() {
           <KpiCard label="固定給" value={yen(kpi.fixed)} />
           <KpiCard label="支払合計（税込）" value={yen(kpi.total)} />
         </div>
-        <div style={{ minWidth: 200 }}>
-          <Select
-            label="月で絞り込み"
-            value={monthFilter}
-            onChange={(e) => setMonthFilter(e.target.value)}
-            options={monthOptions}
-          />
+        <div style={{ display: 'flex', gap: space[2], alignItems: 'flex-end' }}>
+          <div style={{ minWidth: 200 }}>
+            <Select
+              label="月で絞り込み"
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              options={monthOptions}
+            />
+          </div>
+          {/* 確定は運営のみ。月を選んでいるときだけ出す（全月まとめての確定はさせない）。 */}
+          {isAdmin && monthFilter !== 'all' && (
+            monthConfirmed ? (
+              <Button variant="outline" loading={confirming} onClick={handleRecalcMonth}>
+                再計算
+              </Button>
+            ) : (
+              <Button variant="primary" loading={confirming} onClick={handleConfirmMonth}
+                disabled={filtered.length === 0}>
+                この月を確定
+              </Button>
+            )
+          )}
         </div>
       </div>
 
@@ -207,6 +272,10 @@ export default function SpacareerTrainerRewardsView() {
               cellStyle: { fontFamily: font.family.mono, fontWeight: font.weight.semibold } },
             { key: 'payment_due_date', label: '支払期限', width: 110, align: 'right',
               render: (r) => dueLabel(r.payment_due_date) },
+            { key: 'is_confirmed', label: '状態', width: 110, align: 'center',
+              render: (r) => (r.is_confirmed
+                ? <Badge variant="success" dot>確定済み</Badge>
+                : <Badge variant={isOverdue(r) ? 'warn' : 'neutral'} dot>未確定</Badge>) },
             { key: 'invoice', label: '請求書', width: 130, align: 'center',
               render: (r) => {
                 const done = invoiceByKey.has(`${r.month_key}_${r.trainer_id}`);
@@ -233,12 +302,15 @@ export default function SpacareerTrainerRewardsView() {
           固定給は、月末時点で担当している受講生が3名以上のときに加算されます（進行中の月は現時点の人数です）。
           月の途中で3名を下回った月は加算されず、逆に月の途中で3名に増えた月は加算されます。
           卒業・解約した受講生は、その時点で担当人数から外れます。
+          確定した月は金額が固定され、以後セッションの帰属や担当を直しても動きません。請求書を作ると
+          その月は自動で確定します。確定後に直したいときは「再計算」で確定値を作り直してください。
         </div>
       </div>
 
       {invoiceRow && (
         <SpacareerInvoiceModal
           row={invoiceRow}
+          canConfirm={isAdmin}
           existing={invoiceByKey.get(`${invoiceRow.month_key}_${invoiceRow.trainer_id}`) || null}
           onClose={() => setInvoiceRow(null)}
           onSaved={load}
