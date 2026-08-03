@@ -66,9 +66,10 @@ const contactHonorific = (fullName) => {
 };
 
 // 請求書送付メールの既定文面（単発送信・一斉送信で共通）
+// greeting は宛名行そのもの（担当者が分かれば「佐藤様」、分からなければ「〇〇株式会社 様」）
 const buildInvoiceMailSubject = (monthLabel) => `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`;
-const buildInvoiceMailBody = (clientName, monthLabel) =>
-  `${clientName} 様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
+const buildInvoiceMailBody = (greeting, monthLabel) =>
+  `${greeting}\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
 
 export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
@@ -954,6 +955,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     return { pdfBase64, filename, monthLabel };
   };
 
+  // 一斉送信メールの宛名: 送信先に選んだ担当者の姓＋「様」。
+  // 担当者が特定できない（未選択・担当者未登録のメールアドレス）場合のみクライアント名を使う。
+  const bulkSendGreetingOf = (clientName, email) => {
+    const client = clientData.find(c => c.company === clientName);
+    const contacts = client?._supaId ? (contactsByClient[client._supaId] || []) : [];
+    const contact = email ? contacts.find(ct => ct.email === email) : null;
+    return contactHonorific(contact?.name) || `${clientName} 様`;
+  };
+  const bulkSendGreetingFor = (clientName) => bulkSendGreetingOf(clientName, bulkSendTo[clientName]);
+
   // ── 一斉送信ロジック ──────────────────────────────────────
   const handleBulkSend = async () => {
     if (bulkSendChecked.size === 0 || bulkSending) return;
@@ -976,7 +987,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         const client = clientData.find(c => c.company === clientName);
         // プレビューで編集済みならその内容を、未編集なら既定文面を送る
         const draft = bulkSendDrafts[clientName];
-        const emailBody = draft?.body ?? buildInvoiceMailBody(clientName, monthLabel);
+        const emailBody = draft?.body ?? buildInvoiceMailBody(bulkSendGreetingFor(clientName), monthLabel);
         const subject = draft?.subject ?? buildInvoiceMailSubject(monthLabel);
         const { error } = await invokeSendEmail({
           to: bulkSendTo[clientName],
@@ -1947,6 +1958,17 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         {ci.contacts.length > 0 ? (
                           <select value={bulkSendTo[ci.name] || ''} onChange={e => {
                               const v = e.target.value;
+                              // 宛名を新しい送信先に追従させる。未編集なら既定文面が再計算され、
+                              // 編集済みでも冒頭が旧宛名のままなら、その1行だけ差し替える（本文の編集内容は保持）
+                              const oldGreeting = bulkSendGreetingFor(ci.name);
+                              const newGreeting = bulkSendGreetingOf(ci.name, v);
+                              if (newGreeting !== oldGreeting) {
+                                setBulkSendDrafts(prev => {
+                                  const d = prev[ci.name];
+                                  if (!d || !d.body.startsWith(oldGreeting)) return prev;
+                                  return { ...prev, [ci.name]: { ...d, body: newGreeting + d.body.slice(oldGreeting.length) } };
+                                });
+                              }
                               setBulkSendTo(prev => ({ ...prev, [ci.name]: v }));
                               // To に選んだ人は CC から自動的に外す（相互排他）
                               if (v) setCc(ccList.filter(em => em !== v));
@@ -2006,7 +2028,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 {previewName && (() => {
                   const draft = bulkSendDrafts[previewName];
                   const subject = draft?.subject ?? buildInvoiceMailSubject(monthLabel);
-                  const body = draft?.body ?? buildInvoiceMailBody(previewName, monthLabel);
+                  const body = draft?.body ?? buildInvoiceMailBody(bulkSendGreetingFor(previewName), monthLabel);
                   // 送信済み・送信中は編集させない（送った内容と表示がずれるため）
                   const locked = bulkSending || (bulkSendStatus[previewName] || 'idle') === 'sent';
                   const patchDraft = (patch) => setBulkSendDrafts(prev => ({ ...prev, [previewName]: { subject, body, ...patch } }));
@@ -2041,7 +2063,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         onChange={e => patchDraft({ body: e.target.value })}
                         style={{ ...inputStyle, lineHeight: 1.6, resize: 'vertical' }} />
                       <div style={{ fontSize: 9, color: color.textLight, marginTop: 4 }}>
-                        {locked ? '送信済みのため編集できません' : '編集した内容がこのクライアントへの送信内容になります（他のクライアントには影響しません）'}
+                        {locked ? '送信済みのため編集できません' : '宛名は送信先に選んだ担当者名になります。編集した内容がこのクライアントへの送信内容になります（他のクライアントには影響しません）'}
                       </div>
                     </div>
                   );
@@ -2530,7 +2552,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         let defaultChannel = 'email';
                         if (cm === 'Slack' && client?.slackWebhookUrl) defaultChannel = 'slack';
                         else if (cm === 'Chatwork' && client?.chatworkRoomId) defaultChannel = 'chatwork';
-                        const body = buildInvoiceMailBody(invoiceClient, monthLabel);
+                        const body = buildInvoiceMailBody(`${invoiceClient} 様`, monthLabel);
                         setInvoiceMailPreview({
                           channel: defaultChannel,
                           toIds: primary ? [primary.id] : [],
