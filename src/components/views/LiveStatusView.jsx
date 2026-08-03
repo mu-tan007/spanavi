@@ -68,7 +68,7 @@ function isActiveSession(s, todayStr) {
   return diffHours < 3;
 }
 
-function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, onDeleteSession }) {
+function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, onDeleteSession, canEdit = false }) {
   const [editingId, setEditingId] = useState(null);
   const [editStart, setEditStart] = useState('');
   const [editEnd, setEditEnd] = useState('');
@@ -303,8 +303,8 @@ function ListCard({ sessions, calledCountMap, todayStr, members, onUpdateRange, 
                     }} />
                   )}
                 </span>
-                {/* 編集 / 削除 ボタン */}
-                {!isEditing && (
+                {/* 編集 / 削除 ボタン（他人の架電実績を書き換えられるため管理者のみ） */}
+                {!isEditing && canEdit && (
                   <>
                     <button onClick={handleEdit} title="範囲を編集" style={{
                       background: 'none', border: 'none', cursor: 'pointer',
@@ -532,6 +532,7 @@ export default function LiveStatusView({ now, members, isAdmin = false, isTeamLe
                         calledCountMap={calledCounts}
                         todayStr={todayStr}
                         members={members}
+                        canEdit={isAdmin}
                         onUpdateRange={(sessionId, startNo, endNo) => {
                           setSessions(prev => prev.map(s =>
                             s.id === sessionId ? { ...s, start_no: startNo, end_no: endNo } : s

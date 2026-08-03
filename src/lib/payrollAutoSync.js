@@ -25,6 +25,23 @@ import { buildRecalcRows } from '../utils/payrollRecalc';
 /** 一括更新のループを1回にまとめるための待ち時間(ms) */
 const DEBOUNCE_MS = 1200;
 
+// 報酬の確定値を書けるのは管理者だけ（RLSでもそう絞る方針）。
+// 管理者以外のアポ更新では再計算をスキップし、管理者が報酬ページを開いた時点で追いつかせる。
+// ここで判定しておかないと、権限を絞ったあとに毎回 RLS で弾かれてログだけが出続ける。
+let adminCheck = null;
+async function isCurrentUserAdmin() {
+  if (!adminCheck) {
+    adminCheck = (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth?.user?.id;
+      if (!uid) return false;
+      const { data } = await supabase.from('users').select('role').eq('id', uid).maybeSingle();
+      return data?.role === 'admin';
+    })().catch(() => false);
+  }
+  return adminCheck;
+}
+
 /** 再計算が走った時に飛ばすイベント名（報酬ページが拾って表示を更新する） */
 export const PAYROLL_SYNCED_EVENT = 'spanavi:payroll-snapshot-synced';
 
@@ -145,6 +162,7 @@ async function flush() {
   const months = [...pendingMonths];
   pendingMonths.clear();
   if (months.length === 0) return;
+  if (!(await isCurrentUserAdmin())) return;
   flushing = true;
   try {
     for (const month of months) {

@@ -359,6 +359,25 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     [snapshots, appoData, members, payMonth, orgSettings, currentUser],
   );
 
+  // 管理者以外の操作でアポが変わった月は、その場では再計算できない（確定値の書き込みは管理者のみのため）。
+  // 管理者がこのページを開いた時点で差分が残っていれば自動で追いつかせる。
+  const autoRecalcedRef = React.useRef(new Set());
+  useEffect(() => {
+    if (!isAdmin || !isConfirmed || snapshotLoading) return;
+    if (recalcDiffs.length === 0) return;
+    if (autoRecalcedRef.current.has(payMonth)) return;
+    autoRecalcedRef.current.add(payMonth);
+    (async () => {
+      const count = recalcDiffs.length;
+      const { error } = await upsertPayrollSnapshots(recalcRows);
+      if (error) { autoRecalcedRef.current.delete(payMonth); return; }
+      const { data: fresh } = await fetchPayrollSnapshots(payMonth);
+      setSnapshots(fresh || []);
+      setActionMsg(`${monthTab}をアポの最新状態にあわせて再計算しました（${count}名の金額を更新）`);
+      setTimeout(() => setActionMsg(''), 8000);
+    })();
+  }, [isAdmin, isConfirmed, snapshotLoading, recalcDiffs, recalcRows, payMonth, monthTab]);
+
   const handleRecalc = async () => {
     if (!isAdmin || recalculating) return;
     if (recalcDiffs.length === 0) {

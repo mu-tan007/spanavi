@@ -402,7 +402,7 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
       {/* 5. シフト未稼働（理由入力可） */}
       {shiftNoCall.length > 0 && (
         <Section title="シフト提出済みなのに架電 0 件">
-          <ShiftNoCallList items={shiftNoCall} report={report} currentUser={currentUser} />
+          <ShiftNoCallList items={shiftNoCall} report={report} currentUser={currentUser} isAdmin={isAdmin} />
         </Section>
       )}
 
@@ -508,7 +508,7 @@ function ListBreakdownTable({ lists, sortKey, sortDir, onSort }) {
   );
 }
 
-function ShiftNoCallList({ items, report, currentUser }) {
+function ShiftNoCallList({ items, report, currentUser, isAdmin = false }) {
   const [reasons, setReasons] = useState({});
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState('');
@@ -543,7 +543,7 @@ function ShiftNoCallList({ items, report, currentUser }) {
                 </span>
               )}
               <span style={{ marginLeft: 'auto' }}>
-                {editing === s.member_id ? null : (
+                {(editing === s.member_id || !isAdmin) ? null : (
                   <Button
                     size="sm"
                     variant="outline"
@@ -595,7 +595,7 @@ function ShiftNoCallList({ items, report, currentUser }) {
   );
 }
 
-function MemberCard({ m, report, openProfile, currentUser }) {
+function MemberCard({ m, report, openProfile, currentUser, isAdmin = false }) {
   const [feedback, setFeedback] = useState('');
   const [feedbackSaved, setFeedbackSaved] = useState(null);
   const [feedbackMeta, setFeedbackMeta] = useState(null); // { by, at }
@@ -723,32 +723,40 @@ function MemberCard({ m, report, openProfile, currentUser }) {
         </div>
       )}
 
-      {/* フィードバック */}
-      <div>
-        <CardEyebrow>フィードバック</CardEyebrow>
-        <textarea
-          value={feedback} onChange={e => setFeedback(e.target.value)} rows={2}
-          placeholder="リーダーからのコメント"
-          style={{ width: '100%', padding: '6px 9px', fontSize: 11, border: `1px solid ${color.border}`, borderRadius: radius.sm, fontFamily: font.family.sans, boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6, color: color.textDark }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, gap: 6 }}>
-          {feedbackMeta?.at ? (
-            <span style={{ fontSize: 9, color: color.textLight }}>
-              {feedbackMeta.by || '不明'} / {(feedbackMeta.at || '').slice(0, 16).replace('T', ' ')}
-            </span>
-          ) : <span />}
-          <Button
-            size="sm"
-            variant={feedback !== feedbackSaved ? 'primary' : 'secondary'}
-            onClick={saveFeedback}
-            loading={savingFb}
-            disabled={savingFb || feedback === feedbackSaved}
-            style={{ minHeight: 24, padding: '3px 12px', fontSize: 10 }}
-          >
-            {savingFb ? '保存中…' : (feedback === feedbackSaved ? '保存済' : '保存')}
-          </Button>
+      {/* フィードバック（記入は管理者のみ。管理者以外は書かれた内容の閲覧だけ） */}
+      {(isAdmin || feedbackSaved) && (
+        <div>
+          <CardEyebrow>フィードバック</CardEyebrow>
+          {isAdmin ? (
+            <textarea
+              value={feedback} onChange={e => setFeedback(e.target.value)} rows={2}
+              placeholder="コメント"
+              style={{ width: '100%', padding: '6px 9px', fontSize: 11, border: `1px solid ${color.border}`, borderRadius: radius.sm, fontFamily: font.family.sans, boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6, color: color.textDark }}
+            />
+          ) : (
+            <div style={{ fontSize: 11, color: color.textDark, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{feedbackSaved}</div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, gap: 6 }}>
+            {feedbackMeta?.at ? (
+              <span style={{ fontSize: 9, color: color.textLight }}>
+                {feedbackMeta.by || '不明'} / {(feedbackMeta.at || '').slice(0, 16).replace('T', ' ')}
+              </span>
+            ) : <span />}
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant={feedback !== feedbackSaved ? 'primary' : 'secondary'}
+                onClick={saveFeedback}
+                loading={savingFb}
+                disabled={savingFb || feedback === feedbackSaved}
+                style={{ minHeight: 24, padding: '3px 12px', fontSize: 10 }}
+              >
+                {savingFb ? '保存中…' : (feedback === feedbackSaved ? '保存済' : '保存')}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </Card>
   );
 }

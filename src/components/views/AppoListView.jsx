@@ -384,7 +384,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   );
 }
 
-export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [], contactsByClient = {}, onDataRefetch }) {
+export default function AppoListView({ appoData, setAppoData, members = [], setMembers, clientData = [], rewardMaster = [], setCallFlowScreen, callListData = [], contactsByClient = {}, onDataRefetch, isAdmin = false, currentUser = '' }) {
   const isMobile = useIsMobile();
   const clientOptions = clientData.filter(c => c.status === "支援中" || c.status === "停止中");
 
@@ -2849,7 +2849,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     {detailNavigating ? '検索中...' : '架電ページへ'}
                   </button>
                 )}
-                {!detailEditing ? (
+                {!detailEditing ? (isAdmin || reportDetail.getter === currentUser) && (
                   <button onClick={async () => {
                     setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) });
                     setDetailEditing(true);
@@ -2909,7 +2909,10 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         setDetailSaving(false);
                         if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
                       } else { setDetailSaving(false); }
-                      setAppoData(prev => prev.map((a, i) => i === idx ? updated : a));
+                      // 管理者以外は setAppoData を持たない（一覧の直接編集を渡していないため）。
+                      // 素通しで呼ぶと保存に成功した直後に画面が落ちるので、再取得で表示を合わせる。
+                      if (setAppoData) setAppoData(prev => prev.map((a, i) => i === idx ? updated : a));
+                      else if (onDataRefetch) onDataRefetch();
                       setReportDetail(updated);
                       setDetailEditing(false); setDetailEditForm(null);
                     }} style={{ padding: "4px 14px", borderRadius: radius.md, border: "none", background: detailSaving ? color.border : '#1E40AF', color: color.white, cursor: detailSaving ? "default" : "pointer", fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: "'Noto Sans JP'" }}>
@@ -2925,9 +2928,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 const ef = detailEditForm;
                 const iS = { width: "100%", padding: "4px 8px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", background: color.white, boxSizing: "border-box" };
                 const u = (k, v) => setDetailEditForm(p => ({ ...p, [k]: v }));
+                // 売上・面談日・取得者などお金と実績に直結する項目は管理者のみ編集できる。
+                // 管理者以外は自分のアポのステータスだけを変えられる（備考・レポートは業務メモなので可）。
+                const adminEdit = detailEditing && isAdmin;
                 return (
                   <>
-                    {detailEditing
+                    {adminEdit
                       ? <input value={ef.company} onChange={e => u("company", e.target.value)} style={{ ...iS, fontSize: 16, fontWeight: font.weight.bold, marginBottom: 12, padding: "6px 10px" }} />
                       : <div style={{ fontSize: 18, fontWeight: font.weight.black, color: color.navy, marginBottom: 12 }}>{reportDetail.company}</div>
                     }
@@ -2935,7 +2941,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       {/* クライアント */}
                       <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>クライアント</div>
-                        {detailEditing
+                        {adminEdit
                           ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = clientOptions.find(c => c.company === name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", initialSalesForReward(rr)); }} style={iS}>
                               <option value="">選択...</option>
                               {clientOptions.map(c => <option key={c._supaId || c.company} value={c.company}>{c.company}{c.status === "停止中" ? "（停止中）" : ""}</option>)}
@@ -2945,21 +2951,21 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       {/* 取得者 */}
                       <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>取得者</div>
-                        {detailEditing
+                        {adminEdit
                           ? <MemberSuggestInput value={ef.getter} onChange={v => u("getter", v)} members={members} style={iS} />
                           : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.getter}</div>}
                       </div>
                       {/* 取得日 */}
                       <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>取得日</div>
-                        {detailEditing
+                        {adminEdit
                           ? <input type="date" value={ef.getDate} onChange={e => u("getDate", e.target.value)} style={iS} />
                           : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.getDate}</div>}
                       </div>
                       {/* 面談日 */}
                       <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>面談日</div>
-                        {detailEditing
+                        {adminEdit
                           ? <input type="date" value={ef.meetDate} onChange={e => u("meetDate", e.target.value)} style={iS} />
                           : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.meetDate}</div>}
                       </div>
@@ -2983,18 +2989,18 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
                       <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>当社売上</div>
-                        {detailEditing
+                        {adminEdit
                           ? <input type="number" value={ef.sales} onChange={e => u("sales", Number(e.target.value))} style={iS} />
                           : <div style={{ fontSize: 20, fontWeight: font.weight.black, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{reportDetail.sales > 0 ? "¥" + reportDetail.sales.toLocaleString() : "-"}</div>}
                       </div>
                       <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>インターン報酬</div>
-                        {detailEditing
+                        {adminEdit
                           ? <input type="number" value={ef.reward} onChange={e => u("reward", Number(e.target.value))} style={iS} />
                           : <div style={{ fontSize: 20, fontWeight: font.weight.black, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{reportDetail.reward > 0 ? "¥" + reportDetail.reward.toLocaleString() : "-"}</div>}
                       </div>
                     </div>
-                    {detailEditing && (
+                    {detailEditing && isAdmin && (
                       <div style={{ marginBottom: 12, textAlign: "right" }}>
                         <Button onClick={async () => {
                           if (!reportDetail._supaId) return;
