@@ -1831,9 +1831,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </div>
                   )}
                   {showGuide
-                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: 11, color: C.textDark }} />
+                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} row={selectedRow} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: 11, color: C.textDark }} />
                     : list.scriptBody
-                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7 }} />
+                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={selectedRow} style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7 }} />
                       : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>}
                 </>
               );
@@ -2701,9 +2701,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </div>
                   )}
                   {showGuide
-                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: font.size.sm, color: color.navyDeep }} />
+                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} row={selectedRow} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: font.size.sm, color: color.navyDeep }} />
                     : list.scriptBody
-                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
+                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={selectedRow} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
                       : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
                 </>
               );

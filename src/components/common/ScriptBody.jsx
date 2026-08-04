@@ -54,6 +54,31 @@ function tokenize(text) {
   return tokens;
 }
 
+// 企業ごとに差し替わる差し込み口。
+// スクリプト本文に {{企業別トーク}} と書くと、架電中に選択されている
+// call_list_items の script_custom に置換される。
+// 既存の分岐記法（{{分岐:…}} {{→:…}} {{/分岐}}）は必ず : か / を含むため、
+// それらを含まない波かっこだけを差し込み口として扱えば衝突しない。
+const PLACEHOLDER_RE = /\{\{([^:/}\n]+)\}\}/g;
+
+const PLACEHOLDERS = {
+  '企業別トーク': (row) => row?.script_custom,
+  '企業名': (row) => row?.company,
+  '代表者': (row) => row?.representative,
+};
+
+export function fillPlaceholders(text, row) {
+  if (!text || !text.includes('{{')) return text;
+  // 行の文脈が無い画面（案件側の閲覧ドロワー等）では記法のまま見せる
+  if (!row) return text;
+  return text.replace(PLACEHOLDER_RE, (whole, key) => {
+    const get = PLACEHOLDERS[key.trim()];
+    if (!get) return whole;          // 未知のキーはそのまま残す
+    const v = get(row);
+    return (v == null || v === '') ? '' : String(v);
+  });
+}
+
 // 本文を「通常部分」と「分岐ブロック」に分割する。
 // {{分岐:見出し}} {{→:選択肢}}トーク... {{/分岐}} 記法。
 function parseSegments(text) {
@@ -294,10 +319,11 @@ function BranchBlock({ title, options, items }) {
  * @param rebuttal アウト返しデータ（リスト別 rebuttal_data か共通 qa_data）
  * @param style    フォントサイズ等（チップは em 指定で追従）
  */
-export default function ScriptBody({ text, rebuttal, style = {} }) {
+export default function ScriptBody({ text, rebuttal, row = null, style = {} }) {
   const items = useMemo(() => flattenRebuttal(rebuttal), [rebuttal]);
-  const segments = useMemo(() => (text ? parseSegments(text) : []), [text]);
-  if (!text) return null;
+  const filled = useMemo(() => fillPlaceholders(text, row), [text, row]);
+  const segments = useMemo(() => (filled ? parseSegments(filled) : []), [filled]);
+  if (!filled) return null;
 
   return (
     <div style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: font.family.sans, ...style }}>

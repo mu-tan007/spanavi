@@ -15,7 +15,7 @@ import ScriptBody from './ScriptBody';
  * セクション = { id, name, talk, responses }
  * 反応       = { label, answer(こちらの返し), children(入れ子の反応), nextId }
  */
-export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }) {
+export default function ScriptTreeGuide({ tree, rebuttal, row = null, resetKey, style = {} }) {
   const nodes = tree?.nodes || [];
   const nodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
   const startId = (tree?.startId && nodeMap.has(tree.startId)) ? tree.startId : (nodes[0]?.id || null);
@@ -143,7 +143,7 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
           }}>
             <span style={{ flexShrink: 0, fontSize: '0.78em', fontWeight: font.weight.semibold, color: '#A87E0E' }}>返し</span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <ScriptBody text={r.answer} rebuttal={rebuttal} style={{ lineHeight: 1.7 }} />
+              <ScriptBody text={r.answer} rebuttal={rebuttal} row={row} style={{ lineHeight: 1.7 }} />
             </span>
           </div>
         )}
@@ -210,7 +210,7 @@ export default function ScriptTreeGuide({ tree, rebuttal, resetKey, style = {} }
               <div style={{ padding: '8px 12px 10px' }}>
                 {(node.talk || '').trim() && (
                   <div style={{ marginBottom: (node.responses || []).length ? 6 : 0 }}>
-                    <ScriptBody text={node.talk} rebuttal={rebuttal} style={{ lineHeight: 1.8 }} />
+                    <ScriptBody text={node.talk} rebuttal={rebuttal} row={row} style={{ lineHeight: 1.8 }} />
                   </div>
                 )}
                 {(node.responses || []).length > 0 && renderResponses(node.id, node.responses, [], 0)}
