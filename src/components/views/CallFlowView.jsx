@@ -2380,9 +2380,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                           { label: '住所', value: (selectedRow.address || '').replace(/\/\s*$/, '') },
                           { label: '売上', value: selectedRow.revenue != null ? Number(selectedRow.revenue).toLocaleString() + ' 千円' : null },
                           { label: '当期純利益', value: netIncome != null ? Number(netIncome).toLocaleString() + ' 千円' : null },
+                          { label: '備考', value: parsedMemo?.biko || null, full: true },
                         ];
-                      })().filter(x => x.value).map(({ label, value }) => (
-                        <div key={label} style={{ display: 'flex', gap: space[2], alignItems: 'flex-start' }}>
+                      })().filter(x => x.value).map(({ label, value, full }) => (
+                        <div key={label} style={{ display: 'flex', gap: space[2], alignItems: 'flex-start', ...(full ? { gridColumn: '1 / -1' } : null) }}>
                           <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0, paddingTop: 2, minWidth: 56 }}>{label}</span>
                           <span style={{ fontSize: font.size.sm, color: color.navyDeep, fontWeight: font.weight.medium, wordBreak: 'break-all' }}>{value}</span>
                         </div>
