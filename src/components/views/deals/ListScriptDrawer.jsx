@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
-import { Button } from '../../ui';
-import ScriptBody from '../../common/ScriptBody';
+import { Button, Select } from '../../ui';
+import ScriptBody, { hasPlaceholder, treeHasPlaceholder } from '../../common/ScriptBody';
 import ScriptTreeGuide from '../../common/ScriptTreeGuide';
+import { fetchCallListItemScripts } from '../../../lib/supabaseWrite';
 
 // リスト別スクリプトの閲覧パネル（社内「案件」/ クライアントポータル 共通）。
 // 架電者の1画面集中ページ(CallFlowView)の右カラムと同じ見せ方に揃える:
@@ -15,11 +16,31 @@ export default function ListScriptDrawer({ open, onClose, list }) {
   const hasTree = !!(list?.scriptTree && Array.isArray(list.scriptTree.nodes) && list.scriptTree.nodes.length);
   const hasText = !!(list?.scriptBody || '').trim();
   const [viewMode, setViewMode] = useState('guide');
+  // 企業ごとに差し替わる部分があるスクリプトは、閲覧時にどの企業で見るかを選ばせる
+  const [items, setItems] = useState([]);
+  const [pickedId, setPickedId] = useState('');
+  const perCompany = useMemo(
+    () => treeHasPlaceholder(list?.scriptTree) || hasPlaceholder(list?.scriptBody),
+    [list?.scriptTree, list?.scriptBody]
+  );
 
   // リストを開き直すたびに既定表示へ戻す（ツリーがあればガイド優先）
   useEffect(() => {
     if (open) setViewMode(hasTree ? 'guide' : 'text');
   }, [open, list?.listId, hasTree]);
+
+  // 差し込み口があるときだけ企業一覧を読む
+  useEffect(() => {
+    if (!open || !perCompany || !list?.listId) { setItems([]); setPickedId(''); return; }
+    let alive = true;
+    (async () => {
+      const { data } = await fetchCallListItemScripts(list.listId);
+      if (!alive) return;
+      setItems(data);
+      setPickedId(data[0]?.id || '');
+    })();
+    return () => { alive = false; };
+  }, [open, perCompany, list?.listId]);
 
   // Esc で閉じる
   useEffect(() => {
@@ -39,6 +60,7 @@ export default function ListScriptDrawer({ open, onClose, list }) {
   if (!open || !list) return null;
 
   const showGuide = hasTree && (viewMode === 'guide' || !hasText);
+  const pickedRow = items.find(i => i.id === pickedId) || null;
 
   return (
     <div
@@ -125,16 +147,32 @@ export default function ListScriptDrawer({ open, onClose, list }) {
                   })}
                 </div>
               )}
+              {perCompany && (
+                <div style={{ marginBottom: space[3] }}>
+                  <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
+                    このスクリプトは企業ごとに一部の文面が異なります。表示する企業をお選びください。
+                  </div>
+                  <Select
+                    value={pickedId}
+                    onChange={e => setPickedId(e.target.value)}
+                    options={items.map(i => ({ value: i.id, label: `${i.no}. ${i.company}` }))}
+                    disabled={!items.length}
+                    style={{ maxWidth: 360 }}
+                  />
+                </div>
+              )}
               {showGuide
                 ? <ScriptTreeGuide
                     tree={list.scriptTree}
                     rebuttal={rebuttal}
-                    resetKey={list.listId}
+                    row={pickedRow}
+                    resetKey={`${list.listId}|${pickedId}`}
                     style={{ fontSize: font.size.sm, color: color.navyDeep }}
                   />
                 : <ScriptBody
                     text={list.scriptBody}
                     rebuttal={rebuttal}
+                    row={pickedRow}
                     style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }}
                   />}
             </>

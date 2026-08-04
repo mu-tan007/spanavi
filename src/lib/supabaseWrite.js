@@ -1270,6 +1270,21 @@ export async function fetchCallListItems(listId, opts = {}) {
   return { data: allData, error: null }
 }
 
+// スクリプト閲覧用の軽量取得。差し込み口 {{企業別トーク}} を含むスクリプトを
+// 案件/クライアントポータルで見るとき、企業を選ばせるために使う。
+// select('*') と違い必要な列だけなので数百件でも軽い。
+export async function fetchCallListItemScripts(listId) {
+  if (!listId) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('call_list_items')
+    .select('id, no, company, representative, script_custom')
+    .eq('list_id', listId)
+    .order('no')
+    .limit(1000)
+  if (error) console.error('[DB] fetchCallListItemScripts error:', error)
+  return { data: data || [], error }
+}
+
 // listId+no → call_list_items.id を1件だけ引く（オンデマンド lookup）。
 // (list_id, no) のユニークインデックスがあるので 1ms 級。
 // listId 単位で Map にキャッシュするので同一企業を2回触っても2回目以降はネットワーク無し。

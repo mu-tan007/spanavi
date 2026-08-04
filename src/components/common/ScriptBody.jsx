@@ -67,6 +67,26 @@ const PLACEHOLDERS = {
   '代表者': (row) => row?.representative,
 };
 
+// 本文に差し込み口が含まれるか。含まれる場合、閲覧側は企業を選ばせる必要がある。
+export function hasPlaceholder(text) {
+  if (!text || !text.includes('{{')) return false;
+  PLACEHOLDER_RE.lastIndex = 0;
+  let m;
+  while ((m = PLACEHOLDER_RE.exec(text))) {
+    if (PLACEHOLDERS[m[1].trim()]) { PLACEHOLDER_RE.lastIndex = 0; return true; }
+  }
+  return false;
+}
+
+// ツリー全体（talk / answer / children）に差し込み口があるか
+export function treeHasPlaceholder(tree) {
+  const nodes = tree?.nodes;
+  if (!Array.isArray(nodes)) return false;
+  const walk = (resps) => (resps || []).some(r =>
+    hasPlaceholder(r.answer) || walk(r.children));
+  return nodes.some(n => hasPlaceholder(n.talk) || walk(n.responses));
+}
+
 export function fillPlaceholders(text, row) {
   if (!text || !text.includes('{{')) return text;
   // 行の文脈が無い画面（案件側の閲覧ドロワー等）では記法のまま見せる
