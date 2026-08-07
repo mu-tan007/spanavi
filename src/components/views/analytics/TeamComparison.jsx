@@ -37,6 +37,23 @@ function compareBy(key, dir, isTeam) {
   };
 }
 
+// チームの並びは列ソートに関わらず固定する。列ソートはメンバー行にのみ効く。
+// TEAM_ORDER に無いチームも消えず、この並びの後ろに名前順で入る（「その他」は常に末尾）。
+// チーム改編でチームが増減したらここを更新する。漢字の照合順は読みと一致しないため
+// （localeCompare('ja') では「瀬尾」が「浅井」より前に来る）、意図した順は明示指定する。
+const OTHER_TEAM = 'その他';
+const TEAM_ORDER = ['浅井', '瀬尾'];
+function teamRank(team) {
+  if (team === OTHER_TEAM) return TEAM_ORDER.length + 1;
+  const i = TEAM_ORDER.indexOf(team);
+  return i === -1 ? TEAM_ORDER.length : i;
+}
+function compareTeamOrder(a, b) {
+  const d = teamRank(a.team) - teamRank(b.team);
+  if (d !== 0) return d;
+  return String(a.team ?? '').localeCompare(String(b.team ?? ''), 'ja');
+}
+
 function Cell({ col, v, bold, suffix }) {
   let disp = v;
   if (col.pct) disp = `${Number(v || 0).toFixed(1)}%`;
@@ -147,8 +164,8 @@ export default function TeamComparison({ appoData, range, memberDir = {} }) {
     });
     return [...map.values()]
       .map(o => ({ ...o, connectRate: o.calls ? (o.connect / o.calls) * 100 : 0 }))
-      .sort(compareBy(sort.key, sort.dir, true));
-  }, [allRows, sort]);
+      .sort(compareTeamOrder);
+  }, [allRows]);
 
   const HeaderRow = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', borderBottom: `2px solid ${color.navy}`, background: color.navy }}>
@@ -219,6 +236,7 @@ export default function TeamComparison({ appoData, range, memberDir = {} }) {
       </Card>
       <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 8 }}>
         架電/接続/アポ/シフト/稼働=行動日ベース、当社売上=面談実施日ベース。各チームのメンバー別内訳は常時表示。
+        チームの並びは固定（浅井 → 瀬尾 → その他）。列見出しのソートはメンバー行に効きます。
       </div>
     </div>
   );
