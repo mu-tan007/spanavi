@@ -484,9 +484,9 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
         </div>
 
         {/* クライアント検索: 名前の一部を入力すると候補が出て、該当クライアントだけ表示 */}
-        <div style={{ position: 'relative', maxWidth: 420, marginBottom: 16 }}>
+        <div style={{ position: 'relative', maxWidth: 320, marginBottom: 16 }}>
           <Input
-            size="md"
+            size="sm"
             value={clientSearch}
             onChange={e => setClientSearch(e.target.value)}
             onFocus={() => setClientSearchFocus(true)}
@@ -498,9 +498,9 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               type="button"
               onClick={() => setClientSearch('')}
               style={{
-                position: 'absolute', right: 10, top: 9,
+                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: color.textLight, fontSize: font.size.base, lineHeight: 1,
+                color: color.textLight, fontSize: font.size.sm, lineHeight: 1,
                 fontFamily: font.family.sans,
               }}
               title="クリア"
