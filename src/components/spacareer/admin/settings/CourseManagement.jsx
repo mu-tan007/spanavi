@@ -21,7 +21,7 @@ export default function CourseManagement() {
   return (
     <Card padding="md" title="コース管理"
           description="現状は単一コース（全9回：第0回キックオフ＋第1〜8回セッション）。コース追加・並べ替えは未対応。">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div className="spa-2col" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {sessions.map(s => (
           <div key={s.round} style={{
             display: 'grid',

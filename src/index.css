@@ -151,6 +151,19 @@ input::placeholder, textarea::placeholder {
     height: 3px;
   }
 
+  /* 2ペイン（一覧＋詳細、本体＋右カラム、ラベル＋入力）はスマホでは縦に積む。
+     PC用の固定幅ペイン（320px や 460px）を横に並べたままだと、
+     片側が数十pxまで潰れて中身が読めなくなるため。
+     使い方: <div className="spa-2col" style={{ display:'grid', gridTemplateColumns:'320px 1fr' }}> */
+  .spa-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* KPIカードの列。4列固定のままだと1枚90px弱になり金額が折り返す */
+  .spa-kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  }
+
   /* Safe area padding for notched devices */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);

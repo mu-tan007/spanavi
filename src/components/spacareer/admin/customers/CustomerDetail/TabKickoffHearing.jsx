@@ -287,7 +287,7 @@ export default function TabKickoffHearing({ detail, onRefresh }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
       {/* KPI カード */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: space[3] }}>
+      <div className="spa-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: space[3] }}>
         <KpiCard
           label="ステータス"
           value={

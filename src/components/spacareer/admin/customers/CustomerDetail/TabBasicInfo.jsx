@@ -299,7 +299,7 @@ function CoachingList({ title, items, variant }) {
 
 function Grid({ children }) {
   return (
-    <div style={{
+    <div className="spa-2col" style={{
       display: 'grid', gridTemplateColumns: '180px 1fr',
       rowGap: space[2], columnGap: space[3],
       fontSize: font.size.sm,

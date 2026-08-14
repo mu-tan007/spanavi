@@ -247,7 +247,7 @@ export default function SpacareerInvoiceModal({ row, existing, canConfirm = fals
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[3] }}>
+          <div className="spa-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[3] }}>
             <Input label="郵便番号" value={profile.postalCode} onChange={set('postalCode')} placeholder="150-0001" />
             <Input label="電話番号" value={profile.phone} onChange={set('phone')} placeholder="090-0000-0000" />
             <div style={{ gridColumn: '1 / -1' }}>

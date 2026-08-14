@@ -323,7 +323,7 @@ function QuestionRow({ q, isAdmin, getField, setField, isDirty, saving, onSave, 
         {!q.is_active && <Badge variant="neutral" size="sm">無効</Badge>}
       </div>
 
-      <div style={{
+      <div className="spa-2col" style={{
         display: 'grid',
         gridTemplateColumns: '180px 100px 120px 1fr 1fr',
         gap: space[2],

@@ -46,7 +46,7 @@ export default function TabVideoLogs({ detail }) {
 
   return (
     <div style={{ display: 'grid', gap: space[4] }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: space[3] }}>
+      <div className="spa-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: space[3] }}>
         <Stat label="視聴済み" value={`${watched} / ${total}`} accent="success" />
         <Stat label="視聴中" value={`${watching} 本`} accent="warn" />
         <Stat label="総視聴時間" value={`${totalHours} h`} accent="primary" mono />

@@ -86,7 +86,7 @@ export default function SpacareerTemplatesView() {
           }}
         />
       ) : (
-        <div style={{
+        <div className="spa-2col" style={{
           display: 'grid',
           gridTemplateColumns: '320px minmax(0, 1fr)',
           gap: space[4],

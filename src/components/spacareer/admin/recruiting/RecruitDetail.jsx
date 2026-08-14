@@ -213,7 +213,7 @@ export default function RecruitDetail({ applicant, orgId, onChanged, onClose }) 
 
               {/* 軸別 */}
               {applicant.ai_axis_scores && Object.keys(applicant.ai_axis_scores).length > 0 && (
-                <div style={{
+                <div className="spa-2col" style={{
                   marginTop: space[3], display: 'grid',
                   gridTemplateColumns: '1fr 1fr', gap: space[2],
                 }}>

@@ -63,7 +63,7 @@ export default function SpacareerHomeworkView() {
       <SubTabs tabs={MAIN_TABS} activeKey={tab} onChange={setTab} />
 
       {/* 本体 */}
-      <div style={{
+      <div className="spa-2col" style={{
         display: 'grid',
         gridTemplateColumns: selectedCell ? 'minmax(0, 1fr) 460px' : 'minmax(0, 1fr)',
         gap: space[4],

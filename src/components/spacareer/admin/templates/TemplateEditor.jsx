@@ -38,7 +38,7 @@ export default function TemplateEditor({ template, onSave, onToggleEnabled, savi
   const isNotification = template.type === 'notification';
 
   return (
-    <div style={{
+    <div className="spa-2col" style={{
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
       gap: space[3],

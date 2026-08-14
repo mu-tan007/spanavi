@@ -4,6 +4,7 @@ import { Badge, Button } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
 import { invokeAdminImpersonateSpacareerCustomer } from '../../../../../lib/supabaseWrite';
 import { useAuth } from '../../../../../hooks/useAuth';
+import { useIsMobile } from '../../../../../hooks/useIsMobile';
 import { useCustomerDetail } from '../lib/useCustomers';
 import { orderSessions, sessionLabel } from '../../../../../lib/spacareer/sessionOrder';
 import { canArchiveCustomer } from '../../../../../lib/spacareer/permissions';
@@ -65,6 +66,7 @@ function ageFromBirthdate(b) {
 export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onArchived }) {
   const { detail, loading, refresh } = useCustomerDetail(customerId);
   const { profile } = useAuth();
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState('basic');
   const [impersonating, setImpersonating] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -249,9 +251,10 @@ export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onA
 
   return (
     <SessionJobsProvider customerId={customerId} refresh={refresh}>
+    {/* スマホでは右カラム300pxを横に置く余地が無いので、本体の下に積む */}
     <div style={{
-      display: 'grid', gridTemplateColumns: '1fr 300px',
-      gap: space[3], height: '100%', minHeight: 0,
+      display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 300px',
+      gap: space[3], height: isMobile ? 'auto' : '100%', minHeight: 0,
     }}>
       <div style={{
         display: 'flex', flexDirection: 'column',
@@ -368,14 +371,16 @@ export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onA
           </div>
         </div>
 
-        <div style={{
+        <div className="spa-scroll-x" style={{
           display: 'flex', overflowX: 'auto',
           borderBottom: `1px solid ${color.border}`,
           background: color.white,
         }}>
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
+              className="spa-press-flat"
               style={{
+                flexShrink: 0,
                 padding: `${space[3]}px ${space[3]}px`,
                 fontSize: font.size.sm,
                 fontWeight: font.weight.semibold,

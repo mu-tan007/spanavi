@@ -491,7 +491,7 @@ export default function SpacareerRevenueView() {
             </div>
 
             {/* 総売上高 推移 + 上位顧客 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: space[3], marginTop: space[4] }}>
+            <div className="spa-2col" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: space[3], marginTop: space[4] }}>
               <Card padding="md" title="総売上高の推移" description={rangeInfo.label}>
                 <TrendChart data={metrics.trend} series={[{ key: '入金額', label: '入金額', color: color.navy }]} height={260} />
               </Card>

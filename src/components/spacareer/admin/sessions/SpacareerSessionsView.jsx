@@ -153,7 +153,7 @@ export default function SpacareerSessionsView({ isAdmin }) {
       />
 
       {tab === 'summary' && (
-        <div style={{
+        <div className="spa-kpi-grid" style={{
           display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: space[3],
           marginBottom: space[4],
         }}>
