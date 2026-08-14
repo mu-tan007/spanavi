@@ -143,16 +143,18 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
         style={{ marginBottom: 24 }}
       />
 
-      {/* タブバー */}
-      <div style={{
+      {/* タブバー。スマホでは各タブが縮んで「再アプロー / チ候補」のように
+          ラベルが途中で折り返すため、折らずに横スクロールで送る。 */}
+      <div className="spa-scroll-x" style={{
         display: 'flex', padding: '0 20px', borderBottom: `1px solid ${color.border}`,
-        background: color.white, gap: 0,
+        background: color.white, gap: 0, overflowX: 'auto',
       }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
           return (
             <button
               key={tab.id} type="button"
+              className="spa-press-flat"
               onClick={() => setActiveTab(tab.id)}
               style={{
                 fontSize: font.size.sm, padding: '10px 16px',
@@ -161,6 +163,7 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
                 color: active ? color.navy : color.textMid,
                 fontWeight: active ? font.weight.semibold : font.weight.normal, marginBottom: -1,
                 cursor: 'pointer', fontFamily: font.family.sans,
+                flexShrink: 0, whiteSpace: 'nowrap',
               }}
             >{tab.label}</button>
           );

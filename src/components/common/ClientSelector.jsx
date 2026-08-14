@@ -65,15 +65,17 @@ export default function ClientSelector({ clients, selectedClientId, onSelect }) 
       padding: `${space[2.5]}px ${space[5]}px`,
       background: color.white,
       borderBottom: `1px solid ${color.border}`,
-      display: 'flex', alignItems: 'center', gap: space[3],
+      display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap',
     }}>
+      {/* 縮ませない。狭い画面で潰れると「C L I E N T」と1文字ずつ縦に並ぶ */}
       <span style={{
         fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.bold,
         letterSpacing: font.letterSpacing.wider, textTransform: 'uppercase',
         fontFamily: font.family.display + ',' + font.family.sans,
+        whiteSpace: 'nowrap', flexShrink: 0,
       }}>CLIENT</span>
 
-      <div ref={wrapRef} style={{ position: 'relative', flex: '0 1 360px', minWidth: 220 }}>
+      <div ref={wrapRef} style={{ position: 'relative', flex: '1 1 240px', minWidth: 0 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
           border: `1px solid ${color.border}`, borderRadius: radius.sm,

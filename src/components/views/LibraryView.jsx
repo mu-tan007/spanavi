@@ -392,7 +392,9 @@ function BookCard({ id, meta, count, onOpen }) {
         borderRadius: radius.lg, overflow: 'hidden',
         boxShadow: shadow.sm,
         position: 'relative',
-        aspectRatio: '4 / 3',
+        // スマホでは1列になりカード幅が画面いっぱいになるため、
+        // 4:3 のままだと1枚で画面の3分の1以上を占めてしまう。高さに上限を置く。
+        aspectRatio: '4 / 3', maxHeight: 230,
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
         padding: `${space[4]}px ${space[4] + 2}px`,
         userSelect: 'none',

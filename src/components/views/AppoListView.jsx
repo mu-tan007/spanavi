@@ -1411,19 +1411,23 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
       <>
       {/* Header */}
+      {/* スマホでは横1列に詰めると各要素が潰れて「アポ一覧」「437件」が
+          1文字ずつ縦に並ぶため、見出しと操作列を縦に分けて折り返させる */}
       <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16,
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: isMobile ? "stretch" : "center",
+        justifyContent: "space-between", marginBottom: 16, gap: isMobile ? 10 : 0,
         padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md,
         border: `1px solid ${color.border}`,
-        overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch',
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>アポ一覧</span>
-          <span style={{ fontSize: font.size.xs, color: color.textLight }}>{filtered.length}件</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy, whiteSpace: 'nowrap' }}>アポ一覧</span>
+          <span style={{ fontSize: font.size.xs, color: color.textLight, whiteSpace: 'nowrap' }}>{filtered.length}件</span>
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           <input {...useImeSafeInput(search, setSearch)} placeholder="企業名・クライアント・取得者..."
-            style={{ padding: "6px 12px", borderRadius: radius.lg, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", width: 200 }} />
+            style={{ padding: "6px 12px", borderRadius: radius.lg, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", width: isMobile ? '100%' : 200 }} />
           {/* 月 / 期間指定 */}
           <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
             {[["all", "全月"], ["month", "月"], ["custom", "期間指定"]].map(([k, l]) => (
@@ -1541,7 +1545,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {/* Summary */}
       <div style={{ marginBottom: 16 }}>
         {/* Total row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: isMobile ? 8 : 12, marginBottom: 10 }}>
+        {/* スマホで3列のままだと1枚120px弱しか取れず、¥29,258,000 が折り返して読めなくなる。
+            150px を下限にして入る分だけ並べる（iPhone 幅なら2列） */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(auto-fit, minmax(150px, 1fr))" : "repeat(3, 1fr)", gap: isMobile ? 8 : 12, marginBottom: 10 }}>
           <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
             <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>アポ件数 <span style={{ fontSize: 9, color: color.textLight + "90" }}>（有効）</span></div>
             <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: font.weight.black, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{countable.length}<span style={{ fontSize: font.size.xs, fontWeight: font.weight.medium, color: color.textLight, marginLeft: 4 }}>/ {filtered.length}件</span></div>
@@ -1556,7 +1562,21 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           </div>
         </div>
         {/* Monthly breakdown */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(" + AVAILABLE_MONTHS.length + ", 1fr)", gap: isMobile ? 6 : 10, overflowX: isMobile ? 'auto' : 'visible' }}>
+        {/* 月別。スマホで 1fr のまま並べると1枚40px程度に潰れて
+            「有効アポ」「売上」が1文字ずつ縦に積まれる。
+            1枚の幅を固定して横スクロールで送る形にする。 */}
+        <div
+          className={isMobile ? 'spa-scroll-x' : undefined}
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? `repeat(${AVAILABLE_MONTHS.length}, 150px)`
+              : "repeat(" + AVAILABLE_MONTHS.length + ", 1fr)",
+            gap: isMobile ? 8 : 10,
+            overflowX: isMobile ? 'auto' : 'visible',
+            paddingBottom: isMobile ? 6 : 0,
+          }}
+        >
           {monthStats.map(ms => (
             <div key={ms.month} style={{
               padding: "10px 14px", background: color.white, borderRadius: radius.md,

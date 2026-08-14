@@ -416,8 +416,10 @@ function Heatmap({ data }) {
     return alpha(color.navy, 0.12 + t * 0.78);
   };
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ borderCollapse: 'collapse', fontSize: font.size.sm, fontFamily: font.family.mono, width: '100%', tableLayout: 'fixed' }}>
+    // width:100% だけだとスマホで1マス30px弱に潰れて数字が読めない。
+    // 下限幅を置いて、狭い画面では横スクロールで送る。
+    <div className="spa-scroll-x" style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: font.size.sm, fontFamily: font.family.mono, width: '100%', minWidth: 560, tableLayout: 'fixed' }}>
         <thead>
           <tr>
             <th style={{ padding: 4, width: 44 }}></th>

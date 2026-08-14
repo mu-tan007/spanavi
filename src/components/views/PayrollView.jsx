@@ -539,7 +539,9 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       />
 
       {/* ── Summary cards ────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: space[5] }}>
+      {/* 4列固定だとスマホで1枚90px弱になり ¥1,839,368 が4行に割れる。
+          150px を下限に入る分だけ並べる（iPhone 幅なら2列、PCは従来どおり4列） */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: space[5] }}>
         {[
           { label: "総支給額",   value: fmt(grandTotal), color: TH_BG },
           { label: "総売上",     value: fmt(grandSales), color: TH_BG },
@@ -548,7 +550,8 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
         ].map((s, i) => (
           <Card key={i} variant="default" padding="none" style={{ padding: "14px 18px" }}>
             <div style={{ fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 22, fontWeight: font.weight.black, color: s.color, fontFamily: MONO, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
+            {/* 金額は途中で折らせない。狭い時は文字を縮める */}
+            <div style={{ fontSize: "clamp(15px, 4.6vw, 22px)", fontWeight: font.weight.black, color: s.color, fontFamily: MONO, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.value}</div>
           </Card>
         ))}
       </div>

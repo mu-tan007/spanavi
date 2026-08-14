@@ -536,7 +536,9 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
         ) : filteredClients.length === 0 ? (
           <div style={{ color: color.textLight, fontSize: font.size.base, padding: "20px 0" }}>「{clientSearch}」に一致するクライアントがありません</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          // 2列固定だとスマホで1枚170px弱になり社名が1文字ずつ縦に並ぶ。
+          // 280px を下限にし、入らなければ1列に落とす。
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
             {filteredClients.map((client, cIdx) => {
               const clientLists = (callListData || []).filter(l => l.company === client.company && !l.is_archived);
               const allIndustries = [...new Set(clientLists.map(l => l.industry).filter(Boolean))];

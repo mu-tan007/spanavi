@@ -269,7 +269,8 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
             : 'この期間に該当するデータがありません'}
         </EmptyCard>
       ) : (<>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+      {/* スマホで4列固定だと「12.8%」が数字の途中で改行されるため、下限幅で折り返す */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         <SummaryCard label="総架電件数" value={totals.calls.toLocaleString()} />
         <SummaryCard label="キーマン接続数" value={totals.keymanConnects.toLocaleString()} />
         <SummaryCard label="キーマン接続率" value={ratePct(totals.keymanConnects, totals.calls)} />
@@ -371,7 +372,7 @@ function SummaryCard({ label, value }) {
   return (
     <Card padding="none" style={{ padding: '12px 14px' }}>
       <div style={{ fontSize: 10, color: color.textLight, letterSpacing: font.letterSpacing.wider, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: font.size.xl - 2, fontWeight: font.weight.semibold, color: color.navy, fontFamily: font.family.mono }}>{value}</div>
+      <div style={{ fontSize: 'clamp(14px, 4.4vw, 18px)', fontWeight: font.weight.semibold, color: color.navy, fontFamily: font.family.mono, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
     </Card>
   );
 }
