@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { color, space, radius, font, shadow } from '../../constants/design';
-import { Button, Input, Select, Card, Badge, Tag } from '../ui';
+import { Button, Input, Select, Card, Badge, Tag, ActionMenu } from '../ui';
 
 // /design-preview に表示されるデザイン確認用ページ。
 // Spanavi 共通UI部品 + デザイントークンを一覧表示し、本番適用前に見た目を確認できる。
@@ -49,6 +49,10 @@ export default function DesignPreview() {
 
         <Section title="09. Before / After" description="旧スタイル vs 新スタイルの比較（架電画面のフィルタバーを想定）">
           <BeforeAfterSection />
+        </Section>
+
+        <Section title="10. Action Menu" description="行の操作メニュー。スクロール領域（overflow）の中でも切れず、下に余裕が無ければ上側へ自動で反転する">
+          <ActionMenuSection />
         </Section>
       </div>
     </div>
@@ -452,6 +456,40 @@ function BeforeAfterSection() {
           <Input size="sm" placeholder="検索..." iconLeft={<IconSearch/>} />
           <Badge variant="warn" dot>進行中</Badge>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionMenuSection() {
+  const [last, setLast] = useState('—');
+  const rows = ['吉川 諒馬', '石井 佑弥', '瀬尾 貴太', '浅井 佑', '鍛冶 雅也'];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: font.size.xs, color: color.textMid }}>
+        最後に選んだ操作: <strong style={{ color: color.navy }}>{last}</strong>
+      </div>
+      {/* 実際の表と同じく overflow を持つラッパーの中に置く。最終行でもメニューは切れない */}
+      <div style={{ padding: '8px 12px 12px', overflowX: 'auto', border: `1px dashed ${color.border}`, borderRadius: radius.md }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, fontSize: font.size.sm }}>
+          <tbody>
+            {rows.map(name => (
+              <tr key={name} style={{ borderTop: `1px solid ${color.borderLight}` }}>
+                <td style={{ padding: '8px 12px', color: color.textDark }}>{name}</td>
+                <td style={{ padding: '4px 4px', width: 36, textAlign: 'center' }}>
+                  <ActionMenu
+                    items={[
+                      { label: '編集', onClick: () => setLast(`${name} / 編集`) },
+                      { label: '契約書を生成', onClick: () => setLast(`${name} / 契約書を生成`) },
+                      { label: '招待を再送', onClick: () => setLast(`${name} / 招待を再送`) },
+                      { label: '削除', danger: true, onClick: () => setLast(`${name} / 削除`) },
+                    ]}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Select, Card, Badge, Tag } from '../ui';
+import { Button, Input, Select, Card, Badge, Tag, ActionMenu } from '../ui';
 import { supabase } from '../../lib/supabase';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useAllMembersWithEngagements } from '../../hooks/useMemberEngagements';
@@ -69,22 +69,7 @@ export default function MASPMembersView({ isAdmin }) {
   const [saveError, setSaveError] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [actionMenuId, setActionMenuId] = useState(null); // 鉛筆メニューを開いている行 id
-
-  // 外側クリック / ESC でメニュー閉じる
-  useEffect(() => {
-    if (!actionMenuId) return;
-    const onDocClick = (e) => {
-      if (!e.target.closest('[data-action-menu-root]')) setActionMenuId(null);
-    };
-    const onKey = (e) => { if (e.key === 'Escape') setActionMenuId(null); };
-    document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [actionMenuId]);
+  // 鉛筆メニューの開閉・位置決め・外側クリック/ESC は ActionMenu が担当する
 
   // 招待再送
   const [resendingId, setResendingId] = useState(null);
@@ -606,50 +591,22 @@ export default function MASPMembersView({ isAdmin }) {
                           <Button size="sm" variant="secondary" disabled={saving} onClick={cancelEdit}>取消</Button>
                         </div>
                       ) : (
-                        <div data-action-menu-root style={{ position: 'relative', display: 'inline-block' }}>
-                          <button
-                            onClick={() => setActionMenuId(actionMenuId === m.id ? null : m.id)}
-                            title="編集メニュー"
-                            style={{
-                              width: 24, height: 24, padding: 0, fontSize: 13,
-                              background: actionMenuId === m.id ? alpha(color.navy, 0.07) : 'transparent',
-                              color: color.textMid, border: 'none', borderRadius: radius.sm,
-                              cursor: 'pointer', fontFamily: font.family.sans, lineHeight: 1,
-                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = alpha(color.navy, 0.07); e.currentTarget.style.color = color.navy; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = actionMenuId === m.id ? alpha(color.navy, 0.07) : 'transparent'; e.currentTarget.style.color = actionMenuId === m.id ? color.navy : color.textMid; }}
-                          >✎</button>
-                          {actionMenuId === m.id && (
-                            <div style={{
-                              position: 'absolute', right: 0, top: 'calc(100% + 4px)',
-                              minWidth: 130, zIndex: 50,
-                              background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
-                              boxShadow: shadow.md,
-                              padding: 4, display: 'flex', flexDirection: 'column', gap: 2,
-                            }}>
-                              <button
-                                onClick={() => { setActionMenuId(null); startEdit(m); }}
-                                style={menuItemStyle}>編集</button>
-                              <button
-                                onClick={() => { setActionMenuId(null); setContractTarget(m); }}
-                                style={menuItemStyle}
-                                title="業務委託契約書を差し込み生成"
-                              >契約書を生成</button>
-                              {m.email && (
-                                <button
-                                  onClick={() => { setActionMenuId(null); handleResendInvite(m); }}
-                                  disabled={resendingId === m.id}
-                                  style={menuItemStyle}
-                                  title="招待メールを再送（パスワード未設定者向け）"
-                                >{resendingId === m.id ? '送信中…' : '招待を再送'}</button>
-                              )}
-                              <button
-                                onClick={() => { setActionMenuId(null); setDeleteTarget(m); }}
-                                style={{ ...menuItemStyle, color: color.danger }}>削除</button>
-                            </div>
-                          )}
-                        </div>
+                        <ActionMenu
+                          icon="✎"
+                          title="編集メニュー"
+                          items={[
+                            { key: 'edit', label: '編集', onClick: () => startEdit(m) },
+                            { key: 'contract', label: '契約書を生成', title: '業務委託契約書を差し込み生成', onClick: () => setContractTarget(m) },
+                            m.email && {
+                              key: 'resend',
+                              label: resendingId === m.id ? '送信中…' : '招待を再送',
+                              title: '招待メールを再送（パスワード未設定者向け）',
+                              disabled: resendingId === m.id,
+                              onClick: () => handleResendInvite(m),
+                            },
+                            { key: 'delete', label: '削除', danger: true, onClick: () => setDeleteTarget(m) },
+                          ]}
+                        />
                       )}
                     </td>
                   )}
@@ -887,12 +844,6 @@ export default function MASPMembersView({ isAdmin }) {
 
 const th = { padding: '10px 12px', textAlign: 'center', fontWeight: font.weight.semibold, color: color.navy, fontSize: font.size.xs, letterSpacing: font.letterSpacing.wide };
 const td = { padding: '8px 12px', fontSize: font.size.sm, color: color.textDark };
-const menuItemStyle = {
-  padding: '6px 10px', fontSize: font.size.xs, fontWeight: font.weight.medium,
-  background: 'transparent', color: color.navy, border: 'none', borderRadius: radius.sm, cursor: 'pointer',
-  textAlign: 'left', whiteSpace: 'nowrap', fontFamily: font.family.sans,
-};
-
 function formatDate(d) {
   if (!d) return '';
   const parts = d.split('-');
