@@ -5,7 +5,7 @@
 // =====================================================================
 
 import { useEffect, useState, useMemo } from 'react';
-import { color, space, radius, font } from '../../../constants/design';
+import { color, space, radius, font, alpha } from '../../../constants/design';
 import { Button } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';

@@ -7,6 +7,12 @@ import { zoomPhone } from '../../lib/zoomPhoneStore';
 import { getCallListItemId, clearCallListItemIdCache, insertCallRecord, updateCallListItem, deleteCallRecordByItemRound, invokeGetZoomRecording, updateCallRecordRecordingUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
+import RecallModal from './RecallModal';
+import AppoReportModal from './AppoReportModal';
+
+// 上2つの import と IS_MAC が抜けており、アポ報告・再コールのモーダルを開くと
+// ReferenceError で画面全体が落ちていた（CallFlowView 側には import がある）。
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
 
 export default function CallingScreen({ listId, list, importedCSVs, setImportedCSVs, onClose, onMinimize, isMinimized, summaryRef, closeRef, currentUser, liveStatuses, setLiveStatuses, members = [], clientData = [], rewardMaster = [] }) {
   const { statuses, shortcuts: CS_SHORTCUTS, loading: statusLoading } = useCallStatuses();

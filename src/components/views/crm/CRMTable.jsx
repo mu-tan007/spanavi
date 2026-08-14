@@ -22,7 +22,7 @@ function MobileCard({
   client, isEditable,
   lastTouchByClient, contactsByClient,
   monthAppoCountByClient, monthTargetByClient, maxMonthTarget,
-  onRowClick, onEditRow, globalIdx,
+  onRowClick,
 }) {
   const c = client;
   const sc = statusStyle(c.status);
@@ -55,10 +55,14 @@ function MobileCard({
 
   return (
     <div
+      className={onRowClick ? 'spa-press-flat' : undefined}
+      role={onRowClick ? 'button' : undefined}
+      onClick={onRowClick ? () => onRowClick(c) : undefined}
       style={{
         background: color.white, border: '1px solid ' + GRAY_200, borderRadius: radius.md,
         padding: '12px 14px', marginBottom: space[2],
         borderLeft: '4px solid ' + sc.color,
+        cursor: onRowClick ? 'pointer' : 'default',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: space[1.5], marginBottom: space[1.5] }}>
@@ -125,12 +129,14 @@ function MobileCard({
           borderRadius: radius.sm,
           background: action.color === '#9CA3AF' ? 'transparent' : action.color + '15',
         }}>{action.label}</span>
-        {isEditable && (
+        {/* PCは行内で直接編集できるが、スマホのカードでは編集欄を並べられない。
+            顧客詳細ページへ送る（そこで編集する）。 */}
+        {isEditable && onRowClick && (
           <Button
             variant="secondary"
             size="sm"
-            onClick={e => { e.stopPropagation(); onEditRow(c, globalIdx); }}
-          >編集</Button>
+            onClick={e => { e.stopPropagation(); onRowClick(c); }}
+          >詳細 →</Button>
         )}
       </div>
     </div>
@@ -199,7 +205,6 @@ export default function CRMTable({
           <MobileCard
             key={c._supaId || c.no}
             client={c}
-            globalIdx={clientData.indexOf(c)}
             isEditable={isEditable}
             lastTouchByClient={lastTouchByClient}
             contactsByClient={contactsByClient}
@@ -207,7 +212,6 @@ export default function CRMTable({
             monthTargetByClient={monthTargetByClient}
             maxMonthTarget={maxMonthTarget}
             onRowClick={onRowClick}
-            onEditRow={onEditRow}
           />
         ))}
       </div>

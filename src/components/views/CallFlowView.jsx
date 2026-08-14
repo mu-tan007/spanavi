@@ -29,6 +29,10 @@ import { resolveListContacts } from '../../utils/listContacts';
 // ============================================================
 // モジュールレベルのセッションIDキャッシュ（React Strict Mode 二重INSERT防止）
 // useRef と異なりStrict Modeのfake unmount/remountでもリセットされない
+// キーボードショートカット表の表記をOSに合わせる（未定義のまま参照していて
+// ショートカット一覧を開くと ReferenceError で画面が落ちていた）
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
+
 const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessionId
 const _cfSlackNotified = new Set(); // cacheKey → Slack通知済みフラグ（重複防止）
 // モジュールレベルの「リアルクローズ済みセッションID」セット
