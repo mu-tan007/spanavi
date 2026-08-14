@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { color, radius, font, shadow, alpha } from '../../constants/design';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 /**
  * Spanavi 共通テーブル (Phase 1: スリム版)
@@ -35,6 +36,14 @@ import { color, radius, font, shadow, alpha } from '../../constants/design';
  * @prop renderExpanded: (row, index) => ReactNode    - 展開時に表示する内容
  * @prop expandedKeys: Set<string|number>             - 展開中の rowKey 集合（外部 state）
  * @prop onToggleExpand: (key) => void                - トグル時のコールバック
+ *
+ * モバイル（幅768px未満）:
+ *   横スクロールする表はスマホで判読できないため、1行=1カードの積み上げ表示に自動で切り替わる。
+ *   列側で見え方を指定できる:
+ *     - mobilePrimary: true  … カードの見出しにする列（未指定なら最初の列）
+ *     - mobileHidden: true   … スマホでは省く列
+ *     - mobileLabel: string  … スマホのカード内で使うラベル（未指定なら label）
+ *   mobileCards={false} を渡すと従来どおり横スクロールの表のままにできる。
  */
 const DEFAULT_HEIGHT = 'calc(100vh - 200px)';
 
@@ -70,9 +79,12 @@ export default function DataTable({
   renderExpanded,
   expandedKeys,
   onToggleExpand,
+  // モバイル
+  mobileCards = true,
 }) {
   const [hoverKey, setHoverKey] = useState(null);
   const [sortState, setSortState] = useState(defaultSort);
+  const isMobile = useIsMobile();
 
   // ソート状態の変化を親に通知（永続化等に利用）
   useEffect(() => {
@@ -186,6 +198,145 @@ export default function DataTable({
 
   // height='auto' の場合は flex/scroll を解除して自然伸縮 (グループ並列表示などに使用)
   const isAuto = height === 'auto' || height === undefined;
+
+  // ===== モバイル: 1行 = 1カード =====
+  // 列を横に並べたままだと、スマホ幅では1列あたり20px程度しか取れず
+  // ヘッダーが重なったり社名が縦1文字ずつになる。行を縦に開いて見せる。
+  if (isMobile && mobileCards) {
+    const visibleCols = columns.filter(c => !c.mobileHidden);
+    const primaryCol = visibleCols.find(c => c.mobilePrimary) || visibleCols[0];
+    const detailCols = visibleCols.filter(c => c !== primaryCol);
+
+    return (
+      <div
+        className={className}
+        style={{
+          display: isAuto ? 'block' : 'flex',
+          flexDirection: 'column',
+          height: isAuto ? undefined : height,
+          minHeight: 0,
+          background: 'transparent',
+          ...style,
+        }}
+      >
+        <div
+          className="spa-scroll-y"
+          style={{
+            flex: isAuto ? undefined : 1,
+            minHeight: 0,
+            overflowY: isAuto ? 'visible' : 'auto',
+            display: 'flex', flexDirection: 'column', gap: 8,
+          }}
+        >
+          {loading ? (
+            <MobileSkeletonCards />
+          ) : error ? (
+            <div style={cardShell}><ErrorState error={error} /></div>
+          ) : rows.length === 0 ? (
+            <div style={cardShell}><EmptyState message={emptyMessage} /></div>
+          ) : (
+            sortedRows.map((row, idx) => {
+              const key = getKey(row, idx);
+              const accent = rowAccent ? rowAccent(row, idx) : null;
+              const accentColor = ACCENT_COLORS[accent] || accent;
+              const isExpanded = hasExpandBody && expandedKeys.has(key);
+              const canExpand = hasExpandToggle && expandable(row, idx);
+              const headRaw = primaryCol
+                ? (primaryCol.render ? primaryCol.render(row, idx) : row[primaryCol.key])
+                : null;
+
+              return (
+                <div
+                  key={key}
+                  role="row"
+                  className={onRowClick ? 'spa-press-flat' : undefined}
+                  onClick={onRowClick ? () => onRowClick(row, idx) : undefined}
+                  style={{
+                    ...cardShell,
+                    borderLeft: accentColor ? `3px solid ${accentColor}` : cardShell.border,
+                    background: (rowBackground && rowBackground(row, idx)) || color.white,
+                    cursor: onRowClick ? 'pointer' : 'default',
+                  }}
+                >
+                  {/* 見出し行 */}
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                    marginBottom: detailCols.length ? 8 : 0,
+                  }}>
+                    <div style={{
+                      flex: 1, minWidth: 0,
+                      fontSize: font.size.base, fontWeight: font.weight.semibold,
+                      color: color.navy, lineHeight: 1.45,
+                    }}>
+                      {headRaw === null || headRaw === undefined || headRaw === '' ? '—' : headRaw}
+                    </div>
+                    {canExpand && (
+                      <button
+                        type="button"
+                        className="no-min-height"
+                        aria-label={isExpanded ? '閉じる' : '詳細を開く'}
+                        aria-expanded={isExpanded}
+                        onClick={(e) => { e.stopPropagation(); onToggleExpand && onToggleExpand(key); }}
+                        style={{
+                          flexShrink: 0, width: 32, height: 32, border: 'none',
+                          background: alpha(color.navy, 0.06), color: color.navy,
+                          borderRadius: radius.md, cursor: 'pointer', fontSize: font.size.xs,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >{isExpanded ? '▲' : '▼'}</button>
+                    )}
+                  </div>
+
+                  {/* 明細（ラベル: 値 の2列） */}
+                  {detailCols.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 10, rowGap: 6 }}>
+                      {detailCols.map(col => {
+                        const raw = col.render ? col.render(row, idx) : row[col.key];
+                        const empty = raw === null || raw === undefined || raw === '';
+                        return (
+                          <React.Fragment key={col.key}>
+                            <span style={{
+                              fontSize: font.size.xs, color: color.textLight,
+                              whiteSpace: 'nowrap', paddingTop: 1,
+                            }}>{col.mobileLabel || col.label}</span>
+                            <span style={{
+                              fontSize: font.size.sm, color: color.textDark,
+                              minWidth: 0, textAlign: 'left', lineHeight: 1.5,
+                              ...(col.cellStyle || {}),
+                              // 表用に付いている省略指定はカードでは邪魔なので解除する
+                              whiteSpace: 'normal', overflow: 'visible', textOverflow: 'clip',
+                            }}>{empty ? '—' : raw}</span>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {isExpanded && (
+                    <div style={{
+                      marginTop: 10, paddingTop: 10,
+                      borderTop: `1px solid ${color.borderLight}`,
+                    }}>
+                      {renderExpanded(row, idx)}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {showCount && !loading && !error && (
+          <div style={{
+            padding: '8px 4px 0', fontSize: font.size.xs, color: color.textMid,
+            fontFamily: font.family.mono, textAlign: 'right', flexShrink: 0,
+          }}>
+            {rows.length.toLocaleString()} 件
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -363,6 +514,44 @@ export default function DataTable({
         </div>
       )}
     </div>
+  );
+}
+
+// モバイルのカード1枚分の外枠
+const cardShell = {
+  background: color.white,
+  border: `1px solid ${color.border}`,
+  borderRadius: radius.lg,
+  boxShadow: shadow.sm,
+  padding: '12px 14px',
+};
+
+function MobileSkeletonCards() {
+  return (
+    <>
+      <style>{`
+        @keyframes spaSkelPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.85; } }
+      `}</style>
+      {Array.from({ length: 5 }).map((_, idx) => (
+        <div key={idx} style={cardShell}>
+          <div style={{
+            height: 12, width: '62%', background: color.gray200, borderRadius: radius.sm,
+            marginBottom: 10, animation: 'spaSkelPulse 1.4s ease-in-out infinite',
+            animationDelay: `${(idx * 0.06) % 0.4}s`,
+          }} />
+          <div style={{
+            height: 9, width: '86%', background: color.gray200, borderRadius: radius.sm,
+            marginBottom: 6, animation: 'spaSkelPulse 1.4s ease-in-out infinite',
+            animationDelay: `${(idx * 0.06 + 0.1) % 0.4}s`,
+          }} />
+          <div style={{
+            height: 9, width: '48%', background: color.gray200, borderRadius: radius.sm,
+            animation: 'spaSkelPulse 1.4s ease-in-out infinite',
+            animationDelay: `${(idx * 0.06 + 0.2) % 0.4}s`,
+          }} />
+        </div>
+      ))}
+    </>
   );
 }
 

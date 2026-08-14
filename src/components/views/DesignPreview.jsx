@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { color, space, radius, font, shadow } from '../../constants/design';
-import { Button, Input, Select, Card, Badge, Tag, ActionMenu } from '../ui';
+import { Button, Input, Select, Card, Badge, Tag, ActionMenu, DataTable } from '../ui';
 
 // /design-preview に表示されるデザイン確認用ページ。
 // Spanavi 共通UI部品 + デザイントークンを一覧表示し、本番適用前に見た目を確認できる。
@@ -53,6 +53,10 @@ export default function DesignPreview() {
 
         <Section title="10. Action Menu" description="行の操作メニュー。スクロール領域（overflow）の中でも切れず、下に余裕が無ければ上側へ自動で反転する">
           <ActionMenuSection />
+        </Section>
+
+        <Section title="11. DataTable（スマホ表示）" description="幅768px未満では自動で1行=1カードに切り替わる。ブラウザ幅を狭めると確認できる">
+          <DataTableSection />
         </Section>
       </div>
     </div>
@@ -492,6 +496,30 @@ function ActionMenuSection() {
         </table>
       </div>
     </div>
+  );
+}
+
+function DataTableSection() {
+  const rows = [
+    { id: 1, company: '株式会社ユニヴィスコンサルティング', phone: '03-1234-5678', owner: '浅井 佑', amount: 1839368, status: 'アポ獲得' },
+    { id: 2, company: '有限会社タイワ', phone: '048-987-6543', owner: '日高 孝太朗', amount: 550000, status: '再コール' },
+    { id: 3, company: 'サンフロンティア不動産株式会社', phone: '03-5555-0000', owner: '鷲尾 凜太郎', amount: 242000, status: '面談済' },
+  ];
+  return (
+    <DataTable
+      height="auto"
+      rowKey="id"
+      rows={rows}
+      columns={[
+        { key: 'company', label: '企業名', width: 260, align: 'left', mobilePrimary: true },
+        { key: 'phone', label: '電話番号', width: 140, align: 'left', cellStyle: { fontFamily: font.family.mono } },
+        { key: 'owner', label: '担当者', width: 120, align: 'left' },
+        { key: 'amount', label: '当社売上', width: 120, align: 'right',
+          render: (r) => `¥${r.amount.toLocaleString()}` },
+        { key: 'status', label: 'ステータス', width: 110, align: 'center',
+          render: (r) => <Badge variant="success" dot>{r.status}</Badge> },
+      ]}
+    />
   );
 }
 

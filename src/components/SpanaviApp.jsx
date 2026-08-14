@@ -20,6 +20,7 @@ import { EngagementProvider, useEngagements } from '../hooks/useEngagements';
 import { MemberProfileProvider } from './common/MemberProfileDrawer';
 import { RecordingPlayerProvider } from './common/RecordingPlayerProvider';
 import SpacareerAdminSidebar from './spacareer/admin/SpacareerAdminSidebar';
+import { visibleSpacareerSections } from './spacareer/admin/spacareerNav';
 import SpacareerCustomersView from './spacareer/admin/customers/SpacareerCustomersView';
 import SpacareerRecruitingView from './spacareer/admin/recruiting/SpacareerRecruitingView';
 import SpacareerSessionsView from './spacareer/admin/sessions/SpacareerSessionsView';
@@ -861,10 +862,14 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       {isMobile && mobileMenuOpen && (
         <MobileSidebarOverlay
           navGroups={[
-            ...navGroups.map(g => ({
-              label: g.label,
-              items: g.children ? g.children : [{ id: g.id, label: g.label }],
-            })),
+            // navGroups は営業代行専用の定義。スパキャリを開いている時に
+            // そのまま出すと営業代行のメニューが並んでしまうため、事業ごとに出し分ける。
+            ...(engSlug === 'spartia_career'
+              ? visibleSpacareerSections(canViewPage)
+              : navGroups.map(g => ({
+                  label: g.label,
+                  items: g.children ? g.children : [{ id: g.id, label: g.label }],
+                }))),
             // 「設定」はデスクトップではログアウト直上に固定。モバイルは末尾に admin 限定で表示。
             ...(isAdmin ? [{ label: null, items: [{ id: 'admin_settings', label: '設定' }] }] : []),
           ]}
@@ -1414,6 +1419,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           setCurrentTab={setCurrentTab}
           onMorePress={() => setMobileMenuOpen(true)}
           engSlug={engSlug}
+          canView={(tabId) => canViewPage(engSlug, tabId)}
         />
       )}
 

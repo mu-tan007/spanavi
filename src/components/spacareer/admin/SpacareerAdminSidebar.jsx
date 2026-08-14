@@ -2,23 +2,7 @@ import React from 'react';
 import { Settings } from 'lucide-react';
 import SidebarShell, { ActiveItem, DisabledItem, SectionHeader } from '../../common/sidebars/SidebarShell';
 import { useAccessControl } from '../../../hooks/useAccessControl';
-
-// スパキャリ運営ダッシュボード 8メニュー
-// 仕様書: tasks/spacareer-spec.md §3.2 B. 運営ダッシュボード
-const ACTIVE_IDS = new Set([
-  'customers',
-  'recruiting',
-  'sessions',
-  'trainer_schedule',
-  'session_records',
-  'trainer_rewards',
-  'homework',
-  'social_style',
-  'ai_courses',
-  'templates',
-  'analytics',
-  'revenue',
-]);
+import { SPACAREER_ACTIVE_IDS as ACTIVE_IDS, visibleSpacareerSections } from './spacareerNav';
 
 export default function SpacareerAdminSidebar({
   currentTab,
@@ -32,40 +16,7 @@ export default function SpacareerAdminSidebar({
 }) {
   const { canViewPage } = useAccessControl();
 
-  const rawSections = [
-    { label: 'CUSTOMERS', items: [
-      { id: 'customers', label: '顧客一覧' },
-    ]},
-    { label: 'RECRUITING', items: [
-      { id: 'recruiting', label: '採用管理' },
-    ]},
-    { label: 'OPERATIONS', items: [
-      { id: 'sessions', label: 'セッション管理' },
-      { id: 'trainer_schedule', label: 'トレーナー別予定' },
-      { id: 'homework', label: '事後課題管理' },
-    ]},
-    { label: 'DIAGNOSIS', items: [
-      { id: 'social_style', label: 'ソーシャルスタイル診断' },
-    ]},
-    { label: 'CONTENT', items: [
-      { id: 'ai_courses', label: 'AI講座管理' },
-      { id: 'templates', label: 'テンプレート管理' },
-    ]},
-    { label: 'ANALYTICS', items: [
-      { id: 'session_records', label: 'セッション記録' },
-      { id: 'trainer_rewards', label: 'トレーナー報酬' },
-      { id: 'analytics', label: '分析レポート' },
-      { id: 'revenue', label: '売上管理' },
-    ]},
-    // 「設定」は全社管理 → 対象事業=スパキャリ へ移行（admin限定）。
-  ];
-
-  const sections = rawSections
-    .map(s => ({
-      ...s,
-      items: s.items.filter(it => !ACTIVE_IDS.has(it.id) || canViewPage('spartia_career', it.id)),
-    }))
-    .filter(s => s.items.length > 0);
+  const sections = visibleSpacareerSections(canViewPage);
 
   return (
     <SidebarShell

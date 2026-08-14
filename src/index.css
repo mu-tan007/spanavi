@@ -45,10 +45,19 @@ body {
   padding-right: 4px;
 }
 
-/* 長いURL・文字列の折り返し */
+/* 長いURL・文字列の折り返し。
+   以前は word-break: break-all だったが、これは「入りきらない時だけ折る」ではなく
+   「行末に来たら何文字目でも折る」指定のため、日本語の社名が1文字ずつ縦に並んだり
+   ¥1,839,368 が数字の途中で4行に割れたりしていた（特にスマホ幅）。
+   overflow-wrap だけにすると、単語が単独でも収まらない時にのみ分割される。 */
 p, span, div, li, td, th, pre, blockquote {
-  word-break: break-all;
+  word-break: normal;
   overflow-wrap: break-word;
+}
+/* 金額・件数・日時は途中で折らせない（メトリクスの誤読を防ぐ） */
+.spa-nowrap-num {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* 全inputの文字色を強制 */
@@ -63,12 +72,83 @@ input::placeholder, textarea::placeholder {
   -webkit-text-fill-color: #A0A0A0 !important;
 }
 
+/* ===== タッチ操作の手触り =====
+   マウスを持たない端末（スマホ・タブレット）だけに当てる。
+   1. タップ時の灰色の四角いハイライトを消す（OS任せだと形も色も揃わない）
+   2. touch-action: manipulation でダブルタップ判定待ちの約300msを無くす
+   3. 押している間だけ少し沈ませ、明度を落とす = 押した手応え
+   Slack や Salesforce のアプリと同じ「押し込み」の見え方に合わせている。 */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  [role="button"],
+  a,
+  label,
+  select,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  button,
+  [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+    transition: transform 0.08s ease-out, filter 0.08s ease-out, opacity 0.08s ease-out;
+  }
+
+  button:active:not(:disabled),
+  [role="button"]:active {
+    transform: scale(0.96);
+    filter: brightness(0.92);
+  }
+
+  /* 行・カード・タブなど「面」を押すものは縮めず、面全体を沈ませる */
+  .spa-press-flat:active {
+    transform: none;
+    filter: none;
+    background-color: rgba(13, 34, 71, 0.07) !important;
+  }
+
+  /* 濃紺の面の上（サイドメニュー等）は白を薄く重ねないと沈みが見えない */
+  .spa-press-flat-dark:active {
+    transform: none;
+    filter: none;
+    background-color: rgba(255, 255, 255, 0.16) !important;
+  }
+
+  /* 慣性スクロールと、端まで来た時に親ごと動くのを抑える */
+  .spa-scroll-x,
+  .spa-scroll-y {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
 /* Mobile optimizations */
 @media (max-width: 767px) {
-  /* Ensure minimum touch targets */
+  /* タップ領域は44px（Apple ヒューマンインターフェイスガイドラインの下限）。
+     表の中の小さなアイコンボタンは .no-min-height で除外できる。 */
   button:not(.no-min-height),
   [role="button"]:not(.no-min-height) {
-    min-height: 40px;
+    min-height: 44px;
+  }
+
+  /* iOS は16px未満の入力欄にフォーカスすると画面を勝手に拡大する。
+     拡大されると横スクロールが発生して元の倍率に戻せなくなるため、
+     スマホでは入力系の文字を必ず16px以上にする。 */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* 横スクロールする表・タブ列は、スクロールバーを細く見せて余白を稼ぐ */
+  .spa-scroll-x {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .spa-scroll-x::-webkit-scrollbar {
+    height: 3px;
   }
 
   /* Safe area padding for notched devices */

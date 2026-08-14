@@ -74,10 +74,14 @@ export default function MobileSidebarOverlay({ navGroups = [], currentTab, setCu
                 return (
                   <button
                     key={item.id}
+                    type="button"
+                    className="spa-press-flat-dark"
+                    aria-current={isActive ? 'page' : undefined}
                     onClick={() => { setCurrentTab(item.id); onClose(); }}
                     style={{
                       display: 'block', width: '100%', textAlign: 'left',
                       padding: `${space[3]}px ${space[4]}px`, border: 'none', cursor: 'pointer',
+                      WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
                       background: isActive ? alpha(color.white, 0.12) : 'transparent',
                       color: isActive ? color.white : alpha(color.white, 0.7),
                       fontSize: font.size.base,
