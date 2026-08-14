@@ -62,7 +62,9 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   // year/month/day は数値だが useUrlState は文字列管理なので呼び出し側でparse。
   const [yearStr, setYearStr] = useUrlState('year', String(today.getFullYear()));
   const [monthStr, setMonthStr] = useUrlState('month', String(today.getMonth() + 1));
-  const [viewMode, setViewMode] = useUrlState('view', 'month', { allowed: ['month', 'day'] });
+  // 許可リストに 'week' が無く、週間表示ボタンを押しても月間表示に戻されていた。
+  // スマホは月間表示だと名前列と合計列で幅を取られ2〜3日分しか見えないため、週間表示から始める。
+  const [viewMode, setViewMode] = useUrlState('view', isMobile ? 'week' : 'month', { allowed: ['month', 'week', 'day'] });
   const [selectedDayStr, setSelectedDayStr] = useUrlState('day', String(today.getDate()));
   const year = parseInt(yearStr, 10) || today.getFullYear();
   const month = parseInt(monthStr, 10) || (today.getMonth() + 1);
@@ -153,6 +155,12 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const fmtTime = (t) => t ? t.slice(0, 5) : '';
 
   // ── 月間・週間表示（閲覧専用） ─────────────────────────────
+  // 表の列幅。スマホは名前列と合計列が固定表示で幅を食い、
+  // PC用の幅(130/72/76=206px)のままだと iPhone で2〜3日分しか残らない。
+  const NAME_W = isMobile ? 92 : 130;
+  const DAY_W = isMobile ? 52 : 72;
+  const TOTAL_W = isMobile ? 54 : 76;
+
   const renderGridView = (displayDays, isMonthView) => (
     <div>
       {/* 案内バナー */}
@@ -169,11 +177,11 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
         </Button>
       </div>
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: 140 + displayDays.length * 72 + 76 }}>
+        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: NAME_W + 10 + displayDays.length * DAY_W + TOTAL_W }}>
           <thead>
             <tr>
               <th style={{
-                position: 'sticky', left: 0, width: 130, minWidth: 130,
+                position: 'sticky', left: 0, width: NAME_W, minWidth: NAME_W,
                 padding: `${space[2]}px ${space[3]}px`, textAlign: 'left',
                 fontSize: font.size.base, fontWeight: font.weight.semibold,
                 color: color.white, borderRight: `2px solid ${alpha(color.white, 0.2)}`,
@@ -183,7 +191,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 const { isSun, isSat, name } = getDayMeta(d);
                 return (
                   <th key={d} style={{
-                    width: 72, minWidth: 72, padding: `${space[2]}px ${space[1]}px`,
+                    width: DAY_W, minWidth: DAY_W, padding: `${space[2]}px ${space[1]}px`,
                     textAlign: 'center', fontSize: font.size.base, fontWeight: font.weight.semibold,
                     color: isSun ? '#fc8181' : isSat ? '#90cdf4' : color.white,
                     borderRight: `1px solid ${alpha(color.white, 0.1)}`,
@@ -195,7 +203,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 );
               })}
               <th style={{
-                position: 'sticky', right: 0, width: 76, minWidth: 76,
+                position: 'sticky', right: 0, width: TOTAL_W, minWidth: TOTAL_W,
                 padding: `${space[2]}px ${space[2]}px`, textAlign: 'center',
                 fontSize: font.size.base, fontWeight: font.weight.semibold,
                 color: NAVY, background: GRAY_50,
