@@ -415,7 +415,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // 過去にデフォルト"M&A仲介"固定だった事で、IFA/人材リードでも"M&A仲介"が保存される事故があった。
   const emptyForm = { name: "", company: "", type: "", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "", appoUnitPrice: "" };
   // 注意事項の雛形。どのリストも①〜⑤の同じ項目を毎回書くので、
-  // 未入力のまま編集を開いた時は見出しだけ先に入れておく（本文は全角スペース1つ分の字下げ済み）
+  // 新規追加時と、未入力のまま編集を開いた時は見出しだけ先に入れておく（本文は全角スペース1つ分の字下げ済み）
   const CAUTIONS_TEMPLATE = [
     "①訪問担当者", "　",
     "②実施形式", "　",
@@ -423,6 +423,11 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     "④アポ取得後のTODO", "　",
     "⑤その他注意点", "　",
   ].join("\n");
+  // 雛形のまま手つかずか判定。転記時の「上書きしますか」確認で、雛形を入力済み扱いにしないため
+  const isUntouchedCautions = (v) => {
+    const norm = (s) => (s || "").replace(/[ 　\t]+$/gm, "").trim();
+    return norm(v) === "" || norm(v) === norm(CAUTIONS_TEMPLATE);
+  };
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
@@ -590,7 +595,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
 
   const handleOpenAdd = () => {
     const engId = defaultEngagementId();
-    setFormData({ ...emptyForm, engagementId: engId, type: engagementToCategoryName[engId] || "" });
+    // 新規追加も注意事項は必ず①〜⑤を書くので、最初から雛形を入れておく
+    setFormData({ ...emptyForm, engagementId: engId, type: engagementToCategoryName[engId] || "", cautions: CAUTIONS_TEMPLATE });
     setCopySourceId('');
     setEditingListId(null);
     setListFormOpen(true);
@@ -607,15 +613,16 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const handleCopyFromList = () => {
     const src = copySourceLists.find(l => String(l.id) === String(copySourceId)) || copySourceLists[0];
     if (!src) return;
-    const hasContent = [formData.companyInfo, formData.scriptBody, formData.cautions, formData.notes]
-      .some(v => (v || '').trim());
+    const hasContent = [formData.companyInfo, formData.scriptBody, formData.notes]
+      .some(v => (v || '').trim()) || !isUntouchedCautions(formData.cautions);
     if (hasContent && !window.confirm('入力済みの企業概要・スクリプト・注意事項・備考を転記内容で上書きします。よろしいですか？')) return;
     setFormData(p => ({
       ...p,
       companyInfo: src.companyInfo || '',
       companyUrl: src.companyUrl || '',
       scriptBody: src.scriptBody || '',
-      cautions: src.cautions || '',
+      // 転記元が空なら雛形に戻す（空欄で上書きしない）
+      cautions: (src.cautions || '').trim() ? src.cautions : CAUTIONS_TEMPLATE,
       notes: src.notes || '',
       // アウト返しも引き継ぐ（insertCallList が rebuttal_data として保存する）
       rebuttalData: src.rebuttalData || undefined,

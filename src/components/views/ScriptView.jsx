@@ -279,19 +279,49 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
     nextId: idMap ? (r.nextId && idMap.has(r.nextId) ? idMap.get(r.nextId) : null) : null,
   });
 
+  // 転記元の候補。テキスト型は本文を持つリスト、ツリー型はツリーを持つリスト
+  const trCandidates = (isText) => (callListData || []).filter(l => l._supaId !== fullEditor && (
+    isText ? (l.scriptBody || '').trim() : (Array.isArray(l.scriptTree?.nodes) && l.scriptTree.nodes.length)
+  ));
+
   const handleOpenTrDialog = () => {
-    const candidates = (callListData || []).filter(l =>
-      l._supaId !== fullEditor && Array.isArray(l.scriptTree?.nodes) && l.scriptTree.nodes.length);
-    if (!candidates.length) { alert('ツリー型スクリプトを持つ他のリストがありません'); return; }
+    const isText = feMode !== 'tree';
+    const candidates = trCandidates(isText);
+    if (!candidates.length) {
+      alert(isText ? 'テキスト型スクリプトを持つ他のリストがありません' : 'ツリー型スクリプトを持つ他のリストがありません');
+      return;
+    }
     setTrSource(candidates[0]._supaId);
     setTrMode('full');
-    setTrSection(candidates[0].scriptTree.nodes[0]?.id || '');
+    setTrSection(isText ? '' : (candidates[0].scriptTree.nodes[0]?.id || ''));
     setTrPicked([]);
     setTrTarget(feTree?.nodes?.[0]?.id || '');
     setTrOpen(true);
   };
 
+  // テキスト型の転記。'full' = 全文置き換え / 'append' = 現在の本文の末尾に追記
+  const handleTrApplyText = () => {
+    const srcList = (callListData || []).find(l => l._supaId === trSource) || trCandidates(true)[0];
+    const srcText = srcList?.scriptBody || '';
+    if (!srcText.trim()) return;
+    const el = feEditorRef.current;
+    const cur = el ? fromHtml(el.innerHTML) : (feTextDraftRef.current != null ? feTextDraftRef.current : '');
+    let next;
+    if (trMode === 'full') {
+      if (cur.trim() && !window.confirm('現在のスクリプト本文を転記内容で置き換えます。よろしいですか？')) return;
+      next = srcText;
+    } else {
+      next = cur.trim() ? `${cur.replace(/\s+$/, '')}\n\n${srcText}` : srcText;
+    }
+    // エディタは contentEditable なので DOM を直接書き換える（保存時はここから読み出される）
+    if (el) el.innerHTML = toHtml(next);
+    else feTextDraftRef.current = next;
+    setFeDirty(true);
+    setTrOpen(false);
+  };
+
   const handleTrApply = () => {
+    if (feMode !== 'tree') { handleTrApplyText(); return; }
     const src = (callListData || []).find(l => l._supaId === trSource)?.scriptTree;
     if (!src?.nodes?.length) return;
     if (trMode === 'full') {
@@ -683,11 +713,10 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                       {l}{m === 'tree' && feTree?.nodes?.length ? `（${feTree.nodes.length}）` : ''}
                     </Button>
                   ))}
-                  {feMode === 'tree' && (
-                    <Button size="sm" variant="outline" onClick={handleOpenTrDialog} style={{ fontSize: font.size.xs }}>
-                      他のリストから転記
-                    </Button>
-                  )}
+                  {/* テキスト型・ツリー型どちらでも他リストから転記できる */}
+                  <Button size="sm" variant="outline" onClick={handleOpenTrDialog} style={{ fontSize: font.size.xs }}>
+                    他のリストから転記
+                  </Button>
                   <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
                     {feMode === 'tree'
                       ? 'セクションを「相手の反応→行き先」で繋ぎます。架電画面ではガイドモードで表示されます'
@@ -1086,10 +1115,10 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
 
 
 
-      {/* ツリー転記ダイアログ */}
+      {/* 転記ダイアログ（テキスト型＝本文、ツリー型＝ツリー） */}
       {trOpen && (() => {
-        const candidates = (callListData || []).filter(l =>
-          l._supaId !== fullEditor && Array.isArray(l.scriptTree?.nodes) && l.scriptTree.nodes.length);
+        const isTextTr = feMode !== 'tree';
+        const candidates = trCandidates(isTextTr);
         const srcList = candidates.find(l => l._supaId === trSource) || candidates[0];
         const srcTree = srcList?.scriptTree;
         const srcNode = (srcTree?.nodes || []).find(n => n.id === trSection) || srcTree?.nodes?.[0];
@@ -1110,7 +1139,7 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                 background: color.navy, color: color.white, padding: '12px 20px',
                 fontSize: font.size.base, fontWeight: font.weight.semibold, flexShrink: 0,
               }}>
-                他のリストからツリーを転記
+                {isTextTr ? '他のリストからスクリプト本文を転記' : '他のリストからツリーを転記'}
               </div>
               <div style={{ padding: '14px 20px', overflowY: 'auto', flex: 1 }}>
                 <Select
@@ -1125,12 +1154,17 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                   }}
                   options={candidates.map(l => ({
                     value: l._supaId,
-                    label: `${l.company}${l.industry ? ' - ' + l.industry : ''}（${l.scriptTree.nodes.length}セクション）`,
+                    label: `${l.company}${l.industry ? ' - ' + l.industry : ''}（${isTextTr
+                      ? `${(l.scriptBody || '').length.toLocaleString()}文字`
+                      : `${l.scriptTree.nodes.length}セクション`}）`,
                   }))}
                   containerStyle={{ marginBottom: 12 }}
                 />
                 <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                  {[['full', 'ツリー全体を転記'], ['branch', '反応の枝だけ転記']].map(([m, l]) => (
+                  {(isTextTr
+                    ? [['full', '全文を置き換え'], ['append', '現在の本文の末尾に追記']]
+                    : [['full', 'ツリー全体を転記'], ['branch', '反応の枝だけ転記']]
+                  ).map(([m, l]) => (
                     <Button key={m} size="sm"
                       variant={trMode === m ? 'primary' : 'secondary'}
                       onClick={() => setTrMode(m)}
@@ -1139,7 +1173,27 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     </Button>
                   ))}
                 </div>
-                {trMode === 'full' ? (
+                {isTextTr ? (
+                  <>
+                    <div style={{ fontSize: font.size.xs, color: color.textLight, lineHeight: 1.7, marginBottom: 10 }}>
+                      {trMode === 'full'
+                        ? <>転記元の本文を丸ごとコピーします。<span style={{ color: color.danger }}>現在の本文は置き換えられます。</span></>
+                        : '現在の本文の末尾に、転記元の本文を続けて貼り付けます。'}
+                      {' '}転記後は自由に編集できます（転記元には影響しません）。アウト返しと添付PDFは転記されません。
+                    </div>
+                    <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textMid, marginBottom: 6 }}>
+                      転記元のプレビュー
+                    </div>
+                    <div style={{
+                      background: color.gray50, border: `1px solid ${color.border}`, borderRadius: radius.md,
+                      padding: '10px 12px', maxHeight: 220, overflowY: 'auto',
+                      fontSize: font.size.xs, color: color.textMid, lineHeight: 1.8, whiteSpace: 'pre-wrap',
+                    }}>
+                      {(srcList?.scriptBody || '').slice(0, 1200) || '（本文がありません）'}
+                      {(srcList?.scriptBody || '').length > 1200 ? '\n…' : ''}
+                    </div>
+                  </>
+                ) : trMode === 'full' ? (
                   <div style={{ fontSize: font.size.xs, color: color.textLight, lineHeight: 1.7 }}>
                     転記元のセクション・反応・返しを丸ごとコピーします。
                     {feTree?.nodes?.length ? <span style={{ color: color.danger }}>現在のツリーは置き換えられます。</span> : ''}
@@ -1205,7 +1259,9 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
               }}>
                 <Button size="sm" variant="outline" onClick={() => setTrOpen(false)}>キャンセル</Button>
                 <Button size="sm" variant="primary"
-                  disabled={trMode === 'branch' && (!trPicked.length || !trTarget || !(feTree?.nodes || []).length)}
+                  disabled={isTextTr
+                    ? !(srcList?.scriptBody || '').trim()
+                    : (trMode === 'branch' && (!trPicked.length || !trTarget || !(feTree?.nodes || []).length))}
                   onClick={handleTrApply}>
                   転記する
                 </Button>
