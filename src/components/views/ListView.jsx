@@ -418,7 +418,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // 未入力のまま編集を開いた時は見出しだけ先に入れておく（本文は全角スペース1つ分の字下げ済み）
   const CAUTIONS_TEMPLATE = [
     "①訪問担当者", "　",
-    "②アポの種類", "　",
+    "②実施形式", "　",
     "③カレンダー", "　",
     "④アポ取得後のTODO", "　",
     "⑤その他注意点", "　",
