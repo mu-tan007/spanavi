@@ -414,6 +414,15 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // type (call_lists.list_type) は engagementから商材カテゴリ名を引いて自動連動する。
   // 過去にデフォルト"M&A仲介"固定だった事で、IFA/人材リードでも"M&A仲介"が保存される事故があった。
   const emptyForm = { name: "", company: "", type: "", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "", appoUnitPrice: "" };
+  // 注意事項の雛形。どのリストも①〜⑤の同じ項目を毎回書くので、
+  // 未入力のまま編集を開いた時は見出しだけ先に入れておく（本文は全角スペース1つ分の字下げ済み）
+  const CAUTIONS_TEMPLATE = [
+    "①訪問担当者", "　",
+    "②アポの種類", "　",
+    "③カレンダー", "　",
+    "④アポ取得後のTODO", "　",
+    "⑤その他注意点", "　",
+  ].join("\n");
   const [formData, setFormData] = useState(emptyForm);
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
@@ -624,7 +633,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       status: list.status,
       industry: list.industry, count: String(list.count), manager: list.manager,
       contactIds: list.contactIds || [],
-      companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "", cautions: list.cautions || "", notes: list.notes || "",
+      companyInfo: list.companyInfo || "", companyUrl: list.companyUrl || "", scriptBody: list.scriptBody || "",
+      // 既存の注意事項があればそのまま、空なら①〜⑤の雛形を出す（上書きは絶対にしない）
+      cautions: (list.cautions || "").trim() ? list.cautions : CAUTIONS_TEMPLATE,
+      notes: list.notes || "",
       isProspecting: !!list.is_prospecting,
       engagementId: engId,
       appoUnitPrice: list.appoUnitPrice != null ? String(list.appoUnitPrice) : "",
@@ -1133,7 +1145,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                 （formData.scriptBody はデータとして保持し続けるので、保存しても既存スクリプトは消えない） */}
             <div style={{ gridColumn: "span 2" }}>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>注意事項</label>
-              <textarea value={formData.cautions} onChange={e => setFormData(p => ({ ...p, cautions: e.target.value }))} style={{ ...formInputStyle, minHeight: 50, resize: "vertical" }} placeholder="架電時の注意事項を入力..." />
+              {/* 雛形の①〜⑤（10行）がスクロールなしで見えるだけの高さを確保する */}
+              <textarea value={formData.cautions} onChange={e => setFormData(p => ({ ...p, cautions: e.target.value }))} style={{ ...formInputStyle, minHeight: 250, lineHeight: font.lineHeight.relaxed, resize: "vertical" }} placeholder="架電時の注意事項を入力..." />
             </div>
             <div>
               <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>備考</label>
