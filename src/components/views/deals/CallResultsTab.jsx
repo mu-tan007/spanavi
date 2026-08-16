@@ -70,6 +70,8 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
   const [listEngMap, setListEngMap] = useState({});
   // list_id → スクリプト情報 (テキスト型 script_body / ツリー型 script_tree)
   const [listScriptMap, setListScriptMap] = useState({});
+  // list_id → リストに入っている企業数 (call_lists.total_count = CSV取込時に実件数で更新される)
+  const [listCountMap, setListCountMap] = useState({});
   // スクリプト閲覧ドロワーで開いているリスト
   const [scriptList, setScriptList] = useState(null);
 
@@ -124,14 +126,16 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
       // ポータルからでも RLS (call_lists_select_client) で自社のリスト行だけが返る。
       const { data: listRows } = await supabase
         .from('call_lists')
-        .select('id, engagement_id, script_name, script_body, script_tree, rebuttal_data')
+        .select('id, engagement_id, total_count, script_name, script_body, script_tree, rebuttal_data')
         .eq('org_id', orgId)
         .eq('client_id', client.id);
       if (!cancelled) {
         const map = {};
         const scriptMap = {};
+        const countMap = {};
         for (const l of (listRows || [])) {
           map[l.id] = l.engagement_id;
+          countMap[l.id] = Number(l.total_count || 0);
           scriptMap[l.id] = {
             scriptName: l.script_name || '',
             scriptBody: l.script_body || '',
@@ -141,6 +145,7 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
         }
         setListEngMap(map);
         setListScriptMap(scriptMap);
+        setListCountMap(countMap);
       }
       setLoading(false);
     })();
@@ -189,6 +194,9 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
   }
 
   if (!client) return <EmptyCard>クライアントを選択してください</EmptyCard>;
+
+  // 行の「企業数」列用: リストに入っている企業数
+  const getCompanies = (listId) => Number(listCountMap[listId] || 0);
 
   // 行の「スクリプト」ボタン用: テキスト型・ツリー型のどちらかがあれば閲覧可
   const getScript = (listId) => {
@@ -293,6 +301,7 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
             rows={activeRows}
             totals={activeTotals}
             ratePct={ratePct} rate2Pct={rate2Pct}
+            getCompanies={getCompanies}
             getScript={getScript}
             onOpenScript={(s) => setScriptList({
               listId: s.list_id,
@@ -330,6 +339,7 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
               totals={archivedTotals}
               ratePct={ratePct} rate2Pct={rate2Pct}
               archivedStyle
+              getCompanies={getCompanies}
               getScript={getScript}
               onOpenScript={(s) => setScriptList({
                 listId: s.list_id,
@@ -396,12 +406,15 @@ const th = { padding: '10px 12px', fontWeight: font.weight.semibold, color: colo
 const td = { padding: '8px 12px', fontSize: font.size.sm, color: color.textDark, textAlign: 'center', fontFamily: font.family.mono };
 
 // 共通テーブル: アクティブ / アーカイブで色味を変える
-function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, getScript, onOpenScript, archivedStyle = false }) {
+function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, getScript, onOpenScript, getCompanies, archivedStyle = false }) {
+  // 企業数の小計は行から積み上げる（架電件数と違い期間で変わらないため）
+  const companiesTotal = rows.reduce((a, s) => a + (getCompanies ? getCompanies(s.list_id) : 0), 0);
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
       <thead>
         <tr style={{ background: archivedStyle ? color.gray100 : color.cream, borderBottom: `1px solid ${color.border}` }}>
           <th style={{ ...th, textAlign: 'left' }}>業種</th>
+          <th style={th}>企業数</th>
           <th style={th}>架電件数</th>
           <th style={th}>キーマン接続数</th>
           <th style={th}>キーマン接続率</th>
@@ -416,6 +429,7 @@ function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, getSc
           const calls = Number(s.calls || 0);
           const keyman = Number(s.keyman_connects || 0);
           const appos = Number(s.appos || 0);
+          const companies = getCompanies ? getCompanies(s.list_id) : 0;
           const script = getScript ? getScript(s.list_id) : null;
           return (
             <tr key={s.list_id} style={{
@@ -425,6 +439,9 @@ function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, getSc
             }}>
               <td style={{ ...td, textAlign: 'left', color: archivedStyle ? color.textLight : color.textMid }}>
                 {s.industry || '—'}
+              </td>
+              <td style={{ ...td, color: archivedStyle ? color.textLight : color.textMid }}>
+                {companies > 0 ? companies.toLocaleString() : '—'}
               </td>
               <td style={td}>{calls.toLocaleString()}</td>
               <td style={td}>{keyman.toLocaleString()}</td>
@@ -448,6 +465,7 @@ function ListResultsTable({ rows, totals, ratePct, rate2Pct, onOpenDetail, getSc
         })}
         <tr style={{ background: color.cream, borderTop: `2px solid ${color.navy}`, fontWeight: font.weight.semibold }}>
           <td style={{ ...td, textAlign: 'left', color: color.navy, fontWeight: font.weight.bold }}>小計</td>
+          <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{companiesTotal.toLocaleString()}</td>
           <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.calls.toLocaleString()}</td>
           <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{totals.keymanConnects.toLocaleString()}</td>
           <td style={{ ...td, color: color.navy, fontWeight: font.weight.bold }}>{ratePct(totals.keymanConnects, totals.calls)}</td>
