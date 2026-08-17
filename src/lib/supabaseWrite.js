@@ -1025,6 +1025,14 @@ export async function updateEmailStatus(supaId, emailStatus, extra = {}) {
   return error
 }
 
+/**
+ * メール添付の合計サイズ上限（生ファイルのバイト数）。
+ * Gmail の1通あたり上限は 25MiB だが、添付は base64 化で 4/3 倍 + 76文字毎の改行が乗るため、
+ * 生ファイル換算の実効上限は約 18.2MB。本文ぶんの余裕を見て 17MB で止める。
+ * これを超えると Edge Function 側でも 413 を返す（送信は成立しない）。
+ */
+export const MAX_MAIL_ATTACHMENT_BYTES = 17 * 1024 * 1024
+
 export async function invokeSendEmail({ to, subject, body, cc, bcc, attachments }) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY

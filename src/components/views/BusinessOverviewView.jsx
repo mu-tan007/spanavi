@@ -10,7 +10,7 @@ import {
   fetchClientMonthlyTargets,
   fetchEngagementMonthlyTargets, upsertEngagementMonthlyTarget,
   fetchListAnalysisSummary, fetchListDrillDown, updateListTodoMemo,
-  invokeGenListFollowupEmail, invokeSendEmail,
+  invokeGenListFollowupEmail, invokeSendEmail, MAX_MAIL_ATTACHMENT_BYTES,
   fetchBusinessOverviewMemberPerformance,
 } from '../../lib/supabaseWrite';
 import { useImeSafeInput } from '../../lib/useImeSafe';
@@ -1369,7 +1369,9 @@ export function EmailFollowupModal({ modalCtx, callListData, clientData, contact
   const handleFilePick = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    const MAX_TOTAL = 24 * 1024 * 1024; // Gmail添付合計上限の安全側目安 (25MBより少し低め)
+    // 添付は base64 化で 4/3 倍 + 改行が乗るため、生ファイル合計が 17MB を超えると
+    // Gmail の1通上限 25MB を割ってしまう（旧 24MB は上限を超える値だった）
+    const MAX_TOTAL = MAX_MAIL_ATTACHMENT_BYTES;
     const currentTotal = attachments.reduce((s, a) => s + (a.size || 0), 0);
     let total = currentTotal;
     const newOnes = [];

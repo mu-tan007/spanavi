@@ -8,7 +8,7 @@ import { calcRankAndRate } from '../../utils/calculations';
 import { applyTaxIfPretax, calcInvoiceTax, calcInternReward, salesAmountOf } from '../../utils/money';
 import { cumulativeSalesDelta } from '../../utils/cumulativeSales';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel, MAX_MAIL_ATTACHMENT_BYTES } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -218,6 +218,30 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     reader.readAsDataURL(file);
   });
 
+  const fmtMB = (bytes) => `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+
+  // 添付は Gmail の1通上限 25MB に収まる範囲だけ受け付ける。
+  // 超過分をここで弾かないと、送信時に Edge Function 側で 413 になり書き直しの手間が増える。
+  const handleFilePick = (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+    let total = attachedFiles.reduce((s, f) => s + f.size, 0);
+    const accepted = [];
+    const rejected = [];
+    for (const f of picked) {
+      if (total + f.size > MAX_MAIL_ATTACHMENT_BYTES) { rejected.push(f); continue; }
+      total += f.size;
+      accepted.push(f);
+    }
+    if (accepted.length > 0) setAttachedFiles(prev => [...prev, ...accepted]);
+    setSendError(
+      rejected.length > 0
+        ? `添付できるのは合計 ${fmtMB(MAX_MAIL_ATTACHMENT_BYTES)} までです（Gmail の1通上限 25MB のため）。${rejected.map(f => `${f.name}（${fmtMB(f.size)}）`).join('、')} は追加していません。ファイルを圧縮するか、共有リンクでの送付をご検討ください。`
+        : ''
+    );
+    e.target.value = '';
+  };
+
   const handleSend = async () => {
     setEmailStep('sending');
     setSendError('');
@@ -353,7 +377,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
           {!isChat && (
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>添付ファイル</label>
-              <input ref={fileInputRef} type="file" multiple onChange={e => setAttachedFiles(prev => [...prev, ...Array.from(e.target.files)])} style={{ display: 'none' }} />
+              <input ref={fileInputRef} type="file" multiple onChange={handleFilePick} style={{ display: 'none' }} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                 <button type="button" onClick={() => fileInputRef.current?.click()}
                   style={{ padding: '3px 10px', borderRadius: radius.md, border: `1px dashed ${color.border}`, background: color.white, cursor: 'pointer', fontSize: 10, color: color.textMid, fontFamily: "'Noto Sans JP'" }}>
@@ -361,7 +385,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
                 </button>
                 {attachedFiles.map((f, i) => (
                   <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', borderRadius: radius.md, padding: '2px 8px', fontSize: 9, color: '#92400E' }}>
-                    {f.name}
+                    {f.name}（{fmtMB(f.size)}）
                     <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: font.size.xs, color: '#999', padding: 0, lineHeight: 1 }}>&times;</button>
                   </span>
