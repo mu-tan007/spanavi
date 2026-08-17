@@ -263,6 +263,19 @@ export default function ClientFormModal({
             </div>
 
             <div>
+              <label style={labelStyle}>温度感「低」の断りを自動除外</label>
+              <Select
+                size="sm"
+                value={form.autoExcludeLowRejection ? 'on' : 'off'}
+                onChange={e => u('autoExcludeLowRejection', e.target.value === 'on')}
+                options={[
+                  { value: 'off', label: 'しない' },
+                  { value: 'on', label: 'する（AI判定で低なら架電対象外）' },
+                ]}
+              />
+            </div>
+
+            <div>
               <label style={labelStyle}>カレンダー</label>
               <Select
                 size="sm"

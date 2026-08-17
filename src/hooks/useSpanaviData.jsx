@@ -219,6 +219,7 @@ export function useSpanaviData(authOrgId) {
         nextContactAt: c.next_contact_at || null,
         contactPhone: c.contact_phone || '',
         isFavorite: c.is_favorite === true,
+        autoExcludeLowRejection: c.auto_exclude_low_rejection === true,
         address: c.address || '',
         representativeName: c.representative_name || '',
         hpUrl: c.hp_url || '',

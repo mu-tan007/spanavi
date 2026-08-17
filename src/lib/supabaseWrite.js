@@ -261,6 +261,8 @@ export async function updateClient(supaId, data) {
       status_changed_at: data.statusChangedAt ?? undefined,
       // 次回接点予定日（呼び出し側が明示的に渡したときだけ反映、null可）
       next_contact_at: data.nextContactAt === undefined ? undefined : data.nextContactAt,
+      // AI断り分析で温度感LOWの企業を自動で架電対象外にするか
+      auto_exclude_low_rejection: data.autoExcludeLowRejection === undefined ? undefined : data.autoExcludeLowRejection,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)
