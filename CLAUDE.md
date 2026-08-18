@@ -196,6 +196,25 @@ https://<本番URL>/design-preview
 - 入力欄を `<input style={...}>` で自作しない（必ず `<Input>` を使う）
 - `<textarea>` は Input 未対応なのでネイティブ可、ただし border/color/font は token 化
 
-### 8. 違反を見つけた場合
+### 8. ファイルアップロードは CSV と Excel の両方を受ける
+
+新しく「ファイルを取り込む」画面を作るときは、**最初から CSV と Excel(.xlsx/.xlsm) の両方**を受け付ける。
+CSV専用で作らない（顧客から届くリストはExcelのままのことが多い）。
+
+```jsx
+import { parseImportFile, IMPORT_FILE_ACCEPT } from '.../csvImportUtils';
+
+<input type="file" accept={IMPORT_FILE_ACCEPT} onChange={...} />
+
+const { fileName, sheets } = await parseImportFile(file);
+// sheets: [{ name, headers, headersOriginal, dataRows }]  ← データ行のあるシートだけ
+```
+
+- 旧形式の `.xls` は exceljs が読めないので accept に入れない（選ばれたら案内を出す・`parseImportFile` が投げる）
+- 複数シートのブックは、画面上でシートを選び直せるようにする
+- **Excelは電話番号・郵便番号の先頭0が落ちる**。`restorePhoneLeadingZero` などで補正する
+- exceljs は `await import('exceljs')` で動的に読む（別チャンクになり初期表示を重くしない）
+
+### 9. 違反を見つけた場合
 
 既存コードに hardcode 色やインラインボタンを見つけたら、可能なら**ついでに直す**。修正範囲が大きすぎる場合は別タスクとして提案する。
