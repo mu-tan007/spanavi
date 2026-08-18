@@ -1,4 +1,4 @@
-// 架電リストCSV取込の共通ユーティリティ。
+// 架電リスト取込（CSV / Excel）の共通ユーティリティ。
 // CSVPhoneList（取込本体）と CSVColumnMappingModal（カラム紐付けUI/プレビュー）で共有する。
 // 既存の handleCSVImport 内ロジック（住所結合・電話正規化・単位換算・memo JSON・
 // 数式インジェクション対策）を切り出して、明示マッピング駆動に一般化したもの。
@@ -52,6 +52,99 @@ export function parseCSVLine(line) {
   }
   result.push(cur.trim());
   return result;
+}
+
+// ── ファイル読み込み（CSV / Excel 共通）──────────────────────────
+// ファイル選択 input の accept 属性。旧形式(.xls)はライブラリが読めないため含めない。
+export const IMPORT_FILE_ACCEPT = '.csv,.xlsx,.xlsm';
+
+// Excel セルの値 → 文字列。
+// 数式セルは計算結果、リッチテキストは連結、リンクセルは表示テキストを取る。
+function cellValueToString(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (v instanceof Date) return formatExcelDate(v);
+  if (typeof v === 'object') {
+    if (Array.isArray(v.richText)) return v.richText.map(t => t?.text || '').join('').trim();
+    if ('formula' in v || 'sharedFormula' in v) return cellValueToString(v.result);
+    if (v.error) return '';               // #N/A などのエラーセル
+    if (v.text != null) return String(v.text).trim();  // ハイパーリンクセル
+  }
+  return String(v).trim();
+}
+
+// 日付セルは時刻が入っていなければ日付だけにする（設立年月日などが 00:00 付きになるのを避ける）。
+// exceljs は日付をUTC基準のDateで返すため、UTCで読まないと時差の分だけ時刻がずれる。
+function formatExcelDate(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  const ymd = `${d.getUTCFullYear()}/${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())}`;
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) return ymd;
+  return `${ymd} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+}
+
+// 1行目をヘッダー、以降をデータ行とみなして {headers, headersOriginal, dataRows} を作る
+function toSheet(name, matrix) {
+  const headersOriginal = matrix[0] || [];
+  return {
+    name,
+    headers: headersOriginal.map(normalizeHeader),
+    headersOriginal,
+    dataRows: matrix.slice(1),
+  };
+}
+
+async function readCsvSheets(file) {
+  const text = await file.text(); // UTF-8
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  return [toSheet(null, lines.map(l => parseCSVLine(l)))];
+}
+
+async function readExcelSheets(file) {
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  return wb.worksheets.map(ws => {
+    const colCount = ws.columnCount || 0;
+    const matrix = [];
+    ws.eachRow({ includeEmpty: false }, (row) => {
+      const cells = [];
+      for (let c = 1; c <= colCount; c++) cells.push(cellValueToString(row.getCell(c).value));
+      if (cells.some(v => v !== '')) matrix.push(cells); // 空行は詰める（CSV側の filter と同じ挙動）
+    });
+    return toSheet(ws.name, matrix);
+  });
+}
+
+// ファイル → シート配列。CSV は1シート扱い（name: null）。
+// データ行のないシート（見出しだけ・空シート）は落とす。
+export async function parseImportFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'xls') {
+    throw new Error('旧Excel形式(.xls)は取り込めません。Excelで「Excel ブック(.xlsx)」として保存し直してください。');
+  }
+  const isExcel = ext === 'xlsx' || ext === 'xlsm';
+  const sheets = (isExcel ? await readExcelSheets(file) : await readCsvSheets(file))
+    .filter(s => s.dataRows.length > 0);
+  if (sheets.length === 0) {
+    throw new Error(isExcel ? 'データ行のあるシートが見つかりません' : 'CSVにデータ行が見つかりません');
+  }
+  return { fileName: file.name, sheets };
+}
+
+// パース結果 → カラム紐付けモーダルに渡す state。
+// シートを切り替えるたびに呼び直して、そのシートのヘッダーで自動判定をやり直す。
+export function buildPendingImport(fileName, sheets, sheetIndex = 0) {
+  const s = sheets[sheetIndex];
+  const { mapping, units } = buildDefaultMapping(s.headers, s.dataRows);
+  return {
+    fileName, sheets, sheetIndex,
+    sheetName: s.name,
+    headers: s.headers,
+    headersOriginal: s.headersOriginal,
+    dataRows: s.dataRows,
+    mapping, units,
+  };
 }
 
 // ── 単位検出（ヘッダーの括弧内表記から）─────────────────────────

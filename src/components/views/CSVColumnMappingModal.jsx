@@ -4,15 +4,19 @@ import { Button, Select } from '../ui';
 import { TARGET_FIELDS, UNIT_OPTIONS, buildRowsFromMapping } from './csvImportUtils';
 
 /**
- * CSVカラム紐付けモーダル
+ * カラム紐付けモーダル（CSV / Excel 共通）
  *
- * クライアントから受領したCSVのカラム名をリネームせずに取り込むための、
- * 「CSVのどの列を、スパナビのどの項目に当てるか」を選択するUI。
+ * クライアントから受領したファイルのカラム名をリネームせずに取り込むための、
+ * 「どの列を、スパナビのどの項目に当てるか」を選択するUI。
  *
  * @prop fileName        表示用ファイル名
+ * @prop sheetName       Excelのシート名（CSVは null）
+ * @prop sheetNames      ブック内のシート名配列（2つ以上ある時だけシート選択を出す）
+ * @prop sheetIndex      現在のシート位置
+ * @prop onSheetChange   シート切替 (index) => void
  * @prop headers         正規化済みヘッダー配列（内部処理用・未マッピング列名にも使用）
  * @prop headersOriginal 元のヘッダー配列（表示用。normalize前の見た目）
- * @prop dataRows        CSVデータ行（parseCSVLineで分解済みの配列の配列）
+ * @prop dataRows        データ行（列ごとに分解済みの配列の配列）
  * @prop initialMapping  自動判定によるマッピング初期値 { field: colIndex }
  * @prop initialUnits    金額列の単位初期値 { revenue, net_income }
  * @prop onCancel        キャンセル
@@ -20,6 +24,7 @@ import { TARGET_FIELDS, UNIT_OPTIONS, buildRowsFromMapping } from './csvImportUt
  */
 export default function CSVColumnMappingModal({
   fileName, headers, headersOriginal, dataRows,
+  sheetName = null, sheetNames = [], sheetIndex = 0, onSheetChange = null,
   initialMapping, initialUnits, onCancel, onConfirm, busy = false,
 }) {
   const [mapping, setMapping] = useState(initialMapping || {});
@@ -89,16 +94,37 @@ export default function CSVColumnMappingModal({
           <div>
             <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold }}>カラムの紐付け</div>
             <div style={{ fontSize: font.size.xs, color: alpha(color.white, 0.7), marginTop: 2 }}>
-              {fileName} ・ {dataRows.length}件
+              {fileName}{sheetName ? ` ・ シート「${sheetName}」` : ''} ・ {dataRows.length}件
             </div>
           </div>
           <div style={{ fontSize: font.size.xs, color: alpha(color.white, 0.85), maxWidth: 360, textAlign: 'right' }}>
-            CSVの列をスパナビの項目へ割り当ててください（自動判定済み・必要な箇所だけ修正）
+            ファイルの列をスパナビの項目へ割り当ててください（自動判定済み・必要な箇所だけ修正）
           </div>
         </div>
 
         {/* 本体（スクロール） */}
         <div style={{ padding: space[4], overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: space[4] }}>
+          {/* シート選択（Excelで複数シートある時だけ）*/}
+          {sheetNames.length > 1 && onSheetChange && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
+              <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.textDark }}>
+                取り込むシート
+              </span>
+              <Select
+                size="sm"
+                fullWidth={false}
+                containerStyle={{ width: 220 }}
+                value={String(sheetIndex)}
+                onChange={e => onSheetChange(Number(e.target.value))}
+                options={sheetNames.map((n, i) => ({ value: String(i), label: n || `シート${i + 1}` }))}
+                disabled={busy}
+              />
+              <span style={{ fontSize: font.size.xs, color: color.textMid }}>
+                切り替えると、そのシートの見出しで紐付けを判定し直します
+              </span>
+            </div>
+          )}
+
           {/* マッピング選択 */}
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: space[3],

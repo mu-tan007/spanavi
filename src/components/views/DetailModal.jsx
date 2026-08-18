@@ -10,7 +10,7 @@ import { Badge } from '../common/Badge';
 import { ScorePill } from '../common/ScorePill';
 import CallHistoryPanel from './CallHistoryPanel';
 import CSVColumnMappingModal from './CSVColumnMappingModal';
-import { normalizeHeader, parseCSVLine, buildDefaultMapping, buildRowsFromMapping } from './csvImportUtils';
+import { parseImportFile, buildPendingImport, buildRowsFromMapping, IMPORT_FILE_ACCEPT } from './csvImportUtils';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -91,30 +91,22 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
 
   const availablePrefs = [...new Set(csvData.map(r => extractPref(r.address)).filter(Boolean))].sort();
 
-  // CSV選択 → パースしてカラム紐付けモーダルを開く
+  // ファイル選択（CSV / Excel）→ パースしてカラム紐付けモーダルを開く
   // （ヘッダー名がスパナビの項目名と違っても、モーダルで列を選び直せる）
-  const handleCSVImport = (e) => {
+  const handleCSVImport = async (e) => {
     const file = e.target.files[0];
+    e.target.value = ''; // 同じファイルを選び直せるようにリセット
     if (!file) return;
     if (!list._supaId) {
       alert('このリストはSupabase IDが未設定のためインポートできません。');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const lines = ev.target.result.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) {
-        alert('CSVが空か、データ行がありません。');
-        return;
-      }
-      const headersOriginal = parseCSVLine(lines[0]);
-      const headers = headersOriginal.map(normalizeHeader);
-      const dataRows = lines.slice(1).map(parseCSVLine);
-      const { mapping, units } = buildDefaultMapping(headers, dataRows);
-      setPendingImport({ fileName: file.name, headers, headersOriginal, dataRows, mapping, units });
-    };
-    reader.readAsText(file, "UTF-8");
-    e.target.value = ''; // 同じファイルを選び直せるようにリセット
+    try {
+      const { fileName, sheets } = await parseImportFile(file);
+      setPendingImport(buildPendingImport(fileName, sheets, 0));
+    } catch (err) {
+      alert(err?.message || 'ファイルを読み込めませんでした');
+    }
   };
 
   // 紐付け確定 → 行を組み立てて取込
@@ -129,8 +121,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       }
       const { error, insertedCount, startNo, endNo, totalCount } = await insertCallListItems(list._supaId, rows);
       if (error) {
-        console.error('[CSV取込] Supabase エラー:', error);
-        alert('CSV取込に失敗しました: ' + (error.message || JSON.stringify(error)));
+        console.error('[取込] Supabase エラー:', error);
+        alert('取込に失敗しました: ' + (error.message || JSON.stringify(error)));
         return;
       }
       // 件数はDBの実件数で上書きする（CSVの行数で足すと、取込が一部落ちた時に表示だけ増える）
@@ -486,8 +478,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               opacity: csvImporting ? 0.6 : 1,
               pointerEvents: csvImporting ? "none" : "auto",
             }}>
-              {csvImporting ? "取込中..." : "CSV取込"}
-              <input type="file" accept=".csv" onChange={handleCSVImport} style={{ display: "none" }} />
+              {csvImporting ? "取込中..." : "CSV/Excel取込"}
+              <input type="file" accept={IMPORT_FILE_ACCEPT} onChange={handleCSVImport} style={{ display: "none" }} />
             </label>
           )}
           {isAdmin && (
@@ -518,7 +510,12 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
 
     {pendingImport && (
       <CSVColumnMappingModal
+        key={pendingImport.sheetIndex}
         fileName={pendingImport.fileName}
+        sheetName={pendingImport.sheetName}
+        sheetNames={pendingImport.sheets.map(s => s.name)}
+        sheetIndex={pendingImport.sheetIndex}
+        onSheetChange={(idx) => setPendingImport(p => buildPendingImport(p.fileName, p.sheets, idx))}
         headers={pendingImport.headers}
         headersOriginal={pendingImport.headersOriginal}
         dataRows={pendingImport.dataRows}

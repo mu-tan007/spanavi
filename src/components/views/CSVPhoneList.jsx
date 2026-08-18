@@ -6,7 +6,7 @@ import { CALL_RESULTS } from '../../constants/callResults';
 import { insertCallListItems, autoExcludeKnownExcluded } from '../../lib/supabaseWrite';
 import { dialPhone } from '../../utils/phone';
 import CSVColumnMappingModal from './CSVColumnMappingModal';
-import { normalizeHeader, parseCSVLine, buildDefaultMapping, buildRowsFromMapping } from './csvImportUtils';
+import { parseImportFile, buildPendingImport, buildRowsFromMapping, IMPORT_FILE_ACCEPT } from './csvImportUtils';
 
 export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCSVs, setCallingScreen, setCallFlowScreen }) {
   const [expanded, setExpanded] = useState(false);
@@ -16,28 +16,22 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
   const [pageStart, setPageStart] = useState(0);
   const [flowStartNo, setFlowStartNo] = useState('');
   const [flowEndNo, setFlowEndNo] = useState('');
-  const [pendingImport, setPendingImport] = useState(null); // カラム紐付け待ちのCSV
+  const [pendingImport, setPendingImport] = useState(null); // カラム紐付け待ちの取込ファイル
   const [importing, setImporting] = useState(false);
   const PAGE_SIZE = 20;
   const csvData = importedCSVs[listId] || [];
 
-  // CSV選択 → パースしてカラム紐付けモーダルを開く（リネーム不要でそのまま取込）
-  const handleCSVImport = (e) => {
+  // ファイル選択（CSV / Excel）→ パースしてカラム紐付けモーダルを開く（リネーム不要でそのまま取込）
+  const handleCSVImport = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target.result;
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) { alert('CSVにデータ行が見つかりません'); return; }
-      const headersOriginal = parseCSVLine(lines[0]);
-      const headers = headersOriginal.map(normalizeHeader);
-      const dataRows = lines.slice(1).map(parseCSVLine);
-      const { mapping, units } = buildDefaultMapping(headers, dataRows);
-      setPendingImport({ fileName: file.name, headers, headersOriginal, dataRows, mapping, units });
-    };
-    reader.readAsText(file, "UTF-8");
     e.target.value = ''; // 同じファイルを選び直せるようにリセット
+    if (!file) return;
+    try {
+      const { fileName, sheets } = await parseImportFile(file);
+      setPendingImport(buildPendingImport(fileName, sheets, 0));
+    } catch (err) {
+      alert(err?.message || 'ファイルを読み込めませんでした');
+    }
   };
 
   // 紐付け確定 → 行組み立て → DB取込 → 他リスト除外済みの自動除外
@@ -52,7 +46,7 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
       }
       if (list._supaId) {
         const { error, insertedCount, startNo, endNo } = await insertCallListItems(list._supaId, rows);
-        if (error) { alert('CSV取込に失敗しました: ' + (error.message || '不明なエラー')); return; }
+        if (error) { alert('取込に失敗しました: ' + (error.message || '不明なエラー')); return; }
         const { count } = await autoExcludeKnownExcluded(list._supaId);
         const head = `No.${startNo}〜${endNo} に${insertedCount}件を追加しました。`;
         alert(count > 0
@@ -140,8 +134,8 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
             fontSize: font.size.sm, fontWeight: font.weight.medium, fontFamily: font.family.sans,
             border: `1px solid ${color.navy}`,
           }}>
-            CSV取込
-            <input type="file" accept=".csv" onChange={handleCSVImport} style={{ display: "none" }} />
+            CSV/Excel取込
+            <input type="file" accept={IMPORT_FILE_ACCEPT} onChange={handleCSVImport} style={{ display: "none" }} />
           </label>
           {csvData.length > 0 && (
             <span style={{ fontSize: font.size.xs, color: color.textLight, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▼</span>
@@ -290,7 +284,12 @@ export default function CSVPhoneList({ listId, list, importedCSVs, setImportedCS
 
     {pendingImport && (
       <CSVColumnMappingModal
+        key={pendingImport.sheetIndex}
         fileName={pendingImport.fileName}
+        sheetName={pendingImport.sheetName}
+        sheetNames={pendingImport.sheets.map(s => s.name)}
+        sheetIndex={pendingImport.sheetIndex}
+        onSheetChange={(idx) => setPendingImport(p => buildPendingImport(p.fileName, p.sheets, idx))}
         headers={pendingImport.headers}
         headersOriginal={pendingImport.headersOriginal}
         dataRows={pendingImport.dataRows}
