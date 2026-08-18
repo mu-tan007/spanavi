@@ -1,4 +1,5 @@
 import { C } from '../../../constants/colors';
+import { restorePhoneLeadingZero } from '../csvImportUtils';
 
 export const NAVY = '#0D2247';
 export const BLUE = '#1E40AF';
@@ -264,26 +265,6 @@ export function composeEmailDraft(client, primaryContact) {
   };
 }
 
-// CSV 1行をパース（ダブルクォート対応）
-export function parseCSVLine(line, sep = ',') {
-  const result = [];
-  let current = '', inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
-      else if (ch === '"') inQuotes = false;
-      else current += ch;
-    } else {
-      if (ch === '"') inQuotes = true;
-      else if (ch === sep) { result.push(current); current = ''; }
-      else current += ch;
-    }
-  }
-  result.push(current);
-  return result;
-}
-
 // 列名の正規化（揺れに対応）
 const HEADER_ALIASES = {
   company: ['会社名', '企業名', '法人名', 'company', 'name'],
@@ -309,17 +290,16 @@ export function detectColumnMapping(rawHeaders) {
   return map;
 }
 
-// CSV テキストを { rows: [{company, phone, ...}], headers, mapping } に変換
-export function parseCSVText(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-  if (lines.length === 0) return { rows: [], headers: [], mapping: {} };
-  const headers = parseCSVLine(lines[0]);
+// 見出し行＋データ行（CSV/Excel 共通・csvImportUtils.parseImportFile の出力）を
+// { rows: [{company, phone, ...}], headers, mapping } に変換
+export function parseLeadTable(headers, dataRows) {
+  if (!headers || headers.length === 0) return { rows: [], headers: [], mapping: {} };
   const mapping = detectColumnMapping(headers);
-  const rows = lines.slice(1).map((line, i) => {
-    const cols = parseCSVLine(line);
+  const rows = (dataRows || []).map((cols, i) => {
     const row = { no: i + 1 };
     Object.entries(mapping).forEach(([key, idx]) => {
-      row[key] = (cols[idx] || '').trim();
+      const v = (cols[idx] || '').trim();
+      row[key] = key === 'phone' ? restorePhoneLeadingZero(v) : v;
     });
     return row;
   }).filter(r => r.company);

@@ -83,6 +83,13 @@ function formatExcelDate(d) {
   return `${ymd} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
+// Excelで電話番号が数値セルになっていると先頭の0が落ちる（0312345678 → 312345678）。
+// 数字だけで9〜10桁・先頭が0以外の値に限って0を補う。ハイフン入りはそのまま。
+export function restorePhoneLeadingZero(v) {
+  const s = String(v ?? '').trim();
+  return /^[1-9]\d{8,9}$/.test(s) ? '0' + s : s;
+}
+
 // 1行目をヘッダー、以降をデータ行とみなして {headers, headersOriginal, dataRows} を作る
 function toSheet(name, matrix) {
   const headersOriginal = matrix[0] || [];

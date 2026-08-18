@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
-import { Button, Input } from '../../ui';
+import { Button, Input, Select } from '../../ui';
 import { insertClientLeadList, insertClientLeadCompaniesBulk } from '../../../lib/supabaseWrite';
-import { NAVY, GRAY_200, GRAY_50, parseCSVText } from './utils';
+import { NAVY, GRAY_200, GRAY_50, parseLeadTable } from './utils';
+import { parseImportFile, IMPORT_FILE_ACCEPT } from '../csvImportUtils';
 
 export default function CRMLeadListImportModal({ currentUser, onClose, onImported }) {
   const [name, setName] = useState('');
@@ -11,23 +12,38 @@ export default function CRMLeadListImportModal({ currentUser, onClose, onImporte
   const [scriptBody, setScriptBody] = useState('');
   const [parsed, setParsed] = useState(null); // { rows, headers, mapping }
   const [fileName, setFileName] = useState('');
+  const [sheets, setSheets] = useState([]);   // Excelのシート（CSVは1件）
+  const [sheetIndex, setSheetIndex] = useState(0);
   const [saving, setSaving] = useState(false);
 
+  const applySheet = (sheetList, idx) => {
+    const s = sheetList[idx];
+    setSheetIndex(idx);
+    setParsed({ ...parseLeadTable(s.headers, s.dataRows), sheetName: s.name });
+  };
+
+  // CSV / Excel どちらでも取り込める
   const handleFile = async (file) => {
     if (!file) return;
-    setFileName(file.name);
-    const text = await file.text();
-    const result = parseCSVText(text);
-    setParsed(result);
-    if (!name) {
-      // ファイル名（拡張子除く）をリスト名のデフォルトに
-      setName(file.name.replace(/\.csv$/i, ''));
+    try {
+      const result = await parseImportFile(file);
+      setFileName(result.fileName);
+      setSheets(result.sheets);
+      applySheet(result.sheets, 0);
+      if (!name) {
+        // ファイル名（拡張子除く）をリスト名のデフォルトに
+        setName(result.fileName.replace(/\.(csv|xlsx|xlsm)$/i, ''));
+      }
+    } catch (err) {
+      setParsed(null);
+      setSheets([]);
+      alert(err?.message || 'ファイルを読み込めませんでした');
     }
   };
 
   const handleSave = async () => {
     if (!name.trim()) { alert('リスト名を入力してください'); return; }
-    if (!parsed || parsed.rows.length === 0) { alert('CSV を読み込んでください（企業名列が必要）'); return; }
+    if (!parsed || parsed.rows.length === 0) { alert('ファイルを読み込んでください（企業名列が必要）'); return; }
     setSaving(true);
     const { data: list, error: e1 } = await insertClientLeadList({
       name: name.trim(),
@@ -77,7 +93,7 @@ export default function CRMLeadListImportModal({ currentUser, onClose, onImporte
           padding: '12px 20px', background: color.navy, color: color.white,
           fontWeight: font.weight.semibold, fontSize: font.size.md,
         }}>
-          新規開拓リストの取り込み（CSV）
+          新規開拓リストの取り込み（CSV / Excel）
         </div>
 
         <div style={{ padding: '16px 20px' }}>
@@ -103,10 +119,10 @@ export default function CRMLeadListImportModal({ currentUser, onClose, onImporte
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>CSV ファイル <span style={{ color: color.danger }}>*</span></label>
+            <label style={labelStyle}>CSV / Excel ファイル <span style={{ color: color.danger }}>*</span></label>
             <input
               type="file"
-              accept=".csv,text/csv"
+              accept={IMPORT_FILE_ACCEPT}
               onChange={e => handleFile(e.target.files?.[0])}
               style={{ fontSize: font.size.xs }}
             />
@@ -123,8 +139,21 @@ export default function CRMLeadListImportModal({ currentUser, onClose, onImporte
               fontSize: font.size.xs,
             }}>
               <div style={{ marginBottom: 6, fontWeight: font.weight.bold, color: color.navy }}>
-                {fileName} を読み込み
+                {fileName}{parsed.sheetName ? `（シート「${parsed.sheetName}」）` : ''} を読み込み
               </div>
+              {sheets.length > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: 6 }}>
+                  <span style={{ color: color.textMid }}>取り込むシート</span>
+                  <Select
+                    size="sm"
+                    fullWidth={false}
+                    containerStyle={{ width: 200 }}
+                    value={String(sheetIndex)}
+                    onChange={e => applySheet(sheets, Number(e.target.value))}
+                    options={sheets.map((s, i) => ({ value: String(i), label: s.name || `シート${i + 1}` }))}
+                  />
+                </div>
+              )}
               <div style={{ color: color.textMid }}>
                 取り込み対象: <strong>{parsed.rows.length}</strong> 件 / ヘッダー: {parsed.headers.length} 列
               </div>
@@ -133,7 +162,7 @@ export default function CRMLeadListImportModal({ currentUser, onClose, onImporte
               </div>
               {parsed.rows.length === 0 && (
                 <div style={{ marginTop: 6, color: color.danger, fontWeight: font.weight.semibold }}>
-                  企業名（company）列が認識できませんでした。CSV のヘッダー名を確認してください。
+                  企業名（company）列が認識できませんでした。見出し行の列名を確認してください。
                 </div>
               )}
             </div>
