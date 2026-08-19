@@ -179,6 +179,9 @@ export function useSpanaviData(authOrgId) {
         notes: cl.notes || '',
         is_archived: cl.is_archived || false,
         is_prospecting: cl.is_prospecting === true,
+        // クライアント側の「アポ取得時に事前確認をスキップ」設定。
+        // is_prospecting と同じく、アポ登録時のステータス初期値の判定に使う。
+        skipPreCheck: clientMap[cl.client_id]?.skip_pre_check === true,
         engagement_id: cl.engagement_id || null,
         client_id: cl.client_id || null,
         // リスト単位のアポ単価上書き（税別円）。NULL=報酬マスタを使用
@@ -220,6 +223,7 @@ export function useSpanaviData(authOrgId) {
         contactPhone: c.contact_phone || '',
         isFavorite: c.is_favorite === true,
         autoExcludeLowRejection: c.auto_exclude_low_rejection === true,
+        skipPreCheck: c.skip_pre_check === true,
         address: c.address || '',
         representativeName: c.representative_name || '',
         hpUrl: c.hp_url || '',

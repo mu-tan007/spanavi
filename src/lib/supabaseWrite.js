@@ -263,6 +263,8 @@ export async function updateClient(supaId, data) {
       next_contact_at: data.nextContactAt === undefined ? undefined : data.nextContactAt,
       // AI断り分析で温度感LOWの企業を自動で架電対象外にするか
       auto_exclude_low_rejection: data.autoExcludeLowRejection === undefined ? undefined : data.autoExcludeLowRejection,
+      // アポ取得時に事前確認を行わず、最初から「事前確認済」で登録するか
+      skip_pre_check: data.skipPreCheck === undefined ? undefined : data.skipPreCheck,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)

@@ -276,6 +276,19 @@ export default function ClientFormModal({
             </div>
 
             <div>
+              <label style={labelStyle}>アポ取得時に事前確認をスキップ</label>
+              <Select
+                size="sm"
+                value={form.skipPreCheck ? 'on' : 'off'}
+                onChange={e => u('skipPreCheck', e.target.value === 'on')}
+                options={[
+                  { value: 'off', label: 'しない（アポ取得で登録）' },
+                  { value: 'on', label: 'する（最初から事前確認済で登録）' },
+                ]}
+              />
+            </div>
+
+            <div>
               <label style={labelStyle}>カレンダー</label>
               <Select
                 size="sm"

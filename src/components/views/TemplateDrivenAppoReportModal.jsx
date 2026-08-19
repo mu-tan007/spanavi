@@ -3,6 +3,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Badge, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { applyTaxIfPretax } from '../../utils/money';
+import { initialAppoStatus } from '../../utils/appoStatus';
 import {
   insertAppointment, invokeTranscribeAndExtract,
   invokeLookupCompanyHomepage, invokeGetZoomRecording, updateCallListItem,
@@ -556,7 +557,7 @@ export default function TemplateDrivenAppoReportModal({
         getDate:  form.getDate || form.hearing_date || new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10),
         getter:   acquirerName,
         appoReport: reportNote,
-        status:   list?.is_prospecting ? '事前確認済' : 'アポ取得',
+        status:   initialAppoStatus(list),
         sales:    salesVal,
         reward:   rewardVal,
         list_id:  list?._supaId || null,
@@ -679,7 +680,7 @@ export default function TemplateDrivenAppoReportModal({
         getDate: form.getDate,
         meetDate: form.appoDate,
         appoReport: reportNote,
-        status:  list?.is_prospecting ? '事前確認済' : 'アポ取得',
+        status:  initialAppoStatus(list),
         sales:   salesVal,
         reward:  rewardVal,
         month:   form.appoDate ? (parseInt(form.appoDate.slice(5, 7), 10) + '月') : '',

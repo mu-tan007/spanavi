@@ -23,6 +23,7 @@ import QuickAppoModal from '../common/QuickAppoModal';
 import ScriptBody from '../common/ScriptBody';
 import ScriptTreeGuide from '../common/ScriptTreeGuide';
 import { resolveListContacts } from '../../utils/listContacts';
+import { initialAppoStatus } from '../../utils/appoStatus';
 
 // ============================================================
 // Call Flow View (架電フロー) — 左右分割レイアウト
@@ -1114,8 +1115,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         getter:     formData.getter,
         getDate:    formData.getDate,
         meetDate:   formData.meetDate,
-        // クライアント開拓は事前確認を行わないため、デフォルトで事前確認済に（AppoReportModalと同期）
-        status:     list?.is_prospecting ? '事前確認済' : 'アポ取得',
+        // クライアント開拓・事前確認スキップ設定のクライアントは事前確認済で登録（AppoReportModalと同期）
+        status:     initialAppoStatus(list),
         note:       formData.note || '',
         appoReport: formData.appoReport || '',
         sales:      salesVal,

@@ -8,6 +8,7 @@ import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertA
 import { invokeGenerateCompanyDossier } from '../../lib/dossierApi';
 import { getOrgId } from '../../lib/orgContext';
 import { applyTaxIfPretax } from '../../utils/money';
+import { initialAppoStatus } from '../../utils/appoStatus';
 import { MemberSuggestInput } from './AppoListView';
 import TemplateDrivenAppoReportModal from './TemplateDrivenAppoReportModal';
 import { resolveApplicableTemplates } from '../../lib/templateRenderer';
@@ -252,8 +253,8 @@ HP：${form.hp}
       getDate:    form.getDate,
       getter:     form.acquirer,
       appoReport: reportNote,
-      // クライアント開拓は事前確認を行わないため、デフォルトで事前確認済に
-      status:     list?.is_prospecting ? '事前確認済' : 'アポ取得',
+      // クライアント開拓・事前確認スキップ設定のクライアントは事前確認済で登録
+      status:     initialAppoStatus(list),
       sales:      salesVal,
       reward:     rewardVal,
       list_id:    list._supaId || null,
