@@ -33,7 +33,7 @@ function readAdminBackup() {
 }
 
 export default function ClientPortalApp() {
-  const { session, loading: authLoading, signOut } = useAuth();
+  const { session, profile, loading: authLoading, signOut } = useAuth();
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [adminBackup, setAdminBackup] = useState(() => readAdminBackup());
@@ -112,6 +112,12 @@ export default function ClientPortalApp() {
   };
 
   if (authLoading || loading) {
+    return <CenteredMessage>読み込み中...</CenteredMessage>;
+  }
+  // プロフィールのキャッシュはあるが session がまだ確定していない瞬間に
+  // ログイン画面へ飛ばさない（ハードリロードで弾かれる事故の防止・MainApp と同じガード）。
+  // 未ログインが確定した時点で useAuth 側がキャッシュを捨てるので、ここで止まり続けることはない。
+  if (!session && profile) {
     return <CenteredMessage>読み込み中...</CenteredMessage>;
   }
   if (!session) return <Navigate to="/client/login" replace />;

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { color, space, radius, font } from '../../constants/design';
+import { useUrlState } from '../../hooks/useUrlState';
 import PageHeader from '../common/PageHeader';
 import CallResultsTab from '../views/deals/CallResultsTab';
 import AppointmentsTab from '../views/deals/AppointmentsTab';
@@ -16,7 +17,10 @@ const BASE_TABS = [
 // canEditDossier: 代理ログイン中（MASPメンバーがクライアントとして閲覧）= true。
 // adminAccessToken: 代理ログイン中の MASP メンバー編集経路で使う admin の access_token。
 export default function ClientDealsView({ client, canEditDossier = false, adminAccessToken = null }) {
-  const [activeTab, setActiveTab] = useState('calls');
+  // タブはURLに持つ（ハードリロード・URL共有でも同じ画面に戻る）
+  const [activeTab, setActiveTab] = useUrlState('cp_tab', 'calls', {
+    allowed: ['calls', 'appos', 'rejection', 'needs'],
+  });
 
   // Ctrl+←/→ は事業タブ切替に統一されたため subtab 切替ショートカットは廃止
 

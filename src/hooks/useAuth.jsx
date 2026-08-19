@@ -22,8 +22,14 @@ export function AuthProvider({ children }) {
   const cachedProfile = getCachedProfile()
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(cachedProfile)
-  // キャッシュがあればローディング不要（ページ復帰時に即表示）
-  const [loading, setLoading] = useState(!cachedProfile)
+  // キャッシュがあればプロフィール取得を待たない（ページ復帰時に即表示）
+  const [profileLoading, setProfileLoading] = useState(!cachedProfile)
+  // getSession() は localStorage を読むだけでも非同期。解決するまでは session=null だが
+  // 「未ログイン」と断定してはいけない。ここを待たずに loading=false にしていたため、
+  // キャッシュのあるタブでハードリロードすると session 確定前に描画され、
+  // クライアントポータルがログイン画面へリダイレクトしていた。
+  const [sessionChecked, setSessionChecked] = useState(false)
+  const loading = !sessionChecked || profileLoading
   // 招待・パスワード再設定リンク経由の初回ログインを recoveryMode 扱いでパスワード設定画面に飛ばす。
   // どちらもハッシュから同期捕捉する（PASSWORD_RECOVERY イベント頼みだとハッシュ消失レースに負ける）。
   const [recoveryMode, setRecoveryMode] = useState(isPasswordSetupFlow)
@@ -41,14 +47,27 @@ export function AuthProvider({ children }) {
     let profileLoaded = !!cachedProfile
 
     // 現在のセッションを取得
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        fetchProfile(session.user.id).then(() => { profileLoaded = true })
-      } else {
-        setLoading(false)
-      }
-    })
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session)
+        setSessionChecked(true)
+        if (session?.user) {
+          fetchProfile(session.user.id).then(() => { profileLoaded = true })
+        } else {
+          // 本当に未ログインと分かった時点で古いキャッシュを捨てる。
+          // 残したままだと「session なし + profile あり」を待機状態とみなす画面
+          // （MainApp / ClientPortalApp）がローディングから抜けられなくなる。
+          profileLoaded = false
+          updateProfile(null)
+          setProfileLoading(false)
+        }
+      })
+      .catch((err) => {
+        // ここで止まると永久にローディングのままになるので、必ず判定を進める
+        console.error('getSession failed:', err)
+        setSessionChecked(true)
+        setProfileLoading(false)
+      })
 
     // 認証状態の変更を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -58,19 +77,21 @@ export function AuthProvider({ children }) {
           if (prev?.access_token === session?.access_token) return prev
           return session
         })
+        // INITIAL_SESSION 等でこちらが先に来ることもある。どちらが先でも判定を進める。
+        setSessionChecked(true)
         if (event === 'PASSWORD_RECOVERY') {
           setRecoveryMode(true)
         }
         if (event === 'SIGNED_OUT') {
           profileLoaded = false
           updateProfile(null)
-          setLoading(false)
+          setProfileLoading(false)
           return
         }
         // プロフィール取得済みならどのイベントでも再取得しない（タブ復帰時のリロード防止）
         if (profileLoaded && session?.user) return
         if (session?.user) {
-          if (!profileLoaded) setLoading(true)
+          if (!profileLoaded) setProfileLoading(true)
           fetchProfile(session.user.id).then(() => { profileLoaded = true })
         }
       }
@@ -168,7 +189,7 @@ export function AuthProvider({ children }) {
       console.error('Profile fetch error:', err)
       updateProfile(null)
     } finally {
-      setLoading(false)
+      setProfileLoading(false)
     }
   }
 

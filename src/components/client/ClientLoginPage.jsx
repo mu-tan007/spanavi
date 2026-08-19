@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
 import { LoginShell, SHELL_C, inputStyle, labelStyle, makeBtnStyle } from '../common/LoginShell';
 
 // クライアント・ポータルのログイン画面。社内ログイン (/login) とは別 URL。
@@ -8,10 +10,17 @@ import { LoginShell, SHELL_C, inputStyle, labelStyle, makeBtnStyle } from '../co
 const EMAIL_DOMAIN = 'portal.spanavi.local';
 
 export default function ClientLoginPage() {
+  const { session, loading: authLoading } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // 既にクライアントとしてログイン済みならポータルへ戻す。
+  // 何らかの理由でここへ流れてきても、有効なセッションがあれば再入力させない。
+  if (!authLoading && !submitting && session?.user?.user_metadata?.role === 'client') {
+    return <Navigate to="/client" replace />;
+  }
 
   // 全角英数字→半角に正規化（IMEが全角のまま入力されるケースが「ログインできない」
   // 問い合わせの典型原因。見た目では気づけないため自動で吸収する）
