@@ -4,7 +4,7 @@ import { Select } from '../ui';
 import PageHeader from '../common/PageHeader';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useUrlState } from '../../hooks/useUrlState';
-import { rpcPerfRankingScoped, rpcPerfCallHeatmap, fetchMemberTeams } from '../../lib/supabaseWrite';
+import { rpcPerfRankingScoped, rpcPerfCallHeatmap, fetchMemberTeams, fetchCallListsMeta } from '../../lib/supabaseWrite';
 
 import Heatmap from './analytics/Heatmap';
 import OverallSummary from './analytics/OverallSummary';
@@ -71,6 +71,9 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   const [rankByPerson, setRankByPerson] = useState([]);
   const [heatmapData, setHeatmapData] = useState([]);
   const [heatmapLoading, setHeatmapLoading] = useState(false);
+  // ヒートマップのリスト絞り込み（''=全社）。リスト単位で曜日×時間帯の接続率を見る。
+  const [heatmapListId, setHeatmapListId] = useUrlState('an_hm_list', '');
+  const [listMeta, setListMeta] = useState([]);
   // 退職者含む全メンバーの名簿（名前→チーム/在籍）。チーム内訳で退職者の売上を旧チームへ紐付ける。
   const [allMembers, setAllMembers] = useState([]);
 
@@ -88,12 +91,20 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   useEffect(() => {
     let cancelled = false;
     setHeatmapLoading(true);
-    rpcPerfCallHeatmap(_jstStart(range.from), _jstEnd(range.to), {})
+    rpcPerfCallHeatmap(_jstStart(range.from), _jstEnd(range.to), { listId: heatmapListId || null })
       .then(({ data }) => { if (!cancelled) setHeatmapData(data || []); })
       .catch(err => console.error('[AnalyticsView] heatmapFetch:', err))
       .finally(() => { if (!cancelled) setHeatmapLoading(false); });
     return () => { cancelled = true; };
-  }, [range.from, range.to]);
+  }, [range.from, range.to, heatmapListId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCallListsMeta()
+      .then(({ data }) => { if (!cancelled) setListMeta(data || []); })
+      .catch(err => console.error('[AnalyticsView] listMetaFetch:', err));
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,6 +136,22 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
   }, [roster]);
 
   const orgStats = useMemo(() => aggregateOrg(rankByPerson), [rankByPerson]);
+
+  // ヒートマップのリスト選択肢。稼働中を上、アーカイブ済みは末尾に印付きで残す（過去期間を見るため）。
+  const heatmapListOptions = useMemo(() => {
+    const opts = [{ value: '', label: '全社（全リスト）' }];
+    const active = [], archived = [];
+    (listMeta || []).forEach(l => {
+      (l.is_archived ? archived : active).push({ value: l.id, label: l.name || '—' });
+    });
+    archived.forEach(o => { o.label = `${o.label}（アーカイブ）`; });
+    return opts.concat(active, archived);
+  }, [listMeta]);
+
+  const heatmapListName = useMemo(
+    () => (heatmapListId ? (heatmapListOptions.find(o => o.value === heatmapListId)?.label || null) : null),
+    [heatmapListId, heatmapListOptions]
+  );
 
   const periodBtn = (p, active) => ({
     padding: '8px 16px', borderRadius: radius.md, cursor: 'pointer', fontFamily: font.family.sans,
@@ -172,9 +199,23 @@ export default function AnalyticsView({ callListData, currentUser, appoData, mem
       {/* ③ チーム比較（メンバー展開・シフト/稼働込み） */}
       <TeamComparison appoData={appoData} range={range} memberDir={memberDir} />
 
-      {/* ④ 曜日×時間帯 ヒートマップ（全社接続率） */}
+      {/* ④ 曜日×時間帯 ヒートマップ（全社／リスト別のキーマン接続率） */}
       <div style={{ marginBottom: space[5] }}>
-        <Heatmap heatmapData={heatmapData} loading={heatmapLoading} listName={null} />
+        <Heatmap
+          heatmapData={heatmapData}
+          loading={heatmapLoading}
+          listName={heatmapListName}
+          headerRight={
+            <div style={{ minWidth: isMobile ? 160 : 260 }}>
+              <Select
+                size="sm"
+                value={heatmapListId}
+                onChange={e => setHeatmapListId(e.target.value)}
+                options={heatmapListOptions}
+              />
+            </div>
+          }
+        />
       </div>
 
       {/* ⑤ クライアント別パフォーマンス */}

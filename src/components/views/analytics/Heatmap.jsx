@@ -12,6 +12,8 @@ export default function Heatmap({
   heatmapData = [],
   loading = false,
   listName = null,
+  headerRight = null,   // 見出し右に置くコントロール（リスト絞り込みセレクト等）
+  style = null,         // 外枠の上書き（Card の中に入れる時に marginBottom を消す等）
 }) {
   const grid = useMemo(() => {
     const g = {};
@@ -63,7 +65,7 @@ export default function Heatmap({
   }, [grid]);
 
   return (
-    <section style={{ marginBottom: 32 }}>
+    <section style={{ marginBottom: 32, ...(style || {}) }}>
       <div style={{
         fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy,
         borderBottom: `2px solid ${color.navy}`, paddingBottom: 6, marginBottom: 14,
@@ -71,6 +73,7 @@ export default function Heatmap({
         letterSpacing: '0.02em',
       }}>
         <span>時間帯 × 曜日 ヒートマップ <span style={{ fontSize: 10, fontWeight: font.weight.medium, color: color.textLight, marginLeft: 8 }}>（色=キーマン接続率）{listName ? ` / ${listName}` : ''}</span></span>
+        {headerRight}
       </div>
 
       {loading ? (

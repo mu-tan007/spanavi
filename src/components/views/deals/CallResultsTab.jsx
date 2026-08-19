@@ -7,6 +7,7 @@ import { getOrgId } from '../../../lib/orgContext';
 import { useCallStatuses } from '../../../hooks/useCallStatuses';
 import ListApproachPage from './ListApproachPage';
 import ListScriptDrawer from './ListScriptDrawer';
+import Heatmap from '../analytics/Heatmap';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -182,6 +183,57 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
   // アーカイブセクションの折りたたみ状態（デフォルト閉じ）
   const [archivedOpen, setArchivedOpen] = useState(false);
 
+  // ── 曜日×時間帯ヒートマップ（''=表示中の全リスト合算 / リストID=そのリスト単体）──
+  const [heatmapListId, setHeatmapListId] = useState('');
+  const [heatmapData, setHeatmapData] = useState([]);
+  const [heatmapLoading, setHeatmapLoading] = useState(false);
+
+  // 選択肢はアクティブ・アーカイブの両方（アーカイブは末尾に印付き）
+  const heatmapListOptions = useMemo(() => {
+    const labelOf = (s) => s.industry || s.list_name || '(名称未設定)';
+    return [{ value: '', label: '表示中の全リスト' }].concat(
+      activeRows.map(s => ({ value: s.list_id, label: labelOf(s) })),
+      archivedRows.map(s => ({ value: s.list_id, label: `${labelOf(s)}（アーカイブ）` })),
+    );
+  }, [activeRows, archivedRows]);
+
+  // 選択が消えた（期間変更でリストが消えた）ら全リストへ戻す
+  useEffect(() => {
+    if (heatmapListId && !heatmapListOptions.some(o => o.value === heatmapListId)) setHeatmapListId('');
+  }, [heatmapListId, heatmapListOptions]);
+
+  // 対象リストID。engagement サブタブで絞り込み中は画面に出ているリストだけを合算する。
+  const heatmapListIds = useMemo(() => {
+    if (heatmapListId) return [heatmapListId];
+    if (!filterEngagementId) return null;   // null = クライアント配下の全リスト
+    return filteredRows.map(s => s.list_id);
+  }, [heatmapListId, filterEngagementId, filteredRows]);
+  const heatmapListKey = heatmapListIds ? heatmapListIds.join(',') : '';
+
+  useEffect(() => {
+    if (!orgId || !client?.id) { setHeatmapData([]); return; }
+    let cancelled = false;
+    (async () => {
+      setHeatmapLoading(true);
+      const { data, error } = await supabase.rpc('sourcing_call_heatmap', {
+        p_client_id: client.id, p_org_id: orgId,
+        p_keyman_labels: Array.from(keymanConnectLabels || []),
+        p_from: periodRange.from, p_to: periodRange.to,
+        p_list_ids: heatmapListIds,
+      });
+      if (error) console.error('[CallResultsTab] sourcing_call_heatmap:', error);
+      if (!cancelled) { setHeatmapData(data || []); setHeatmapLoading(false); }
+    })();
+    return () => { cancelled = true; };
+    // heatmapListIds は毎回新しい配列になるため、中身のキーで依存を張る
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, client?.id, keymanConnectLabels, periodRange.from, periodRange.to, heatmapListKey]);
+
+  const heatmapListName = useMemo(
+    () => (heatmapListId ? (heatmapListOptions.find(o => o.value === heatmapListId)?.label || null) : null),
+    [heatmapListId, heatmapListOptions]
+  );
+
   // 詳細ページ: 全フック宣言後に描画切替
   if (detailList) {
     return (
@@ -351,6 +403,26 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
           )}
         </SectionCard>
       )}
+
+      {/* 曜日 × 時間帯 ヒートマップ（全リスト合算 / リスト単体を切替） */}
+      <Card padding="none" style={{ padding: '12px 16px' }}>
+        <Heatmap
+          heatmapData={heatmapData}
+          loading={heatmapLoading}
+          listName={heatmapListName}
+          style={{ marginBottom: 0 }}
+          headerRight={(
+            <Select
+              size="sm"
+              fullWidth={false}
+              value={heatmapListId}
+              onChange={e => setHeatmapListId(e.target.value)}
+              options={heatmapListOptions}
+              style={{ minWidth: 180, maxWidth: 260 }}
+            />
+          )}
+        />
+      </Card>
 
       {byDay.length > 0 && (
         <SectionCard title="日別 架電件数">
