@@ -66,7 +66,7 @@ export function useSpanaviData(authOrgId) {
         supabase.from('client_contacts').select('*').eq('org_id', orgId).order('created_at'),
         supabase.from('engagements').select('id').eq('org_id', orgId).eq('slug', 'seller_sourcing').maybeSingle(),
         supabase.from('client_engagement_reward_settings').select('client_id, engagement_id, reward_type, intro_count, intro_reward_type').eq('org_id', orgId),
-        supabase.from('engagements').select('id, name, slug, category_id').eq('org_id', orgId),
+        supabase.from('engagements').select('id, name, slug, type, category_id').eq('org_id', orgId),
         supabase.from('business_categories').select('id, name').eq('org_id', orgId),
       ])
 
@@ -148,6 +148,9 @@ export function useSpanaviData(authOrgId) {
           {
             engagementName: e.name || '',
             engagementSlug: e.slug || '',
+            // 業務種別の型。商材別に slug が分かれても type は共通
+            // ('seller_sourcing' / 'matching' / 'client_acquisition' 等)
+            engagementType: e.type || '',
             productCategoryName: e.category_id ? (categoryNameMap.get(e.category_id) || '') : '',
           },
         ])
@@ -164,6 +167,7 @@ export function useSpanaviData(authOrgId) {
         productCategoryName: meta?.productCategoryName || '',
         engagementName: meta?.engagementName || '',
         engagementSlug: meta?.engagementSlug || '',
+        engagementType: meta?.engagementType || '',
         status: cl.status || '架電可能',
         industry: cl.industry || '',
         count: cl.total_count || 0,
