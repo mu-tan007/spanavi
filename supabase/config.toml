@@ -21,6 +21,9 @@ verify_jwt = false
 [functions.sync-zoom-users]
 verify_jwt = false
 
+[functions.backfill-zoom-recordings]
+verify_jwt = false
+
 [functions.migrate-auth-to-email]
 verify_jwt = false
 
