@@ -200,22 +200,33 @@ export type HomeworkItem = {
 
 /**
  * 次回事後課題の mock（AI生成失敗時のフォールバック）。
- * 事後課題は「宿題」ではなく収益化を前に進める実務行動そのもの。
+ * 第2回以降は「宿題」ではなく収益化を前に進める実務行動そのもの。
  * 行動したら Slack でトレーナーに報告・壁打ちしてもらい、スパナビ上はチェックのみで完了。
  * 記述(text)課題は最小限（1問）に留める。トレーナーが手動編集後「追加公開」で確定。
+ * 第1回だけは目的地と現在地を定める設計の回なので、記述で設計させる雛形を返す
+ * （2026-08-21 に第1回の固定26問を廃止しAI生成へ一本化したことに合わせる）。
  */
 export async function generateHomework30Items(
   input: HomeworkItemsInput,
 ): Promise<HomeworkItem[]> {
-  const n = input?.nextSessionNo ?? 1;
-  const templates: Array<Omit<HomeworkItem, 'position'>> = [
-    { question_text: '副業プラットフォームで気になる案件に2件応募し、その案件概要を簡単に Slack でトレーナーに報告してください。', is_required: true, item_type: 'checkbox' },
-    { question_text: '交渉中・進行中の案件について、最新の進捗を Slack でトレーナーに壁打ちしてください。', is_required: true, item_type: 'checkbox' },
-    { question_text: 'クラウドワークスのプロフィール文章を見直し、Slack でトレーナーに共有して添削（フィードバック）をもらってください。', is_required: false, item_type: 'checkbox' },
-    { question_text: 'BizonまたはYentaでつながりたい相手に1〜2件アプローチし、実施した旨を Slack でトレーナーに報告してください。', is_required: false, item_type: 'checkbox' },
-    // n は「この事後課題が紐づく＝完了した回」。第1回も対象になったので 0 回にならないよう下限を1にする。
-    { question_text: `第${Math.max(n, 1)}回セッションで出た論点のうち、最も前に進めたい行動を1つに絞って言語化してください。`, is_required: true, max_length: 400, item_type: 'text' },
-  ];
+  // n は「この事後課題が紐づく＝完了した回」。第1回も対象なので 0 回にならないよう下限を1にする。
+  const n = Math.max(input?.nextSessionNo ?? 1, 1);
+  const templates: Array<Omit<HomeworkItem, 'position'>> = n === 1
+    ? [
+      { question_text: '5年後の平日のある1日を、朝から夜まで（どこで・誰と・何をしているか）具体的に書いてください。', is_required: true, max_length: 500, item_type: 'text' },
+      { question_text: '5年後に必要な月収を内訳5項目以上に分解し、各項目についてなぜその額かの根拠も書いてください。', is_required: true, max_length: 500, item_type: 'text' },
+      { question_text: '5年後の月収から逆算して、3年後・1年後・3ヶ月後それぞれの月収と、そのとき何ができている状態かを書いてください。', is_required: true, max_length: 500, item_type: 'text' },
+      { question_text: 'これまでの経験を「夢中になったこと」「頑張ったこと」「うまくいったこと」の3つで棚卸しし、全体を眺めて気づいたことを書いてください。', is_required: true, max_length: 500, item_type: 'text' },
+      { question_text: '3ヶ月後の状態ゴールを、①武器の方向 ②最初の一歩 ③週のリズムと数字 の3点で書いてください。', is_required: true, max_length: 500, item_type: 'text' },
+      { question_text: 'こうなりたいと思える人を2人選び、その人が今に至るまでの経緯を調べて Slack でトレーナーに共有してください。', is_required: false, item_type: 'checkbox' },
+    ]
+    : [
+      { question_text: '副業プラットフォームで気になる案件に2件応募し、その案件概要を簡単に Slack でトレーナーに報告してください。', is_required: true, item_type: 'checkbox' },
+      { question_text: '交渉中・進行中の案件について、最新の進捗を Slack でトレーナーに壁打ちしてください。', is_required: true, item_type: 'checkbox' },
+      { question_text: 'クラウドワークスのプロフィール文章を見直し、Slack でトレーナーに共有して添削（フィードバック）をもらってください。', is_required: false, item_type: 'checkbox' },
+      { question_text: 'BizonまたはYentaでつながりたい相手に1〜2件アプローチし、実施した旨を Slack でトレーナーに報告してください。', is_required: false, item_type: 'checkbox' },
+      { question_text: `第${n}回セッションで出た論点のうち、最も前に進めたい行動を1つに絞って言語化してください。`, is_required: true, max_length: 400, item_type: 'text' },
+    ];
 
   return templates.map((tpl, idx) => ({
     position: idx + 1,
