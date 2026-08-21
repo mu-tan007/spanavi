@@ -112,12 +112,12 @@ export default function LibraryView({
     refreshMeetings();
   };
 
-  // 資料ボタン。無い回はその場に一行出す（アラートで止めない）
-  const [noDocMeetingId, setNoDocMeetingId] = useState(null);
+  // 資料ボタン。ある回はそのままPDFを開き、無い回はポップアップを出す
+  // （行の下に出すと一覧の行が太るため・2026-08-21 むー様指示）
+  const [docDialogMeeting, setDocDialogMeeting] = useState(null);
   const handleOpenDocument = (m) => {
-    if (!m.document_url) { setNoDocMeetingId(m.id); return; }
-    setNoDocMeetingId(null);
-    window.open(m.document_url, '_blank', 'noopener,noreferrer');
+    if (m.document_url) { window.open(m.document_url, '_blank', 'noopener,noreferrer'); return; }
+    setDocDialogMeeting(m);
   };
 
   const [editingMeetingId, setEditingMeetingId] = useState(null);
@@ -389,16 +389,6 @@ export default function LibraryView({
                             </>
                           )}
                         </div>
-                        {noDocMeetingId === m.id && (
-                          <div style={{
-                            marginTop: space[2],
-                            padding: `${space[2]}px ${space[2.5]}px`,
-                            borderRadius: radius.md,
-                            background: alpha(color.navyLight, 0.06),
-                            border: `1px solid ${color.borderLight}`,
-                            fontSize: font.size.xs, color: color.textMid,
-                          }}>この回は資料がありません。</div>
-                        )}
                         {isPlaying && (
                           <div style={{ marginTop: space[2.5] }}>
                             {m.stream_uid && CF_STREAM_SUBDOMAIN ? (
@@ -443,6 +433,131 @@ export default function LibraryView({
           </div>
         </Card>
       )}
+
+      {docDialogMeeting && (
+        <MeetingDocumentDialog
+          meeting={docDialogMeeting}
+          canUpload={isAdmin}
+          onClose={() => setDocDialogMeeting(null)}
+          onSaved={() => { setDocDialogMeeting(null); refreshMeetings(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// 資料が無い回で出すポップアップ。そのまま資料を入れられる
+// ────────────────────────────────────────────────────────────
+function MeetingDocumentDialog({ meeting, canUpload, onClose, onSaved }) {
+  const [file, setFile] = useState(null);
+  const [over, setOver] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !saving) onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, saving]);
+
+  const pick = (f) => {
+    if (!f) return;
+    const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    if (!isPdf) { setError('資料はPDFファイルのみアップロードできます'); return; }
+    setError(''); setFile(f);
+  };
+
+  const save = async () => {
+    if (!file) return;
+    setSaving(true); setError('');
+    const { error: err } = await setWeeklyMeetingDocument(meeting.id, {
+      file, currentPath: meeting.document_path || null,
+    });
+    setSaving(false);
+    if (err) { setError('資料を保存できませんでした。権限がない可能性があります。'); return; }
+    onSaved();
+  };
+
+  return (
+    <div
+      onClick={() => { if (!saving) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: alpha(color.navyDeep, 0.5),
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: space[4],
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 520,
+          background: color.white, borderRadius: radius.lg,
+          boxShadow: shadow.xl, overflow: 'hidden',
+        }}
+      >
+        <div style={{
+          background: color.navy, color: color.white,
+          padding: `${space[2.5]}px ${space[4]}px`,
+          fontSize: font.size.sm, fontWeight: font.weight.bold,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{meeting.title}</div>
+
+        <div style={{ padding: space[4] }}>
+          <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>
+            この回は資料がありません。
+          </div>
+
+          {canUpload ? (
+            <>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: space[1.5] }}>
+                この場で資料を登録できます。
+              </div>
+              <div
+                onDragOver={e => { e.preventDefault(); setOver(true); }}
+                onDragLeave={() => setOver(false)}
+                onDrop={e => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files?.[0]); }}
+                onClick={() => { if (!saving) inputRef.current?.click(); }}
+                style={{
+                  marginTop: space[3],
+                  border: `2px dashed ${over ? color.gold : color.border}`,
+                  background: over ? '#FFFBEB' : '#F8F9FA',
+                  borderRadius: radius.lg, padding: space[5],
+                  textAlign: 'center', cursor: saving ? 'default' : 'pointer',
+                }}
+              >
+                <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.semibold }}>
+                  {file ? `選択中: ${file.name}` : '資料をアップロード'}
+                </div>
+                <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1] }}>
+                  クリックまたはドラッグ＆ドロップ（PDF）
+                </div>
+                <input ref={inputRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }}
+                  onChange={e => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: space[1.5] }}>
+              登録されしだい、この資料ボタンから開けるようになります。
+            </div>
+          )}
+
+          {error && (
+            <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2], marginTop: space[4] }}>
+            <Button variant="outline" onClick={onClose} disabled={saving}>閉じる</Button>
+            {canUpload && (
+              <Button onClick={save} loading={saving} disabled={!file}>登録</Button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -621,7 +736,6 @@ function MeetingUploader({ currentUser, onUploaded }) {
     if (!isPdf) { setError('資料はPDFファイルのみアップロードできます'); return; }
     setError('');
     setDocFile(file);
-    fillDefaults(file);
   };
   const handleDocDrop = (e) => {
     e.preventDefault(); setDocDragOver(false);
@@ -651,77 +765,90 @@ function MeetingUploader({ currentUser, onUploaded }) {
     onUploaded?.(data);
   };
 
-  const dropZone = (opts) => ({
-    border: `2px dashed ${opts.over ? color.gold : color.border}`,
-    background: opts.over ? '#FFFBEB' : '#F8F9FA',
-    borderRadius: radius.lg, padding: space[5],
-    textAlign: 'center', cursor: 'pointer',
-    flex: '1 1 260px', minWidth: 0,
-  });
-
   return (
     <div style={{ marginBottom: space[4] }}>
-      <div style={{ display: 'flex', gap: space[2.5], flexWrap: 'wrap' }}>
-        <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
-          style={dropZone({ over: dragOver })}
-        >
-          <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.semibold }}>
-            {selectedFile ? `選択中: ${selectedFile.name} (${Math.round(selectedFile.size / 1024 / 1024)}MB)` : '動画ファイルを選択'}
-          </div>
-          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1] }}>
-            クリックまたはドラッグ＆ドロップ
-          </div>
-          <input ref={inputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => pickFile(e.target.files?.[0])} />
+      {/* まず動画を選ぶ。タイトルと資料はそのあとに出す（2026-08-21 むー様指示） */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+        style={{
+          border: `2px dashed ${dragOver ? color.gold : color.border}`,
+          background: dragOver ? '#FFFBEB' : '#F8F9FA',
+          borderRadius: radius.lg, padding: space[5],
+          textAlign: 'center', cursor: 'pointer',
+        }}
+      >
+        <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.semibold }}>
+          {selectedFile ? `選択中: ${selectedFile.name} (${Math.round(selectedFile.size / 1024 / 1024)}MB)` : '動画ファイルを選択'}
         </div>
-
-        <div
-          onDragOver={e => { e.preventDefault(); setDocDragOver(true); }}
-          onDragLeave={() => setDocDragOver(false)}
-          onDrop={handleDocDrop}
-          onClick={() => docInputRef.current?.click()}
-          style={dropZone({ over: docDragOver })}
-        >
-          <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.semibold }}>
-            {docFile ? `選択中: ${docFile.name} (${Math.max(1, Math.round(docFile.size / 1024 / 1024))}MB)` : '資料をアップロード'}
-          </div>
-          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1] }}>
-            クリックまたはドラッグ＆ドロップ（PDF・任意）
-          </div>
-          <input ref={docInputRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={e => pickDoc(e.target.files?.[0])} />
+        <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1] }}>
+          クリックまたはドラッグ＆ドロップ
         </div>
+        <input ref={inputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => pickFile(e.target.files?.[0])} />
       </div>
 
-      {docFile && (
-        <div style={{ marginTop: space[2], display: 'flex', alignItems: 'center', gap: space[2] }}>
-          <span style={{ fontSize: font.size.xs, color: color.textMid }}>資料: {docFile.name}</span>
-          <Button size="sm" variant="ghost" onClick={() => setDocFile(null)} disabled={uploading}>資料を外す</Button>
-        </div>
-      )}
-
       {selectedFile && (
-        <div style={{ display: 'flex', gap: space[2.5], alignItems: 'center', marginTop: space[3], flexWrap: 'wrap' }}>
-          <Input
-            size="sm"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="タイトル"
-            containerStyle={{ flex: '1 1 240px' }}
-          />
-          <Input
-            size="sm"
-            type="date"
-            value={meetingDate}
-            onChange={e => setMeetingDate(e.target.value)}
-            fullWidth={false}
-          />
-          <Button onClick={doUpload} loading={uploading} disabled={!title.trim()}>
-            {uploading ? `アップロード中… ${uploadPct}%` : 'アップロード'}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={uploading}>キャンセル</Button>
+        <div style={{
+          marginTop: space[3], padding: space[3],
+          border: `1px solid ${color.borderLight}`, borderRadius: radius.lg,
+          background: color.white,
+          display: 'flex', flexDirection: 'column', gap: space[2.5],
+        }}>
+          <div style={{ display: 'flex', gap: space[2.5], alignItems: 'center', flexWrap: 'wrap' }}>
+            <Input
+              size="sm"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="タイトル"
+              containerStyle={{ flex: '1 1 240px' }}
+            />
+            <Input
+              size="sm"
+              type="date"
+              value={meetingDate}
+              onChange={e => setMeetingDate(e.target.value)}
+              fullWidth={false}
+            />
+          </div>
+
+          <div
+            onDragOver={e => { e.preventDefault(); setDocDragOver(true); }}
+            onDragLeave={() => setDocDragOver(false)}
+            onDrop={handleDocDrop}
+            onClick={() => { if (!uploading && !docFile) docInputRef.current?.click(); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: space[2],
+              border: `1px dashed ${docDragOver ? color.gold : color.border}`,
+              background: docDragOver ? '#FFFBEB' : color.white,
+              borderRadius: radius.md,
+              padding: `${space[2]}px ${space[2.5]}px`,
+              cursor: uploading || docFile ? 'default' : 'pointer',
+            }}
+          >
+            <span style={{
+              flex: 1, minWidth: 0, fontSize: font.size.xs,
+              color: docFile ? color.navy : color.textLight,
+              fontWeight: docFile ? font.weight.semibold : font.weight.normal,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {docFile ? `資料: ${docFile.name}` : '資料をアップロード（クリックまたはドラッグ＆ドロップ・PDF・任意）'}
+            </span>
+            {docFile && (
+              <Button size="sm" variant="ghost" disabled={uploading}
+                onClick={e => { e.stopPropagation(); setDocFile(null); }}>外す</Button>
+            )}
+            <input ref={docInputRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }}
+              onChange={e => { pickDoc(e.target.files?.[0]); e.target.value = ''; }} />
+          </div>
+
+          <div style={{ display: 'flex', gap: space[2.5], alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button onClick={doUpload} loading={uploading} disabled={!title.trim()}>
+              {uploading ? `アップロード中… ${uploadPct}%` : 'アップロード'}
+            </Button>
+            <Button variant="outline" onClick={reset} disabled={uploading}>キャンセル</Button>
+          </div>
         </div>
       )}
       {error && <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>{error}</div>}
