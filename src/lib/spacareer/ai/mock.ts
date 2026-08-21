@@ -180,7 +180,7 @@ export async function generateMinutesDraft(
 
 export type HomeworkItemsInput = {
   customerId: string;
-  nextSessionNo: number;            // 1〜8
+  nextSessionNo: number;            // 1〜8（この事後課題が紐づく＝完了した回）
   minutesText?: string;
   hearingSheet?: Record<string, unknown>;
   pastHomeworkSummary?: string;
@@ -213,7 +213,8 @@ export async function generateHomework30Items(
     { question_text: '交渉中・進行中の案件について、最新の進捗を Slack でトレーナーに壁打ちしてください。', is_required: true, item_type: 'checkbox' },
     { question_text: 'クラウドワークスのプロフィール文章を見直し、Slack でトレーナーに共有して添削（フィードバック）をもらってください。', is_required: false, item_type: 'checkbox' },
     { question_text: 'BizonまたはYentaでつながりたい相手に1〜2件アプローチし、実施した旨を Slack でトレーナーに報告してください。', is_required: false, item_type: 'checkbox' },
-    { question_text: `第${Math.max(n - 1, 0)}回セッションで出た論点のうち、最も前に進めたい行動を1つに絞って言語化してください。`, is_required: true, max_length: 400, item_type: 'text' },
+    // n は「この事後課題が紐づく＝完了した回」。第1回も対象になったので 0 回にならないよう下限を1にする。
+    { question_text: `第${Math.max(n, 1)}回セッションで出た論点のうち、最も前に進めたい行動を1つに絞って言語化してください。`, is_required: true, max_length: 400, item_type: 'text' },
   ];
 
   return templates.map((tpl, idx) => ({

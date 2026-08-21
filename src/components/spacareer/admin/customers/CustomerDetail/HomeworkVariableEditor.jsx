@@ -5,12 +5,14 @@ import { supabase } from '../../../../../lib/supabase';
 import { generateHomework30Items } from '../../../../../lib/spacareer/ai/mock';
 
 // ============================================================
-// 事後課題：変動課題エディタ（第2〜7回）
+// 事後課題：変動課題エディタ（第1〜8回）
 // ------------------------------------------------------------
 // 新フロー（むー様 2026-06-23）:
 //   - 固定事後課題＋感想 … 各回をセッション完了(status='completed')にすると自動公開cronが配信（fixed_published_at）。
 //   - 変動事後課題       … 本エディタで AI 生成 → 修正 → 「追加公開」で公開済み課題に追記。
-// 対象は固定公開済み（fixed_published_at あり）の第2〜7回。
+// 第1回もこの形に統一した（むー様 2026-08-21）。第1回の固定26問（homework_1テンプレ）の
+// 自動配信は廃止し、全ての回で「AI生成→トレーナーが修正→追加公開」に一本化する。
+// 対象は固定公開済み（fixed_published_at あり）の第1〜8回。
 // 固定項目(source='fixed')と公開済み変動(is_published=true)は受講生の回答保護のため読取専用。
 // 編集対象は未公開の変動ドラフト(source='variable' && is_published=false)のみ。
 // ============================================================
@@ -25,7 +27,7 @@ function fmtDateTime(v) {
 }
 
 export default function HomeworkVariableEditor({ detail, customerId, sessionNo = null, onRefresh }) {
-  // 変動課題の対象は「固定公開済み（fixed_published_at あり）」または「セッション完了済み」の第2〜8回。
+  // 変動課題の対象は「固定公開済み（fixed_published_at あり）」または「セッション完了済み」の第1〜8回。
   // → セッション完了直後（固定の自動公開cronを待たずに）から変動課題を生成・下書き保存できる。
   //   ただし受講生への「追加公開」は固定公開後(fixed_published_at)に限定する（handlePublish で保護）。
   // sessionNo 指定時はその回のみ（セッション管理タブ埋め込み用）。
@@ -35,7 +37,7 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
   );
   const targets = useMemo(
     () => (detail?.homework || [])
-      .filter((h) => h.session_no >= 2 && h.session_no <= 8
+      .filter((h) => h.session_no >= 1 && h.session_no <= 8
         && (h.fixed_published_at || completedSessionNos.has(h.session_no))
         && (sessionNo ? h.session_no === sessionNo : true))
       .sort((a, b) => a.session_no - b.session_no),
@@ -105,8 +107,8 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
   }, [selected?.id]);
 
   if (!targets.length) {
-    // セッション管理タブ埋め込み時は、未公開でも案内を出す（第2〜7回のみ対象）。
-    if (sessionNo && sessionNo >= 2 && sessionNo <= 8) {
+    // セッション管理タブ埋め込み時は、未公開でも案内を出す（第1〜8回が対象）。
+    if (sessionNo && sessionNo >= 1 && sessionNo <= 8) {
       return (
         <Card padding="md" title="事後課題：変動課題（AI生成）">
           <div style={{ fontSize: font.size.sm, color: color.textMid }}>
@@ -370,7 +372,9 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
   return (
     <Card padding="md"
       title={`事後課題：変動課題（第${selected?.session_no}回・AI生成）`}
-      description="固定の事後課題は予定日時に自動公開済みです。ここでは議事録等を踏まえた変動課題をAI生成→修正し「追加公開」で受講生に追記します。記述/ファイル提出を切り替えられます。"
+      description={fixedDrafts.length === 0
+        ? 'この回に固定課題はありません（全て変動課題）。議事録等を踏まえた課題をAI生成→修正し「追加公開」で受講生に出します。記述/ファイル提出を切り替えられます。'
+        : '固定の事後課題はセッション完了時に自動公開済みです。ここでは議事録等を踏まえた変動課題をAI生成→修正し「追加公開」で受講生に追記します。記述/ファイル提出を切り替えられます。'}
       action={targets.length > 1
         ? <Select size="sm" fullWidth={false} value={selected?.id || ''}
             onChange={(e) => setSelectedId(e.target.value)}

@@ -565,9 +565,10 @@ export default function TabSessionManage({ detail, sessionNo = 1, part = 1, onRe
         </Card>
       )}
 
-      {/* この回(第2〜8回・part1)の変動事後課題をここで生成・修正・追加公開する。
+      {/* この回(第1〜8回・part1)の変動事後課題をここで生成・修正・追加公開する。
+          第1回も固定配信を廃止して全て変動課題にした（むー様 2026-08-21）。
           応用コースの(2)には事後課題を紐付けないため part===1 のときだけ表示。 */}
-      {sessionNo >= 2 && part === 1 && (
+      {sessionNo >= 1 && part === 1 && (
         <HomeworkVariableEditor detail={detail} customerId={customerId} sessionNo={sessionNo} onRefresh={onRefresh} />
       )}
 
