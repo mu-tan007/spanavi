@@ -3467,6 +3467,35 @@ export async function deleteWeeklyMeetingDocumentObject(path) {
   return error;
 }
 
+// 既存の回に対して、資料だけを後から入れる・差し替える・外す
+export async function setWeeklyMeetingDocument(videoId, { file = null, remove = false, currentPath = null } = {}) {
+  if (!videoId) return { data: null, error: new Error('no id') };
+  if (!file && !remove) return { data: null, error: null };   // 変更なし
+
+  let patch = { document_path: null, document_name: null, document_size_bytes: null, document_url: null };
+  if (file) {
+    const { doc, error: upErr } = await uploadWeeklyMeetingDocument(file);
+    if (upErr) return { data: null, error: upErr };
+    patch = doc;
+  }
+
+  const { data, error } = await supabase
+    .from('weekly_meeting_videos').update(patch).eq('id', videoId).select().single();
+  // 更新権限が無いと0行更新のまま成功して見えるため、data が無いのも失敗として扱う
+  if (error || !data) {
+    console.error('[DB] setWeeklyMeetingDocument update error:', error);
+    // 行を更新できなかったのに新しいファイルだけ残ると迷子になる
+    if (file && patch.document_path) await deleteWeeklyMeetingDocumentObject(patch.document_path);
+    return { data: null, error: error || new Error('0 rows updated') };
+  }
+
+  // 旧ファイルは行の更新が通ってから消す（先に消すと失敗時に戻せない）
+  if (currentPath && currentPath !== patch.document_path) {
+    await deleteWeeklyMeetingDocumentObject(currentPath);
+  }
+  return { data, error: null };
+}
+
 // Cloudflare Stream 経由のアップロード（Direct Creator Upload + TUS）
 export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploadedByName, documentFile, onProgress }) {
   if (!file) return { error: 'missing file' };

@@ -16,7 +16,7 @@ import DailyReportPanel from './library/DailyReportPanel';
 import {
   fetchRecordingBookmarks, deleteRecordingBookmark,
   fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo, updateWeeklyMeetingVideo,
-  refreshWeeklyMeetingStatus,
+  refreshWeeklyMeetingStatus, setWeeklyMeetingDocument,
 } from '../../lib/supabaseWrite';
 
 const CF_STREAM_SUBDOMAIN = import.meta.env.VITE_CF_STREAM_CUSTOMER_SUBDOMAIN || '';
@@ -123,20 +123,51 @@ export default function LibraryView({
   const [editingMeetingId, setEditingMeetingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDate, setEditDate] = useState('');
-  const startEdit = (m) => { setEditingMeetingId(m.id); setEditTitle(m.title || ''); setEditDate(m.meeting_date || ''); };
+  // 編集中の資料の扱い。新しいPDFを選んだか、今の資料を外すか
+  const [editDocFile, setEditDocFile] = useState(null);
+  const [editDocRemoved, setEditDocRemoved] = useState(false);
+  const [editDocError, setEditDocError] = useState('');
+  const startEdit = (m) => {
+    setEditingMeetingId(m.id);
+    setEditTitle(m.title || '');
+    setEditDate(m.meeting_date || '');
+    setEditDocFile(null); setEditDocRemoved(false); setEditDocError('');
+  };
+  const cancelEdit = () => {
+    setEditingMeetingId(null);
+    setEditDocFile(null); setEditDocRemoved(false); setEditDocError('');
+  };
+  const pickEditDoc = (file) => {
+    if (!file) return;
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    if (!isPdf) { setEditDocError('資料はPDFファイルのみ登録できます'); return; }
+    setEditDocError(''); setEditDocRemoved(false); setEditDocFile(file);
+  };
   const [editSaving, setEditSaving] = useState(false);
   const saveEdit = async () => {
-    setEditSaving(true);
+    const target = weeklyMeetings.find(x => x.id === editingMeetingId);
+    setEditSaving(true); setEditDocError('');
     const { data, error } = await updateWeeklyMeetingVideo(editingMeetingId, {
       title: editTitle.trim() || null, meeting_date: editDate || null,
     });
-    setEditSaving(false);
     // 更新権限がないと 0 行更新のまま成功したように見えるため、明示的に失敗を伝える
     if (error || !data) {
+      setEditSaving(false);
       window.alert('保存できませんでした。更新権限がない可能性があります。');
       return;
     }
-    setEditingMeetingId(null);
+    if (editDocFile || editDocRemoved) {
+      const r = await setWeeklyMeetingDocument(editingMeetingId, {
+        file: editDocFile, remove: editDocRemoved, currentPath: target?.document_path || null,
+      });
+      if (r.error) {
+        setEditSaving(false);
+        setEditDocError('資料を保存できませんでした。タイトルと日付だけ保存されています。');
+        return;
+      }
+    }
+    setEditSaving(false);
+    cancelEdit();
     refreshMeetings();
   };
 
@@ -282,6 +313,20 @@ export default function LibraryView({
                                   onChange={e => setEditDate(e.target.value)}
                                   containerStyle={{ width: 160 }}
                                 />
+                                <EditDocumentField
+                                  meeting={m}
+                                  file={editDocFile}
+                                  removed={editDocRemoved}
+                                  disabled={editSaving}
+                                  onPick={pickEditDoc}
+                                  onUndo={() => { setEditDocFile(null); setEditDocRemoved(false); setEditDocError(''); }}
+                                  onRemove={() => { setEditDocFile(null); setEditDocRemoved(true); setEditDocError(''); }}
+                                />
+                                {editDocError && (
+                                  <div style={{ fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>
+                                    {editDocError}
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <>
@@ -294,6 +339,7 @@ export default function LibraryView({
                                   {m.meeting_date || m.created_at?.slice(0, 10) || ''}
                                   {m.uploaded_by_name ? ` ・ ${m.uploaded_by_name}` : ''}
                                   {m.size_bytes ? ` ・ ${Math.round(m.size_bytes / 1024 / 1024)}MB` : ''}
+                                  {m.document_url ? ' ・ 資料あり' : ''}
                                 </div>
                               </>
                             )}
@@ -301,7 +347,7 @@ export default function LibraryView({
                           {isEditing ? (
                             <>
                               <Button size="sm" onClick={saveEdit} loading={editSaving}>保存</Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingMeetingId(null)} disabled={editSaving}>キャンセル</Button>
+                              <Button size="sm" variant="outline" onClick={cancelEdit} disabled={editSaving}>キャンセル</Button>
                             </>
                           ) : (
                             <>
@@ -455,6 +501,68 @@ function BookCard({ id, meta, count, onOpen }) {
       <div style={{ fontSize: 10.5, color: alpha(color.white, 0.7) }}>
         {count != null ? `${count} 件` : '開く →'}
       </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// 編集中の「資料」欄。既にある回に後から入れる／差し替える／外す
+// ────────────────────────────────────────────────────────────
+function EditDocumentField({ meeting, file, removed, disabled, onPick, onUndo, onRemove }) {
+  const [over, setOver] = useState(false);
+  const inputRef = useRef(null);
+  const pending = !!file || removed;
+  const hasCurrent = !!meeting.document_name;
+
+  const label = file ? `差し替え: ${file.name}`
+    : removed ? '保存すると資料を外します'
+    : hasCurrent ? `資料: ${meeting.document_name}`
+    : '資料を追加（クリックまたはドラッグ＆ドロップ・PDF）';
+
+  const openPicker = () => { if (!disabled && !pending) inputRef.current?.click(); };
+
+  return (
+    <div
+      onDragOver={e => { if (!disabled && !pending) { e.preventDefault(); setOver(true); } }}
+      onDragLeave={() => setOver(false)}
+      onDrop={e => {
+        e.preventDefault(); setOver(false);
+        if (!disabled && !pending) onPick(e.dataTransfer.files?.[0]);
+      }}
+      onClick={openPicker}
+      style={{
+        display: 'flex', alignItems: 'center', gap: space[2],
+        border: `1px dashed ${over ? color.gold : color.border}`,
+        background: over ? '#FFFBEB' : color.white,
+        borderRadius: radius.md,
+        padding: `${space[1.5]}px ${space[2]}px`,
+        cursor: disabled || pending ? 'default' : 'pointer',
+      }}
+    >
+      <span style={{
+        flex: 1, minWidth: 0, fontSize: font.size.xs,
+        color: pending ? color.navy : hasCurrent ? color.textMid : color.textLight,
+        fontWeight: pending ? font.weight.semibold : font.weight.normal,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>{label}</span>
+
+      {pending ? (
+        <Button size="sm" variant="ghost" disabled={disabled}
+          onClick={e => { e.stopPropagation(); onUndo(); }}>取り消し</Button>
+      ) : hasCurrent ? (
+        <>
+          <Button size="sm" variant="ghost" disabled={disabled}
+            onClick={e => { e.stopPropagation(); openPicker(); }}>差し替え</Button>
+          <Button size="sm" variant="ghost" disabled={disabled}
+            style={{ color: color.danger }}
+            onClick={e => { e.stopPropagation(); onRemove(); }}>外す</Button>
+        </>
+      ) : null}
+
+      <input
+        ref={inputRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }}
+        onChange={e => { onPick(e.target.files?.[0]); e.target.value = ''; }}
+      />
     </div>
   );
 }
