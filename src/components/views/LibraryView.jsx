@@ -16,7 +16,7 @@ import DailyReportPanel from './library/DailyReportPanel';
 import {
   fetchRecordingBookmarks, deleteRecordingBookmark,
   fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo, updateWeeklyMeetingVideo,
-  refreshWeeklyMeetingStatus, setWeeklyMeetingDocument,
+  refreshWeeklyMeetingStatus, setWeeklyMeetingDocument, weeklyMeetingDocumentDownloadUrl,
 } from '../../lib/supabaseWrite';
 
 const CF_STREAM_SUBDOMAIN = import.meta.env.VITE_CF_STREAM_CUSTOMER_SUBDOMAIN || '';
@@ -112,12 +112,13 @@ export default function LibraryView({
     refreshMeetings();
   };
 
-  // 資料ボタン。ある回はそのままPDFを開き、無い回はポップアップを出す
-  // （行の下に出すと一覧の行が太るため・2026-08-21 むー様指示）
+  // 資料ボタン。ある回は動画と同じように行の下でそのまま開き、
+  // 無い回はポップアップを出す（行の下に文を足すと一覧の行が太るため）
   const [docDialogMeeting, setDocDialogMeeting] = useState(null);
+  const [docViewingId, setDocViewingId] = useState(null);
   const handleOpenDocument = (m) => {
-    if (m.document_url) { window.open(m.document_url, '_blank', 'noopener,noreferrer'); return; }
-    setDocDialogMeeting(m);
+    if (!m.document_url) { setDocDialogMeeting(m); return; }
+    setDocViewingId(docViewingId === m.id ? null : m.id);
   };
 
   const [editingMeetingId, setEditingMeetingId] = useState(null);
@@ -290,6 +291,7 @@ export default function LibraryView({
                   : weeklyMeetings.map((m, idx) => {
                     const isPlaying = meetingPlayingId === m.id;
                     const isEditing = editingMeetingId === m.id;
+                    const isDocOpen = docViewingId === m.id && !!m.document_url;
                     return (
                       <div key={m.id} style={{
                         borderTop: idx === 0 && !isAdmin ? 'none' : `1px solid ${color.borderLight}`,
@@ -361,10 +363,11 @@ export default function LibraryView({
                               </Button>
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant={isDocOpen ? 'primary' : 'outline'}
                                 onClick={() => handleOpenDocument(m)}
                                 title={m.document_name || 'PDF資料を開く'}
-                              >資料</Button>
+                                style={isDocOpen ? { borderColor: color.navy, color: color.white, background: color.navy } : undefined}
+                              >{isDocOpen ? '■ 資料を閉じる' : '資料'}</Button>
                               {m.public_url && (
                                 <a href={m.public_url} target="_blank" rel="noopener noreferrer" title="Google Driveで開く"
                                   style={{
@@ -389,6 +392,48 @@ export default function LibraryView({
                             </>
                           )}
                         </div>
+                        {isDocOpen && (
+                          <div style={{ marginTop: space[2.5] }}>
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: space[2],
+                              marginBottom: space[2], flexWrap: 'wrap',
+                            }}>
+                              <span style={{
+                                flex: 1, minWidth: 0, fontSize: font.size.xs, color: color.textMid,
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                              }}>{m.document_name || '資料'}</span>
+                              {/* download 属性はクロスオリジンだと効かないので ?download= を使う */}
+                              <a
+                                href={weeklyMeetingDocumentDownloadUrl(m)}
+                                style={{
+                                  padding: `${space[1.5]}px ${space[2.5]}px`,
+                                  borderRadius: radius.md, border: `1px solid ${color.navy}`,
+                                  background: color.navy, color: color.white,
+                                  fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                                  fontFamily: font.family.sans, textDecoration: 'none',
+                                  display: 'inline-flex', alignItems: 'center',
+                                }}>↓ ダウンロード</a>
+                              <a
+                                href={m.document_url} target="_blank" rel="noopener noreferrer"
+                                style={{
+                                  padding: `${space[1.5]}px ${space[2.5]}px`,
+                                  borderRadius: radius.md, border: `1px solid ${color.border}`,
+                                  background: color.white, color: color.navy,
+                                  fontSize: font.size.xs, fontWeight: font.weight.semibold,
+                                  fontFamily: font.family.sans, textDecoration: 'none',
+                                  display: 'inline-flex', alignItems: 'center',
+                                }}>↗ 別タブで開く</a>
+                            </div>
+                            {/* スマホのブラウザは iframe 内のPDFを描けないことがあるので、上の2つを逃げ道に残す */}
+                            <iframe
+                              src={m.document_url}
+                              title={m.document_name || m.title}
+                              style={{
+                                width: '100%', height: 640, border: `1px solid ${color.borderLight}`,
+                                borderRadius: radius.md, background: color.gray50,
+                              }} />
+                          </div>
+                        )}
                         {isPlaying && (
                           <div style={{ marginTop: space[2.5] }}>
                             {m.stream_uid && CF_STREAM_SUBDOMAIN ? (
@@ -439,7 +484,12 @@ export default function LibraryView({
           meeting={docDialogMeeting}
           canUpload={isAdmin}
           onClose={() => setDocDialogMeeting(null)}
-          onSaved={() => { setDocDialogMeeting(null); refreshMeetings(); }}
+          onSaved={() => {
+            // 登録した資料をそのまま開いて見せる
+            setDocViewingId(docDialogMeeting.id);
+            setDocDialogMeeting(null);
+            refreshMeetings();
+          }}
         />
       )}
     </div>

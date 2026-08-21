@@ -3467,6 +3467,14 @@ export async function deleteWeeklyMeetingDocumentObject(path) {
   return error;
 }
 
+// ダウンロード用URL。Supabase Storage は ?download= を付けると
+// Content-Disposition: attachment になる（download 属性はクロスオリジンだと効かない）
+export function weeklyMeetingDocumentDownloadUrl(meeting) {
+  if (!meeting?.document_url) return null;
+  const name = meeting.document_name || 'document.pdf';
+  return `${meeting.document_url}?download=${encodeURIComponent(name)}`;
+}
+
 // 既存の回に対して、資料だけを後から入れる・差し替える・外す
 export async function setWeeklyMeetingDocument(videoId, { file = null, remove = false, currentPath = null } = {}) {
   if (!videoId) return { data: null, error: new Error('no id') };
