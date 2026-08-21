@@ -288,8 +288,16 @@ Deno.serve(async (req) => {
     const recording_url = target?.download_url || null
     console.log('[get-zoom-recording] 取得結果 recording_url:', recording_url ?? '(なし)')
 
+    // date_time / duration も返す（録音の実際の開始時刻。
+    // 架電記録を取り消し→再登録した際に called_at を実際の通話時刻へ戻す等、
+    // 「いつの録音を拾ったか」を呼び出し側で確認・復元できるようにするため）
     return new Response(
-      JSON.stringify({ recording_url, found: !!recording_url }),
+      JSON.stringify({
+        recording_url,
+        found: !!recording_url,
+        date_time: target?.date_time || null,
+        duration: target?.duration ?? null,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
