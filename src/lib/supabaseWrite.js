@@ -3430,8 +3430,45 @@ export async function fetchWeeklyMeetingVideos() {
   return { data: data || [], error };
 }
 
+const WM_BUCKET = 'weekly-meetings';
+
+// 回ごとのPDF資料。動画と同じ weekly-meetings バケットの docs/ 配下に置く。
+// バケットは public なので署名は要らず、そのまま新しいタブで開ける。
+export async function uploadWeeklyMeetingDocument(file) {
+  if (!file) return { doc: null, error: new Error('missing file') };
+  const orgId = getOrgId();
+  if (!orgId) return { doc: null, error: new Error('no org') };
+  // 日本語ファイル名はそのままだと Storage のキーに使えないので落とす
+  const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+  const path = `docs/${orgId}/${Date.now()}_${safeName}`;
+  const { error } = await supabase.storage
+    .from(WM_BUCKET)
+    .upload(path, file, { contentType: 'application/pdf', upsert: false });
+  if (error) {
+    console.error('[DB] uploadWeeklyMeetingDocument error:', error);
+    return { doc: null, error };
+  }
+  const { data: pub } = supabase.storage.from(WM_BUCKET).getPublicUrl(path);
+  return {
+    doc: {
+      document_path: path,
+      document_name: file.name,
+      document_size_bytes: file.size,
+      document_url: pub?.publicUrl || null,
+    },
+    error: null,
+  };
+}
+
+export async function deleteWeeklyMeetingDocumentObject(path) {
+  if (!path) return null;
+  const { error } = await supabase.storage.from(WM_BUCKET).remove([path]);
+  if (error) console.error('[DB] deleteWeeklyMeetingDocumentObject error:', error);
+  return error;
+}
+
 // Cloudflare Stream 経由のアップロード（Direct Creator Upload + TUS）
-export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploadedByName, onProgress }) {
+export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploadedByName, documentFile, onProgress }) {
   if (!file) return { error: 'missing file' };
   const orgId = getOrgId();
   if (!orgId) return { error: 'no org' };
@@ -3499,7 +3536,16 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
     return { error: err };
   }
 
-  // 3. DB にメタデータを保存
+  // 3. PDF資料が添えられていれば先に上げる（失敗しても動画の登録は続ける）
+  let doc = null;
+  let docError = null;
+  if (documentFile) {
+    const r = await uploadWeeklyMeetingDocument(documentFile);
+    doc = r.doc;
+    docError = r.error;
+  }
+
+  // 4. DB にメタデータを保存
   const row = {
     org_id: orgId,
     title: title || file.name,
@@ -3510,13 +3556,16 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
     mime_type: file.type || 'video/mp4',
     uploaded_by: user?.id || null,
     uploaded_by_name: uploadedByName || null,
+    ...(doc || {}),
   };
   const { data, error: insertError } = await supabase.from('weekly_meeting_videos').insert(row).select().single();
   if (insertError) {
     console.error('[DB] uploadWeeklyMeetingVideo insert error:', insertError);
+    // 行が作れないと資料だけが宙に浮くので消しておく
+    if (doc?.document_path) await deleteWeeklyMeetingDocumentObject(doc.document_path);
     return { error: insertError };
   }
-  return { data, error: null };
+  return { data, error: null, documentError: docError };
 }
 
 // 配信可否・duration・サムネを Stream API に問い合わせ、DBに反映
@@ -3596,7 +3645,7 @@ export async function updateWeeklyMeetingVideo(id, patch) {
   return { data, error };
 }
 
-export async function deleteWeeklyMeetingVideo(id, { streamUid = null, storagePath = null } = {}) {
+export async function deleteWeeklyMeetingVideo(id, { streamUid = null, storagePath = null, documentPath = null } = {}) {
   const { error: dbErr } = await supabase.from('weekly_meeting_videos').delete().eq('id', id);
   if (dbErr) { console.error('[DB] deleteWeeklyMeetingVideo db error:', dbErr); return { error: dbErr }; }
   if (streamUid) {
@@ -3604,9 +3653,10 @@ export async function deleteWeeklyMeetingVideo(id, { streamUid = null, storagePa
     if (cfErr) console.error('[DB] deleteWeeklyMeetingVideo cf error:', cfErr);
   }
   if (storagePath) {
-    const { error: stErr } = await supabase.storage.from('weekly-meetings').remove([storagePath]);
+    const { error: stErr } = await supabase.storage.from(WM_BUCKET).remove([storagePath]);
     if (stErr) console.error('[DB] deleteWeeklyMeetingVideo storage error:', stErr);
   }
+  if (documentPath) await deleteWeeklyMeetingDocumentObject(documentPath);
   return { error: null };
 }
 

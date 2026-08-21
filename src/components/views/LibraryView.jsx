@@ -106,8 +106,18 @@ export default function LibraryView({
 
   const handleDeleteMeeting = async (m) => {
     if (!window.confirm(`「${m.title}」を削除します。よろしいですか？`)) return;
-    await deleteWeeklyMeetingVideo(m.id, { streamUid: m.stream_uid, storagePath: m.storage_path });
+    await deleteWeeklyMeetingVideo(m.id, {
+      streamUid: m.stream_uid, storagePath: m.storage_path, documentPath: m.document_path,
+    });
     refreshMeetings();
+  };
+
+  // 資料ボタン。無い回はその場に一行出す（アラートで止めない）
+  const [noDocMeetingId, setNoDocMeetingId] = useState(null);
+  const handleOpenDocument = (m) => {
+    if (!m.document_url) { setNoDocMeetingId(m.id); return; }
+    setNoDocMeetingId(null);
+    window.open(m.document_url, '_blank', 'noopener,noreferrer');
   };
 
   const [editingMeetingId, setEditingMeetingId] = useState(null);
@@ -303,6 +313,12 @@ export default function LibraryView({
                               >
                                 {isPlaying ? '■ 停止' : '▶ 再生'}
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenDocument(m)}
+                                title={m.document_name || 'PDF資料を開く'}
+                              >資料</Button>
                               {m.public_url && (
                                 <a href={m.public_url} target="_blank" rel="noopener noreferrer" title="Google Driveで開く"
                                   style={{
@@ -327,6 +343,16 @@ export default function LibraryView({
                             </>
                           )}
                         </div>
+                        {noDocMeetingId === m.id && (
+                          <div style={{
+                            marginTop: space[2],
+                            padding: `${space[2]}px ${space[2.5]}px`,
+                            borderRadius: radius.md,
+                            background: alpha(color.navyLight, 0.06),
+                            border: `1px solid ${color.borderLight}`,
+                            fontSize: font.size.xs, color: color.textMid,
+                          }}>この回は資料がありません。</div>
+                        )}
                         {isPlaying && (
                           <div style={{ marginTop: space[2.5] }}>
                             {m.stream_uid && CF_STREAM_SUBDOMAIN ? (
@@ -447,63 +473,127 @@ function Empty({ children }) {
 // ────────────────────────────────────────────────────────────
 function MeetingUploader({ currentUser, onUploaded }) {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [docFile, setDocFile] = useState(null);
   const [title, setTitle] = useState('');
   const [meetingDate, setMeetingDate] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [docDragOver, setDocDragOver] = useState(false);
   const inputRef = useRef(null);
+  const docInputRef = useRef(null);
 
-  const pickFile = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith('video/')) { setError('動画ファイルのみアップロードできます'); return; }
-    setError('');
-    setSelectedFile(file);
+  const fillDefaults = (file) => {
     if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''));
     if (!meetingDate) {
       const d = new Date();
       setMeetingDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
     }
   };
+
+  const pickFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('video/')) { setError('動画ファイルのみアップロードできます'); return; }
+    setError('');
+    setSelectedFile(file);
+    fillDefaults(file);
+  };
   const handleDrop = (e) => {
     e.preventDefault(); setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file) pickFile(file);
   };
+
+  // 資料はPDFのみ。type が空で届くブラウザがあるので拡張子でも見る
+  const pickDoc = (file) => {
+    if (!file) return;
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    if (!isPdf) { setError('資料はPDFファイルのみアップロードできます'); return; }
+    setError('');
+    setDocFile(file);
+    fillDefaults(file);
+  };
+  const handleDocDrop = (e) => {
+    e.preventDefault(); setDocDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) pickDoc(file);
+  };
+
+  const reset = () => {
+    setSelectedFile(null); setDocFile(null);
+    setTitle(''); setMeetingDate(''); setError('');
+  };
+
   const doUpload = async () => {
     if (!selectedFile) return;
-    setUploading(true); setUploadPct(0); setError('');
-    const { data, error } = await uploadWeeklyMeetingVideo({
+    setUploading(true); setUploadPct(0); setError(''); setNotice('');
+    const { data, error, documentError } = await uploadWeeklyMeetingVideo({
       file: selectedFile, title: title || selectedFile.name, meetingDate: meetingDate || null,
       uploadedByName: currentUser || null,
+      documentFile: docFile,
       onProgress: (uploaded, total) => { if (total > 0) setUploadPct(Math.round((uploaded / total) * 100)); },
     });
     setUploading(false); setUploadPct(0);
     if (error) { setError(typeof error === 'string' ? error : (error.message || 'アップロードに失敗しました')); return; }
-    setSelectedFile(null); setTitle(''); setMeetingDate('');
+    // 動画は登録できたが資料だけ失敗した場合は、黙って成功にしない
+    if (documentError) setNotice('動画は登録できましたが、資料のアップロードに失敗しました。資料だけ入れ直してください。');
+    reset();
     onUploaded?.(data);
   };
 
+  const dropZone = (opts) => ({
+    border: `2px dashed ${opts.over ? color.gold : color.border}`,
+    background: opts.over ? '#FFFBEB' : '#F8F9FA',
+    borderRadius: radius.lg, padding: space[5],
+    textAlign: 'center', cursor: 'pointer',
+    flex: '1 1 260px', minWidth: 0,
+  });
+
   return (
     <div style={{ marginBottom: space[4] }}>
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        style={{
-          border: `2px dashed ${dragOver ? color.gold : color.border}`,
-          background: dragOver ? '#FFFBEB' : '#F8F9FA',
-          borderRadius: radius.lg, padding: space[5],
-          textAlign: 'center', cursor: 'pointer',
-        }}
-      >
-        <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.semibold }}>
-          {selectedFile ? `選択中: ${selectedFile.name} (${Math.round(selectedFile.size / 1024 / 1024)}MB)` : '動画ファイルを選択'}
+      <div style={{ display: 'flex', gap: space[2.5], flexWrap: 'wrap' }}>
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => inputRef.current?.click()}
+          style={dropZone({ over: dragOver })}
+        >
+          <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.semibold }}>
+            {selectedFile ? `選択中: ${selectedFile.name} (${Math.round(selectedFile.size / 1024 / 1024)}MB)` : '動画ファイルを選択'}
+          </div>
+          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1] }}>
+            クリックまたはドラッグ＆ドロップ
+          </div>
+          <input ref={inputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => pickFile(e.target.files?.[0])} />
         </div>
-        <input ref={inputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => pickFile(e.target.files?.[0])} />
+
+        <div
+          onDragOver={e => { e.preventDefault(); setDocDragOver(true); }}
+          onDragLeave={() => setDocDragOver(false)}
+          onDrop={handleDocDrop}
+          onClick={() => docInputRef.current?.click()}
+          style={dropZone({ over: docDragOver })}
+        >
+          <div style={{ fontSize: font.size.sm, color: color.navy, fontWeight: font.weight.semibold }}>
+            {docFile ? `選択中: ${docFile.name} (${Math.max(1, Math.round(docFile.size / 1024 / 1024))}MB)` : '資料をアップロード'}
+          </div>
+          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1] }}>
+            クリックまたはドラッグ＆ドロップ（PDF・任意）
+          </div>
+          <input ref={docInputRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={e => pickDoc(e.target.files?.[0])} />
+        </div>
       </div>
+
+      {docFile && (
+        <div style={{ marginTop: space[2], display: 'flex', alignItems: 'center', gap: space[2] }}>
+          <span style={{ fontSize: font.size.xs, color: color.textMid }}>資料: {docFile.name}</span>
+          <Button size="sm" variant="ghost" onClick={() => setDocFile(null)} disabled={uploading}>資料を外す</Button>
+        </div>
+      )}
+
       {selectedFile && (
         <div style={{ display: 'flex', gap: space[2.5], alignItems: 'center', marginTop: space[3], flexWrap: 'wrap' }}>
           <Input
@@ -523,14 +613,11 @@ function MeetingUploader({ currentUser, onUploaded }) {
           <Button onClick={doUpload} loading={uploading} disabled={!title.trim()}>
             {uploading ? `アップロード中… ${uploadPct}%` : 'アップロード'}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => { setSelectedFile(null); setTitle(''); setMeetingDate(''); setError(''); }}
-            disabled={uploading}
-          >キャンセル</Button>
+          <Button variant="outline" onClick={reset} disabled={uploading}>キャンセル</Button>
         </div>
       )}
       {error && <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>{error}</div>}
+      {notice && <div style={{ marginTop: space[2], fontSize: font.size.xs, color: color.warn, fontWeight: font.weight.semibold }}>{notice}</div>}
     </div>
   );
 }
