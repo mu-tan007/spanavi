@@ -123,6 +123,29 @@ export const COMBINED_LEADER_TIERS = [
  */
 export const COMBINED_LEADER_BONUS_FROM = '2026-08';
 
+/**
+ * チーム合算・満額支給方式（2026-09〜）の段階料率。むー様指定（2026-08-22）。
+ * 最低2%で、700万から段階が上がる。500万と600万は同じ2%（指定どおり）。
+ */
+export const LEADER_TIERS_FULL = [
+  { threshold: 0, rate: 2.0 },          // 最低2%なので500万未満も2%
+  { threshold: 5000000, rate: 2.0 },
+  { threshold: 6000000, rate: 2.0 },
+  { threshold: 7000000, rate: 2.5 },
+  { threshold: 8000000, rate: 3.0 },
+  { threshold: 9000000, rate: 3.5 },
+  { threshold: 10000000, rate: 4.0 },
+];
+
+/**
+ * リーダーボーナスが「均等割り」から「リーダー各自が満額」に変わる支払月。
+ * 2026-09〜: 合算売上×料率を、リーダー人数で割らずに1人ずつ支給する。
+ * 例）合算500万 → 2% = 10万円を2人ともに10万円ずつ（原資は20万円）。
+ *     合算1000万 → 4% = 40万円を2人ともに40万円ずつ（原資は80万円）。
+ * 2026-08 は均等割りのまま（確定済みの金額を動かさないため）。
+ */
+export const LEADER_BONUS_FULL_FROM = '2026-09';
+
 /** org_settings に入っている段階料率JSONを読む。未設定・壊れている場合は fallback を返す */
 export function parseTiers(rawJson, fallback) {
   if (!rawJson) return fallback;
@@ -198,19 +221,30 @@ export function calcMonthlyPayroll({ appoData, members, payMonth, orgSettings = 
     };
   });
   if (yyyymm >= COMBINED_LEADER_BONUS_FROM) {
-    // 2026-08〜: リーダーが率いる全チームの売上を合算し、原資をリーダー全員で均等配分する。
+    // 2026-08〜: リーダーが率いる全チームの売上を合算して段階料率をかける。
     // 副リーダー枠はこの方式では計算しない（役職自体を廃止したため）。
-    const tiers = parseTiers(orgSettings.leader_bonus_tiers_combined, COMBINED_LEADER_TIERS);
+    // 配分は支払月で変わる:
+    //   2026-08      原資をリーダー全員で均等割り
+    //   2026-09〜    リーダー各自が満額（割らない。指定どおり原資は人数倍になる）
+    const isFull = yyyymm >= LEADER_BONUS_FULL_FROM;
+    const tiers = isFull
+      ? parseTiers(orgSettings.leader_bonus_tiers_full, LEADER_TIERS_FULL)
+      : parseTiers(orgSettings.leader_bonus_tiers_combined, COMBINED_LEADER_TIERS);
     const leaders = Object.values(byGetter).filter(p => p.role === 'リーダー');
     // チーム未所属メンバーの売上は合算に含めない（リーダーの見ているチームの売上だけを原資にする）
     const leaderTeams = new Set(leaders.map(p => p.team).filter(Boolean));
     const combinedSales = [...leaderTeams].reduce((s, t) => s + (teamSales[t] || 0), 0);
     const rate = getLeaderRate(combinedSales, tiers);
-    const pool = Math.round(combinedSales * rate / 100);
-    const each = leaders.length ? Math.round(pool / leaders.length) : 0;
+    const gross = Math.round(combinedSales * rate / 100);
+    const each = isFull ? gross : (leaders.length ? Math.round(gross / leaders.length) : 0);
     leaders.forEach(p => {
       p.teamBonus = each;
-      p.bonusBasis = { mode: 'combined', sales: combinedSales, rate, sharedBy: leaders.length, teams: [...leaderTeams] };
+      p.bonusBasis = {
+        mode: isFull ? 'combined_full' : 'combined',
+        sales: combinedSales, rate,
+        sharedBy: isFull ? 1 : leaders.length,
+        teams: [...leaderTeams],
+      };
     });
   } else {
     // 〜2026-07: チーム別に段階料率をかけ、同じ役職の人数で分ける旧方式

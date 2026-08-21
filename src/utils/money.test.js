@@ -269,6 +269,76 @@ describe('calcMonthlyPayroll（チーム合算リーダーボーナス）', () =
     expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(52500); // 合算デフォルトのまま
   });
 
+  // ── 2026-09〜: 満額支給方式（むー様指定 2026-08-22）──────────────
+  const sep = (sales) => [{ getter: '吉川', status: 'アポ取得', meetDate: '2026-09-05', sales, reward: 0 }];
+
+  it('2026-09〜: 合算売上×料率を、リーダー各自が満額受け取る（均等割りしない）', () => {
+    // 指定例そのまま: 合算500万 → 2% = 10万円を2人ともに10万円ずつ
+    const rows = calcMonthlyPayroll({
+      appoData: sep(5000000), members: twoTeamMembers, payMonth: '2026-09', memberRoleMap: roles,
+    });
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(100000);
+    expect(rows.find(r => r.name === '佐藤').teamBonus).toBe(100000);
+    expect(rows.find(r => r.name === '鍛冶').bonusBasis)
+      .toEqual({ mode: 'combined_full', sales: 5000000, rate: 2.0, sharedBy: 1, teams: ['A', 'B'] });
+  });
+
+  it('2026-09〜: 合算1000万 → 4% = 40万円ずつ', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: sep(10000000), members: twoTeamMembers, payMonth: '2026-09', memberRoleMap: roles,
+    });
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(400000);
+    expect(rows.find(r => r.name === '佐藤').teamBonus).toBe(400000);
+  });
+
+  it('2026-09〜: 段階は 〜700万未満2%／700万2.5%／800万3%／900万3.5%／1000万4%', () => {
+    const rateAt = (sales) => calcMonthlyPayroll({
+      appoData: sep(sales), members: twoTeamMembers, payMonth: '2026-09', memberRoleMap: roles,
+    }).find(r => r.name === '鍛冶').bonusBasis.rate;
+    expect(rateAt(0)).toBe(2.0);           // 売上0でも最低2%
+    expect(rateAt(4999999)).toBe(2.0);     // 500万未満も2%
+    expect(rateAt(5000000)).toBe(2.0);
+    expect(rateAt(6000000)).toBe(2.0);     // 600万は据え置きで2%
+    expect(rateAt(6999999)).toBe(2.0);
+    expect(rateAt(7000000)).toBe(2.5);
+    expect(rateAt(8000000)).toBe(3.0);
+    expect(rateAt(9000000)).toBe(3.5);
+    expect(rateAt(10000000)).toBe(4.0);
+    expect(rateAt(20000000)).toBe(4.0);    // 1000万超も4%のまま
+  });
+
+  it('2026-08は満額方式に変わらない（均等割りのまま・確定済みの金額を動かさない）', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: appos, members: twoTeamMembers, payMonth: '2026-08', memberRoleMap: roles,
+    });
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(52500);
+    expect(rows.find(r => r.name === '鍛冶').bonusBasis.mode).toBe('combined');
+  });
+
+  it('2026-09〜: 満額方式でも副リーダーにはボーナスを出さない', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: sep(5000000), members: twoTeamMembers, payMonth: '2026-09',
+      memberRoleMap: { m1: 'リーダー', m3: 'リーダー', m2: '副リーダー' },
+    });
+    expect(rows.find(r => r.name === '吉川').teamBonus).toBe(0);
+  });
+
+  it('2026-09〜: org_settings の leader_bonus_tiers_full を反映する', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: sep(5000000), members: twoTeamMembers, payMonth: '2026-09', memberRoleMap: roles,
+      orgSettings: { leader_bonus_tiers_full: JSON.stringify([{ threshold: 0, rate: 5.0 }]) },
+    });
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(250000); // 500万×5%を満額
+  });
+
+  it('2026-09〜: 8月用の leader_bonus_tiers_combined は流用されない', () => {
+    const rows = calcMonthlyPayroll({
+      appoData: sep(5000000), members: twoTeamMembers, payMonth: '2026-09', memberRoleMap: roles,
+      orgSettings: { leader_bonus_tiers_combined: JSON.stringify([{ threshold: 0, rate: 10.0 }]) },
+    });
+    expect(rows.find(r => r.name === '鍛冶').teamBonus).toBe(100000); // 満額デフォルト2%のまま
+  });
+
   it('面談日が無いアポは合算売上に入らない', () => {
     const rows = calcMonthlyPayroll({
       appoData: [...appos, { getter: '吉川', status: 'アポ取得', getDate: '2026-08-10', meetDate: '', sales: 3000000, reward: 0 }],
