@@ -81,13 +81,13 @@ Cloudflare Account ID は `50fba9661af3b964d3141cd6a8950eb9`（秘密ではな�
 
 ### 1. 署名を出す Edge Function
 
-- [ ] `supabase/functions/r2/index.ts` を作る（`verify_jwt=true`）
+- [x] `supabase/functions/r2/index.ts`（`verify_jwt=true`）
       - `POST {action:'sign-get', key, expires}` → 署名付きGET URL
       - `POST {action:'sign-put', key, contentType}` → 署名付きPUT URL
       - `POST {action:'delete', key}`
       - `POST {action:'copy-from-supabase', bucket, path, key}` → 移送用
       - AWS SigV4 は dorayaki の `r2-check` の実装をそのまま使う
-- [ ] ⚠️ 署名付きURLは**発行そのものを認証で守る**。誰でも叩けると鍵を配るのと同じ
+- [x] ⚠️ 署名付きURLは**発行そのものを認証で守る**。誰でも叩けると鍵を配るのと同じ
 
 ### 2. どちらに在るかを持つ
 
@@ -97,31 +97,33 @@ Cloudflare Account ID は `50fba9661af3b964d3141cd6a8950eb9`（秘密ではな�
 
 ### 3. 読み書きの差し替え
 
-- [ ] 再生：`createSessionVideoSignedUrl` を `r2_key` があればR2の署名に
-- [ ] 新規アップロード：R2へ直接PUT（署名付きURL）。
+- [x] 再生：`createSessionVideoSignedUrl` を `r2_key` があればR2の署名に
+- [x] 新規アップロード：**TUSのまま残し、上がった直後にサーバーがR2へ移して元を消す**。
       ⚠️ 200MB級なのでマルチパートが要る。単発PUTは5GBまで通るが、
       途中で切れたらやり直しになる。TUS相当の再開性は落ちるので、
       **失敗時は最初からやり直す**割り切りで良いか要確認
-- [ ] AI議事録：R2から読めるようにする
+- [x] AI議事録：R2から読めるようにする
 
 ### 4. 移送（元データは触らない）
 
 ⚠️ Edge Function 経由でコピーしてはいけない。**1本200MBあり、メモリ上限で落ちる**。
    R2 の **Data migration** で Cloudflare 側に直接吸わせる。こちらの回線を通さない。
 
-- [ ] Supabase Storage の S3 アクセスキーを作る（`r2-migration` / **移送後に消す**）
+- [x] （不要になった）Supabase Storage の S3 アクセスキー（`r2-migration` / **移送後に消す**）
       Endpoint `https://baiiznjzvzhxwwqzsozn.storage.supabase.co/storage/v1/s3`
       Region `ap-northeast-2`
       ⚠️ この鍵は**全バケットに届く**（80GBの録音も含む）。用が済んだら必ず消す
-- [ ] R2 → Data migration → 移行元 S3互換 / 移行先 `spacareer-videos`
-- [ ] 163件をコピー
-- [ ] **件数とバイト数を突合**して一覧で出す
-- [ ] 数本を実際に再生して確かめる
+- [x] ~~R2 → Data migration~~ **使えなかった。** リージョンを指定できず
+      Supabase の ap-northeast-2 と合わせられない。代わりに Edge Function `r2` の
+      migrate で1件ずつ流した
+- [x] 163件をコピー（最大1.4GBが32秒。抱え込まずに流す）
+- [x] **件数とバイト数を突合** 163/163・33,834,084,605バイト完全一致・欠け0・大きさ違い0
+- [x] 数本を実際に再生して確かめる（2026-08-23 むー様確認）
 
 ### 5. 削除（⚠️ ここだけ取り返しがつかない）
 
-- [ ] 突合結果をむー様に見せて**確認を取ってから** Supabase 側を削除
-- [ ] 削除後にストレージ使用量が 117.6 → 85.6GB に落ちることを確認
+- [x] 突合結果を見せて確認を取り、Supabase 側を削除（163件・31.5GB・保留0・失敗0）
+- [x] 削除後 spacareer-session-videos は0件に。残るは recordings 80GB
 
 ### 6. 自動削除
 
