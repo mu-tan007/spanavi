@@ -20,7 +20,7 @@
 // ============================================================
 import { supabase } from '../supabase';
 import { getOrgId } from '../orgContext';
-import { uploadVideoResumable } from './integrations/videoUpload';
+import { uploadVideoResumable, stowToR2 } from './integrations/videoUpload';
 import { prepareAudioForWhisper } from '../convertAudio';
 
 const SESSION_BUCKET = 'spacareer-session-videos';
@@ -65,6 +65,11 @@ export async function uploadSessionVideoWithAudio({
   });
   if (upErr) return { videoId: null, audioWarning: null, error: upErr };
 
+  // 録画の置き場所は R2 が正（2026-08-23 移設）。上がった直後に移して元を消す。
+  // 移せなくても止めない（Supabase側に残り、再生も議事録もそちらに回る）。
+  onStatus?.('録画を保管中...');
+  await stowToR2(SESSION_BUCKET, videoPath);
+
   // 2. Whisper 用 MP3 抽出（ロープレと同じ convertAudio 基盤）。
   //    数GB級では wasm のメモリ上限で失敗し得るので、失敗しても動画のみで続行。
   let audioPath = null;
@@ -83,6 +88,7 @@ export async function uploadSessionVideoWithAudio({
         upsert: false,
       });
       if (audioErr) throw audioErr;
+      await stowToR2(SESSION_BUCKET, audioPath);
     } else {
       // 24MB以下のWhisper対応形式はそのまま動画を文字起こしに使える
       audioPath = null;

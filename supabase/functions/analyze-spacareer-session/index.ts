@@ -35,6 +35,55 @@ const supabase = createClient(
 
 const STORAGE_BUCKET = 'spacareer-session-videos'
 
+// ── 録画の置き場所は Cloudflare R2 が正（2026-08-23 移設）─────────────
+// Supabase Storage の組織上限100GBを超えたため、講義録画31.5GB/163件をR2へ移した。
+// ⚠️ まずR2を見て、無ければ Supabase Storage に回る。
+//    移設の途中や、これから足す分の取りこぼしで議事録が黙って作れなくなるのを防ぐ。
+//    Supabase側を消したあとは、この回り道は自然に使われなくなる。
+// 署名は S3 互換の AWS 署名v4。中身のハッシュを先に求めなくて済む形（UNSIGNED-PAYLOAD）
+// なので、大きなファイルでも署名だけ先に作れる。
+const R2_ENC = new TextEncoder()
+const r2Hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
+
+async function r2Sha256(s: string): Promise<string> {
+  return r2Hex(new Uint8Array(await crypto.subtle.digest('SHA-256', R2_ENC.encode(s))))
+}
+async function r2Hmac(key: Uint8Array, msg: string): Promise<Uint8Array> {
+  const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  return new Uint8Array(await crypto.subtle.sign('HMAC', k, R2_ENC.encode(msg)))
+}
+
+/** R2 の署名付きGET URL。設定が無い / 置いていない場合は null（呼び出し側でSupabaseへ回る）。 */
+async function r2SignedUrl(key: string, expires = 300): Promise<string | null> {
+  const account = Deno.env.get('R2_ACCOUNT_ID')
+  const ak = Deno.env.get('R2_ACCESS_KEY_ID')
+  const sk = Deno.env.get('R2_SECRET_ACCESS_KEY')
+  const bucket = Deno.env.get('R2_BUCKET_SPACAREER')
+  if (!account || !ak || !sk || !bucket || !key) return null
+
+  const enc1 = (s: string) =>
+    encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase())
+  const host = `${account}.r2.cloudflarestorage.com`
+  const path = `/${bucket}/${key.split('/').map(enc1).join('/')}`
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
+  const dateStamp = amzDate.slice(0, 8)
+  const scope = `${dateStamp}/auto/s3/aws4_request`
+  const q = [
+    ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
+    ['X-Amz-Credential', `${ak}/${scope}`],
+    ['X-Amz-Date', amzDate],
+    ['X-Amz-Expires', String(expires)],
+    ['X-Amz-SignedHeaders', 'host'],
+  ].map(([k, v]) => `${enc1(k)}=${enc1(v)}`).join('&')
+
+  const canonical = ['GET', path, q, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n')
+  const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, await r2Sha256(canonical)].join('\n')
+  let k = await r2Hmac(R2_ENC.encode('AWS4' + sk), dateStamp)
+  k = await r2Hmac(k, 'auto'); k = await r2Hmac(k, 's3'); k = await r2Hmac(k, 'aws4_request')
+  const sig = r2Hex(await r2Hmac(k, toSign))
+  return `https://${host}${path}?${q}&X-Amz-Signature=${sig}`
+}
+
 // 議事録生成モデル。ロープレ(Haiku 4.5)より情報密度の濃い議事録が要件のため、
 // 長尺文字起こしの構造化に強い Sonnet 系を使う。
 // Sonnet 4.6 → Sonnet 5 に更新（長文脈の要約が改善している世代）。
@@ -411,14 +460,25 @@ async function processInBackground(
     let rawExt = 'mp4'
 
     if (storage_path) {
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .createSignedUrl(storage_path, 300)
-      if (signedUrlError || !signedUrlData?.signedUrl) {
-        await failVideo('動画ファイルの取得に失敗しました', signedUrlError?.message || 'signed url failed')
-        return
+      // まずR2。無ければ Supabase Storage に回る。
+      let fileUrl: string | null = null
+      const r2Url = await r2SignedUrl(storage_path, 300)
+      if (r2Url) {
+        const probe = await fetch(r2Url, { method: 'HEAD' }).catch(() => null)
+        if (probe?.ok) fileUrl = r2Url
+        else console.warn('[analyze] R2に無いのでSupabase Storageを見ます:', storage_path, probe?.status)
       }
-      const storageRes = await fetch(signedUrlData.signedUrl, {
+      if (!fileUrl) {
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .createSignedUrl(storage_path, 300)
+        if (signedUrlError || !signedUrlData?.signedUrl) {
+          await failVideo('動画ファイルの取得に失敗しました', signedUrlError?.message || 'signed url failed')
+          return
+        }
+        fileUrl = signedUrlData.signedUrl
+      }
+      const storageRes = await fetch(fileUrl, {
         signal: AbortSignal.timeout(40_000),
       })
       if (!storageRes.ok) {

@@ -98,6 +98,38 @@ export async function createSessionVideoSignedUrl(
 }
 
 /**
+ * Supabase Storage に上がったファイルを R2 へ移し、元を消す。
+ *
+ * ----------------------------------------------------------------
+ * ⚠️ アップロード自体は TUS のまま残す。
+ *    R2 へ直接置く形（署名付きPUT）にすると**単発の送信**になり、
+ *    1.4GB級の録画が途中で切れたときに最初からやり直しになる。
+ *    「TUSで上げる → サーバーがR2へ流す → 元を消す」なら、
+ *    再開できる強さを保ったまま、Supabase側に残らない。
+ *
+ * ⚠️ 失敗しても投げない。移せなければ Supabase 側に残るだけで、
+ *    再生も議事録もそちらに回るので動きは止まらない。
+ *    容量が減らないことだけが起きる（あとでまとめて移せる）。
+ */
+export async function stowToR2(bucket: string, path: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.functions.invoke('r2', {
+      body: { action: 'migrate', kind: 'spacareer', bucket, path },
+    });
+    if (error || !data?.ok) {
+      console.warn('[videoUpload] R2へ移せませんでした（Supabase側に残ります）:', path, error ?? data);
+      return false;
+    }
+    const { error: rmErr } = await supabase.storage.from(bucket).remove([path]);
+    if (rmErr) console.warn('[videoUpload] R2へは移せましたが元を消せませんでした:', path, rmErr);
+    return true;
+  } catch (e) {
+    console.warn('[videoUpload] R2へ移せませんでした:', path, e);
+    return false;
+  }
+}
+
+/**
  * セッション動画レコードを spacareer_session_videos に作成し、
  * AI 議事録生成（analyze-spacareer-session）をキックする。
  * 戻り値: session_video_id（後段で poll 用に使う）
