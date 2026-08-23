@@ -357,10 +357,13 @@ Deno.serve(async (req) => {
       if (!allowed) {
         return Response.json({ ok: false, error: 'このファイルは見られません' }, { status: 403 });
       }
-      const h = await head(kind, key);
-      if (!h.ok) return Response.json({ ok: false, error: 'R2にありません', status: h.status }, { status: 404 });
+      // ⚠️ 実体があるかの確認（HEAD）はしない。
+      //    R2への往復が1回増えて再生開始が100〜200ms遅くなる。
+      //    講義録画163件・架電録音150,800件とも全件の突合が済んでおり、
+      //    「無ければSupabaseに回る」ための確認だったが、回る先がもう無い。
+      //    万一欠けていれば、ブラウザがR2から404を受け取って再生に失敗する。
       const url = await presign('GET', bucketOf(kind), key, Number(body.expires ?? 3600));
-      return Response.json({ ok: true, url, size: h.size });
+      return Response.json({ ok: true, url });
     }
 
     if (action === 'check') return Response.json(await check(kind));
