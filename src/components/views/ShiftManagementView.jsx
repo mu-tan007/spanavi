@@ -85,7 +85,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   // = この事業 (member_engagements) に所属している人だけを出す。
   //   他事業専任のメンバー (スパキャリ側など) はシフト表に出さない。
   const { currentEngagement } = useEngagements();
-  const { teamGroups, loading: teamsLoading } = useEngagementMembers(currentEngagement?.id);
+  const { teamGroups, loading: teamsLoading, refresh: refreshTeams } = useEngagementMembers(currentEngagement?.id);
 
   const memberGroups = useMemo(() => {
     const keyOf = (m) => String(m._supaId || m.id || '');
@@ -124,6 +124,13 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     const { data } = await fetchShifts(`${year}-${String(month).padStart(2, '0')}`);
     setShifts(data || []);
     setLoading(false);
+  };
+
+  // 「↻ 更新」はシフトの予定だけでなくチーム構成も取り直す。
+  // シフトページを開いたままメンバーページでチームを組み替えた場合に、
+  // ボタン1つで追いつけるようにするため (ページを開き直さなくてよい)。
+  const reloadAll = async () => {
+    await Promise.all([loadShifts(), refreshTeams?.()]);
   };
 
   // 1日に複数シフト対応: 配列を返す
@@ -627,7 +634,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
               style={viewMode === mode ? { background: NAVY, borderColor: NAVY } : undefined}
             >{label}</Button>
           ))}
-          <Button size="sm" variant="secondary" onClick={loadShifts} style={{ marginLeft: space[1] }}>↻ 更新</Button>
+          <Button size="sm" variant="secondary" onClick={reloadAll} style={{ marginLeft: space[1] }} title="シフトの予定とチーム構成をどちらも取り直します">↻ 更新</Button>
         </div>
       </div>
 
