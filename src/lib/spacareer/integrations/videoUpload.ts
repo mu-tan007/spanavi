@@ -62,12 +62,31 @@ export async function uploadSessionRecording(
  * セッション動画用の署名付き URL（1時間有効）。
  * 受講生には公開しない（議事録のみ提供）ため、運営 / トレーナー向けの
  * プレビュー再生で利用する。
+ *
+ * ----------------------------------------------------------------
+ * 置き場所は **Cloudflare R2 が正**（2026-08-23 移設）。
+ * Supabase Storage の組織上限100GBを超えたため、31.5GB/163件をR2へ移した。
+ *
+ * ⚠️ まずR2に聞き、無ければSupabase Storageへ回る。
+ *    移設の途中や、これから足す分の取りこぼしを黙って再生不能にしないため。
+ *    Supabase側を消したあとは、この回り道は自然に使われなくなる。
+ *
+ * ⚠️ R2の署名は Edge Function `r2` が出す。ブラウザからR2の鍵は触らない。
+ *    その口では「呼んだ人のorgに、その鍵の動画が登録されているか」を
+ *    必ず確かめている（鍵を名前で指定できるため、省くと他社の動画が取れる）。
  */
 export async function createSessionVideoSignedUrl(
   storagePath: string,
   expiresSec = 3600,
 ): Promise<string | null> {
   if (!storagePath) return null;
+
+  const { data: r2, error: r2err } = await supabase.functions.invoke('r2', {
+    body: { action: 'sign-get', kind: 'spacareer', key: storagePath, expires: expiresSec },
+  });
+  if (!r2err && r2?.ok && r2.url) return r2.url as string;
+
+  console.warn('[videoUpload] R2から出せなかったのでSupabase Storageを見ます:', storagePath, r2err ?? r2);
   const { data, error } = await supabase.storage
     .from(SESSION_BUCKET)
     .createSignedUrl(storagePath, expiresSec);
