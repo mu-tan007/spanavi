@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
@@ -6,11 +6,16 @@ import { Button, Input, Select, Card, Badge } from '../ui';
 import { fetchShifts, insertShift, updateShift, deleteShift } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
 import { useUrlState } from '../../hooks/useUrlState';
+import { useEngagements } from '../../hooks/useEngagements';
+import { useEngagementMembers } from '../../hooks/useMemberEngagements';
 
 // このビュー独自のレガシーネイビー（既存の見た目を維持するためトークンとは別に保持）
 const NAVY = '#0D2247';
 const GRAY_200 = color.gray200;
 const GRAY_50 = '#F8F9FA';
+// チーム小計行の地色。sticky 列にも敷くので半透明ではなくベタ塗りにする
+// (rgba だと横スクロール時に下の日付セルが透けて重なって見える)
+const TEAM_TINT = '#EDF1F7';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -76,11 +81,51 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const sortedMembers = useMemo(() => {
-    return [...members]
-      .filter(m => typeof m === 'object' && m.name)
-      .sort((a, b) => (a.joinDate || '').localeCompare(b.joinDate || ''));
-  }, [members]);
+  // チーム分けはメンバーページ (EngagementMembersView) と同じ teamGroups を使う。
+  // teamGroups は「並び順の指示書」としてだけ使い、行の実体は今まで通り members prop。
+  // teamGroups に載らないメンバー (この事業に未所属) も末尾に残すので、表から誰も消えない。
+  const { currentEngagement } = useEngagements();
+  const { teamGroups } = useEngagementMembers(currentEngagement?.id);
+
+  const memberGroups = useMemo(() => {
+    const keyOf = (m) => String(m._supaId || m.id || '');
+    const base = [...members].filter(m => typeof m === 'object' && m.name);
+    const byJoinDate = (a, b) => (a.joinDate || '').localeCompare(b.joinDate || '');
+
+    // teamGroups 未取得 (読み込み中 / チーム未設定の事業) は従来通りの一枚表
+    if (!teamGroups?.length) {
+      return [{ id: '__all', name: null, members: base.sort(byJoinDate) }];
+    }
+
+    const byKey = new Map(base.map(m => [keyOf(m), m]));
+    const used = new Set();
+    const named = [];
+    let unassigned = [];
+    for (const g of teamGroups) {
+      const rows = [];
+      for (const gm of g.members || []) {
+        const k = String(gm.id);
+        if (used.has(k)) continue;
+        const m = byKey.get(k);
+        if (!m) continue;
+        rows.push(m);
+        used.add(k);
+      }
+      if (g.id === '__unassigned') unassigned = rows;
+      else if (rows.length) named.push({ id: g.id, name: g.name, members: rows });
+    }
+    const rest = base.filter(m => !used.has(keyOf(m))).sort(byJoinDate);
+    const tail = [...unassigned, ...rest];
+    return tail.length
+      ? [...named, { id: '__unassigned', name: '未所属', members: tail }]
+      : named;
+  }, [members, teamGroups]);
+
+  // 稼働人数などの全体集計用。memberGroups と行の並びを完全に一致させる。
+  const sortedMembers = useMemo(
+    () => memberGroups.flatMap(g => g.members),
+    [memberGroups]
+  );
 
   const daysInMonth = new Date(year, month, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -120,6 +165,10 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     if (!memberId) return 0;
     return displayDays.reduce((sum, d) => sum + totalShiftHours(getShifts(memberId, d)), 0);
   };
+
+  // チーム小計。displayDays に渡した期間ぶんの、チーム全員の稼働時間合計。
+  const getTeamHours = (group, displayDays) =>
+    group.members.reduce((sum, m) => sum + getMemberHours(m._supaId || m.id, displayDays), 0);
 
   // 30分スロットごとの同時稼働数
   const SLOTS_30 = (() => {
@@ -212,7 +261,17 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
             </tr>
           </thead>
           <tbody>
-            {sortedMembers.map((member, mi) => {
+            {memberGroups.map(group => (
+            <Fragment key={group.id}>
+            {group.name && (
+              <TeamHeaderRow
+                name={group.name}
+                count={group.members.length}
+                hours={getTeamHours(group, displayDays)}
+                colSpan={displayDays.length + 2}
+              />
+            )}
+            {group.members.map((member, mi) => {
               const memId = member._supaId || member.id;
               const isMe = member.name === currentUser;
               const rowBg = isMe ? NAVY + '08' : mi % 2 === 0 ? color.white : GRAY_50;
@@ -286,6 +345,52 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 </tr>
               );
             })}
+            {/* チーム小計（日ごとの稼働時間 + 期間合計） */}
+            {group.name && (
+              <tr style={{ borderBottom: `2px solid ${GRAY_200}` }}>
+                <td style={{
+                  position: 'sticky', left: 0,
+                  padding: `${space[1.5]}px ${space[3]}px`,
+                  fontWeight: font.weight.bold, fontSize: font.size.xs - 1,
+                  color: NAVY, background: TEAM_TINT,
+                  borderRight: `2px solid ${GRAY_200}`,
+                  whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle',
+                }}>
+                  {group.name} 計
+                </td>
+                {displayDays.map(d => {
+                  const teamDayH = getTeamHours(group, [d]);
+                  return (
+                    <td key={d} style={{
+                      padding: `${space[1.5]}px ${space[1]}px`, textAlign: 'center',
+                      fontSize: font.size.xs - 1, fontWeight: font.weight.bold,
+                      fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
+                      color: teamDayH > 0 ? NAVY : '#a0aec0',
+                      background: TEAM_TINT,
+                      borderRight: `1px solid ${GRAY_200}`, verticalAlign: 'middle',
+                    }}>
+                      {teamDayH > 0 ? teamDayH.toFixed(1) : '-'}
+                    </td>
+                  );
+                })}
+                <td style={{
+                  position: 'sticky', right: 0,
+                  padding: `${space[1.5]}px ${space[2]}px`, textAlign: 'center',
+                  background: TEAM_TINT,
+                  borderLeft: `2px solid ${GRAY_200}`,
+                  whiteSpace: 'nowrap', zIndex: 1, verticalAlign: 'middle',
+                }}>
+                  <span style={{
+                    fontSize: font.size.xs, fontWeight: font.weight.bold,
+                    fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums', color: NAVY,
+                  }}>
+                    {(() => { const h = getTeamHours(group, displayDays); return h > 0 ? h.toFixed(1) + 'h' : '-'; })()}
+                  </span>
+                </td>
+              </tr>
+            )}
+            </Fragment>
+            ))}
             {/* 各日の合計稼働人数 */}
             <tr style={{ borderTop: `2px solid ${NAVY}` }}>
               <td style={{
@@ -390,8 +495,29 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                   }}>{h}:00</div>
                 ))}
               </div>
-              {/* メンバー行（ドラッグ対応） */}
-              {sortedMembers.map((member, mi) => {
+              {/* メンバー行（ドラッグ対応）。チームごとに見出し帯 + 小計を挟む */}
+              {memberGroups.map(group => (
+              <Fragment key={group.id}>
+              {group.name && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: space[2],
+                  padding: `${space[1.5]}px ${space[3]}px`,
+                  marginBottom: space[2], borderRadius: radius.md,
+                  background: NAVY, color: color.white,
+                  fontSize: font.size.sm, fontWeight: font.weight.semibold,
+                  letterSpacing: font.letterSpacing.wide,
+                }}>
+                  <span>{group.name}</span>
+                  <span style={{ fontSize: 10, opacity: 0.8, fontWeight: font.weight.normal }}>({group.members.length}名)</span>
+                  <span style={{
+                    marginLeft: 'auto', fontSize: font.size.xs - 1, fontWeight: font.weight.bold,
+                    fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {(() => { const h = getTeamHours(group, [selectedDay]); return h > 0 ? `計 ${h.toFixed(1)}h` : '計 -'; })()}
+                  </span>
+                </div>
+              )}
+              {group.members.map((member, mi) => {
                 const memId = member._supaId || member.id;
                 const isMe = member.name === currentUser;
                 const isEditable = isAdmin || member.name === currentUser;
@@ -419,6 +545,8 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                   />
                 );
               })}
+              </Fragment>
+              ))}
             </div>
           </div>
         </div>
@@ -532,6 +660,33 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
           : renderDayView()}
       </div>
     </div>
+  );
+}
+
+// ── チーム見出し行（月間・週間表）────────────────────────────
+// メンバーページ (EngagementMembersView の TeamBlock) と同じ navy 帯。
+// 中身を position:sticky にして、横スクロールしてもチーム名が左端に残るようにする。
+function TeamHeaderRow({ name, count, hours, colSpan }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} style={{ padding: 0, background: NAVY, verticalAlign: 'middle' }}>
+        <div style={{
+          position: 'sticky', left: 0, display: 'inline-flex', alignItems: 'center', gap: space[2],
+          padding: `${space[1.5]}px ${space[3]}px`, whiteSpace: 'nowrap',
+          color: color.white, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+          letterSpacing: font.letterSpacing.wide,
+        }}>
+          <span>{name}</span>
+          <span style={{ fontSize: 10, opacity: 0.8, fontWeight: font.weight.normal }}>({count}名)</span>
+          {hours > 0 && (
+            <span style={{
+              fontSize: 10, opacity: 0.8, fontWeight: font.weight.normal,
+              fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
+            }}>合計 {hours.toFixed(1)}h</span>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }
 
