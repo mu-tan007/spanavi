@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { resolveRecordingUrl } from '../../lib/recordingUrl';
 
 // 画面下部固定の録音プレイヤー
 //   一覧テーブル等から useRecordingPlayer().play(url, title, subtitle) で起動
@@ -95,16 +96,31 @@ export function RecordingPlayerProvider({ children }) {
   };
 
   // current が変わったら audio src を切り替え
+  //
+  // ⚠️ 渡された URL をそのまま入れてはいけない（2026-08-23）。
+  //    録音の実体は Cloudflare R2 へ移した。DBに入っているのは移設前の公開URLなので、
+  //    resolveRecordingUrl で今の置き場所に読み替えてから渡す。
+  //    非同期になるので、切り替え中に別の録音が選ばれたら古い方は捨てる。
   useEffect(() => {
-    if (!audioRef.current) return;
-    if (current?.url) {
-      audioRef.current.src = current.url;
+    if (!audioRef.current) return undefined;
+    const wanted = current?.url;
+    if (!wanted) return undefined;
+
+    let cancelled = false;
+    resolveRecordingUrl(wanted).then((r) => {
+      if (cancelled || !audioRef.current) return;
+      if (!r.url) {
+        console.warn('[RecordingPlayer] 録音が見つかりません:', wanted);
+        return;
+      }
+      audioRef.current.src = r.url;
       audioRef.current.playbackRate = speed;
       audioRef.current.volume = volume;
-      audioRef.current.play().catch(err => {
+      audioRef.current.play().catch((err) => {
         console.warn('[RecordingPlayer] auto-play failed:', err);
       });
-    }
+    });
+    return () => { cancelled = true; };
   }, [current?.url]);
 
   return (

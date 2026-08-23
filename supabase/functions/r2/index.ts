@@ -143,6 +143,14 @@ async function callerOrg(req: Request): Promise<string | null> {
   return u?.org_id ?? null;
 }
 
+// その鍵が、そのorgの架電録音として登録されているか。
+// ⚠️ 保存しているのはURLで鍵そのものは列に無い。URLの後ろを切り出して比べる。
+//    21万行あるので、切り出した形の索引（call_records_recording_key_idx）が要る。
+async function mayReadRecording(org: string, key: string): Promise<boolean> {
+  const { data } = await admin().rpc('may_read_recording', { p_org: org, p_key: key });
+  return data === true;
+}
+
 // その鍵が、そのorgの講義録画として登録されているか。
 // ⚠️ 鍵を名前で指定されるので、ここを省くと他社の動画を取られる。
 async function mayReadSpacareer(org: string, key: string): Promise<boolean> {
@@ -202,46 +210,85 @@ async function migrateOne(kind: string, srcBucket: string, path: string) {
   return { ok: size != null && h.size === size, path, srcSize: size, dstSize: h.size };
 }
 
-async function migrateBatch(kind: string, srcBucket: string, limit: number) {
-  const sb = admin();
-  const { data: rows, error } = await sb.rpc('storage_object_names', { p_bucket: srcBucket });
-  if (error) return { ok: false, error: error.message };
-  const all = (rows ?? []) as { name: string; size: number }[];
-  const done: unknown[] = [];
-  let skipped = 0;
-  let failed = 0;
-  for (const row of all) {
-    if (done.length >= limit) break;
-    const h = await head(kind, row.name);
-    if (h.ok && h.size === String(row.size)) { skipped++; continue; }
-    const r = await migrateOne(kind, srcBucket, row.name);
-    if (!r.ok) failed++;
-    done.push(r);
-  }
-  const moved = done.filter((d) => (d as { ok: boolean }).ok).length;
-  return { total: all.length, skipped, moved, failed, remaining: all.length - skipped - moved, done };
+// 同時に何本まで流すか。
+// ⚠️ 架電録音は150,800件・平均557kB。1件ずつ順に流すと16時間かかる。
+//    小さいファイルでは1件あたりの往復（署名→読み→書き→照合）が支配的なので、
+//    まとめて走らせないと終わらない。上げすぎるとメモリと帯域で詰まる。
+const LANES = 24;
+
+// 決めた数だけ同時に走らせながら、順番に片付けていく。
+async function pooled<T, R>(items: T[], lanes: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(lanes, items.length) }, worker));
+  return out;
 }
 
-// 元とR2を突き合わせる。消す前に必ずこれを見る。
-async function verify(kind: string, srcBucket: string) {
+/**
+ * 名前の続きから決めた件数だけ移す。
+ * 戻り値の after を次の呼び出しに渡せば続きから進む。
+ * すでに同じ大きさでR2にあるものは飛ばすので、何度流しても二重にならない。
+ */
+async function migrateBatch(kind: string, srcBucket: string, limit: number, after: string | null) {
   const sb = admin();
-  const { data: rows, error } = await sb.rpc('storage_object_names', { p_bucket: srcBucket });
+  const { data: rows, error } = await sb.rpc('storage_object_names', {
+    p_bucket: srcBucket, p_after: after, p_limit: limit,
+  });
   if (error) return { ok: false, error: error.message };
+
   const all = (rows ?? []) as { name: string; size: number }[];
-  const missing: string[] = [];
-  const wrongSize: string[] = [];
-  let srcBytes = 0;
-  let dstBytes = 0;
-  for (const row of all) {
-    srcBytes += Number(row.size ?? 0);
+  if (!all.length) return { done: true, after, scanned: 0, skipped: 0, moved: 0, failed: 0, errors: [] };
+
+  const results = await pooled(all, LANES, async (row) => {
     const h = await head(kind, row.name);
-    if (!h.ok) { missing.push(row.name); continue; }
-    dstBytes += Number(h.size ?? 0);
-    if (h.size !== String(row.size)) wrongSize.push(row.name);
-  }
+    if (h.ok && h.size === String(row.size)) return { skipped: true, ok: true };
+    const r = await migrateOne(kind, srcBucket, row.name);
+    return { skipped: false, ok: r.ok, path: r.path, error: (r as { error?: string }).error };
+  });
+
+  const skipped = results.filter((r) => r.skipped).length;
+  const moved = results.filter((r) => !r.skipped && r.ok).length;
+  const bad = results.filter((r) => !r.ok);
   return {
+    done: false,
+    after: all[all.length - 1].name,
+    scanned: all.length, skipped, moved, failed: bad.length,
+    errors: bad.slice(0, 5).map((b) => `${b.path}: ${b.error ?? '?'}`),
+  };
+}
+
+/** 元とR2を突き合わせる。消す前に必ずこれを見る。名前の続きから少しずつ。 */
+async function verify(kind: string, srcBucket: string, limit: number, after: string | null) {
+  const sb = admin();
+  const { data: rows, error } = await sb.rpc('storage_object_names', {
+    p_bucket: srcBucket, p_after: after, p_limit: limit,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  const all = (rows ?? []) as { name: string; size: number }[];
+  if (!all.length) return { done: true, after, count: 0, srcBytes: 0, dstBytes: 0, missing: [], missingCount: 0, wrongSize: [], wrongSizeCount: 0 };
+
+  const checked = await pooled(all, LANES, async (row) => {
+    const h = await head(kind, row.name);
+    return { name: row.name, src: Number(row.size ?? 0), dst: h.ok ? Number(h.size ?? 0) : null, sizeStr: h.size };
+  });
+
+  const missing = checked.filter((c) => c.dst === null).map((c) => c.name);
+  const wrongSize = checked.filter((c) => c.dst !== null && c.sizeStr !== String(c.src)).map((c) => c.name);
+  return {
+    done: false,
+    after: all[all.length - 1].name,
     ok: missing.length === 0 && wrongSize.length === 0,
-    count: all.length, srcBytes, dstBytes,
+    count: all.length,
+    srcBytes: checked.reduce((a, c) => a + c.src, 0),
+    dstBytes: checked.reduce((a, c) => a + (c.dst ?? 0), 0),
     missing: missing.slice(0, 20), missingCount: missing.length,
     wrongSize: wrongSize.slice(0, 20), wrongSizeCount: wrongSize.length,
   };
@@ -253,30 +300,31 @@ async function verify(kind: string, srcBucket: string) {
 //    **R2に同じ大きさで在ることを1件ずつ確かめたものしか消さない。**
 //    1件でも合わなければ、その1件を残して次へ行く（全体を止めない）。
 // ⚠️ dryRun を既定にしてある。消すときは明示的に false を渡す。
-async function purgeSource(kind: string, srcBucket: string, dryRun: boolean, limit: number) {
+async function purgeSource(kind: string, srcBucket: string, dryRun: boolean, limit: number, after: string | null) {
   const sb = admin();
-  const { data: rows, error } = await sb.rpc('storage_object_names', { p_bucket: srcBucket });
+  const { data: rows, error } = await sb.rpc('storage_object_names', {
+    p_bucket: srcBucket, p_after: after, p_limit: limit,
+  });
   if (error) return { ok: false, error: error.message };
   const all = (rows ?? []) as { name: string; size: number }[];
+  if (!all.length) return { done: true, after, deletable: 0, deleted: 0, bytes: 0, kept: [] };
 
-  const safe: string[] = [];
-  const kept: { name: string; why: string }[] = [];
-  let bytes = 0;
-
-  for (const row of all) {
-    if (safe.length >= limit) break;
+  const checked = await pooled(all, LANES, async (row) => {
     const h = await head(kind, row.name);
-    if (!h.ok) { kept.push({ name: row.name, why: `R2に無い(${h.status})` }); continue; }
+    if (!h.ok) return { name: row.name, safe: false, why: `R2に無い(${h.status})`, size: 0 };
     if (h.size !== String(row.size)) {
-      kept.push({ name: row.name, why: `大きさ違い ${h.size} ≠ ${row.size}` });
-      continue;
+      return { name: row.name, safe: false, why: `大きさ違い ${h.size} ≠ ${row.size}`, size: 0 };
     }
-    safe.push(row.name);
-    bytes += Number(row.size ?? 0);
-  }
+    return { name: row.name, safe: true, why: '', size: Number(row.size ?? 0) };
+  });
+
+  const safe = checked.filter((c) => c.safe).map((c) => c.name);
+  const kept = checked.filter((c) => !c.safe).map((c) => ({ name: c.name, why: c.why }));
+  const bytes = checked.filter((c) => c.safe).reduce((a, c) => a + c.size, 0);
+  const cursor = all[all.length - 1].name;
 
   if (dryRun) {
-    return { dryRun: true, total: all.length, deletable: safe.length, bytes, kept };
+    return { dryRun: true, done: false, after: cursor, scanned: all.length, deletable: safe.length, bytes, kept: kept.slice(0, 10) };
   }
 
   let deleted = 0;
@@ -286,7 +334,7 @@ async function purgeSource(kind: string, srcBucket: string, dryRun: boolean, lim
     const { error: rmErr } = await sb.storage.from(srcBucket).remove(chunk);
     if (rmErr) errors.push(rmErr.message); else deleted += chunk.length;
   }
-  return { dryRun: false, total: all.length, deleted, bytes, kept, errors };
+  return { dryRun: false, done: false, after: cursor, scanned: all.length, deleted, bytes, kept: kept.slice(0, 10), errors };
 }
 
 Deno.serve(async (req) => {
@@ -301,10 +349,12 @@ Deno.serve(async (req) => {
       if (!key) return Response.json({ ok: false, error: '鍵がありません' }, { status: 400 });
       const org = await callerOrg(req);
       if (!org) return Response.json({ ok: false, error: 'ログインが必要です' }, { status: 401 });
-      if (kind !== 'spacareer') {
-        return Response.json({ ok: false, error: 'この置き場はまだ開いていません' }, { status: 403 });
-      }
-      if (!(await mayReadSpacareer(org, key))) {
+      const allowed = kind === 'spacareer'
+        ? await mayReadSpacareer(org, key)
+        : kind === 'recordings'
+          ? await mayReadRecording(org, key)
+          : false;
+      if (!allowed) {
         return Response.json({ ok: false, error: 'このファイルは見られません' }, { status: 403 });
       }
       const h = await head(kind, key);
@@ -316,14 +366,20 @@ Deno.serve(async (req) => {
     if (action === 'check') return Response.json(await check(kind));
     if (action === 'head') return Response.json(await head(kind, body.key));
     if (action === 'migrate') return Response.json(await migrateOne(kind, body.bucket, body.path));
-    if (action === 'migrate-batch') {
-      return Response.json(await migrateBatch(kind, body.bucket, Number(body.limit ?? 10)));
+    if (action === 'stats') {
+      const { data } = await admin().rpc('storage_object_stats', { p_bucket: body.bucket });
+      return Response.json({ ok: true, ...(data?.[0] ?? {}) });
     }
-    if (action === 'verify') return Response.json(await verify(kind, body.bucket));
+    if (action === 'migrate-batch') {
+      return Response.json(await migrateBatch(kind, body.bucket, Number(body.limit ?? 200), body.after ?? null));
+    }
+    if (action === 'verify') {
+      return Response.json(await verify(kind, body.bucket, Number(body.limit ?? 1000), body.after ?? null));
+    }
     if (action === 'purge-source') {
       // dryRun を既定にする。明示的に false を渡したときだけ消す。
       const dryRun = body.dryRun !== false;
-      return Response.json(await purgeSource(kind, body.bucket, dryRun, Number(body.limit ?? 100000)));
+      return Response.json(await purgeSource(kind, body.bucket, dryRun, Number(body.limit ?? 500), body.after ?? null));
     }
     return Response.json({ ok: false, error: `知らない action です: ${action}` }, { status: 400 });
   } catch (e) {
