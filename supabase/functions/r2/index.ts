@@ -13,7 +13,10 @@
 //    合わせられないため Preconnectivity で必ず落ちる（2026-08-23 確認）。
 //    代わりに migrate で1件ずつ流す。こちらは新しい鍵もリージョンも要らない。
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+// ⚠️ supabase-js は**入口では読み込まない**。
+//    再生のたびに呼ばれる sign-get で、起動のたびにこの大きな依存を
+//    読み込むと待ち時間になる。移送など重い口でだけ動的に読む。
+type SB = { storage: { from: (b: string) => { createSignedUrl: (p: string, e: number) => Promise<{ data?: { signedUrl?: string }; error?: { message?: string } }>; remove: (p: string[]) => Promise<{ error?: { message?: string } }> } }; rpc: (n: string, a: unknown) => Promise<{ data?: unknown; error?: { message?: string } }> };
 
 const enc = new TextEncoder();
 const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
@@ -118,8 +121,24 @@ async function presign(
   return `https://${host}${path}?${q}&X-Amz-Signature=${sig}`;
 }
 
-function admin() {
-  return createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
+async function admin(): Promise<SB> {
+  const { createClient } = await import('jsr:@supabase/supabase-js@2');
+  return createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY')) as unknown as SB;
+}
+
+// PostgREST を素の fetch で叩く。sign-get はこれだけで済むので supabase-js を読まない。
+async function rpc(name: string, args: Record<string, unknown>): Promise<unknown> {
+  const res = await fetch(`${env('SUPABASE_URL')}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: {
+      apikey: env('SUPABASE_SERVICE_ROLE_KEY'),
+      Authorization: `Bearer ${env('SUPABASE_SERVICE_ROLE_KEY')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) throw new Error(`${name}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+  return await res.json();
 }
 
 async function head(kind: string, key: string) {
@@ -130,37 +149,29 @@ async function head(kind: string, key: string) {
 
 /* ===================== 見てよいかの判定 ===================== */
 
-async function callerOrg(req: Request): Promise<string | null> {
+// 呼んだ人のIDを取り出す。
+// ⚠️ verify_jwt=true なので、ここに来ている時点で**署名は検証済み**。
+//    auth.getUser() を呼ぶとネットワークの往復が1回増えるだけなので、
+//    中身を読むだけにする。
+function callerId(req: Request): string | null {
   const auth = req.headers.get('Authorization') ?? '';
-  if (!auth) return null;
-  const anon = createClient(env('SUPABASE_URL'), env('SUPABASE_ANON_KEY'), {
-    global: { headers: { Authorization: auth } },
-  });
-  const { data } = await anon.auth.getUser();
-  const uid = data?.user?.id;
-  if (!uid) return null;
-  const { data: u } = await admin().from('users').select('org_id').eq('id', uid).maybeSingle();
-  return u?.org_id ?? null;
+  const tok = auth.replace(/^Bearer\s+/i, '');
+  const part = tok.split('.')[1];
+  if (!part) return null;
+  try {
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    const sub = JSON.parse(json)?.sub;
+    return typeof sub === 'string' && sub ? sub : null;
+  } catch {
+    return null;
+  }
 }
 
-// その鍵が、そのorgの架電録音として登録されているか。
-// ⚠️ 保存しているのはURLで鍵そのものは列に無い。URLの後ろを切り出して比べる。
-//    21万行あるので、切り出した形の索引（call_records_recording_key_idx）が要る。
-async function mayReadRecording(org: string, key: string): Promise<boolean> {
-  const { data } = await admin().rpc('may_read_recording', { p_org: org, p_key: key });
-  return data === true;
-}
-
-// その鍵が、そのorgの講義録画として登録されているか。
-// ⚠️ 鍵を名前で指定されるので、ここを省くと他社の動画を取られる。
-async function mayReadSpacareer(org: string, key: string): Promise<boolean> {
-  const { data } = await admin()
-    .from('spacareer_session_videos')
-    .select('id')
-    .eq('org_id', org)
-    .or(`storage_path.eq.${key},audio_storage_path.eq.${key}`)
-    .limit(1);
-  return (data?.length ?? 0) > 0;
+// その鍵を、その人が見てよいか。DBへの往復は1回だけ。
+// ⚠️ 鍵は名前で指定されるので、これが無いと他組織のものを取られる。
+async function mayRead(uid: string, kind: string, key: string): Promise<boolean> {
+  const r = await rpc('may_read_r2_key', { p_uid: uid, p_kind: kind, p_key: key });
+  return r === true;
 }
 
 /* ===================== 口 ===================== */
@@ -188,7 +199,7 @@ async function check(kind: string) {
 //    Edge Function のメモリ上限で落ちる。body をそのまま渡して流す。
 async function migrateOne(kind: string, srcBucket: string, path: string) {
   const bucket = bucketOf(kind);
-  const sb = admin();
+  const sb = await admin();
   const { data, error } = await sb.storage.from(srcBucket).createSignedUrl(path, 3600);
   if (error || !data?.signedUrl) {
     return { ok: false, path, error: `読み出しのURLを作れませんでした: ${error?.message ?? '?'}` };
@@ -237,8 +248,8 @@ async function pooled<T, R>(items: T[], lanes: number, fn: (x: T) => Promise<R>)
  * すでに同じ大きさでR2にあるものは飛ばすので、何度流しても二重にならない。
  */
 async function migrateBatch(kind: string, srcBucket: string, limit: number, after: string | null) {
-  const sb = admin();
-  const { data: rows, error } = await sb.rpc('storage_object_names', {
+  const sb = await admin();
+  const { data: rows, error } = await (sb as SB).rpc('storage_object_names', {
     p_bucket: srcBucket, p_after: after, p_limit: limit,
   });
   if (error) return { ok: false, error: error.message };
@@ -266,8 +277,8 @@ async function migrateBatch(kind: string, srcBucket: string, limit: number, afte
 
 /** 元とR2を突き合わせる。消す前に必ずこれを見る。名前の続きから少しずつ。 */
 async function verify(kind: string, srcBucket: string, limit: number, after: string | null) {
-  const sb = admin();
-  const { data: rows, error } = await sb.rpc('storage_object_names', {
+  const sb = await admin();
+  const { data: rows, error } = await (sb as SB).rpc('storage_object_names', {
     p_bucket: srcBucket, p_after: after, p_limit: limit,
   });
   if (error) return { ok: false, error: error.message };
@@ -301,8 +312,8 @@ async function verify(kind: string, srcBucket: string, limit: number, after: str
 //    1件でも合わなければ、その1件を残して次へ行く（全体を止めない）。
 // ⚠️ dryRun を既定にしてある。消すときは明示的に false を渡す。
 async function purgeSource(kind: string, srcBucket: string, dryRun: boolean, limit: number, after: string | null) {
-  const sb = admin();
-  const { data: rows, error } = await sb.rpc('storage_object_names', {
+  const sb = await admin();
+  const { data: rows, error } = await (sb as SB).rpc('storage_object_names', {
     p_bucket: srcBucket, p_after: after, p_limit: limit,
   });
   if (error) return { ok: false, error: error.message };
@@ -337,7 +348,25 @@ async function purgeSource(kind: string, srcBucket: string, dryRun: boolean, lim
   return { dryRun: false, done: false, after: cursor, scanned: all.length, deleted, bytes, kept: kept.slice(0, 10), errors };
 }
 
+// ブラウザから呼ぶ前に、ブラウザは「この呼び出しをしてよいか」を
+// 別のリクエストで確かめに来る（プリフライト）。
+// ⚠️ ここに返事を用意しないと毎回そこで往復が1回増える。
+//    max-age を付けて、しばらくは聞き直さないようにする。
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+};
+
+const reply = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, 'Content-Type': 'application/json' },
+  });
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const action = body.action ?? 'check';
@@ -346,16 +375,11 @@ Deno.serve(async (req) => {
     // 見る側の口だけは、呼んだ人と鍵の組み合わせを確かめる。
     if (action === 'sign-get') {
       const key = String(body.key ?? '');
-      if (!key) return Response.json({ ok: false, error: '鍵がありません' }, { status: 400 });
-      const org = await callerOrg(req);
-      if (!org) return Response.json({ ok: false, error: 'ログインが必要です' }, { status: 401 });
-      const allowed = kind === 'spacareer'
-        ? await mayReadSpacareer(org, key)
-        : kind === 'recordings'
-          ? await mayReadRecording(org, key)
-          : false;
-      if (!allowed) {
-        return Response.json({ ok: false, error: 'このファイルは見られません' }, { status: 403 });
+      if (!key) return reply({ ok: false, error: '鍵がありません' }, 400);
+      const uid = callerId(req);
+      if (!uid) return reply({ ok: false, error: 'ログインが必要です' }, 401);
+      if (!(await mayRead(uid, kind, key))) {
+        return reply({ ok: false, error: 'このファイルは見られません' }, 403);
       }
       // ⚠️ 実体があるかの確認（HEAD）はしない。
       //    R2への往復が1回増えて再生開始が100〜200ms遅くなる。
@@ -363,29 +387,37 @@ Deno.serve(async (req) => {
       //    「無ければSupabaseに回る」ための確認だったが、回る先がもう無い。
       //    万一欠けていれば、ブラウザがR2から404を受け取って再生に失敗する。
       const url = await presign('GET', bucketOf(kind), key, Number(body.expires ?? 3600));
-      return Response.json({ ok: true, url });
+      return reply({ ok: true, url });
     }
 
-    if (action === 'check') return Response.json(await check(kind));
-    if (action === 'head') return Response.json(await head(kind, body.key));
-    if (action === 'migrate') return Response.json(await migrateOne(kind, body.bucket, body.path));
+    if (action === 'check') return reply(await check(kind));
+    if (action === 'head') {
+      // ⚠️ 存在と大きさが分かるだけでも手がかりになる。sign-get と同じ判定をかける。
+      const uid = callerId(req);
+      if (!uid) return reply({ ok: false, error: 'ログインが必要です' }, 401);
+      if (!(await mayRead(uid, kind, String(body.key ?? '')))) {
+        return reply({ ok: false, error: '見られません' }, 403);
+      }
+      return reply(await head(kind, body.key));
+    }
+    if (action === 'migrate') return reply(await migrateOne(kind, body.bucket, body.path));
     if (action === 'stats') {
       const { data } = await admin().rpc('storage_object_stats', { p_bucket: body.bucket });
-      return Response.json({ ok: true, ...(data?.[0] ?? {}) });
+      return reply({ ok: true, ...(data?.[0] ?? {}) });
     }
     if (action === 'migrate-batch') {
-      return Response.json(await migrateBatch(kind, body.bucket, Number(body.limit ?? 200), body.after ?? null));
+      return reply(await migrateBatch(kind, body.bucket, Number(body.limit ?? 200), body.after ?? null));
     }
     if (action === 'verify') {
-      return Response.json(await verify(kind, body.bucket, Number(body.limit ?? 1000), body.after ?? null));
+      return reply(await verify(kind, body.bucket, Number(body.limit ?? 1000), body.after ?? null));
     }
     if (action === 'purge-source') {
       // dryRun を既定にする。明示的に false を渡したときだけ消す。
       const dryRun = body.dryRun !== false;
-      return Response.json(await purgeSource(kind, body.bucket, dryRun, Number(body.limit ?? 500), body.after ?? null));
+      return reply(await purgeSource(kind, body.bucket, dryRun, Number(body.limit ?? 500), body.after ?? null));
     }
-    return Response.json({ ok: false, error: `知らない action です: ${action}` }, { status: 400 });
+    return reply({ ok: false, error: `知らない action です: ${action}` }, 400);
   } catch (e) {
-    return Response.json({ ok: false, error: String(e) }, { status: 500 });
+    return reply({ ok: false, error: String(e) }, 500);
   }
 });

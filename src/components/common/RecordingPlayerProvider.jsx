@@ -113,9 +113,13 @@ export function RecordingPlayerProvider({ children }) {
         console.warn('[RecordingPlayer] 録音が見つかりません:', wanted);
         return;
       }
+      const t0 = performance.now();
       audioRef.current.src = r.url;
       audioRef.current.playbackRate = speed;
       audioRef.current.volume = volume;
+      audioRef.current.addEventListener('playing', () => {
+        console.info(`[録音] 音が出るまで ${Math.round(performance.now() - t0)}ms`);
+      }, { once: true });
       audioRef.current.play().catch((err) => {
         console.warn('[RecordingPlayer] auto-play failed:', err);
       });

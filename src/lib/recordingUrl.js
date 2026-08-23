@@ -19,6 +19,10 @@ import { supabase } from './supabase';
 //   3. どちらにも無ければ null
 
 const PUBLIC_MARK = '/storage/v1/object/public/recordings/';
+
+// 出した署名を覚えておく（1時間有効なので作り直す必要がない）。
+// ⚠️ 押すたびにEdge Functionを呼ぶと、そのたびに起動と権限確認の待ちが入る。
+const signedCache = new Map();
 const BUCKET = 'recordings';
 
 /** 公開URLからファイルの位置を取り出す。録音バケットのURLでなければ null。 */
@@ -40,10 +44,22 @@ export async function resolveRecordingUrl(url) {
   const key = recordingKeyOf(url);
   if (!key) return { url, gone: false, external: true };
 
+  // 一度出した署名は1時間有効。同じ録音を押し直すたびに作り直さない。
+  const cached = signedCache.get(key);
+  if (cached && cached.until > Date.now()) return { url: cached.url, gone: false, external: false };
+
+  const t0 = performance.now();
   const { data: r2, error: r2err } = await supabase.functions.invoke('r2', {
     body: { action: 'sign-get', kind: 'recordings', key, expires: 3600 },
   });
-  if (!r2err && r2?.ok && r2.url) return { url: r2.url, gone: false, external: false };
+  const ms = Math.round(performance.now() - t0);
+  console.info(`[録音] 署名の取得 ${ms}ms`, r2err ? '（失敗）' : '');
+
+  if (!r2err && r2?.ok && r2.url) {
+    // 期限より少し手前で捨てる
+    signedCache.set(key, { url: r2.url, until: Date.now() + 50 * 60 * 1000 });
+    return { url: r2.url, gone: false, external: false };
+  }
 
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(key, 3600);
   if (!error && data?.signedUrl) {
