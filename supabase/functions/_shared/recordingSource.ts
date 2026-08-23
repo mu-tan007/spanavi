@@ -89,3 +89,50 @@ export async function resolveRecordingSource(
   console.error('[recordingSource] どちらにも見つかりません:', key);
   return recordingUrl;
 }
+
+/** R2 に直接置く。移送用ではなく、録音の保存そのものに使う。 */
+export async function r2PutFromBuffer(
+  key: string, body: ArrayBuffer | Uint8Array, contentType = 'audio/mp4',
+): Promise<{ ok: boolean; status: number; body: string }> {
+  const account = Deno.env.get('R2_ACCOUNT_ID');
+  const ak = Deno.env.get('R2_ACCESS_KEY_ID');
+  const sk = Deno.env.get('R2_SECRET_ACCESS_KEY');
+  const bucket = Deno.env.get('R2_BUCKET_RECORDINGS');
+  if (!account || !ak || !sk || !bucket) {
+    return { ok: false, status: 0, body: 'R2の設定がありません' };
+  }
+
+  const e = (s: string) =>
+    encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+  const host = `${account}.r2.cloudflarestorage.com`;
+  const path = `/${bucket}/${key.split('/').map(e).join('/')}`;
+  const bytes = body instanceof Uint8Array ? body : new Uint8Array(body);
+
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = hex(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)));
+  const canonical = [
+    'PUT', path, '',
+    `host:${host}\n` + `x-amz-content-sha256:${payloadHash}\n` + `x-amz-date:${amzDate}\n`,
+    'host;x-amz-content-sha256;x-amz-date',
+    payloadHash,
+  ].join('\n');
+  const scope = `${dateStamp}/auto/s3/aws4_request`;
+  const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, await sha256Hex(canonical)].join('\n');
+  let k = await hmac(enc.encode('AWS4' + sk), dateStamp);
+  k = await hmac(k, 'auto'); k = await hmac(k, 's3'); k = await hmac(k, 'aws4_request');
+  const sig = hex(await hmac(k, toSign));
+
+  const res = await fetch(`https://${host}${path}`, {
+    method: 'PUT',
+    headers: {
+      host,
+      'content-type': contentType,
+      'x-amz-date': amzDate,
+      'x-amz-content-sha256': payloadHash,
+      Authorization: `AWS4-HMAC-SHA256 Credential=${ak}/${scope}, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=${sig}`,
+    },
+    body: bytes,
+  });
+  return { ok: res.ok, status: res.status, body: res.ok ? '' : (await res.text()).slice(0, 200) };
+}

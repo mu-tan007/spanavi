@@ -1,5 +1,6 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { r2PutFromBuffer } from '../_shared/recordingSource.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,34 +72,26 @@ Deno.serve(async (req) => {
     const audioBuffer = await audioRes.arrayBuffer()
     console.log('[upload-recording] 録音DL完了 bytes:', audioBuffer.byteLength)
 
-    // ── Step 3: recordingsバケット作成（既存の場合は無視） ────────────────
-    await fetch(`${supabaseUrl}/storage/v1/bucket`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id: 'recordings', name: 'recordings', public: true }),
-    })
+    // ── Step 3-4: 保存先は Cloudflare R2（2026-08-24 移設）────────────────
+    //
+    // ⚠️ Supabase Storage には置かない。組織の上限100GBを超えたため、
+    //    録音80GB/150,800件をR2へ移した。ここで置き続けると、
+    //    削除した端からまた溜まる。
+    //
+    // ⚠️ recording_url に入れる形は**移設前の公開URLのまま**にする。
+    //    DBに14.8万行あり書き換えないので、新旧で形が違うと
+    //    再生側で2通りの読み方が要る。URLは「鍵の入れ物」として扱う。
+    const key = `${call_record_id}_${Date.now()}.m4a`
+    const filename = `recordings/${key}`
+    console.log('[upload-recording] R2へ保存 key:', key)
 
-    // ── Step 4: Supabase Storageにアップロード ────────────────────────────
-    const filename = `recordings/${call_record_id}_${Date.now()}.m4a`
-    console.log('[upload-recording] Storage upload開始 filename:', filename)
-    const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/${filename}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'audio/mp4',
-        'x-upsert': 'true',
-      },
-      body: audioBuffer,
-    })
-    if (!uploadRes.ok) {
-      throw new Error(`Storage upload failed: ${uploadRes.status} ${await uploadRes.text()}`)
+    const put = await r2PutFromBuffer(key, audioBuffer, 'audio/mp4')
+    if (!put.ok) {
+      throw new Error(`R2 upload failed: ${put.status} ${put.body}`)
     }
-    console.log('[upload-recording] Storage upload完了 HTTP:', uploadRes.status)
+    console.log('[upload-recording] R2保存完了 HTTP:', put.status)
 
-    // ── Step 5: 公開URL生成 ───────────────────────────────────────────────
+    // ── Step 5: 再生用のURL（実体はR2。形は従来どおり）───────────────────
     const public_url = `${supabaseUrl}/storage/v1/object/public/${filename}`
     console.log('[upload-recording] public_url:', public_url)
 
