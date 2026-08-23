@@ -2,6 +2,7 @@
 // 入力: { recording_url, call_status, item_id?, manual_supplement? }
 // 出力: { transcript, report_style ("スムーズ"|"説得"|null), report_text, public_recording_url }
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { resolveRecordingSource } from '../_shared/recordingSource.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,9 +50,12 @@ Deno.serve(async (req) => {
     }
 
     // ── 2. 音声ダウンロード ───────────────────────────────────────────
+    // 録音の実体は R2 へ移した。保存されている公開URLのままでは読めないので、
+    // いまの置き場所に読み替えてから取りに行く。
+    const sourceUrl = isZoomUrl ? recording_url : await resolveRecordingSource(supabase, recording_url)
     const audioRes = isZoomUrl
-      ? await fetch(recording_url, { headers: { 'Authorization': `Bearer ${zoomToken}` } })
-      : await fetch(recording_url)
+      ? await fetch(sourceUrl, { headers: { 'Authorization': `Bearer ${zoomToken}` } })
+      : await fetch(sourceUrl)
     if (!audioRes.ok) {
       return new Response(JSON.stringify({ error: `Failed to download recording: ${audioRes.status}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

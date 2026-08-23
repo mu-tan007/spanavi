@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { resolveRecordingSource } from '../_shared/recordingSource.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,9 +98,12 @@ Deno.serve(async (req) => {
     }
 
     const isZoomUrl = /zoom\.us/i.test(recording_url)
+    // 録音の実体は R2 へ移した。保存されている公開URLのままでは読めないので、
+    // いまの置き場所に読み替えてから取りに行く。
+    const sourceUrl = isZoomUrl ? recording_url : await resolveRecordingSource(supabase, recording_url)
     const audioRes = isZoomUrl
-      ? await fetch(recording_url, { headers: { 'Authorization': `Bearer ${zoomToken}` } })
-      : await fetch(recording_url)
+      ? await fetch(sourceUrl, { headers: { 'Authorization': `Bearer ${zoomToken}` } })
+      : await fetch(sourceUrl)
 
     if (!audioRes.ok) {
       return new Response(
