@@ -79,22 +79,37 @@ export async function createSessionVideoSignedUrl(
   storagePath: string,
   expiresSec = 3600,
 ): Promise<string | null> {
-  if (!storagePath) return null;
+  return (await resolveSessionVideoUrl(storagePath, expiresSec)).url;
+}
+
+/**
+ * 再生URLと「なぜ出せなかったか」を返す。
+ *
+ * gone = true は **どちらにも実体が無い**とき。
+ * R2は180日で自動削除するので、期限を過ぎた録画がこれに当たる。
+ * 一時的な障害と区別できないと、画面に「議事録は残っています」と
+ * 出してよいのか判断できない。
+ */
+export async function resolveSessionVideoUrl(
+  storagePath: string,
+  expiresSec = 3600,
+): Promise<{ url: string | null; gone: boolean }> {
+  if (!storagePath) return { url: null, gone: false };
 
   const { data: r2, error: r2err } = await supabase.functions.invoke('r2', {
     body: { action: 'sign-get', kind: 'spacareer', key: storagePath, expires: expiresSec },
   });
-  if (!r2err && r2?.ok && r2.url) return r2.url as string;
+  if (!r2err && r2?.ok && r2.url) return { url: r2.url as string, gone: false };
 
   console.warn('[videoUpload] R2から出せなかったのでSupabase Storageを見ます:', storagePath, r2err ?? r2);
   const { data, error } = await supabase.storage
     .from(SESSION_BUCKET)
     .createSignedUrl(storagePath, expiresSec);
-  if (error) {
-    console.error('[DB] createSessionVideoSignedUrl error:', error);
-    return null;
-  }
-  return data?.signedUrl || null;
+  if (!error && data?.signedUrl) return { url: data.signedUrl, gone: false };
+
+  // R2にも Supabase にも無い＝実体が消えている
+  console.error('[DB] createSessionVideoSignedUrl error:', error);
+  return { url: null, gone: true };
 }
 
 /**

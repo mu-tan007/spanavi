@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../../../constants/design';
 import { Button } from '../../../ui';
-import { createSessionVideoSignedUrl } from '../../../../lib/spacareer/integrations/videoUpload';
+import { resolveSessionVideoUrl } from '../../../../lib/spacareer/integrations/videoUpload';
 
 // ============================================================
 // セッション録画 画面内プレーヤー（モーダル）
@@ -27,10 +27,13 @@ export default function SessionVideoModal({ open, onClose, storagePath, title })
     setSignedUrl(null);
     setErr(null);
     setLoading(true);
-    createSessionVideoSignedUrl(storagePath)
-      .then((url) => {
+    resolveSessionVideoUrl(storagePath)
+      .then(({ url, gone }) => {
         if (cancelled) return;
         if (url) setSignedUrl(url);
+        // R2は180日で自動的に消える。実体が無いときは、
+        // 「壊れた」ではなく「期限を過ぎた」と伝える。議事録は残っている。
+        else if (gone) setErr('この録画は保存期間（180日）を過ぎたため残っていません。議事録はそのままご覧いただけます。');
         else setErr('録画の再生URLを取得できませんでした。');
       })
       .catch((e) => { if (!cancelled) setErr(e?.message || String(e)); })
