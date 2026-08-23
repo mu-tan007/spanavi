@@ -11,8 +11,12 @@
 ## 方針
 
 - チーム情報は `useEngagementMembers(currentEngagement.id)` の `teamGroups` をそのまま使う（新規フェッチなし）
-- シフト行の実体は今まで通り `members` prop（membersDetailed）。teamGroups は**並び順の指示書**としてのみ使い、
-  どのチームにも載らないメンバーは末尾の「未所属」に落とす → 表から誰も消えない
+- **表示対象もメンバーページと完全に一致させる**（2026-08-24 むー様指示）。
+  すなわち `member_engagements` でこの事業に所属している人だけ。他事業専任（大渕様・林様など）は出さない。
+  当初は「members prop 全員を残して未所属に落とす」設計だったが、メンバーページに載っていない人が
+  シフト表にだけ出るのは不整合なので取りやめ。
+- シフト行の実体は今まで通り `members` prop（membersDetailed）。teamGroups に居て members prop に無い場合のみ
+  teamGroups 側のオブジェクトで描く
 - 見出し帯はメンバーページの `TeamBlock` ヘッダーと同じ配色（NAVY / チーム名 / (N名)）
 
 ## TODO

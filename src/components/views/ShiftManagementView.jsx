@@ -81,44 +81,27 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // チーム分けはメンバーページ (EngagementMembersView) と同じ teamGroups を使う。
-  // teamGroups は「並び順の指示書」としてだけ使い、行の実体は今まで通り members prop。
-  // teamGroups に載らないメンバー (この事業に未所属) も末尾に残すので、表から誰も消えない。
+  // 表示対象・並び順ともにメンバーページ (EngagementMembersView) と同じ teamGroups に揃える。
+  // = この事業 (member_engagements) に所属している人だけを出す。
+  //   他事業専任のメンバー (スパキャリ側など) はシフト表に出さない。
   const { currentEngagement } = useEngagements();
-  const { teamGroups } = useEngagementMembers(currentEngagement?.id);
+  const { teamGroups, loading: teamsLoading } = useEngagementMembers(currentEngagement?.id);
 
   const memberGroups = useMemo(() => {
     const keyOf = (m) => String(m._supaId || m.id || '');
-    const base = [...members].filter(m => typeof m === 'object' && m.name);
-    const byJoinDate = (a, b) => (a.joinDate || '').localeCompare(b.joinDate || '');
-
-    // teamGroups 未取得 (読み込み中 / チーム未設定の事業) は従来通りの一枚表
-    if (!teamGroups?.length) {
-      return [{ id: '__all', name: null, members: base.sort(byJoinDate) }];
-    }
-
-    const byKey = new Map(base.map(m => [keyOf(m), m]));
-    const used = new Set();
-    const named = [];
-    let unassigned = [];
-    for (const g of teamGroups) {
-      const rows = [];
-      for (const gm of g.members || []) {
-        const k = String(gm.id);
-        if (used.has(k)) continue;
-        const m = byKey.get(k);
-        if (!m) continue;
-        rows.push(m);
-        used.add(k);
-      }
-      if (g.id === '__unassigned') unassigned = rows;
-      else if (rows.length) named.push({ id: g.id, name: g.name, members: rows });
-    }
-    const rest = base.filter(m => !used.has(keyOf(m))).sort(byJoinDate);
-    const tail = [...unassigned, ...rest];
-    return tail.length
-      ? [...named, { id: '__unassigned', name: '未所属', members: tail }]
-      : named;
+    // 行の実体は従来通り members prop のオブジェクト。
+    // members prop に見つからない場合だけ teamGroups 側のメンバーをそのまま使う
+    // (name と id があればシフト表は描ける)。
+    const legacyByKey = new Map(
+      members.filter(m => typeof m === 'object' && m.name).map(m => [keyOf(m), m])
+    );
+    return (teamGroups || [])
+      .map(g => ({
+        id: g.id,
+        name: g.id === '__unassigned' ? '未所属' : g.name,
+        members: (g.members || []).map(gm => legacyByKey.get(String(gm.id)) || gm),
+      }))
+      .filter(g => g.members.length > 0);
   }, [members, teamGroups]);
 
   // 稼働人数などの全体集計用。memberGroups と行の並びを完全に一致させる。
@@ -650,7 +633,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
 
       {/* コンテンツ */}
       <div style={{ flex: 1, overflow: 'auto' }}>
-        {loading ? (
+        {loading || teamsLoading ? (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             height: 200, color: color.textLight, fontSize: font.size.base,
