@@ -15,6 +15,20 @@ function tokenize(managerStr) {
     .filter(s => s.length > 0 && !/^(?:or|OR)$/.test(s));
 }
 
+// 架電リストから、そのリストのクライアント（clientData の1件）を解決する。
+//
+// 社名一致で引くと、同名クライアントが複数登録されている場合に
+// 先頭の1件（＝担当者もカレンダーIDも持たない別レコード）を掴んでしまう。
+// list.client_id を必ず優先し、社名一致は client_id が無い旧データ用のフォールバック。
+export function resolveListClient(list, clientData) {
+  const safeClients = Array.isArray(clientData) ? clientData : [];
+  if (list?.client_id) {
+    const byId = safeClients.find(c => c._supaId === list.client_id);
+    if (byId) return byId;
+  }
+  return safeClients.find(c => c.company === list?.company);
+}
+
 export function resolveListContacts(list, contacts) {
   const safeContacts = Array.isArray(contacts) ? contacts : [];
   const seen = new Set();

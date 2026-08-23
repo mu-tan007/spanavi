@@ -22,7 +22,7 @@ import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
 import ScriptBody from '../common/ScriptBody';
 import ScriptTreeGuide from '../common/ScriptTreeGuide';
-import { resolveListContacts } from '../../utils/listContacts';
+import { resolveListContacts, resolveListClient } from '../../utils/listContacts';
 import { initialAppoStatus } from '../../utils/appoStatus';
 
 // ============================================================
@@ -1887,7 +1887,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 : <div style={{ color: C.textLight, fontSize: 11 }}>注意事項未設定</div>
             )}
             {scriptTab === 'calendar' && (() => {
-              const cl = (clientData || []).find(c => c.company === list.company);
+              const cl = resolveListClient(list, clientData);
               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
               const linkedContacts = resolveListContacts(list, contacts);
               return (
@@ -1966,7 +1966,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
       {/* ─── カレンダーからの簡易アポ登録モーダル ─── */}
       {quickAppoSlot && selectedRow && (() => {
-        const cl = (clientData || []).find(c => c.company === list.company);
+        const cl = resolveListClient(list, clientData);
         const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
         const lcs = (list.contactIds || []).map(cid => contacts.find(ct => ct.id === cid)).filter(Boolean);
         const primaryLc = lcs[0] || (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
@@ -2791,7 +2791,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 : <div style={{ color: color.gray400, fontSize: font.size.sm }}>注意事項未設定</div>
             )}
             {scriptTab === 'calendar' && (() => {
-              const cl = (clientData || []).find(c => c.company === list.company);
+              const cl = resolveListClient(list, clientData);
               const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
               const linkedContacts = resolveListContacts(list, contacts);
               return (
@@ -2917,7 +2917,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
       {/* ─── カレンダーからの簡易アポ登録モーダル（フォーカスモード用） ─── */}
       {quickAppoSlot && selectedRow && (() => {
-        const cl = (clientData || []).find(c => c.company === list.company);
+        const cl = resolveListClient(list, clientData);
         const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
         const lcs = (list.contactIds || []).map(cid => contacts.find(ct => ct.id === cid)).filter(Boolean);
         const primaryLc = lcs[0] || (list.manager ? contacts.find(ct => ct.name?.includes(list.manager)) : null);
