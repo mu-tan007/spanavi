@@ -174,3 +174,14 @@ Cloudflare Account ID は `50fba9661af3b964d3141cd6a8950eb9`（秘密ではな�
 既存不具合で、同期語 `0xFF 0xEx` だけでMP3の境界を探していたため、音声データ中の偶然の
 一致（4MBあたり約2000箇所）を掴むとチャンクの先頭がゴミになっていた。
 フレーム長を計算して次のヘッダが合うかを3フレーム辿るようにした。
+
+### 3. 保存期間（180日）はR2のAPIトークンでは設定できなかった
+
+`r2` 関数に `lifecycle-set` / `lifecycle-get` を足したが、いまの R2 APIトークンは
+**オブジェクトの読み書きしか持っていない**ため `PutBucketLifecycleConfiguration` が
+403 AccessDenied（オブジェクトのPUT/GET/LIST/DELETEは200で通る）。
+
+- 一番早い: Cloudflare ダッシュボード → R2 → `spacareer-videos` → Settings →
+  Object lifecycle rules → 「作成から180日で削除」を全体（prefixなし）に1本
+- 関数から入れたい場合: R2 APIトークンの権限を **Admin Read & Write** に上げれば
+  `{"action":"lifecycle-set","kind":"spacareer","days":180}` で入る

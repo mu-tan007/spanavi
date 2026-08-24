@@ -147,6 +147,33 @@ async function head(kind: string, key: string) {
   return { ok: res.ok, status: res.status, size: res.headers.get('content-length') };
 }
 
+/* ===================== 保存期間（ライフサイクル） ===================== */
+
+// 置き場ごとの保存期間をR2側に持たせる。日数はバケット全体にかかる。
+//
+// ⚠️ 期限の起点は**R2に置いた日**であって、収録した日ではない。
+//    移設でまとめて置いたものは、まとめて切れる。
+// ⚠️ 消えるのは実体（動画・音声）だけ。議事録や文字起こしはDBにあるので残る。
+async function putLifecycle(kind: string, days: number) {
+  const bucket = bucketOf(kind);
+  const xml = '<LifecycleConfiguration>'
+    + '<Rule>'
+    + `<ID>expire-after-${days}-days</ID>`
+    + '<Status>Enabled</Status>'
+    + '<Filter><Prefix></Prefix></Filter>'
+    + `<Expiration><Days>${days}</Days></Expiration>`
+    + '</Rule>'
+    + '</LifecycleConfiguration>';
+  const res = await signedFetch('PUT', bucket, '', enc.encode(xml), 'lifecycle=');
+  return { ok: res.ok, status: res.status, bucket, days, body: res.ok ? '' : (await res.text()).slice(0, 400) };
+}
+
+async function getLifecycle(kind: string) {
+  const bucket = bucketOf(kind);
+  const res = await signedFetch('GET', bucket, '', undefined, 'lifecycle=');
+  return { ok: res.ok, status: res.status, bucket, xml: (await res.text()).slice(0, 800) };
+}
+
 /* ===================== 見てよいかの判定 ===================== */
 
 // 呼んだ人のIDを取り出す。
@@ -401,6 +428,13 @@ Deno.serve(async (req) => {
         return reply({ ok: false, error: '見られません' }, 403);
       }
       return reply(await head(kind, body.key));
+    }
+    if (action === 'lifecycle-get') return reply(await getLifecycle(kind));
+    if (action === 'lifecycle-set') {
+      // ⚠️ バケット全体にかかる。日数は明示的に渡させる（既定値を置かない）。
+      const days = Number(body.days);
+      if (!Number.isInteger(days) || days < 1) return reply({ ok: false, error: 'days は1以上の整数で' }, 400);
+      return reply(await putLifecycle(kind, days));
     }
     if (action === 'migrate') return reply(await migrateOne(kind, body.bucket, body.path));
     if (action === 'stats') {
