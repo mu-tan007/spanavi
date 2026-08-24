@@ -3395,9 +3395,33 @@ export async function uploadAppoAttachments(appoId, files) {
       continue
     }
     const { data: urlData } = supabase.storage.from('recordings').getPublicUrl(path)
+    await stowRecordingToR2(path)
     if (urlData?.publicUrl) urls.push({ name: file.name, url: urlData.publicUrl })
   }
   return { urls, error: null }
+}
+
+// Supabase Storage に上がったものを R2 へ移して元を消す。
+// -----------------------------------------------------------------------------
+// ⚠️ 録音の置き場は R2 が正（2026-08-24 移設）。ここで Supabase に置いたままだと、
+//    せっかく空けた容量がまた埋まる。ブラウザから直接R2へ置くには鍵が要るので、
+//    いったんSupabaseへ上げてからサーバー経由で移す。
+// ⚠️ 失敗しても投げない。移せなければSupabase側に残るだけで、
+//    再生も文字起こしもそちらに回る（動きは止まらない）。
+async function stowRecordingToR2(path) {
+  try {
+    const { data, error } = await supabase.functions.invoke('r2', {
+      body: { action: 'migrate', kind: 'recordings', bucket: 'recordings', path },
+    })
+    if (error || !data?.ok) {
+      console.warn('[DB] R2へ移せませんでした（Supabase側に残ります）:', path, error ?? data)
+      return
+    }
+    const { error: rmErr } = await supabase.storage.from('recordings').remove([path])
+    if (rmErr) console.warn('[DB] R2へは移せましたが元を消せませんでした:', path, rmErr)
+  } catch (e) {
+    console.warn('[DB] R2へ移せませんでした:', path, e)
+  }
 }
 
 export async function uploadAppoRecording(appoId, file) {
@@ -3414,6 +3438,7 @@ export async function uploadAppoRecording(appoId, file) {
     return { url: null, error: uploadError }
   }
   const { data: urlData } = supabase.storage.from('recordings').getPublicUrl(path)
+  await stowRecordingToR2(path)
   return { url: urlData.publicUrl, error: null }
 }
 
