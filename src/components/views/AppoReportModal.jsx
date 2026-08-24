@@ -13,6 +13,7 @@ import { MemberSuggestInput } from './AppoListView';
 import TemplateDrivenAppoReportModal from './TemplateDrivenAppoReportModal';
 import { resolveApplicableTemplates } from '../../lib/templateRenderer';
 import { formatDateWithWeekday } from '../../lib/dateUtils';
+import { resolveListClient } from '../../utils/listContacts';
 
 export default function AppoReportModal(props) {
   const { row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '', contactsByClient = {} } = props;
@@ -54,7 +55,7 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
   const isMobile = useIsMobile();
 
   // クライアントの報酬タイプを特定
-  const clientInfo = (clientData || []).find(c => c.company === list.company);
+  const clientInfo = resolveListClient(list, clientData);
   const rewardType = clientInfo?.rewardType || '';
   const rewardRows = (rewardMaster || []).filter(r => r.id === rewardType);
   const isFixed = rewardRows.length > 0 && rewardRows[0].basis === '-';

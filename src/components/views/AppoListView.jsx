@@ -19,6 +19,7 @@ import { useImeSafeInput } from '../../lib/useImeSafe';
 import PageHeader from '../common/PageHeader';
 import { useUrlState } from '../../hooks/useUrlState';
 import { useSearchParams } from 'react-router-dom';
+import { resolveClient, findClientByName } from '../../utils/listContacts';
 
 const APPO_COLS = [
   { key: 'client', width: 240, align: 'left' },
@@ -127,7 +128,9 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   const [attachedFiles, setAttachedFiles] = React.useState([]);
   const fileInputRef = React.useRef(null);
 
-  const cl = (clientData || []).find(c => c.company === appo.client);
+  // 社名一致だと同名クライアントが複数あるとき抜け殻レコードを掴み、担当者が出ない。
+  // アポは clients.id を持っているのでそちらを優先する。
+  const cl = resolveClient(clientData, { clientId: appo.client_id, company: appo.client });
   const es = EMAIL_STATUS_LABELS[appo.emailStatus] || EMAIL_STATUS_LABELS.pending;
   const contactMethod = cl?.contact || '';
   const isSlack = contactMethod === 'Slack';
@@ -805,7 +808,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const list = callListData.find(l => l._supaId === appo.list_id);
     const contactId = list?.contactIds?.[0];
     if (!contactId) return '';
-    const client = clientData.find(c => c.company === clientName);
+    const client = findClientByName(clientData, clientName);
     const contact = (client?._supaId ? (contactsByClient[client._supaId] || []) : []).find(ct => ct.id === contactId);
     return contactHonorific(contact?.name);
   };
@@ -813,7 +816,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // クライアント選択時に明細行を自動生成
   // appoData.sales は消費税込みの金額 → 税別クライアントは税抜単価に変換
   const initInvoiceItems = (clientName, month) => {
-    const client = clientData.find(c => c.company === clientName);
+    const client = findClientByName(clientData, clientName);
     const rm = client ? rewardMaster.find(r => r.id === client.rewardType) : null;
     const isTaxExcl = (rm?.tax || '税別') === '税別';
     // クライアント開拓リスト由来のアポは請求対象外（クライアント請求は通常リストのみ）
@@ -829,7 +832,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
 
   const handleInvoiceExport = async () => {
     if (!invoiceMonth || !invoiceClient || invoiceExporting) return;
-    const client = clientData.find(c => c.company === invoiceClient);
+    const client = findClientByName(clientData, invoiceClient);
     if (!client) { alert('クライアントが見つかりません'); return; }
     if (invoiceItems.length === 0) { alert('明細行がありません'); return; }
 
@@ -907,7 +910,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // ── 請求書PDF生成（Base64返却用） ──────────────────────────
   // customItems を渡せば自動生成をスキップして編集済み明細を使う（一括作成の編集ドラフト用）
   const generateInvoicePdfBase64 = async (clientName, month, customIssueDate = null, customItems = null) => {
-    const client = clientData.find(c => c.company === clientName);
+    const client = findClientByName(clientData, clientName);
     if (!client) throw new Error('クライアントが見つかりません');
     const rm = rewardMaster.find(r => r.id === client.rewardType);
     const taxType = rm?.tax || '税別';
@@ -982,7 +985,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // 一斉送信メールの宛名: 送信先に選んだ担当者の姓＋「様」。
   // 担当者が特定できない（未選択・担当者未登録のメールアドレス）場合のみクライアント名を使う。
   const bulkSendGreetingOf = (clientName, email) => {
-    const client = clientData.find(c => c.company === clientName);
+    const client = findClientByName(clientData, clientName);
     const contacts = client?._supaId ? (contactsByClient[client._supaId] || []) : [];
     const contact = email ? contacts.find(ct => ct.email === email) : null;
     return contactHonorific(contact?.name) || `${clientName} 様`;
@@ -1008,7 +1011,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       setBulkSendStatus(prev => ({ ...prev, [clientName]: 'sending' }));
       try {
         const { pdfBase64, filename } = await generateInvoicePdfBase64(clientName, bulkSendMonth);
-        const client = clientData.find(c => c.company === clientName);
+        const client = findClientByName(clientData, clientName);
         // プレビューで編集済みならその内容を、未編集なら既定文面を送る
         const draft = bulkSendDrafts[clientName];
         const emailBody = draft?.body ?? buildInvoiceMailBody(bulkSendGreetingFor(clientName), monthLabel);
@@ -1762,7 +1765,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         const monthAppos = appoData.filter(a => a.status === '面談済' && !a.isProspecting && a.meetDate && a.meetDate.slice(0, 7) === bulkInvoiceMonth);
         const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
         const clientInfos = clientNames.map(name => {
-          const c = clientData.find(cl => cl.company === name);
+          const c = findClientByName(clientData, name);
           const rm = c ? rewardMaster.find(r => r.id === c.rewardType) : null;
           const isTaxExcl = (rm?.tax || '税別') === '税別';
           const draft = bulkInvoiceDrafts[name];
@@ -1920,7 +1923,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         const monthAppos = appoData.filter(a => a.status === '面談済' && !a.isProspecting && a.meetDate && a.meetDate.slice(0, 7) === bulkSendMonth);
         const clientNames = [...new Set(monthAppos.map(a => a.client))].filter(Boolean).sort();
         const clientInfos = clientNames.map(name => {
-          const c = clientData.find(cl => cl.company === name);
+          const c = findClientByName(clientData, name);
           const rm = c ? rewardMaster.find(r => r.id === c.rewardType) : null;
           const isTaxExcl = (rm?.tax || '税別') === '税別';
           const appos = monthAppos.filter(a => a.client === name);
@@ -2452,7 +2455,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           invoiceClientsBase.push('株式会社エムステージマネジメントソリューションズ');
         }
         const invoiceClients = invoiceClientsBase;
-        const previewClient = clientData.find(c => c.company === invoiceClient);
+        const previewClient = findClientByName(clientData, invoiceClient);
         const previewRm = previewClient ? rewardMaster.find(r => r.id === previewClient.rewardType) : null;
         const previewTaxType = previewRm?.tax || '税別';
         const previewSubtotal = invoiceItems.reduce((s, it) => s + it.amount, 0);
@@ -2588,7 +2591,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       setInvoiceMailGenerating(true);
                       try {
                         const { pdfBase64, filename, monthLabel } = await generateInvoicePdfBase64(invoiceClient, invoiceMonth);
-                        const client = clientData.find(c => c.company === invoiceClient);
+                        const client = findClientByName(clientData, invoiceClient);
                         const contacts = (client?._supaId && contactsByClient[client._supaId]) || [];
                         const primary = contacts.find(ct => ct.isPrimary) || contacts[0];
                         // 連絡手段の自動判定: メール優先、Slack/Chatworkは webhook/room_id が登録されていれば候補
@@ -2647,7 +2650,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div><label style={labelStyle}>クライアント</label>
                     <select value={editForm.client} onChange={e => {
                       const name = e.target.value;
-                      const client = clientOptions.find(c => c.company === name);
+                      const client = findClientByName(clientOptions, name);
                       const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
                       setEditForm(p => ({ ...p, client: name, ...(name && rewardRow ? { sales: initialSalesForReward(rewardRow) } : {}) }));
                     }} style={inputStyle}>
@@ -2683,7 +2686,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                         // 担当アポインターのincentive率取得 (DBから取得した実マップを使用)
                         const rate = memberRateByName[editForm.getter] || 0;
                         // 該当クライアントの calc_type を判定
-                        const client = clientData.find(c => c.company === editForm.client);
+                        const client = findClientByName(clientData, editForm.client);
                         const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
                         // calc_type='fixed_per_appo' の場合は sales=reward 一律 (個別レート無視)
                         // それ以外 (rate) は sales × member.incentive_rate（utils/money.js でテスト固定）
@@ -2793,7 +2796,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <div><label style={labelStyle}>クライアント名</label>
                     <select value={addAppoForm.client} onChange={e => {
                       const name = e.target.value;
-                      const client = clientOptions.find(c => c.company === name);
+                      const client = findClientByName(clientOptions, name);
                       const rewardRow = client?.rewardType ? rewardMaster.find(r => r.id === client.rewardType) : null;
                       setAddAppoForm(p => ({ ...p, client: name, ...(name && rewardRow ? { sales: initialSalesForReward(rewardRow) } : {}) }));
                     }} style={inputStyle}>
@@ -2986,7 +2989,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>クライアント</div>
                         {adminEdit
-                          ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = clientOptions.find(c => c.company === name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", initialSalesForReward(rr)); }} style={iS}>
+                          ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = findClientByName(clientOptions, name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", initialSalesForReward(rr)); }} style={iS}>
                               <option value="">選択...</option>
                               {clientOptions.map(c => <option key={c._supaId || c.company} value={c.company}>{c.company}{c.status === "停止中" ? "（停止中）" : ""}</option>)}
                             </select>

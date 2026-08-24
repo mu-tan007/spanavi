@@ -279,6 +279,9 @@ export function useSpanaviData(authOrgId) {
       const appoDataFormatted = appointments.map(a => ({
         _supaId: a.id,
         client: clientMap[a.client_id]?.name || '',
+        // 社名だけだと同名クライアントが複数あるとき別レコードを掴む（担当者・報酬設定が引けない）。
+        // 画面側で clients.id 優先の解決ができるよう原値を残す。
+        client_id: a.client_id || null,
         company: a.company_name || '',
         getter: a.getter_name || '',
         getDate: a.created_at ? new Date(a.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : '',

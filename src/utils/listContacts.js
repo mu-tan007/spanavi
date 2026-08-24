@@ -15,18 +15,33 @@ function tokenize(managerStr) {
     .filter(s => s.length > 0 && !/^(?:or|OR)$/.test(s));
 }
 
-// 架電リストから、そのリストのクライアント（clientData の1件）を解決する。
+// 社名だけからクライアント（clientData の1件）を引く。
 //
-// 社名一致で引くと、同名クライアントが複数登録されている場合に
-// 先頭の1件（＝担当者もカレンダーIDも持たない別レコード）を掴んでしまう。
-// list.client_id を必ず優先し、社名一致は client_id が無い旧データ用のフォールバック。
-export function resolveListClient(list, clientData) {
+// 同名クライアントが複数登録されている場合、素の .find() は並び順で先に来た方
+// （＝担当者もカレンダーIDも報酬設定も持たない抜け殻レコード）を掴むことがある。
+// 実務データは「支援中」のレコードに寄っているので、同名が複数あるときは支援中を優先する。
+// ID が手元にある場合は必ず resolveClient を使うこと。これは ID が取れない画面用の次善策。
+export function findClientByName(clientData, company) {
   const safeClients = Array.isArray(clientData) ? clientData : [];
-  if (list?.client_id) {
-    const byId = safeClients.find(c => c._supaId === list.client_id);
+  if (!company) return undefined;
+  const matches = safeClients.filter(c => c.company === company);
+  if (matches.length <= 1) return matches[0];
+  return matches.find(c => c.status === '支援中') || matches[0];
+}
+
+// clients.id（あれば）優先でクライアントを解決する。社名一致は ID を持たない旧データ用のフォールバック。
+export function resolveClient(clientData, { clientId, company } = {}) {
+  const safeClients = Array.isArray(clientData) ? clientData : [];
+  if (clientId) {
+    const byId = safeClients.find(c => c._supaId === clientId);
     if (byId) return byId;
   }
-  return safeClients.find(c => c.company === list?.company);
+  return findClientByName(safeClients, company);
+}
+
+// 架電リストから、そのリストのクライアントを解決する。
+export function resolveListClient(list, clientData) {
+  return resolveClient(clientData, { clientId: list?.client_id, company: list?.company });
 }
 
 export function resolveListContacts(list, contacts) {

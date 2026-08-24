@@ -19,6 +19,7 @@ import { invokeGenerateCompanyDossier } from '../../lib/dossierApi';
 import { getOrgId } from '../../lib/orgContext';
 import { supabase } from '../../lib/supabase';
 import { resolveActiveRewardType, fetchPastDoneCount } from '../../lib/rewardResolver';
+import { resolveListClient } from '../../utils/listContacts';
 
 /**
  * テンプレ駆動アポ取得報告モーダル。
@@ -73,7 +74,7 @@ export default function TemplateDrivenAppoReportModal({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const clientInfo = (clientData || []).find(c => c.company === list?.company);
+      const clientInfo = resolveListClient(list, clientData);
       if (!clientInfo?._supaId || !list?.engagement_id) { if (!cancelled) setRewardRows([]); return; }
       const { data: setting } = await supabase
         .from('client_engagement_reward_settings')
@@ -92,7 +93,7 @@ export default function TemplateDrivenAppoReportModal({
       setRewardRows(activeTypeId ? (rewardMaster || []).filter(r => r.id === activeTypeId) : []);
     })();
     return () => { cancelled = true; };
-  }, [list?.engagement_id, list?.company, clientData, rewardMaster]);
+  }, [list?.engagement_id, list?.client_id, list?.company, clientData, rewardMaster]);
 
   // 日本語金額テキスト ("5.0億円" "3000万円" "120,000千" 等) を円に変換
   const parseJpAmount = (str) => {
@@ -427,7 +428,7 @@ export default function TemplateDrivenAppoReportModal({
       const reportNote = renderBody(template.body_template, renderData, template.schema);
 
       // クライアント情報（売上計算用）
-      const clientInfo = (clientData || []).find(c => c.company === list?.company);
+      const clientInfo = resolveListClient(list, clientData);
       // クライアント × タイプ単位の報酬体系を引く（一本化後）。
       // 設定がなければ報酬計算なし（クライアント開拓など売上対象外を含む）。
       let rewardType = '';

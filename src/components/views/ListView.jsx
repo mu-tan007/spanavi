@@ -14,6 +14,7 @@ import PageHeader from '../common/PageHeader';
 import TopListCard, { ProgressPill } from '../common/TopListCard';
 import SmartQueueTab from './smart-queue/SmartQueueTab';
 import { useUrlState } from '../../hooks/useUrlState';
+import { resolveListClient } from '../../utils/listContacts';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -398,7 +399,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const shortManagerName = (list) => {
     const fullNames = (list.manager || '').split(', ').filter(Boolean);
     if (fullNames.length === 0) return '';
-    const client = clientData.find(c => c.company === list.company);
+    const client = resolveListClient(list, clientData);
     const contacts = client ? (contactsByClient[client._supaId] || []) : [];
     return fullNames.map(full => {
       const parts = full.split(/\s+/);
