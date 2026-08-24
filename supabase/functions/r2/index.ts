@@ -381,13 +381,15 @@ Deno.serve(async (req) => {
       if (!(await mayRead(uid, kind, key))) {
         return reply({ ok: false, error: 'このファイルは見られません' }, 403);
       }
-      // ⚠️ 実体があるかの確認（HEAD）はしない。
-      //    R2への往復が1回増えて再生開始が100〜200ms遅くなる。
-      //    講義録画163件・架電録音150,800件とも全件の突合が済んでおり、
-      //    「無ければSupabaseに回る」ための確認だったが、回る先がもう無い。
-      //    万一欠けていれば、ブラウザがR2から404を受け取って再生に失敗する。
+      // ⚠️ 実体があるかを必ず確かめてから署名を出す。
+      //    一度これを外して速くしたが、**移送のあとに録音された分がR2に無く**、
+      //    「ある」前提の鍵を返してしまって再生できなくなった（2026-08-24）。
+      //    無いと分かれば呼び出し側がSupabaseに回れる。往復1回ぶん(60〜80ms)は
+      //    その安全のために払う。速さの主因は別（プリフライトの往復）だった。
+      const h = await head(kind, key);
+      if (!h.ok) return reply({ ok: false, error: 'R2にありません', status: h.status }, 404);
       const url = await presign('GET', bucketOf(kind), key, Number(body.expires ?? 3600));
-      return reply({ ok: true, url });
+      return reply({ ok: true, url, size: h.size });
     }
 
     if (action === 'check') return reply(await check(kind));
