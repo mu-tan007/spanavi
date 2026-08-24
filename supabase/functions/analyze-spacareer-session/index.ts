@@ -53,8 +53,15 @@ async function r2Hmac(key: Uint8Array, msg: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign('HMAC', k, R2_ENC.encode(msg)))
 }
 
-/** R2 の署名付きGET URL。設定が無い / 置いていない場合は null（呼び出し側でSupabaseへ回る）。 */
-async function r2SignedUrl(key: string, expires = 300): Promise<string | null> {
+/**
+ * R2 の署名付きURL。設定が無い / 鍵が空なら null（呼び出し側でSupabaseへ回る）。
+ *
+ * ⚠️ 署名には**メソッドそのものが含まれる**。GET用に作ったURLへHEADを投げると
+ *    署名が合わず必ず403が返る。存在確認をHEADでやるならHEAD用に署名し直すこと。
+ *    （GET用の署名でHEADを叩いていたため、R2にあるのに「無い」と判断して
+ *      消したはずのSupabase側を見に行き、議事録生成が全件失敗していた。2026-08-24 修正）
+ */
+async function r2SignedUrl(key: string, expires = 300, method: 'GET' | 'HEAD' = 'GET'): Promise<string | null> {
   const account = Deno.env.get('R2_ACCOUNT_ID')
   const ak = Deno.env.get('R2_ACCESS_KEY_ID')
   const sk = Deno.env.get('R2_SECRET_ACCESS_KEY')
@@ -76,7 +83,7 @@ async function r2SignedUrl(key: string, expires = 300): Promise<string | null> {
     ['X-Amz-SignedHeaders', 'host'],
   ].map(([k, v]) => `${enc1(k)}=${enc1(v)}`).join('&')
 
-  const canonical = ['GET', path, q, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n')
+  const canonical = [method, path, q, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n')
   const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, await r2Sha256(canonical)].join('\n')
   let k = await r2Hmac(R2_ENC.encode('AWS4' + sk), dateStamp)
   k = await r2Hmac(k, 'auto'); k = await r2Hmac(k, 's3'); k = await r2Hmac(k, 'aws4_request')
@@ -286,10 +293,54 @@ function buildMinutesDraftText(ai: MinutesAI): string {
   return lines.join('\n')
 }
 
-// MP3 のフレーム同期語(0xFF 0xEx)を from 以降から探す。見つからなければ末尾。
+// MP3 フレームの長さ（バイト）。ヘッダとして読めなければ 0。
+// ⚠️ 同期語(0xFF 0xEx)だけで先頭を決めてはいけない。**音声データの中に偶然2000箇所ほど現れる**
+//    （4MBあたり）。偽の位置で切ると、そのチャンクの頭にゴミが付き、Whisper が
+//    「Invalid file format」で撥ねる（2026-08-24 に第5回の議事録が chunk 4 で失敗）。
+//    ビットレートとサンプリング周波数まで読んでフレーム長を出し、次のヘッダが
+//    ちょうどその位置に来るかを数フレーム辿って、本物の先頭だけを採る。
+const MP3_BITRATE_V1_L3 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0]
+const MP3_BITRATE_V2_L3 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0]
+const MP3_SAMPLE_RATE: Record<number, number[]> = {
+  3: [44100, 48000, 32000, 0], // MPEG1
+  2: [22050, 24000, 16000, 0], // MPEG2
+  0: [11025, 12000, 8000, 0],  // MPEG2.5
+}
+
+function mp3FrameLength(buf: Uint8Array, i: number): number {
+  if (i < 0 || i + 3 >= buf.length) return 0
+  if (buf[i] !== 0xFF || (buf[i + 1] & 0xE0) !== 0xE0) return 0
+  const ver = (buf[i + 1] >> 3) & 0x03   // 3=MPEG1 / 2=MPEG2 / 0=MPEG2.5 / 1=予約
+  const layer = (buf[i + 1] >> 1) & 0x03 // 1=Layer III
+  if (ver === 1 || layer !== 1) return 0
+  const brIdx = (buf[i + 2] >> 4) & 0x0F
+  const srIdx = (buf[i + 2] >> 2) & 0x03
+  if (brIdx === 0 || brIdx === 15 || srIdx === 3) return 0
+  const bitrate = (ver === 3 ? MP3_BITRATE_V1_L3 : MP3_BITRATE_V2_L3)[brIdx] * 1000
+  const rate = MP3_SAMPLE_RATE[ver][srIdx]
+  if (!bitrate || !rate) return 0
+  const pad = (buf[i + 2] >> 1) & 0x01
+  const len = Math.floor((ver === 3 ? 144 : 72) * bitrate / rate) + pad
+  return len > 4 ? len : 0
+}
+
+// start から frames 個ぶん、フレームが途切れずに繋がるか。
+function mp3FramesChain(buf: Uint8Array, start: number, frames = 3): boolean {
+  let at = start
+  for (let n = 0; n < frames; n++) {
+    const len = mp3FrameLength(buf, at)
+    if (!len) return false
+    at += len
+    if (at + 4 > buf.length) return true // 末尾まで来た。ここまで繋がれば本物とみなす
+  }
+  return true
+}
+
+// 本物のフレーム先頭を from 以降から探す。見つからなければ末尾。
 function findMp3FrameSync(buf: Uint8Array, from: number): number {
-  for (let i = Math.max(0, from); i < buf.length - 1; i++) {
-    if (buf[i] === 0xFF && (buf[i + 1] & 0xE0) === 0xE0) return i
+  for (let i = Math.max(0, from); i < buf.length - 4; i++) {
+    if (buf[i] !== 0xFF || (buf[i + 1] & 0xE0) !== 0xE0) continue
+    if (mp3FramesChain(buf, i)) return i
   }
   return buf.length
 }
@@ -464,7 +515,9 @@ async function processInBackground(
       let fileUrl: string | null = null
       const r2Url = await r2SignedUrl(storage_path, 300)
       if (r2Url) {
-        const probe = await fetch(r2Url, { method: 'HEAD' }).catch(() => null)
+        // 存在確認は**HEAD用に署名し直したURL**で行う（GET用の署名では403になる）。
+        const probeUrl = await r2SignedUrl(storage_path, 60, 'HEAD')
+        const probe = probeUrl ? await fetch(probeUrl, { method: 'HEAD' }).catch(() => null) : null
         if (probe?.ok) fileUrl = r2Url
         else console.warn('[analyze] R2に無いのでSupabase Storageを見ます:', storage_path, probe?.status)
       }

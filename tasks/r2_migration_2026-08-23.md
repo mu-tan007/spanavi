@@ -151,3 +151,26 @@ Cloudflare Account ID は `50fba9661af3b964d3141cd6a8950eb9`（秘密ではな�
 ⚠️ いまの判定は「同じorgの `users` に居るか」だけ。**架電のインターンでも鍵の名前が
    分かれば取れる**（鍵はUUIDなので推測はできない）。担当トレーナーと運営だけに
    絞ることもできる。未決。
+
+## 移設後に出た不具合（2026-08-24）
+
+### 1. R2にあるのに「無い」と判断していた（議事録が全件失敗）
+
+`analyze-spacareer-session` と `_shared/recordingSource.ts` は、R2を先に見るときに
+**GET用に署名したURLへHEADを投げていた**。AWS署名v4はメソッドを署名対象に含むので
+必ず403。それを「R2に無い」と読んで Supabase 側へ回り、そちらは削除済みなので
+`Object not found` → 「動画ファイルの取得に失敗しました」。
+
+- 直し方: 存在確認は**HEAD用に署名し直したURL**で行う（`r2Presign('HEAD', …)`）
+- 影響範囲: スパキャリのAI議事録（移設済み163件すべて）、
+  架電録音の文字起こし・AI添削（`transcribe-recording` / `transcribe-and-extract` /
+  `generate-call-report`）。ログに `[recordingSource] どちらにも見つかりません` が出ていた
+- 再デプロイ: analyze-spacareer-session / transcribe-recording / transcribe-and-extract /
+  generate-call-report / upload-recording-to-drive
+
+### 2. Whisperの分割が偽のフレーム境界を掴んでいた
+
+上を直したら `Whisper chunk 4 HTTP 400: Invalid file format` が出た。R2移設とは無関係の
+既存不具合で、同期語 `0xFF 0xEx` だけでMP3の境界を探していたため、音声データ中の偶然の
+一致（4MBあたり約2000箇所）を掴むとチャンクの先頭がゴミになっていた。
+フレーム長を計算して次のヘッダが合うかを3フレーム辿るようにした。

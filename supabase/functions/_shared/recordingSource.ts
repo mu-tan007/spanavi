@@ -32,8 +32,14 @@ export function recordingKeyOf(url: string | null | undefined): string | null {
   try { return decodeURIComponent(raw); } catch { return raw; }
 }
 
-/** R2 の署名付きGET URL。設定が無ければ null。 */
-export async function r2SignedGet(key: string, expires = 600): Promise<string | null> {
+/**
+ * R2 の署名付きURL。設定が無ければ null。
+ *
+ * ⚠️ 署名には**メソッドそのものが含まれる**。GET用に作ったURLへHEADを投げると
+ *    署名が合わず必ず403が返る。存在確認をHEADでやるなら、HEAD用に署名し直すこと。
+ *    （GET用の署名でHEADを叩いていたため「R2に無い」と誤判定していた。2026-08-24 修正）
+ */
+async function r2Presign(method: 'GET' | 'HEAD', key: string, expires: number): Promise<string | null> {
   const account = Deno.env.get('R2_ACCOUNT_ID');
   const ak = Deno.env.get('R2_ACCESS_KEY_ID');
   const sk = Deno.env.get('R2_SECRET_ACCESS_KEY');
@@ -55,11 +61,16 @@ export async function r2SignedGet(key: string, expires = 600): Promise<string | 
     ['X-Amz-SignedHeaders', 'host'],
   ].map(([k, v]) => `${e(k)}=${e(v)}`).join('&');
 
-  const canonical = ['GET', path, q, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
+  const canonical = [method, path, q, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
   const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, await sha256Hex(canonical)].join('\n');
   let k = await hmac(enc.encode('AWS4' + sk), dateStamp);
   k = await hmac(k, 'auto'); k = await hmac(k, 's3'); k = await hmac(k, 'aws4_request');
   return `https://${host}${path}?${q}&X-Amz-Signature=${hex(await hmac(k, toSign))}`;
+}
+
+/** R2 の署名付きGET URL。設定が無ければ null。 */
+export async function r2SignedGet(key: string, expires = 600): Promise<string | null> {
+  return await r2Presign('GET', key, expires);
 }
 
 /**
@@ -76,7 +87,9 @@ export async function resolveRecordingSource(
 
   const r2 = await r2SignedGet(key, 600);
   if (r2) {
-    const probe = await fetch(r2, { method: 'HEAD' }).catch(() => null);
+    // 存在確認は**HEAD用に署名し直したURL**で行う（GET用の署名では403になる）。
+    const probeUrl = await r2Presign('HEAD', key, 60);
+    const probe = probeUrl ? await fetch(probeUrl, { method: 'HEAD' }).catch(() => null) : null;
     if (probe?.ok) return r2;
   }
 
