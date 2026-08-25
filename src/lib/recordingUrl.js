@@ -19,19 +19,28 @@ import { supabase } from './supabase';
 //   3. どちらにも無ければ null
 
 const PUBLIC_MARK = '/storage/v1/object/public/recordings/';
+// 2026-08-25 追加。旧形式は非公開化以降ブラウザで開くと400になり、
+// アポ取得報告に貼って先方へ送っていたぶんが全部再生できなかった。
+// これから保存するURLは、押せばその場で署名して転送する rec の形にする。
+// どちらも「鍵の入れ物」であることは同じなので、ここは取り出し方を増やすだけ。
+const SHARE_MARK = '/functions/v1/rec/';
 
 // 出した署名を覚えておく（1時間有効なので作り直す必要がない）。
 // ⚠️ 押すたびにEdge Functionを呼ぶと、そのたびに起動と権限確認の待ちが入る。
 const signedCache = new Map();
 const BUCKET = 'recordings';
 
-/** 公開URLからファイルの位置を取り出す。録音バケットのURLでなければ null。 */
+/** URLからファイルの位置を取り出す。録音の鍵を包んだURLでなければ null。 */
 export function recordingKeyOf(url) {
   if (!url || typeof url !== 'string') return null;
-  const i = url.indexOf(PUBLIC_MARK);
-  if (i < 0) return null;
-  const raw = url.slice(i + PUBLIC_MARK.length).split('?')[0];
-  try { return decodeURIComponent(raw); } catch { return raw; }
+  for (const mark of [PUBLIC_MARK, SHARE_MARK]) {
+    const i = url.indexOf(mark);
+    if (i < 0) continue;
+    const raw = url.slice(i + mark.length).split('?')[0];
+    if (!raw) continue;
+    try { return decodeURIComponent(raw); } catch { return raw; }
+  }
+  return null;
 }
 
 /**

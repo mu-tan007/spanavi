@@ -1,3 +1,57 @@
+# アポ取得報告の録音URLが再生できない（2026-08-25）
+
+## 症状
+アポ取得報告に載せている録音URLを先方が開くと必ずエラー。社内ポータルでは再生できる。
+
+## 原因
+8/23〜8/24に録音の実体を Supabase Storage → Cloudflare R2 へ移し、`recordings` バケットを
+非公開にした。そのとき「DB 14.8万行は書き換えない」方針にしたため、`recording_url` には
+`/storage/v1/object/public/recordings/<鍵>` という**旧・公開URLの形が残ったまま**になっている。
+これはもう再生できるリンクではなく、R2のファイル名を包んだ入れ物にすぎない。
+社内は `recordingUrl.js` / `recordingSource.ts` が鍵を取り出してR2に問い合わせ直すので気づけない。
+報告書はこの文字列をそのまま貼るので、先方には読み替える手段がなく100%エラーになる。
+
+実測: `GET .../object/public/recordings/xxx.mp4` → 400 `{"code":"NoSuchBucket"}`
+
+## 方針
+DBに入れるURLの**形そのもの**を、人が押しても再生できる形に替える。報告書の生成コードは触らない。
+
+- 旧: `https://<proj>.supabase.co/storage/v1/object/public/recordings/<鍵>`
+- 新: `https://<proj>.supabase.co/functions/v1/rec/<鍵>?s=<署名>`
+
+新しい形も「鍵の入れ物」であることは同じなので、再生側は鍵の取り出し方を1つ増やすだけで済む。
+押されたらその場でR2の署名付きURLを作って転送する。旧形式は今までどおり読めるので移行不要。
+
+## 作業
+- [x] `_shared/recordingSource.ts`: 署名付き共有URLの生成を追加。`recordingKeyOf` を新旧2形式対応に
+- [x] 新 Edge Function `rec`（verify_jwt=false）: 署名を照合してR2の署名付きURLへ転送
+- [x] **`may_read_r2_key` を新形式に対応**（旧形式しか見ておらず、直さなければ新しい録音が
+      社内でもクライアントポータルでも再生できなくなるところだった。8/24と同じ穴）
+- [x] `upload-recording-to-drive`: 新形式で保存。あわせて `appointments` 側も追従させる
+- [x] `transcribe-recording` / `transcribe-and-extract` / `generate-call-report`:
+      いまだ Supabase Storage に上げて死んだ公開URLを返していたのでR2へ寄せた
+- [x] `src/lib/recordingUrl.js`: `recordingKeyOf` を新旧2形式対応に
+- [x] 既存データの手当て（`tmp_appt_recurl_backup_20260825` に控え）: アポ428件を新形式へ。
+      うち13件はアポ側に取り残されていたZoomの生URLを架電記録の録音へ差し替え
+- [x] 検証（下記）
+
+## 検証したこと
+- 新形式URLを**認証なしのcurl**で叩く → 302 → 200 / audio/mp4 / 実バイト数一致
+  - 今日の録音、4月・6月・3月の録音でも再生できることを確認
+  - R2に無くSupabase Storageにだけあるものもフォールバックして再生できる
+- 署名なし・署名違い → 403／存在しない鍵 → 410「保存期間が過ぎています」／`..` 混入 → 404
+- `may_read_r2_key` を全員ぶん流して**通る人数が変更前と一致**することを確認
+  （社内43/44・落ちるのはデモ管理者=別組織のみ、クライアントは当該アポの株式会社フラーレンのみ）
+- `vitest` 100件パス、`npm run build` 成功
+
+## 残り
+- Zoomの生URLのまま残るアポ7件（2026-03〜07）。架電記録側にも録音が無く、Zoom側の保存期間も
+  過ぎているとみられるため復旧できない。company: 環境技研工業／アポロエンジニアリング／
+  明星コンピューター／サム・ビジネス／功栄工業／新東電算／レスカルゴ
+- `call_records` 14.8万行は旧形式のまま。社外へ出ないので触っていない（再生は両形式とも通る）
+
+---
+
 # スパキャリ 改修計画（2026-07-10）
 
 対象: スパナビ スパキャリタブ。本番=main。UIはデザイントークン/共通UI厳守。

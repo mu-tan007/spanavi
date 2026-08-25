@@ -2,7 +2,7 @@
 // 入力: { recording_url, call_status, item_id?, manual_supplement? }
 // 出力: { transcript, report_style ("スムーズ"|"説得"|null), report_text, public_recording_url }
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { resolveRecordingSource } from '../_shared/recordingSource.ts'
+import { resolveRecordingSource, r2PutFromBuffer, recShareUrl } from '../_shared/recordingSource.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -63,7 +63,9 @@ Deno.serve(async (req) => {
     const audioBuffer = await audioRes.arrayBuffer()
     const audioBlob   = new Blob([audioBuffer], { type: 'audio/mp4' })
 
-    // ── 2.5 Storage アップロード（ベストエフォート） ─────────────────
+    // ── 2.5 録音の保存（ベストエフォート） ───────────────────────────
+    // ⚠️ 置き場は R2。返すURLは報告書に貼られて先方へ送られるので、
+    //    押せば鳴る rec の形で返す（旧・公開URLの形は非公開化以降ずっと400だった）。
     let publicRecordingUrl = ''
     try {
       const now = new Date()
@@ -74,14 +76,10 @@ Deno.serve(async (req) => {
         + String(now.getMinutes()).padStart(2, '0')
       const safeItemId = (item_id || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '')
       const fileName = `${safeItemId}_${dateStr}.mp4`
-      const { error: upErr } = await supabase.storage
-        .from('recordings')
-        .upload(fileName, audioBuffer, { contentType: 'audio/mp4', upsert: true })
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('recordings').getPublicUrl(fileName)
-        publicRecordingUrl = urlData.publicUrl
-      }
-    } catch (e) { console.error('[generate-call-report] storage error:', e) }
+      const put = await r2PutFromBuffer(fileName, audioBuffer, 'audio/mp4')
+      if (put.ok) publicRecordingUrl = await recShareUrl(fileName)
+      else console.error('[generate-call-report] R2 upload 失敗:', put.status, put.body)
+    } catch (e) { console.error('[generate-call-report] 録音の保存に失敗:', e) }
 
     // ── 3. Whisper 文字起こし ─────────────────────────────────────────
     const openaiKey = Deno.env.get('OPENAI_API_KEY')

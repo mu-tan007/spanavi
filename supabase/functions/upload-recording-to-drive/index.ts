@@ -1,6 +1,6 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { r2PutFromBuffer } from '../_shared/recordingSource.ts'
+import { r2PutFromBuffer, recShareUrl } from '../_shared/recordingSource.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,11 +78,7 @@ Deno.serve(async (req) => {
     //    録音80GB/150,800件をR2へ移した。ここで置き続けると、
     //    削除した端からまた溜まる。
     //
-    // ⚠️ recording_url に入れる形は**移設前の公開URLのまま**にする。
-    //    DBに14.8万行あり書き換えないので、新旧で形が違うと
-    //    再生側で2通りの読み方が要る。URLは「鍵の入れ物」として扱う。
     const key = `${call_record_id}_${Date.now()}.m4a`
-    const filename = `recordings/${key}`
     console.log('[upload-recording] R2へ保存 key:', key)
 
     const put = await r2PutFromBuffer(key, audioBuffer, 'audio/mp4')
@@ -91,26 +87,69 @@ Deno.serve(async (req) => {
     }
     console.log('[upload-recording] R2保存完了 HTTP:', put.status)
 
-    // ── Step 5: 再生用のURL（実体はR2。形は従来どおり）───────────────────
-    const public_url = `${supabaseUrl}/storage/v1/object/public/${filename}`
+    // ── Step 5: 再生用のURL ──────────────────────────────────────────────
+    //
+    // ⚠️ ここで作るURLは**アポ取得報告に貼られて先方へ送られる**。
+    //    以前は移設前の公開URLの形をそのまま入れていたが、
+    //    recordings バケットを非公開にした時点で社外からは400になり、
+    //    先方が録音を1本も聴けない状態が続いていた（2026-08-25 発覚）。
+    //    押せば再生できる rec の形で入れる。中身が鍵であることは変わらない。
+    const public_url = (await recShareUrl(key))
+      || `${supabaseUrl}/storage/v1/object/public/recordings/${key}`
     console.log('[upload-recording] public_url:', public_url)
 
-    // ── Step 6: call_records テーブル更新 ────────────────────────────────
-    const updateRes = await fetch(
-      `${supabaseUrl}/rest/v1/call_records?id=eq.${call_record_id}`,
-      {
-        method: 'PATCH',
+    const rest = (query: string, init: RequestInit = {}) =>
+      fetch(`${supabaseUrl}/rest/v1/${query}`, {
+        ...init,
         headers: {
           'Content-Type': 'application/json',
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
+          ...(init.headers ?? {}),
         },
-        body: JSON.stringify({ recording_url: public_url }),
-      }
-    )
-    console.log('[upload-recording] call_records更新 HTTP:', updateRes.status)
+      })
 
-    // ── Step 7: レスポンス ────────────────────────────────────────────────
+    // ── Step 6: call_records テーブル更新 ────────────────────────────────
+    // どのリストの何番の企業だったかは、更新の戻りでそのまま受け取る。
+    const updateRes = await rest(`call_records?id=eq.${call_record_id}&select=item_id`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ recording_url: public_url }),
+    })
+    console.log('[upload-recording] call_records更新 HTTP:', updateRes.status)
+    const updated: { item_id?: string }[] = updateRes.ok ? await updateRes.json().catch(() => []) : []
+    const item_id = updated[0]?.item_id
+
+    // ── Step 7: 同じ架電のアポにも反映する ───────────────────────────────
+    //
+    // ⚠️ ここを call_records だけで済ませていたため、アポ取得報告を先に保存すると
+    //    appointments.recording_url が **Zoomの生URL**（OAuthが要る＝誰も開けない）の
+    //    まま取り残されていた。ポータルでも報告メールでも再生できない。
+    //    2026-08-25 時点で18件。報告書の本文に貼られた行も一緒に直す。
+    try {
+      if (!item_id) throw new Error('item_id が取れませんでした')
+      const res = await rest(`appointments?select=id,recording_url,appo_report&item_id=eq.${item_id}`)
+      const appos: { id: string; recording_url: string | null; appo_report: string | null }[] =
+        res.ok ? await res.json() : []
+
+      // すでにR2の鍵を指しているものは触らない。取り残されたZoomの生URLだけ差し替える。
+      for (const a of appos.filter((a) => !a.recording_url || /zoom\.us/i.test(a.recording_url))) {
+        const line = /^[\s　]*・?録音URL[：:].*$/m
+        const report = a.appo_report && line.test(a.appo_report)
+          ? a.appo_report.replace(line, `　・録音URL：${public_url}`)
+          : a.appo_report
+        const r = await rest(`appointments?id=eq.${a.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ recording_url: public_url, appo_report: report }),
+        })
+        console.log('[upload-recording] appointments更新 HTTP:', r.status, a.id)
+      }
+    } catch (e) {
+      // 本体（call_records）は済んでいる。ここで落ちても録音は失わない。
+      console.error('[upload-recording] appointments反映に失敗:', e)
+    }
+
+    // ── Step 8: レスポンス ────────────────────────────────────────────────
     return json({ public_url })
 
   } catch (err) {

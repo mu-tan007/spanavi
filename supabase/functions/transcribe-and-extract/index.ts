@@ -9,7 +9,7 @@
 //   { transcript, extracted: { [key]: string }, publicRecordingUrl }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { resolveRecordingSource } from '../_shared/recordingSource.ts'
+import { resolveRecordingSource, r2PutFromBuffer, recShareUrl } from '../_shared/recordingSource.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -106,7 +106,9 @@ Deno.serve(async (req) => {
     const audioBuffer = await audioRes.arrayBuffer()
     const audioBlob   = new Blob([audioBuffer], { type: 'audio/mp4' })
 
-    // Storage 保存（ベストエフォート）
+    // 録音の保存（ベストエフォート）
+    // ⚠️ 置き場は R2。返すURLはアポ取得報告に貼られて先方へ送られるので、
+    //    押せば鳴る rec の形で返す（旧・公開URLの形は非公開化以降ずっと400だった）。
     let publicRecordingUrl = ''
     try {
       const now = new Date()
@@ -116,15 +118,11 @@ Deno.serve(async (req) => {
         + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0')
       const safeItemId = (item_id || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '')
       const fileName = `${safeItemId}_${dateStr}.mp4`
-      const { error: uploadError } = await supabase.storage
-        .from('recordings')
-        .upload(fileName, audioBuffer, { contentType: 'audio/mp4', upsert: true })
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from('recordings').getPublicUrl(fileName)
-        publicRecordingUrl = urlData.publicUrl
-      }
+      const put = await r2PutFromBuffer(fileName, audioBuffer, 'audio/mp4')
+      if (put.ok) publicRecordingUrl = await recShareUrl(fileName)
+      else console.error('[transcribe-and-extract] R2 upload 失敗:', put.status, put.body)
     } catch (e) {
-      console.warn('[transcribe-and-extract] Storage upload error:', e)
+      console.warn('[transcribe-and-extract] 録音の保存に失敗:', e)
     }
 
     // Whisper

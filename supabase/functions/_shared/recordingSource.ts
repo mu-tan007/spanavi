@@ -11,6 +11,7 @@
 // Zoom の録音URLなど、録音バケット以外はそのまま返す（呼ぶ側が今までどおり扱う）。
 
 const PUBLIC_MARK = '/storage/v1/object/public/recordings/';
+const SHARE_MARK = '/functions/v1/rec/';
 
 const enc = new TextEncoder();
 const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
@@ -23,13 +24,60 @@ async function hmac(key: Uint8Array, msg: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode(msg)));
 }
 
-/** 公開URLからファイルの位置を取り出す。録音バケットのURLでなければ null。 */
+/**
+ * URLからファイルの位置を取り出す。録音の鍵を包んだURLでなければ null。
+ *
+ * 2つの形がある。どちらも「鍵の入れ物」で、意味は同じ。
+ *   旧 .../storage/v1/object/public/recordings/<鍵>   移設前の公開URL。14.8万行あるので残す
+ *   新 .../functions/v1/rec/<鍵>?s=<署名>             押せば再生できる（下の recShareUrl）
+ */
 export function recordingKeyOf(url: string | null | undefined): string | null {
   if (!url) return null;
-  const i = url.indexOf(PUBLIC_MARK);
-  if (i < 0) return null;
-  const raw = url.slice(i + PUBLIC_MARK.length).split('?')[0];
-  try { return decodeURIComponent(raw); } catch { return raw; }
+  for (const mark of [PUBLIC_MARK, SHARE_MARK]) {
+    const i = url.indexOf(mark);
+    if (i < 0) continue;
+    const raw = url.slice(i + mark.length).split('?')[0];
+    if (!raw) continue;
+    try { return decodeURIComponent(raw); } catch { return raw; }
+  }
+  return null;
+}
+
+/* ===================== 外に配れる録音リンク ===================== */
+//
+// ⚠️ アポ取得報告に貼る録音URLは、**先方がそのまま押す**。
+//    移設前は公開バケットだったのでたまたま開けていたが、非公開にした
+//    2026-08-24以降は旧形式のURLが必ず400になり、社外では1本も聴けなくなっていた
+//    （社内は鍵を取り出して署名し直すので気づけなかった）。
+//    これからDBに入れるURLは、押せば再生できるこの形にする。
+//
+// ⚠️ この形のURLは、持っていれば誰でも聴ける。相手先に自分の商談の録音を
+//    渡すための口なので、それでよい。ただし鍵は名前で指定されるので、
+//    **署名が無ければ他人の録音の名前を打ち込むだけで聴けてしまう**。必ず照合する。
+
+/** 署名に使う鍵。専用のものが無ければR2の鍵から導く。 */
+function shareSecret(): string {
+  return Deno.env.get('REC_SHARE_SECRET') ?? Deno.env.get('R2_SECRET_ACCESS_KEY') ?? '';
+}
+
+/**
+ * 鍵に対する署名。
+ * ⚠️ この署名鍵を変えると、**すでに配ったリンクは全部無効になる**。
+ *    裏を返せば、これが唯一の一括失効の手段。
+ */
+export async function recShareSig(key: string): Promise<string> {
+  const secret = shareSecret();
+  if (!secret || !key) return '';
+  return hex(await hmac(enc.encode(secret), `rec-share:${key}`)).slice(0, 32);
+}
+
+/** 先方に渡せる録音URL。設定が足りなければ空を返す（呼ぶ側で旧来の値を使う）。 */
+export async function recShareUrl(key: string): Promise<string> {
+  const base = Deno.env.get('SUPABASE_URL');
+  const sig = await recShareSig(key);
+  if (!base || !sig) return '';
+  const path = key.split('/').map(encodeURIComponent).join('/');
+  return `${base}${SHARE_MARK}${path}?s=${sig}`;
 }
 
 /**
@@ -68,9 +116,14 @@ async function r2Presign(method: 'GET' | 'HEAD', key: string, expires: number): 
   return `https://${host}${path}?${q}&X-Amz-Signature=${hex(await hmac(k, toSign))}`;
 }
 
-/** R2 の署名付きGET URL。設定が無ければ null。 */
-export async function r2SignedGet(key: string, expires = 600): Promise<string | null> {
-  return await r2Presign('GET', key, expires);
+/**
+ * R2 の署名付きURL。設定が無ければ null。
+ * 存在確認をしたいときだけ method に 'HEAD' を渡す（GET用の署名では403になるため）。
+ */
+export async function r2SignedGet(
+  key: string, expires = 600, method: 'GET' | 'HEAD' = 'GET',
+): Promise<string | null> {
+  return await r2Presign(method, key, expires);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { resolveRecordingSource } from '../_shared/recordingSource.ts'
+import { resolveRecordingSource, r2PutFromBuffer, recShareUrl } from '../_shared/recordingSource.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -127,20 +127,18 @@ Deno.serve(async (req) => {
       const safeItemId = (item_id || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '')
       const fileName   = `${safeItemId}_${dateStr}.mp4`
 
-      const { error: uploadError } = await supabase.storage
-        .from('recordings')
-        .upload(fileName, audioBuffer, { contentType: 'audio/mp4', upsert: true })
-
-      if (uploadError) {
-        console.error('[transcribe-recording] Storage upload 失敗:', uploadError.message)
+      // ⚠️ 置き場は R2。Supabase Storage には置かない（組織の上限を超えたため移設した）。
+      // ⚠️ 返すURLは**アポ取得報告に貼られて先方へ送られる**。
+      //    移設前の公開URLの形で返していたので、バケットを非公開にした時点から
+      //    社外では再生できなくなっていた（2026-08-25 発覚）。押せば鳴る形で返す。
+      const put = await r2PutFromBuffer(fileName, audioBuffer, 'audio/mp4')
+      if (!put.ok) {
+        console.error('[transcribe-recording] R2 upload 失敗:', put.status, put.body)
       } else {
-        const { data: urlData } = supabase.storage
-          .from('recordings')
-          .getPublicUrl(fileName)
-        publicRecordingUrl = urlData.publicUrl
+        publicRecordingUrl = await recShareUrl(fileName)
       }
     } catch (storageErr) {
-      console.error('[transcribe-recording] Storage error:', storageErr)
+      console.error('[transcribe-recording] 録音の保存に失敗:', storageErr)
     }
 
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
