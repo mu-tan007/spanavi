@@ -76,6 +76,22 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
     if (error) { console.error('[HomeworkVariableEditor] load error:', error); return []; }
     return data || [];
   }
+  // 位置番号は必ずDBの実データから採番する。
+  // 画面上の件数（固定＋公開済み変動）で採番すると、固定課題を画面上で消しただけ（「固定課題を保存」前）の
+  // 状態や別タブでの編集と競合したときに、既存項目と同じ位置番号が振られて並び順が壊れる。
+  // 実際に本番で position が重複し、受講生ポータルで固定課題の間に変動課題が割り込み、
+  // 同じセクション見出しが2度出る状態になっていた（2026-08-25 佐藤直彦様ほか4件）。
+  async function maxPosition(homeworkId) {
+    const { data, error } = await supabase
+      .from('spacareer_homework_items')
+      .select('position')
+      .eq('homework_id', homeworkId)
+      .order('position', { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    return data?.[0]?.position || 0;
+  }
+
   function applyRows(rows) {
     setFixedDrafts(rows
       .filter((it) => it.source === 'fixed')
@@ -166,10 +182,10 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
         }).eq('id', it.id);
         if (error) throw error;
       }
-      // 追加された固定課題はINSERT（固定ブロックの末尾に付ける）。
+      // 追加された固定課題はINSERT（既存項目の最後尾に付ける＝位置番号の重複を作らない）。
       const news = fixedDrafts.filter((it) => !it.id);
       if (news.length) {
-        const maxPos = existing.reduce((mx, it) => Math.max(mx, it.position || 0), 0);
+        const maxPos = await maxPosition(selected.id);
         const payload = news.map((it, i) => ({
           org_id: orgId,
           homework_id: selected.id,
@@ -262,7 +278,12 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
   // is_published=false のまま保存（公開は handlePublish）。回答前提なので差し替えで確定。
   async function persistDrafts(publish) {
     const orgId = selected.org_id;
-    const base = lockedCount; // 固定＋公開済み変動の後ろに続ける
+    // 未公開の変動ドラフトのみ削除（固定・公開済み変動は触らない＝回答保護）。
+    const { error: delErr } = await supabase.from('spacareer_homework_items')
+      .delete().eq('homework_id', selected.id).eq('source', 'variable').eq('is_published', false);
+    if (delErr) throw delErr;
+    // 採番は削除後のDB実データの最大値から。画面上の件数では既存項目と衝突しうる。
+    const base = await maxPosition(selected.id);
     const payload = drafts.map((it, i) => ({
       org_id: orgId,
       homework_id: selected.id,
@@ -278,10 +299,6 @@ export default function HomeworkVariableEditor({ detail, customerId, sessionNo =
       source: 'variable',
       is_published: !!publish,
     }));
-    // 未公開の変動ドラフトのみ削除（固定・公開済み変動は触らない＝回答保護）。
-    const { error: delErr } = await supabase.from('spacareer_homework_items')
-      .delete().eq('homework_id', selected.id).eq('source', 'variable').eq('is_published', false);
-    if (delErr) throw delErr;
     if (payload.length) {
       const { error: insErr } = await supabase.from('spacareer_homework_items').insert(payload);
       if (insErr) throw insErr;

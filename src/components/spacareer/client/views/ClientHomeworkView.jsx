@@ -154,7 +154,8 @@ export default function ClientHomeworkView() {
         .select('*')
         .eq('homework_id', selectedHomeworkId)
         .eq('is_published', true) // 変動課題のドラフト(is_published=false)は受講生に見せない
-        .order('position', { ascending: true });
+        .order('position', { ascending: true })
+        .order('id', { ascending: true }); // 位置番号が同じ項目があっても並びが毎回変わらないようにする
       if (cancelled) return;
       if (error) { console.error('[ClientHomework] items error:', error); return; }
       setItems(rows || []);
@@ -208,6 +209,21 @@ export default function ClientHomeworkView() {
     return items.filter(isAnswered).length;
   }, [items, answers, files]);
   const progressPct = totalItems ? Math.round((answeredItems / totalItems) * 100) : 0;
+
+  // セクション見出しを出す項目のid。各セクションで最初に現れた1件だけに出す。
+  // 「直前の項目と違うか」で判定すると、セクションを持たない変動課題が固定課題の間に挟まったとき
+  // 同じ見出しが2度出てしまう（実際に第1回で「STEP4：人生の棚卸し（自分史）」が重複表示された）。
+  const sectionHeaderItemIds = useMemo(() => {
+    const seenSections = new Set();
+    const ids = new Set();
+    items.forEach((it) => {
+      if (it.section && !seenSections.has(it.section)) {
+        seenSections.add(it.section);
+        ids.add(it.id);
+      }
+    });
+    return ids;
+  }, [items]);
 
   // 一度でも提出した（submitted_at を持つ項目がある）課題は、提出後ロックの対象。
   // 「編集する」(editing=true) を押すと全項目が解放される。
@@ -490,8 +506,7 @@ export default function ClientHomeworkView() {
             <DiagnosisTaskCard done={diagnosisDone} onOpen={() => setDiagnosisOpen(true)} />
           )}
           {items.map((item, idx) => {
-            const prevSection = idx > 0 ? items[idx - 1].section : null;
-            const showSection = item.section && item.section !== prevSection;
+            const showSection = sectionHeaderItemIds.has(item.id);
             return (
               <React.Fragment key={item.id}>
                 {showSection && <SectionHeader label={item.section} />}
