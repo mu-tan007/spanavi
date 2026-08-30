@@ -83,17 +83,17 @@ export const CRM_COLS_BASE = [
   { key: 'primaryContact', width: 120, align: 'left'   },
   { key: 'primaryEmail',   width: 200, align: 'left'   },
   { key: 'rewards',        width: 200, align: 'left'   },
-  { key: 'listCount',      width: 80,  align: 'right'  },
+  { key: 'paySite',        width: 170, align: 'left'   },
   { key: 'memo',           width: 220, align: 'left'   },
 ];
 
 // 編集モードでもカラム構成は同じ (右端アイコン群は廃止)
 export const CRM_COLS_EDIT = [...CRM_COLS_BASE];
 
-export const CRM_COL_LABELS = ['★','ステータス','企業名','商材','主担当','メールアドレス','報酬体系','リスト数','メモ'];
+export const CRM_COL_LABELS = ['★','ステータス','企業名','商材','主担当','メールアドレス','報酬体系','支払いサイト','メモ'];
 
 // 商材ソート可能なカラムキー一覧 (lastMeeting / targetRatio 削除済み)
-export const CRM_SORTABLE_KEYS = new Set(['product','company','status','listCount']);
+export const CRM_SORTABLE_KEYS = new Set(['product','company','status','paySite']);
 
 // 支払サイトの一般的な選択肢 (datalist 候補。手入力もできる)
 export const PAYMENT_SITE_OPTIONS = [

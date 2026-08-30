@@ -4,7 +4,7 @@ import { color, space, radius, font, alpha } from '../../../constants/design';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD,
   statusStyle, statusCategory, statusCategoryStyle,
-  priorityScore, priorityRank,
+  priorityScore, priorityRank, PAYMENT_SITE_OPTIONS,
 } from './utils';
 import { updateClient } from '../../../lib/supabaseWrite';
 import { applyTaxIfPretax } from '../../../utils/money';
@@ -169,6 +169,77 @@ function MemoCell({ client, setClientData, align }) {
   );
 }
 
+// 支払いサイトのインライン編集 (clients.payment_site)
+// 候補は datalist で出しつつ、手入力の文言もそのまま保存できる
+function PaySiteCell({ client, setClientData, align }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(client.paySite || '');
+  const inputRef = useRef(null);
+  useEffect(() => { setVal(client.paySite || ''); }, [client.paySite]);
+  useEffect(() => {
+    if (editing && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); }
+  }, [editing]);
+
+  const commit = async () => {
+    setEditing(false);
+    const next = (val || '').trim();
+    if (next === (client.paySite || '')) return;
+    if (!client._supaId) return;
+    const updated = { ...client, paySite: next };
+    const error = await updateClient(client._supaId, updated);
+    if (error) { alert('保存失敗: ' + (error.message || '')); return; }
+    if (setClientData) {
+      setClientData(prev => prev.map(x => x._supaId === client._supaId ? updated : x));
+    }
+  };
+
+  if (editing) {
+    return (
+      <>
+        <input
+          ref={inputRef}
+          list="crm-paysite-options"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onClick={e => e.stopPropagation()}
+          onBlur={commit}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.currentTarget.blur(); }
+            if (e.key === 'Escape') { setVal(client.paySite || ''); setEditing(false); }
+          }}
+          style={{
+            width: '100%', padding: '4px 6px',
+            border: `1px solid ${color.navy}`, borderRadius: radius.sm,
+            fontSize: font.size.xs, fontFamily: font.family.sans, color: color.textDark,
+            outline: 'none', boxSizing: 'border-box', background: color.white,
+          }}
+        />
+        <datalist id="crm-paysite-options">
+          {PAYMENT_SITE_OPTIONS.map(o => <option key={o} value={o} />)}
+        </datalist>
+      </>
+    );
+  }
+
+  return (
+    <span
+      onClick={e => { e.stopPropagation(); setEditing(true); }}
+      title={client.paySite || 'クリックして入力'}
+      style={{
+        textAlign: align, fontSize: font.size.xs,
+        color: client.paySite ? color.textDark : color.textLight,
+        display: 'inline-block', width: '100%',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        cursor: 'pointer', padding: '2px 4px', borderRadius: radius.sm,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = GRAY_50; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+    >
+      {client.paySite || '—'}
+    </span>
+  );
+}
+
 export default function CRMTableRow({
   client,
   rowIndex,
@@ -179,7 +250,6 @@ export default function CRMTableRow({
   isEditable,
   lastTouchByClient,
   lastMeetingAt,
-  listCount = 0,
   contactsByClient,
   monthAppoCountByClient = {},
   monthTargetByClient = {},
@@ -374,14 +444,8 @@ export default function CRMTableRow({
         )}
       </span>
 
-      {/* 7. リスト数 (アクティブのみ) */}
-      <span style={{
-        textAlign: crmCols[7]?.align,
-        fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
-        fontSize: font.size.xs,
-        color: listCount > 0 ? color.textDark : color.textLight,
-        fontWeight: listCount > 0 ? font.weight.semibold : font.weight.normal,
-      }}>{listCount > 0 ? listCount : '—'}</span>
+      {/* 7. 支払いサイト (インライン編集可) */}
+      <PaySiteCell client={c} setClientData={setClientData} align={crmCols[7]?.align} />
 
       {/* 8. メモ (インライン編集可) */}
       <MemoCell client={c} setClientData={setClientData} align={crmCols[8]?.align} />

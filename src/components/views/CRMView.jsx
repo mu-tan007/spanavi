@@ -251,17 +251,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   });
   const lastMeetingByClient = lastMeetingQuery.data || {};
 
-  // 各クライアントの「アクティブな架電リスト数」
-  const listCountByClient = useMemo(() => {
-    const map = {};
-    (callListData || []).forEach(l => {
-      if (l.is_archived) return;
-      if (!l.client_id) return;
-      map[l.client_id] = (map[l.client_id] || 0) + 1;
-    });
-    return map;
-  }, [callListData]);
-
   // テーブル並び替え state: { key: 'product'|'lastMeeting'|..., dir: 'asc'|'desc' }
   const [sortState, setSortState] = useState({ key: null, dir: null });
   // 商材フィルタ ('all' or '商材名')
@@ -384,7 +373,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       return ta - tb;
     });
   }
-  // ユーザー指定ソート (商材/企業名/最終接点/リスト数/目標対比 等)
+  // ユーザー指定ソート (商材/企業名/最終接点/支払いサイト/目標対比 等)
   if (sortState.key) {
     const dir = sortState.dir === 'desc' ? -1 : 1;
     const sortKey = sortState.key;
@@ -397,7 +386,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           const ts = lastMeetingByClient[c._supaId];
           return ts ? new Date(ts).getTime() : -Infinity;
         }
-        case 'listCount':   return listCountByClient[c._supaId] || 0;
+        case 'paySite':     return (c.paySite || '').toString();
         case 'targetRatio': {
           const tgt = monthTargetByClient[c._supaId] || 0;
           if (!tgt) return -Infinity;
@@ -756,7 +745,6 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             crmResize={crmResize}
             lastTouchByClient={lastTouchByClient}
             lastMeetingByClient={lastMeetingByClient}
-            listCountByClient={listCountByClient}
             contactsByClient={contactsByClient}
             monthAppoCountByClient={monthAppoCountByClient}
             monthTargetByClient={monthTargetByClient}
