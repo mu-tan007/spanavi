@@ -7,7 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { invokeAppoAiReport, invokeTranscribeRecording, fetchZoomUserId, insertAppointment, fetchReportTemplates } from '../../lib/supabaseWrite';
 import { invokeGenerateCompanyDossier } from '../../lib/dossierApi';
 import { getOrgId } from '../../lib/orgContext';
-import { applyTaxIfPretax } from '../../utils/money';
+import { applyTaxIfPretax, hasListUnitPrice } from '../../utils/money';
 import { initialAppoStatus } from '../../utils/appoStatus';
 import { MemberSuggestInput } from './AppoListView';
 import TemplateDrivenAppoReportModal from './TemplateDrivenAppoReportModal';
@@ -66,8 +66,10 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
   // フォームオープン時に ourSales も計算済みにする
   const initialOurSales = (() => {
     // リスト単価上書きが最優先（call_lists.appo_unit_price は税別円 → ×1.1 で税込に）
-    const listUnit = Number(list?.appoUnitPrice);
-    if (listUnit > 0) return String(applyTaxIfPretax(listUnit, '税別'));
+    // 0円も有効な設定として扱う（アポ単価なし・成果報酬のみのリスト）
+    if (hasListUnitPrice(list?.appoUnitPrice)) {
+      return String(applyTaxIfPretax(Number(list.appoUnitPrice), '税別'));
+    }
     if (!rewardRows.length) return '';
     const applyTax = p => applyTaxIfPretax(p, rewardRows[0].tax);
     if (isFixed) return String(applyTax(rewardRows[0].price));

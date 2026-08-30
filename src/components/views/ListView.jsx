@@ -5,7 +5,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { updateCallList, insertCallList, archiveCallList, restoreCallList, uploadCompanyOverviewPdf, deleteCompanyOverviewPdfObject, updateCallListCompanyOverviewPdfs, getCompanyOverviewPdfSignedUrl } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
-import { applyTaxIfPretax } from '../../utils/money';
+import { applyTaxIfPretax, hasListUnitPrice } from '../../utils/money';
 import { useEngagements } from '../../hooks/useEngagements';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -143,9 +143,9 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
   };
   // リスト単価上書き（call_lists.appo_unit_price 税別）があれば報酬マスタより
   // 優先して表示する（アポ報告時の当社売上初期値と同じ優先順位）
-  const listUnit = Number(list.appoUnitPrice);
-  if (listUnit > 0) {
-    const incl = applyTaxIfPretax(listUnit, '税別');
+  // 0円も有効な設定として扱う（アポ単価なし・成果報酬のみのリスト）
+  if (hasListUnitPrice(list.appoUnitPrice)) {
+    const incl = applyTaxIfPretax(Number(list.appoUnitPrice), '税別');
     return (
       <span
         onMouseEnter={handleEnterShared}
@@ -161,7 +161,7 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
           fontFamily: font.family.sans, fontSize: 9, fontWeight: font.weight.medium,
           color: color.textLight, marginRight: 4, letterSpacing: 0.5,
         }}>リスト単価</span>
-        ¥{incl.toLocaleString()}
+        {incl === 0 ? 'アポ単価なし' : `¥${incl.toLocaleString()}`}
         {hover && createPortal(
           <div style={{
             position: 'fixed', top: pos.y, left: pos.x, zIndex: 99999,
@@ -179,7 +179,9 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
               </span>
             </div>
             <div style={{ color: color.textDark, marginBottom: 4 }}>
-              アポ1件あたり <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>¥{incl.toLocaleString()}</span>
+              {incl === 0
+                ? 'アポ1件あたりの支払いなし（成果報酬のみ）'
+                : <>アポ1件あたり <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.semibold }}>¥{incl.toLocaleString()}</span></>}
             </div>
             <div style={{ fontSize: 10, color: color.textLight, lineHeight: 1.5 }}>
               リスト編集の「アポ単価」で設定。報酬マスタより優先して、アポ報告時の当社売上に自動反映されます。

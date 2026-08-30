@@ -70,6 +70,23 @@ export function toPretax(amountInclTax) {
 }
 
 /**
+ * リスト単価上書き（call_lists.appo_unit_price 税別円）が設定されているかを返す。
+ *
+ * 0円を有効な設定として扱う。Spartia AI のように「アポ単価は無く、報酬は
+ * 顧客からの入金の5%だけ」という商材があり、0 を「未設定」に丸めてしまうと
+ * クライアントの reward_type（MASP新規開拓 定額 12,000円）にフォールバックして
+ * 意図せずアポ1件12,000円が計上される。
+ * 未設定は null / 空文字で入ってくるので、そちらだけを「マスタに従う」と判定する。
+ *
+ * @param {number|string|null|undefined} appoUnitPrice call_lists.appo_unit_price 由来の値
+ */
+export function hasListUnitPrice(appoUnitPrice) {
+  if (appoUnitPrice == null || appoUnitPrice === '') return false;
+  const n = Number(appoUnitPrice);
+  return Number.isFinite(n) && n >= 0;
+}
+
+/**
  * 請求書の消費税・合計を計算する。
  * @param {number} subtotal 明細小計（税別運用なら税別額、税込運用なら税込額）
  * @param {string} taxType  '税別'（外税） | '税込'（内税）

@@ -14,6 +14,7 @@ import {
   calcMonthlyPayroll,
   calcReferralBonuses,
   REFERRAL_BONUS_AMOUNT,
+  hasListUnitPrice,
 } from './money';
 
 describe('PAYROLL_COUNTABLE（給与集計対象status）', () => {
@@ -38,6 +39,27 @@ describe('applyTaxIfPretax（税別マスター→税込額 ×1.1）', () => {
     expect(applyTaxIfPretax(null, '税別')).toBe(0);
     expect(applyTaxIfPretax(undefined, '税込')).toBe(0);
     expect(applyTaxIfPretax('100000', '税別')).toBe(110000);
+  });
+});
+
+describe('hasListUnitPrice（リスト単価上書きの有無）', () => {
+  it('0円は「設定あり」。アポ単価なし・成果報酬のみのリストを表現する', () => {
+    // 0 を未設定に丸めると clients.reward_type（定額12,000円）に落ちてしまう
+    expect(hasListUnitPrice(0)).toBe(true);
+    expect(hasListUnitPrice('0')).toBe(true);
+  });
+  it('未設定（null / 空文字 / undefined）は「設定なし」＝報酬マスタに従う', () => {
+    expect(hasListUnitPrice(null)).toBe(false);
+    expect(hasListUnitPrice('')).toBe(false);
+    expect(hasListUnitPrice(undefined)).toBe(false);
+  });
+  it('正の金額は「設定あり」', () => {
+    expect(hasListUnitPrice(12000)).toBe(true);
+    expect(hasListUnitPrice('12000')).toBe(true);
+  });
+  it('数値にならない値・負の値は「設定なし」', () => {
+    expect(hasListUnitPrice('あいうえお')).toBe(false);
+    expect(hasListUnitPrice(-1)).toBe(false);
   });
 });
 

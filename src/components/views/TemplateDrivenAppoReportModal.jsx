@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Badge, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { applyTaxIfPretax } from '../../utils/money';
+import { applyTaxIfPretax, hasListUnitPrice } from '../../utils/money';
 import { initialAppoStatus } from '../../utils/appoStatus';
 import {
   insertAppointment, invokeTranscribeAndExtract,
@@ -146,9 +146,9 @@ export default function TemplateDrivenAppoReportModal({
     if (ourSalesEdited) return;
     // リスト単価上書きが最優先（同一クライアント・同一商材でもリストごとに
     // 単価が異なるケース。call_lists.appo_unit_price は税別円 → ×1.1 で税込に）
-    const listUnit = Number(list?.appoUnitPrice);
-    if (listUnit > 0) {
-      const next = String(applyTaxIfPretax(listUnit, '税別'));
+    // 0円も有効な設定として扱う（アポ単価なし・成果報酬のみのリスト）
+    if (hasListUnitPrice(list?.appoUnitPrice)) {
+      const next = String(applyTaxIfPretax(Number(list.appoUnitPrice), '税別'));
       setForm(prev => prev.ourSales === next ? prev : { ...prev, ourSales: next });
       return;
     }
