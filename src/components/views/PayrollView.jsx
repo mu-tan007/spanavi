@@ -14,6 +14,7 @@ import { PAYROLL_SYNCED_EVENT } from '../../lib/payrollAutoSync';
 // 旧 useColumnConfig / ColumnResizeHandle は DataTable 移行で不要に
 import PageHeader from '../common/PageHeader';
 import PayrollSelfDetailView from './PayrollSelfDetailView';
+import SpartiaReceiptsModal from './SpartiaReceiptsModal';
 import { useUrlState } from '../../hooks/useUrlState';
 
 const PAYROLL_DATA = [];
@@ -107,6 +108,8 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   const [teamFilter, setTeamFilter] = useUrlState('team', 'all');
   const [sortKey, setSortKey] = useUrlState('sort', 'total');
   const [syncing, setSyncing] = useState(false);
+  // Spartia AI の顧客入金（5%バックの元）を登録するモーダル
+  const [receiptsOpen, setReceiptsOpen] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const [orgSettings, setOrgSettings] = useState({});
 
@@ -416,6 +419,8 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   // 個人の給与明細ページでは④として加算しているが、一覧には出ていなかったため
   // 一覧の合計支給額と明細・請求書の金額が食い違っていた。一覧にも列として出す。
   const [adjTotals, setAdjTotals] = React.useState({});
+  // Spartia AI の入金を登録すると調整行が増えるので、モーダルを閉じたら引き直す
+  const [adjReloadKey, setAdjReloadKey] = React.useState(0);
   React.useEffect(() => {
     let cancelled = false;
     if (!payMonth) { setAdjTotals({}); return; }
@@ -423,7 +428,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
       if (!cancelled) setAdjTotals(data || {});
     });
     return () => { cancelled = true; };
-  }, [payMonth]);
+  }, [payMonth, adjReloadKey]);
   // 表示は名前キーで引くので member_id → 名前 に載せ替える
   const adjByName = React.useMemo(() => {
     const out = {};
@@ -586,6 +591,11 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
         {/* 管理者アクション */}
         {isAdmin && (
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Spartia AI は入金の5%だけが報酬なので、入金の登録口をここに置く。
+                登録すると「調整」列と請求書明細に自動で乗る */}
+            <Button variant="outline" size="sm" onClick={() => setReceiptsOpen(true)} style={{ borderColor: TH_BG, color: TH_BG }}>
+              Spartia AI 入金
+            </Button>
             <Button variant="outline" size="sm" loading={downloadingZip} onClick={handleDownloadAllInvoices} style={{ borderColor: TH_BG, color: TH_BG }}>
               {downloadingZip ? '準備中...' : '請求書を一括DL'}
             </Button>
@@ -888,6 +898,10 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
         );
       })()}
 
+      <SpartiaReceiptsModal
+        open={receiptsOpen}
+        onClose={() => { setReceiptsOpen(false); setAdjReloadKey(k => k + 1); }}
+      />
     </div>
   );
 }

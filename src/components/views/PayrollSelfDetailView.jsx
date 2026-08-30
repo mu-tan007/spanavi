@@ -574,6 +574,10 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
                   const amt = parseInt(a.amount) || 0;
                   const positive = amt >= 0;
                   const accentColor = amt === 0 ? color.border : (positive ? color.success : color.danger);
+                  // Spartia AIバックの行は spartia_receipts から自動生成される。
+                  // ここで直すと入金側とずれるので、入金を直してもらう
+                  const generated = !!a.receipt_id;
+                  const canEditRow = canEditAdjustments && !generated;
                   return (
                     <div key={a.id} style={{
                       display: 'grid', gridTemplateColumns: '1fr 160px 1.4fr 60px',
@@ -585,7 +589,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
                       <input
                         value={a.label || ''}
                         placeholder="例: 特別ボーナス"
-                        disabled={!canEditAdjustments}
+                        disabled={!canEditRow}
                         onChange={e => handleAdjustmentChange(a.id, { label: e.target.value })}
                         style={{
                           padding: '6px 10px', borderRadius: radius.sm,
@@ -597,7 +601,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
                       <input
                         type="number"
                         value={a.amount ?? 0}
-                        disabled={!canEditAdjustments}
+                        disabled={!canEditRow}
                         onChange={e => handleAdjustmentChange(a.id, { amount: e.target.value })}
                         style={{
                           padding: '6px 10px', borderRadius: radius.sm,
@@ -611,7 +615,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
                       <input
                         value={a.note || ''}
                         placeholder="（任意）メモ"
-                        disabled={!canEditAdjustments}
+                        disabled={!canEditRow}
                         onChange={e => handleAdjustmentChange(a.id, { note: e.target.value })}
                         style={{
                           padding: '6px 10px', borderRadius: radius.sm,
@@ -621,7 +625,9 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
                         }}
                       />
                       <div style={{ textAlign: 'center' }}>
-                        {canEditAdjustments && (
+                        {generated ? (
+                          <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>入金連動</span>
+                        ) : canEditAdjustments && (
                           <Button variant="danger" size="sm" onClick={() => handleDeleteAdjustment(a.id)} disabled={adjBusy}>
                             ×
                           </Button>

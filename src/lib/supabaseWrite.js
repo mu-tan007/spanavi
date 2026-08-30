@@ -4879,6 +4879,104 @@ export async function deleteMemberPayrollAdjustment(id) {
   return { error }
 }
 
+// ── Spartia AI の顧客入金と架電者への5%バック ──
+// アポ1件あたりの支払いは無く、報酬は「その月にその顧客から入金された額
+// （税別・実費を除く）の5%を翌月に架電者へ」だけ。
+// 入金を1行入れると DB トリガーが payroll_member_adjustments に支給行を生成し、
+// 報酬画面の「調整」列と請求書PDFの明細に自動で乗る。
+// 率とバック額とバック先は保存時に行へ確定コピーされる（後から率を変えても過去は動かない）。
+export const SPARTIA_AI_ENGAGEMENT_SLUG = 'client_acquisition_spartia_ai'
+
+/** 入金の候補になるアポ（Spartia AI のアポ）。顧客名とアポ取得者を返す */
+export async function fetchSpartiaAppointmentOptions() {
+  const orgId = getOrgId()
+  const { data: eng } = await supabase
+    .from('engagements')
+    .select('id')
+    .eq('org_id', orgId)
+    .eq('slug', SPARTIA_AI_ENGAGEMENT_SLUG)
+    .maybeSingle()
+  if (!eng?.id) return { data: [], error: null }
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, company_name, getter_name, appointment_date, meeting_date, status')
+    .eq('org_id', orgId)
+    .eq('engagement_id', eng.id)
+    .order('appointment_date', { ascending: false })
+  if (error) console.error('[DB] fetchSpartiaAppointmentOptions error:', error)
+  return { data: data || [], error }
+}
+
+/** 入金一覧。payMonth を渡すとその支給月だけに絞る */
+export async function fetchSpartiaReceipts(payMonth) {
+  const orgId = getOrgId()
+  let q = supabase
+    .from('spartia_receipts')
+    .select('*')
+    .eq('org_id', orgId)
+    .order('received_month', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (payMonth) q = q.eq('pay_month', payMonth)
+  const { data, error } = await q
+  if (error) console.error('[DB] fetchSpartiaReceipts error:', error)
+  return { data: data || [], error }
+}
+
+/**
+ * 入金を1件登録する。
+ * バック額・支給月・バック先はDB側のトリガーが確定させるので渡さない。
+ * @param {object} p
+ * @param {string} p.appointmentId  どの顧客からの入金か（バック先の根拠にもなる）
+ * @param {string} p.receivedMonth  'YYYY-MM'
+ * @param {number} p.amountExclTax  実費を除いた税別入金額
+ * @param {string} [p.note]
+ */
+export async function insertSpartiaReceipt({ appointmentId, receivedMonth, amountExclTax, note }) {
+  if (!appointmentId || !receivedMonth) return { data: null, error: new Error('missing args') }
+  const orgId = getOrgId()
+  const { data: { user } = {} } = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('spartia_receipts')
+    .insert({
+      org_id: orgId,
+      appointment_id: appointmentId,
+      company_name: '',      // トリガーがアポから埋める
+      received_month: receivedMonth,
+      amount_excl_tax: parseInt(amountExclTax) || 0,
+      pay_month: '',         // トリガーが入金月の翌月を入れる
+      note: note || '',
+      created_by: user?.id || null,
+    })
+    .select()
+    .single()
+  if (error) console.error('[DB] insertSpartiaReceipt error:', error)
+  return { data, error }
+}
+
+export async function updateSpartiaReceipt(id, patch) {
+  if (!id) return { data: null, error: new Error('missing id') }
+  const row = {}
+  if (patch.amountExclTax !== undefined) row.amount_excl_tax = parseInt(patch.amountExclTax) || 0
+  if (patch.receivedMonth !== undefined) row.received_month = patch.receivedMonth
+  if (patch.payMonth !== undefined) row.pay_month = patch.payMonth
+  if (patch.note !== undefined) row.note = patch.note || ''
+  const { data, error } = await supabase
+    .from('spartia_receipts')
+    .update(row)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) console.error('[DB] updateSpartiaReceipt error:', error)
+  return { data, error }
+}
+
+export async function deleteSpartiaReceipt(id) {
+  if (!id) return { error: new Error('missing id') }
+  const { error } = await supabase.from('spartia_receipts').delete().eq('id', id)
+  if (error) console.error('[DB] deleteSpartiaReceipt error:', error)
+  return { error }
+}
+
 export async function deletePayrollInvoice(memberId, payMonth) {
   if (!memberId || !payMonth) return { error: new Error('missing args') }
   const orgId = getOrgId()
