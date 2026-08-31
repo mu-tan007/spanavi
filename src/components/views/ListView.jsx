@@ -141,6 +141,57 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
     setPos({ x, y: rect.bottom + 4 });
     setHover(true);
   };
+  // 成果報酬型など、アポ1件の金額では言い表せないリストは reward_note をそのまま出す。
+  // appo_unit_price=0 や engagement の slug で判定すると UI に事業ルールが埋まるので、
+  // 表示したい文言はリスト単位の列で持つ（リスト編集の「報酬メモ」で設定）。
+  const rewardNote = (list.rewardNote || '').trim();
+  if (rewardNote) {
+    return (
+      <span
+        onMouseEnter={handleEnterShared}
+        onMouseLeave={() => setHover(false)}
+        onClick={e => e.stopPropagation()}
+        style={{
+          fontFamily: font.family.sans, fontSize: font.size.xs,
+          color: color.navy, fontWeight: font.weight.semibold,
+          borderBottom: `1px dotted ${color.textLight}`, cursor: 'default',
+        }}
+      >
+        <span style={{
+          fontFamily: font.family.sans, fontSize: 9, fontWeight: font.weight.medium,
+          color: color.textLight, marginRight: 4, letterSpacing: 0.5,
+        }}>インターン</span>
+        {rewardNote}
+        {hover && createPortal(
+          <div style={{
+            position: 'fixed', top: pos.y, left: pos.x, zIndex: 99999,
+            padding: '10px 12px', background: '#FFFFFF',
+            border: `1px solid ${color.border}`, borderRadius: radius.md,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.12)',
+            width: 320, fontSize: font.size.xs, color: color.textDark,
+            fontFamily: font.family.sans, fontWeight: font.weight.normal,
+            pointerEvents: 'none',
+          }}>
+            <div style={{ fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>
+              インターン報酬
+              <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
+                このリスト専用
+              </span>
+            </div>
+            <div style={{ color: color.textDark, marginBottom: 4 }}>
+              アポ1件あたりの支払いなし。報酬は
+              <span style={{ fontWeight: font.weight.semibold }}> {rewardNote} </span>
+              のみ。
+            </div>
+            <div style={{ fontSize: 10, color: color.textLight, lineHeight: 1.5 }}>
+              条件の詳細はリストの注意事項を参照。文言はリスト編集の「報酬メモ」で設定します。
+            </div>
+          </div>,
+          document.body
+        )}
+      </span>
+    );
+  }
   // リスト単価上書き（call_lists.appo_unit_price 税別）があれば報酬マスタより
   // 優先して表示する（アポ報告時の当社売上初期値と同じ優先順位）
   // 0円も有効な設定として扱う（アポ単価なし・成果報酬のみのリスト）
@@ -416,7 +467,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   };
   // type (call_lists.list_type) は engagementから商材カテゴリ名を引いて自動連動する。
   // 過去にデフォルト"M&A仲介"固定だった事で、IFA/人材リードでも"M&A仲介"が保存される事故があった。
-  const emptyForm = { name: "", company: "", type: "", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "", appoUnitPrice: "" };
+  const emptyForm = { name: "", company: "", type: "", status: "架電可能", industry: "", count: "", manager: "", contactIds: [], companyInfo: "", companyUrl: "", scriptBody: "", cautions: "", notes: "", isProspecting: false, engagementId: "", appoUnitPrice: "", rewardNote: "" };
   // 注意事項の雛形。どのリストも①〜⑤の同じ項目を毎回書くので、
   // 新規追加時と、未入力のまま編集を開いた時は見出しだけ先に入れておく（本文は全角スペース1つ分の字下げ済み）
   const CAUTIONS_TEMPLATE = [
@@ -631,6 +682,8 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       rebuttalData: src.rebuttalData || undefined,
       contactIds: src.contactIds || [],
       manager: src.manager || '',
+      // 同じクライアントの別業種リストは報酬の建て付けも同じことが多い
+      rewardNote: src.rewardNote || '',
     }));
   };
 
@@ -650,6 +703,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       isProspecting: !!list.is_prospecting,
       engagementId: engId,
       appoUnitPrice: list.appoUnitPrice != null ? String(list.appoUnitPrice) : "",
+      rewardNote: list.rewardNote || "",
     });
     setEditingListId(list.id);
     setListFormOpen(true);
@@ -676,7 +730,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         const error = await updateCallList(target._supaId, dataToSave);
         if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
       }
-      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: dataToSave.company, type: dataToSave.type, status: dataToSave.status, industry: dataToSave.industry, count: parseInt(dataToSave.count) || 0, manager: dataToSave.manager, contactIds: dataToSave.contactIds, companyInfo: dataToSave.companyInfo, companyUrl: dataToSave.companyUrl, scriptBody: dataToSave.scriptBody, cautions: dataToSave.cautions, notes: dataToSave.notes, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId, appoUnitPrice: (dataToSave.appoUnitPrice === '' || dataToSave.appoUnitPrice == null) ? null : Number(dataToSave.appoUnitPrice) } : l));
+      setCallListData(prev => prev.map(l => l.id === editingListId ? { ...l, company: dataToSave.company, type: dataToSave.type, status: dataToSave.status, industry: dataToSave.industry, count: parseInt(dataToSave.count) || 0, manager: dataToSave.manager, contactIds: dataToSave.contactIds, companyInfo: dataToSave.companyInfo, companyUrl: dataToSave.companyUrl, scriptBody: dataToSave.scriptBody, cautions: dataToSave.cautions, notes: dataToSave.notes, is_prospecting: derivedIsProspecting, engagement_id: dataToSave.engagementId, appoUnitPrice: (dataToSave.appoUnitPrice === '' || dataToSave.appoUnitPrice == null) ? null : Number(dataToSave.appoUnitPrice), rewardNote: (dataToSave.rewardNote || '').trim() } : l));
     } else {
       const { result, error } = await insertCallList(dataToSave, dataToSave.engagementId || currentEngagement?.id);
       if (error || !result) { alert('保存に失敗しました: ' + (error?.message || '不明なエラー')); return; }
@@ -1016,7 +1070,16 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
               </label>
               <input type="number" value={formData.appoUnitPrice} onChange={e => setFormData(p => ({ ...p, appoUnitPrice: e.target.value }))} style={formInputStyle} placeholder="未入力なら報酬マスタを使用" />
               <span style={{ fontSize: font.size.xs - 2, color: color.textLight }}>
-                このリストのアポだけ単価が異なる場合に入力（例: 60000）。アポ報告時の当社売上に税込換算で自動反映
+                このリストのアポだけ単価が異なる場合に入力（例: 60000）。0を入れるとアポ単価なし。アポ報告時の当社売上に税込換算で自動反映
+              </span>
+            </div>
+            <div>
+              <label style={{ fontSize: font.size.xs, color: color.textLight, display: "block", marginBottom: 4, fontWeight: font.weight.semibold }}>
+                報酬メモ（任意）
+              </label>
+              <input value={formData.rewardNote} onChange={e => setFormData(p => ({ ...p, rewardNote: e.target.value }))} style={formInputStyle} placeholder="例: 入金の5%" />
+              <span style={{ fontSize: font.size.xs - 2, color: color.textLight }}>
+                成果報酬型などアポ単価で表せないリスト用。入れると架電リストの当社売上列に金額の代わりに出ます
               </span>
             </div>
             <div>

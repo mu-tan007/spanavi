@@ -190,6 +190,9 @@ export function useSpanaviData(authOrgId) {
         client_id: cl.client_id || null,
         // リスト単位のアポ単価上書き（税別円）。NULL=報酬マスタを使用
         appoUnitPrice: cl.appo_unit_price != null ? Number(cl.appo_unit_price) : null,
+        // 成果報酬型など金額で表せないリストの報酬表示（例: 入金の5%）。
+        // 入っていれば当社売上列に金額の代わりに出す。NULL=従来どおり金額
+        rewardNote: cl.reward_note || '',
         // ツリー型スクリプト（ノード＋リンク）。NULL=テキスト型のみ
         scriptTree: cl.script_tree || null,
         contactIds: (cl.contact_ids && cl.contact_ids.length > 0) ? cl.contact_ids : (cl.contact_id ? [cl.contact_id] : []),
