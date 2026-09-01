@@ -44,6 +44,7 @@ export const PAGE_REGISTRY = {
     { key: 'trainer_rewards', label: 'トレーナー報酬', group: 'ANALYTICS' },
     { key: 'analytics', label: '分析レポート', group: 'ANALYTICS' },
     { key: 'revenue', label: '売上管理', group: 'ANALYTICS' }, // Stripe請求書ミラー。admin限定。
+    { key: 'crowdworks_scout', label: '自動送信システム', group: 'ANALYTICS' }, // CrowdWorksスカウトツールの稼働監視。admin限定。
     // 設定は「全社管理 → 対象事業=スパキャリ」へ移行済み（admin限定）。
   ],
 };
