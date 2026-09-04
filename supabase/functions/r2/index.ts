@@ -235,6 +235,10 @@ async function check(kind: string) {
   if (!put.ok) out.putBody = (await put.text()).slice(0, 300);
   const get = await signedFetch('GET', bucket, key);
   out.get = get.status;
+  // ⚠️ **保存期間が入っているかは、ここで分かる。**
+  //    lifecycle-get は権限が無いと403になり「規則なし」と誤読する（2026-09-04に踏んだ）。
+  //    置いたばかりのファイルに x-amz-expiration が付けば、規則は生きている。
+  out.expiration = get.headers.get('x-amz-expiration') ?? '（自動削除の規則なし）';
   out.body = (await get.text()).slice(0, 60);
   const list = await signedFetch('GET', bucket, '', undefined, 'list-type=2&max-keys=3');
   out.list = list.status;
