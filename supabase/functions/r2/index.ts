@@ -95,6 +95,9 @@ async function signedFetch(
 // 大きなファイルを**抱え込まずに流す**ことができる。
 async function presign(
   method: 'GET' | 'PUT', bucket: string, key: string, expires = 3600,
+  // ⚠️ 保存されている型を**渡すときだけ**上書きする。実体は書き換えない。
+  //    response-content-* は署名の対象なので、必ず署名前に混ぜる。
+  as?: { type: string; filename: string },
 ): Promise<string> {
   const account = env('R2_ACCOUNT_ID');
   const ak = env('R2_ACCESS_KEY_ID');
@@ -106,13 +109,20 @@ async function presign(
   const dateStamp = amzDate.slice(0, 8);
   const scope = `${dateStamp}/auto/s3/aws4_request`;
 
-  const q = [
+  // ⚠️ 署名v4は問い合わせを鍵の順に並べる必要がある。
+  //    大文字が先なので X-Amz-* → response-* で正しい。
+  const params: string[][] = [
     ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
     ['X-Amz-Credential', `${ak}/${scope}`],
     ['X-Amz-Date', amzDate],
     ['X-Amz-Expires', String(expires)],
     ['X-Amz-SignedHeaders', 'host'],
-  ].map(([k, v]) => `${uriEncode(k)}=${uriEncode(v)}`).join('&');
+  ];
+  if (as) {
+    params.push(['response-content-disposition', `inline; filename="${as.filename}"`]);
+    params.push(['response-content-type', as.type]);
+  }
+  const q = params.map(([k, v]) => `${uriEncode(k)}=${uriEncode(v)}`).join('&');
 
   const canonical = [method, path, q, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
   const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, await sha256Hex(canonical)].join('\n');
@@ -415,7 +425,27 @@ Deno.serve(async (req) => {
       //    その安全のために払う。速さの主因は別（プリフライトの往復）だった。
       const h = await head(kind, key);
       if (!h.ok) return reply({ ok: false, error: 'R2にありません', status: h.status }, 404);
-      const url = await presign('GET', bucketOf(kind), key, Number(body.expires ?? 3600));
+
+      // ⚠️ **架電録音は中身がMP3なのに `audio/mp4` を名乗って保存されている**
+      //    （鍵の名前も .mp4 / .m4a）。パソコンのブラウザは中身を見て鳴らすが、
+      //    型を信じる相手（iOS・一部の <audio>）は解けずに黙って止まる。
+      //    2026-09-04 判明。実体は触らず、渡すときだけ正しく名乗らせる。
+      //    ⚠️ 講義録画(spacareer)は本物のMP4なので触らない。
+      let as: { type: string; filename: string } | undefined;
+      if (kind === 'recordings') {
+        const probe = await presign('GET', bucketOf(kind), key, 60);
+        const res = await fetch(probe, { headers: { Range: 'bytes=0-11' } }).catch(() => null);
+        const b = res && (res.status === 200 || res.status === 206)
+          ? new Uint8Array(await res.arrayBuffer().catch(() => new ArrayBuffer(0)))
+          : new Uint8Array(0);
+        const isMp3 = (b.length >= 3 && b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33)
+          || (b.length >= 2 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0);
+        if (isMp3) {
+          as = { type: 'audio/mpeg', filename: `${key.replace(/\.[^.]+$/, '')}.mp3` };
+        }
+      }
+
+      const url = await presign('GET', bucketOf(kind), key, Number(body.expires ?? 3600), as);
       return reply({ ok: true, url, size: h.size });
     }
 

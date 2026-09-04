@@ -86,6 +86,28 @@ export async function recShareUrl(key: string): Promise<string> {
   return `${base}${SHARE_MARK}${path}?s=${sig}`;
 }
 
+/* ===================== 音の中身と、名乗る型 ===================== */
+//
+// ⚠️ **バケットの録音は中身がMP3である**（先頭が FF Fx / ID3）。
+//    ところが鍵の名前は .mp4 / .m4a で、保存時に `audio/mp4` を名乗らせていた。
+//    パソコンのブラウザは中身を見て鳴らすので気づけないが、
+//    **iOSは名乗られた型を信じてMP4として解こうとし、失敗する**。
+//    これが「携帯で聞けるときと聞けない時がある」の正体（2026-09-04 判明）。
+//    実体は触らず、渡すときに正しい型を名乗らせる。
+
+/** 先頭の数バイトから本当の型を決める。分からなければ null（保存時の型のまま）。 */
+export function sniffAudioType(head: Uint8Array): string | null {
+  if (head.length >= 3 && head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33) return 'audio/mpeg'; // 'ID3'
+  if (head.length >= 2 && head[0] === 0xff && (head[1] & 0xe0) === 0xe0) return 'audio/mpeg';            // MPEG同期語
+  if (head.length >= 8 && String.fromCharCode(...head.slice(4, 8)) === 'ftyp') return 'audio/mp4';       // 本物のMP4
+  return null;
+}
+
+/** 型に合う拡張子。鍵の名前が .mp4 のままだと、iOSは名前でも判断してしまう。 */
+export function extForType(type: string): string {
+  return type === 'audio/mpeg' ? 'mp3' : type === 'audio/mp4' ? 'm4a' : 'bin';
+}
+
 /**
  * R2 の署名付きURL。設定が無ければ null。
  *
@@ -93,7 +115,12 @@ export async function recShareUrl(key: string): Promise<string> {
  *    署名が合わず必ず403が返る。存在確認をHEADでやるなら、HEAD用に署名し直すこと。
  *    （GET用の署名でHEADを叩いていたため「R2に無い」と誤判定していた。2026-08-24 修正）
  */
-async function r2Presign(method: 'GET' | 'HEAD', key: string, expires: number): Promise<string | null> {
+async function r2Presign(
+  method: 'GET' | 'HEAD', key: string, expires: number,
+  // ⚠️ 保存されている型を**渡すときだけ**上書きする。実体は書き換えない。
+  //    S3互換の response-content-* は**署名に含まれる**ので、必ず署名前に混ぜること。
+  as?: { type: string; filename: string },
+): Promise<string | null> {
   const account = Deno.env.get('R2_ACCOUNT_ID');
   const ak = Deno.env.get('R2_ACCESS_KEY_ID');
   const sk = Deno.env.get('R2_SECRET_ACCESS_KEY');
@@ -107,13 +134,20 @@ async function r2Presign(method: 'GET' | 'HEAD', key: string, expires: number): 
   const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
   const dateStamp = amzDate.slice(0, 8);
   const scope = `${dateStamp}/auto/s3/aws4_request`;
-  const q = [
+  // ⚠️ 署名v4は**問い合わせの並びが鍵の順**である必要がある。
+  //    大文字は小文字より先なので X-Amz-* → response-* の順で正しい。
+  const params: string[][] = [
     ['X-Amz-Algorithm', 'AWS4-HMAC-SHA256'],
     ['X-Amz-Credential', `${ak}/${scope}`],
     ['X-Amz-Date', amzDate],
     ['X-Amz-Expires', String(expires)],
     ['X-Amz-SignedHeaders', 'host'],
-  ].map(([k, v]) => `${e(k)}=${e(v)}`).join('&');
+  ];
+  if (as) {
+    params.push(['response-content-disposition', `inline; filename="${as.filename}"`]);
+    params.push(['response-content-type', as.type]);
+  }
+  const q = params.map(([k, v]) => `${e(k)}=${e(v)}`).join('&');
 
   const canonical = [method, path, q, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
   const toSign = ['AWS4-HMAC-SHA256', amzDate, scope, await sha256Hex(canonical)].join('\n');
@@ -128,8 +162,22 @@ async function r2Presign(method: 'GET' | 'HEAD', key: string, expires: number): 
  */
 export async function r2SignedGet(
   key: string, expires = 600, method: 'GET' | 'HEAD' = 'GET',
+  as?: { type: string; filename: string },
 ): Promise<string | null> {
-  return await r2Presign(method, key, expires);
+  return await r2Presign(method, key, expires, as);
+}
+
+/**
+ * 実体の先頭を読んで、存在確認と本当の型の判別を**1往復で**済ませる。
+ * ⚠️ HEADではなく範囲指定のGETを使う。HEADだと中身が見えず、型を直せない。
+ */
+export async function r2ProbeHead(key: string): Promise<{ ok: boolean; type: string | null }> {
+  const url = await r2Presign('GET', key, 60);
+  if (!url) return { ok: false, type: null };
+  const res = await fetch(url, { headers: { Range: 'bytes=0-11' } }).catch(() => null);
+  if (!res || !(res.status === 200 || res.status === 206)) return { ok: false, type: null };
+  const buf = new Uint8Array(await res.arrayBuffer().catch(() => new ArrayBuffer(0)));
+  return { ok: true, type: sniffAudioType(buf) };
 }
 
 /**

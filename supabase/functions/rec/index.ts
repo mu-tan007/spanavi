@@ -18,7 +18,7 @@
 // ⚠️ 相手先に自社の商談録音を渡すための口である。ここを社内向けに流用しない
 //    （社内は r2 の sign-get を通す。あちらは may_read_r2_key で人を確かめている）。
 
-import { recShareSig, r2SignedGet } from '../_shared/recordingSource.ts';
+import { recShareSig, r2SignedGet, r2ProbeHead, extForType } from '../_shared/recordingSource.ts';
 
 const HTML = 'text/html; charset=utf-8';
 
@@ -31,7 +31,9 @@ function page(status: number, title: string, body: string): Response {
     + `max-width:34em;margin:16vh auto;padding:0 1.5em;line-height:1.9;color:#1f2937">`
     + `<h1 style="font-size:1.15rem;color:#0D2247;margin:0 0 .8em">${title}</h1>`
     + `<p style="margin:0;font-size:.95rem">${body}</p></div>`,
-    { status, headers: { 'Content-Type': HTML } },
+    // ⚠️ 案内もキャッシュさせない。録音を戻したのに古い「見つかりません」が
+    //    出続けると、直したことが利用者に伝わらない。
+    { status, headers: { 'Content-Type': HTML, 'Cache-Control': 'no-store, max-age=0' } },
   );
 }
 
@@ -68,15 +70,33 @@ Deno.serve(async (req) => {
       return page(403, 'このリンクは無効です', 'リンクの有効期限が切れているか、URLが途中で切れている可能性があります。担当者までお知らせください。');
     }
 
-    // 実体があるか確かめてから転送する。
-    // ⚠️ 署名にはメソッドが含まれる。GET用の署名でHEADを投げると必ず403になるので、
-    //    存在確認は HEAD 用に署名し直したURLで行う（2026-08-24 に踏んだ）。
-    const probeUrl = await r2SignedGet(key, 60, 'HEAD');
-    const probe = probeUrl ? await fetch(probeUrl, { method: 'HEAD' }).catch(() => null) : null;
+    // 実体があるかを確かめ、**同じ往復で中身の型も見る**。
+    // ⚠️ 以前はHEADで存在だけ見ていた。それだと中身が分からず、
+    //    保存時に名乗らせた `audio/mp4` のまま転送してしまう。
+    //    録音の中身はMP3なので、iOSはMP4として解こうとして失敗する
+    //    （＝「携帯で聞けるときと聞けない時がある」の正体・2026-09-04）。
+    const probe = await r2ProbeHead(key);
 
-    if (probe?.ok) {
-      const signed = await r2SignedGet(key, 3600);
-      if (signed) return Response.redirect(signed, 302);
+    if (probe.ok) {
+      // 中身から決まった型で名乗らせる。分からなければ保存時のまま触らない。
+      // ⚠️ 鍵の名前が .mp4 のままだと iOS は名前でも判断するので、
+      //    渡すときの名前も型に合わせる。
+      const as = probe.type
+        ? { type: probe.type, filename: `${key.replace(/\.[^.]+$/, '')}.${extForType(probe.type)}` }
+        : undefined;
+      const signed = await r2SignedGet(key, 3600, 'GET', as);
+      // ⚠️ **この転送は絶対にキャッシュさせない。**
+      //    転送先の署名は1時間で切れる。302が1時間より長く保持されると、
+      //    切れた署名へ送り込まれて R2 から403のXMLが返る。
+      //    利用者には「たまに開けない」としか見えず、原因に辿り着けない
+      //    （2026-09-04、8分前の転送先が返ってきて気づいた）。
+      //    Response.redirect ではヘッダを足せないので自分で組む。
+      if (signed) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: signed, 'Cache-Control': 'no-store, max-age=0' },
+        });
+      }
     }
 
     // ⚠️ かつてここに Supabase Storage への回り道があったが、外した（2026-09-04）。
