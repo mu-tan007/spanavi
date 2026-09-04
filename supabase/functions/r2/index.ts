@@ -178,6 +178,19 @@ async function putLifecycle(kind: string, days: number) {
   return { ok: res.ok, status: res.status, bucket, days, body: res.ok ? '' : (await res.text()).slice(0, 400) };
 }
 
+/**
+ * 保存期間の規則を**消す**。
+ * ⚠️ バケット全体にかかる。消すと、以後この置き場のものは自動削除されない。
+ * ⚠️ 規則が入っているかは lifecycle-get では分からない（権限が無いと403）。
+ *    **実体をGETしたときの `x-amz-expiration` ヘッダ**で確かめること。
+ *    2026-09-04、403を「規則なし」と読んで判断を誤った。
+ */
+async function deleteLifecycle(kind: string) {
+  const bucket = bucketOf(kind);
+  const res = await signedFetch('DELETE', bucket, '', undefined, 'lifecycle=');
+  return { ok: res.ok, status: res.status, bucket, xml: res.ok ? '' : (await res.text()).slice(0, 300) };
+}
+
 async function getLifecycle(kind: string) {
   const bucket = bucketOf(kind);
   const res = await signedFetch('GET', bucket, '', undefined, 'lifecycle=');
@@ -460,6 +473,7 @@ Deno.serve(async (req) => {
       return reply(await head(kind, body.key));
     }
     if (action === 'lifecycle-get') return reply(await getLifecycle(kind));
+    if (action === 'lifecycle-delete') return reply(await deleteLifecycle(kind));
     if (action === 'lifecycle-set') {
       // ⚠️ バケット全体にかかる。日数は明示的に渡させる（既定値を置かない）。
       const days = Number(body.days);
