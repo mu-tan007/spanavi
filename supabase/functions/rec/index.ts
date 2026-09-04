@@ -79,28 +79,20 @@ Deno.serve(async (req) => {
       if (signed) return Response.redirect(signed, 302);
     }
 
-    // R2に無いもの（移設前後の取りこぼし）は Supabase Storage 側を見る。
-    const base = Deno.env.get('SUPABASE_URL');
-    const svc = Deno.env.get('STORAGE_SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (base && svc) {
-      const res = await fetch(`${base}/storage/v1/object/sign/recordings/${key}`, {
-        method: 'POST',
-        headers: { apikey: svc, Authorization: `Bearer ${svc}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expiresIn: 3600 }),
-      }).catch(() => null);
-      const body = res?.ok ? await res.json().catch(() => null) : null;
-      if (body?.signedURL) {
-        console.warn('[rec] R2に無いのでSupabaseの署名を使います:', key);
-        return Response.redirect(`${base}/storage/v1${body.signedURL}`, 302);
-      }
-    }
-
-    // ⚠️ R2の保存期間は180日。切れたものは「壊れた」ではなく「期限切れ」と伝える。
-    console.error('[rec] どちらにも見つかりません:', key);
+    // ⚠️ かつてここに Supabase Storage への回り道があったが、外した（2026-09-04）。
+    //    移設のあと recordings バケットごと消してあり、問い合わせても
+    //    `NoSuchBucket` しか返らない。**成功しうる道ではない。**
+    //    残しておくと「まだ2か所を探している」と読めてしまう。
+    //
+    // ⚠️ ここへ来る理由は「期限切れ」ではない。保存期間は設けていない（2026-09-04 確定）。
+    //    実際にここへ落ちるのは、鍵が壊れている・そもそも録れていない、のいずれか。
+    //    期限のせいにすると、先方に嘘の説明をすることになる。
+    console.error('[rec] R2に見つかりません:', key);
     return page(
-      410,
-      '録音の保存期間が過ぎています',
-      '録音は取得から180日で自動的に削除されます。お手数ですが担当者までお問い合わせください。',
+      404,
+      '録音が見つかりません',
+      'お手数ですが、担当者までお問い合わせください。'
+      + '録音そのものが残っている場合は、あらためてリンクをお送りいたします。',
     );
   } catch (e) {
     console.error('[rec] エラー:', e);

@@ -31,9 +31,9 @@ export default function SessionVideoModal({ open, onClose, storagePath, title })
       .then(({ url, gone }) => {
         if (cancelled) return;
         if (url) setSignedUrl(url);
-        // R2は180日で自動的に消える。実体が無いときは、
-        // 「壊れた」ではなく「期限を過ぎた」と伝える。議事録は残っている。
-        else if (gone) setErr('この録画は保存期間（180日）を過ぎたため残っていません。議事録はそのままご覧いただけます。');
+        // ⚠️ 保存期間は設けていない（2026-09-04 確定）。実体が無いのは期限切れではなく、
+        //    取り込みそのものが済んでいないため。期限のせいにすると調べる手が止まる。
+        else if (gone) setErr('この録画は実体が見つかりません。議事録はそのままご覧いただけます。');
         else setErr('録画の再生URLを取得できませんでした。');
       })
       .catch((e) => { if (!cancelled) setErr(e?.message || String(e)); })

@@ -55,9 +55,15 @@ export function recordingKeyOf(url: string | null | undefined): string | null {
 //    渡すための口なので、それでよい。ただし鍵は名前で指定されるので、
 //    **署名が無ければ他人の録音の名前を打ち込むだけで聴けてしまう**。必ず照合する。
 
-/** 署名に使う鍵。専用のものが無ければR2の鍵から導く。 */
+/**
+ * 署名に使う鍵。
+ * ⚠️ **R2の鍵で代用しない**（2026-09-04 にフォールバックを外した）。
+ *    代用すると、R2の資格情報を入れ替えた瞬間に
+ *    外へ配った録音リンクが一本残らず無効になる。鍵の入れ替えは普通の運用なので、
+ *    いつか必ず踏む。REC_SHARE_SECRET は独立した値として持つ。
+ */
 function shareSecret(): string {
-  return Deno.env.get('REC_SHARE_SECRET') ?? Deno.env.get('R2_SECRET_ACCESS_KEY') ?? '';
+  return Deno.env.get('REC_SHARE_SECRET') ?? '';
 }
 
 /**
@@ -131,8 +137,10 @@ export async function r2SignedGet(
  * 録音バケット以外のURL（Zoom等）はそのまま返す。
  */
 export async function resolveRecordingSource(
+  // ⚠️ 使っていない。Supabase Storage への回り道を外した名残（2026-09-04）。
+  //    呼び出し元4か所の形を変えないために引数だけ残してある。
   // deno-lint-ignore no-explicit-any
-  supabase: any,
+  _supabase: any,
   recordingUrl: string,
 ): Promise<string> {
   const key = recordingKeyOf(recordingUrl);
@@ -146,13 +154,10 @@ export async function resolveRecordingSource(
     if (probe?.ok) return r2;
   }
 
-  const { data } = await supabase.storage.from('recordings').createSignedUrl(key, 600);
-  if (data?.signedUrl) {
-    console.warn('[recordingSource] R2にまだ無いのでSupabaseの署名を使います:', key);
-    return data.signedUrl;
-  }
-
-  console.error('[recordingSource] どちらにも見つかりません:', key);
+  // ⚠️ かつてここに Supabase Storage の署名付きURLへ回る道があったが、外した
+  //    （2026-09-04）。recordings バケットは移設後に消してあり、`NoSuchBucket`
+  //    しか返らない。成功しうる道ではないので、残すと読む人を惑わせる。
+  console.error('[recordingSource] R2に見つかりません:', key);
   return recordingUrl;
 }
 

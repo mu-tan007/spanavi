@@ -13,10 +13,9 @@ import { supabase } from './supabase';
 //    移送が済んだら非公開に切り替える。切り替えても、この解決を通していれば
 //    署名付きURLに落ちるので再生は止まらない。
 //
-// 探す順番
-//   1. R2（移送済みのもの。ほぼ全部ここで当たる）
-//   2. Supabase の署名付きURL（まだ移していないもの・非公開化後も効く）
-//   3. どちらにも無ければ null
+// 探す先は R2 だけ。無ければ null を返す。
+// ⚠️ 移設前は Supabase の署名付きURLへ回っていたが、recordings バケットごと
+//    消してあるので回る先が無い（2026-09-04 に外した）。
 
 const PUBLIC_MARK = '/storage/v1/object/public/recordings/';
 // 2026-08-25 追加。旧形式は非公開化以降ブラウザで開くと400になり、
@@ -28,7 +27,6 @@ const SHARE_MARK = '/functions/v1/rec/';
 // 出した署名を覚えておく（1時間有効なので作り直す必要がない）。
 // ⚠️ 押すたびにEdge Functionを呼ぶと、そのたびに起動と権限確認の待ちが入る。
 const signedCache = new Map();
-const BUCKET = 'recordings';
 
 /** URLからファイルの位置を取り出す。録音の鍵を包んだURLでなければ null。 */
 export function recordingKeyOf(url) {
@@ -70,12 +68,9 @@ export async function resolveRecordingUrl(url) {
     return { url: r2.url, gone: false, external: false };
   }
 
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(key, 3600);
-  if (!error && data?.signedUrl) {
-    console.warn('[recordingUrl] R2にまだ無いのでSupabaseの署名を使います:', key);
-    return { url: data.signedUrl, gone: false, external: false };
-  }
-
-  console.error('[recordingUrl] どちらにも見つかりません:', key, r2err ?? r2, error);
+  // ⚠️ かつてここに Supabase Storage の署名付きURLへ回る道があったが、外した
+  //    （2026-09-04）。recordings バケットは移設後に消してあり `NoSuchBucket` しか
+  //    返らない。成功しうる道ではないので、残すと「まだ2か所を見ている」と読めてしまう。
+  console.error('[recordingUrl] R2に見つかりません:', key, r2err ?? r2);
   return { url: null, gone: true, external: false };
 }
