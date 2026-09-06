@@ -129,7 +129,7 @@ export default function QuickAppoModal({ date, time, row, list, clientInfo, cont
         note: cleanContactName ? `担当者: ${cleanContactName}` : '',
         appoReport: `【アポ登録】\n企業名：${row?.company || ''}\n面談日：${dateLabel} ${meetTime}\n場所：${location}\nアポ取得者：${currentUser}${cleanContactName ? `\n担当者：${cleanContactName}様` : ''}`,
         list_id: list?._supaId || null,
-        item_id: row?._supaId || null,
+        item_id: row?._supaId || row?.id || null,
         phone: row?.phone || '',
         gcalEventId,
       };

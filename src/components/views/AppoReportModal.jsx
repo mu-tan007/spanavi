@@ -249,10 +249,13 @@ HP：${form.hp}
       : (salesVal && acquirerRate ? Math.round(salesVal * acquirerRate) : 0);
     const reportNote = generateReport();
     // Step 1: アポをDBに登録（appointments テーブルへ insert + ローカル状態更新）
-    const { result: insResult } = await insertAppointment({
+    const { result: insResult, error: insError } = await insertAppointment({
       company:    row.company,
       client:     list.company,
       meetDate:   form.appoDate,
+      meetTime:   form.appoTime,
+      meetLocation: form.visitLocation,
+      isOnline: /オンライン|zoom|google\s*meet|teams/i.test(form.visitLocation || ''),
       getDate:    form.getDate,
       getter:     form.acquirer,
       appoReport: reportNote,
@@ -268,6 +271,13 @@ HP：${form.hp}
       reportSupplement: form.reportSupplement || null,
       keymanMaIntent: form.keymanMaIntent || null,
     });
+    if (insError || !insResult?.id) {
+      savingRef.current = false;
+      setSaving(false);
+      setAiStatus('error');
+      alert('アポを保存できませんでした: ' + (insError?.message || '保存結果を取得できませんでした'));
+      return;
+    }
     // Step 4: 企業ドシエ生成 fire-and-forget（バックグラウンドで Edge Function 完走、約30〜90秒）
     if (insResult?.id) {
       const orgId = getOrgId();
@@ -279,6 +289,12 @@ HP：${form.hp}
       company:    row.company,
       client:     list.company,
       meetDate:   form.appoDate,
+      meetTime:   insResult.meeting_time || '',
+      meetLocation: insResult.meeting_location || '',
+      isOnline: insResult.is_online || false,
+      client_id: insResult.client_id,
+      list_id: insResult.list_id,
+      item_id: insResult.item_id,
       getDate:    form.getDate,
       getter:     form.acquirer,
       appoReport: reportNote,

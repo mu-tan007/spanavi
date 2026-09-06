@@ -1,3 +1,9 @@
+# 高野さんの架電カレンダー（2026-09-06）
+
+計画・検証結果: [takano_appointment_calendar.md](./takano_appointment_calendar.md)
+
+---
+
 # アポ取得報告の録音URLが再生できない（2026-08-25）
 
 ## 症状

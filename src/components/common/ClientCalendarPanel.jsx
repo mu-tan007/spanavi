@@ -189,7 +189,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
             </div>
           ))
         ) : (
-          <div style={{ color: '#9CA3AF', fontSize: font.size.sm, textAlign: 'center' }}>カレンダー未連携です。CRMの担当者設定からカレンダーIDまたは日程調整URLを登録してください。</div>
+          props.appointmentCalendar || <div style={{ color: '#9CA3AF', fontSize: font.size.sm, textAlign: 'center' }}>カレンダー未連携です。CRMの担当者設定からカレンダーIDまたは日程調整URLを登録してください。</div>
         )}
         {notesBlock}
       </div>

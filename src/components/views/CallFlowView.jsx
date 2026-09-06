@@ -1115,6 +1115,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         getter:     formData.getter,
         getDate:    formData.getDate,
         meetDate:   formData.meetDate,
+        meetTime:   formData.meetTime || '',
+        meetLocation: formData.meetLocation || '',
+        isOnline: formData.isOnline || false,
+        client_id: formData.client_id || list.client_id || null,
+        list_id: formData.list_id || list._supaId || null,
+        item_id: formData.item_id || appoModal.id || null,
         // クライアント開拓・事前確認スキップ設定のクライアントは事前確認済で登録（AppoReportModalと同期）
         status:     initialAppoStatus(list),
         note:       formData.note || '',
@@ -1123,8 +1129,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         reward:     rewardVal,
         month:      formData.meetDate ? (parseInt(formData.meetDate.slice(5, 7), 10) + '月') : '',
       };
-      if (formData.supaId) newAppo._supaId = formData.supaId;
-      setAppoData(prev => [...prev, newAppo]);
+      if (formData.supaId || formData._supaId) newAppo._supaId = formData.supaId || formData._supaId;
+      setAppoData(prev => [...prev.filter(a => !newAppo._supaId || a._supaId !== newAppo._supaId), newAppo]);
     }
 
     setAppoModal(null);
@@ -1893,6 +1899,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <MultiCalendarPanel
+                    showRegisteredAppointments
                     contacts={linkedContacts}
                     fallbackClient={cl}
                     updateContactFn={(ctId, ctData) => {
@@ -1934,6 +1941,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           members={members}
           clientData={clientData}
           rewardMaster={rewardMaster}
+          contactsByClient={contactsByClient}
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
           initialRecordingUrl={initialRecordingUrl || ''}
@@ -2797,6 +2805,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <MultiCalendarPanel
+                    showRegisteredAppointments
                     contacts={linkedContacts}
                     fallbackClient={cl}
                     updateContactFn={(ctId, ctData) => {
@@ -2838,6 +2847,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           members={members}
           clientData={clientData}
           rewardMaster={rewardMaster}
+          contactsByClient={contactsByClient}
           onClose={() => setAppoModal(null)}
           onSave={handleAppoSave}
           initialRecordingUrl={initialRecordingUrl || ''}

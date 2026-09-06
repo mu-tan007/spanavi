@@ -2,6 +2,8 @@ import { supabase } from '../lib/supabase'
 import { getOrgId } from './orgContext'
 import { statusIdToLabel } from '../hooks/useCallStatuses'
 import { enqueuePayrollSyncForMeetingDates } from './payrollAutoSync'
+import { notifyAppointmentsChanged } from './appointmentEvents'
+import { meetingTimestampTime } from '../utils/appointmentCalendar'
 
 // ============================================================
 // Drive CORS Proxy
@@ -673,6 +675,16 @@ export async function updateAppointment(supaId, data) {
     .select('meeting_date')
     .eq('id', supaId)
     .maybeSingle()
+  const scheduleUpdates = {}
+  // 日付だけの編集では時刻を維持。日時が明示された場合は古い meetTime よりそちらを優先する。
+  const embeddedTime = meetingTimestampTime(data.meetDate)
+  if (embeddedTime) {
+    scheduleUpdates.meeting_time = embeddedTime
+  } else if (data.meetTime !== undefined) scheduleUpdates.meeting_time = data.meetTime || null
+  if (data.meetLocation !== undefined) scheduleUpdates.meeting_location = data.meetLocation || null
+  if (data.isOnline !== undefined) scheduleUpdates.is_online = data.isOnline
+  if (data.reportData !== undefined) scheduleUpdates.report_data = data.reportData
+  else if (data.report_data !== undefined) scheduleUpdates.report_data = data.report_data
   const { error } = await supabase
     .from('appointments')
     .update({
@@ -688,10 +700,14 @@ export async function updateAppointment(supaId, data) {
       recording_url: data.recording_url ?? undefined,
       report_style: data.reportStyle ?? undefined,
       report_supplement: data.reportSupplement ?? undefined,
+      ...scheduleUpdates,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateAppointment error:', error)
-  else enqueuePayrollSyncForMeetingDates(before?.meeting_date, data.meetDate)
+  else {
+    notifyAppointmentsChanged({ id: supaId, operation: 'update' })
+    enqueuePayrollSyncForMeetingDates(before?.meeting_date, data.meetDate)
+  }
   return error
 }
 
@@ -729,6 +745,7 @@ export async function updateAppointmentReport(supaId, { style, supplement }) {
     .update({ report_style: style ?? null, report_supplement: supplement ?? null })
     .eq('id', supaId)
   if (error) console.error('[DB] updateAppointmentReport error:', error)
+  else notifyAppointmentsChanged({ id: supaId, operation: 'update' })
   return { error }
 }
 
@@ -965,7 +982,10 @@ export async function insertAppointment(data, engagementId = null) {
   }
 
   // 確定済み報酬の自動再計算。上書き保存で面談日が別の月へ動いた場合は旧月も引き直す。
-  if (!error) enqueuePayrollSyncForMeetingDates(existingMeetingDate, payload.meeting_date)
+  if (!error && result) {
+    notifyAppointmentsChanged({ id: result.id, operation: existingId ? 'update' : 'insert' })
+    enqueuePayrollSyncForMeetingDates(existingMeetingDate, payload.meeting_date)
+  }
 
   // Fire push notification for new appointment (best-effort, don't block)
   // 既存行の上書き（再送・冪等保存）では通知しない。新規 insert のみ通知する。
@@ -997,7 +1017,10 @@ export async function updatePreCheckResult(supaId, data) {
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updatePreCheckResult error:', error)
-  else enqueuePayrollSyncForMeetingDates(before?.meeting_date)
+  else {
+    notifyAppointmentsChanged({ id: supaId, operation: 'update' })
+    enqueuePayrollSyncForMeetingDates(before?.meeting_date)
+  }
   return error
 }
 
@@ -1013,7 +1036,10 @@ export async function deleteAppointment(supaId) {
     .delete()
     .eq('id', supaId)
   if (error) console.error('[DB] deleteAppointment error:', error)
-  else enqueuePayrollSyncForMeetingDates(before?.meeting_date)
+  else {
+    notifyAppointmentsChanged({ id: supaId, operation: 'delete' })
+    enqueuePayrollSyncForMeetingDates(before?.meeting_date)
+  }
   return error
 }
 

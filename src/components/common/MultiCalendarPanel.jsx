@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ClientCalendarPanel from './ClientCalendarPanel';
+import AppointmentCalendarPanel from './AppointmentCalendarPanel';
 import { color, radius, font, alpha } from '../../constants/design';
 
 /**
@@ -15,6 +16,7 @@ export default function MultiCalendarPanel({
   compact = false,
   staticNoteLines = [],
   onUpdateCalendarLines = null,
+  showRegisteredAppointments = false,
 }) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -51,6 +53,9 @@ export default function MultiCalendarPanel({
         existingAppointments={existingAppointments}
         staticNoteLines={staticNoteLines}
         onUpdateCalendarLines={onUpdateCalendarLines}
+        appointmentCalendar={showRegisteredAppointments && fallbackClient?._supaId && (
+          <AppointmentCalendarPanel key={ct.id} clientId={fallbackClient._supaId} contact={ct} />
+        )}
       />
     );
   }
@@ -99,6 +104,9 @@ export default function MultiCalendarPanel({
         existingAppointments={existingAppointments}
         staticNoteLines={staticNoteLines}
         onUpdateCalendarLines={onUpdateCalendarLines}
+        appointmentCalendar={showRegisteredAppointments && fallbackClient?._supaId && (
+          <AppointmentCalendarPanel key={activeCt.id} clientId={fallbackClient._supaId} contact={activeCt} />
+        )}
       />
     </div>
   );
