@@ -80,3 +80,21 @@ export function calendarAppointment(row) {
   return { id: row.id, date, time, company: row.company_name || '企業名未登録', location, online,
     area: online ? 'オンライン' : prefecture || '都道府県未登録', status: rescheduling ? '日程変更' : row.status || '', listId: row.list_id };
 }
+
+// 予定の見え方が変わる通知だけを採る。書式・補足・売上だけの変更では再取得しない。
+export function isContactCalendarChange(change, scope, { rows = [], start, next }) {
+  if (!change) return false;
+  const kind = String(change.eventType || change.operation || '').toUpperCase();
+  const id = change.new?.id || change.old?.id || change.id;
+  const displayed = rows.find(row => row.id === id);
+  if (kind === 'DELETE') return !!displayed;
+  if (!['INSERT', 'UPDATE'].includes(kind)) return false;
+  const after = change.new;
+  const belongs = after?.client_id === scope.clientId && scope.listContacts.get(after?.list_id)?.includes(scope.contactId);
+  const candidate = belongs ? calendarAppointment(after) : null;
+  const inMonth = candidate && candidate.date >= start && candidate.date < next;
+  if (!inMonth) return !!displayed;
+  if (!displayed) return true;
+  return ['date', 'time', 'company', 'location', 'online', 'area', 'status', 'listId']
+    .some(field => candidate[field] !== displayed[field]);
+}

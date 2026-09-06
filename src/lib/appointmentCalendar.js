@@ -14,7 +14,7 @@ async function allPages(queryPage) {
 }
 
 // 利用者本人のセッションとRLSで読む。管理者用キーや全社アポの初期取得には依存しない。
-export async function fetchContactAppointments({ clientId, contactId, start, next }) {
+export async function fetchContactCalendarScope({ clientId, contactId }) {
   if (!clientId || !contactId) throw new Error('担当者を特定できませんでした');
   const orgId = getOrgId();
   const [contacts, lists] = await Promise.all([
@@ -22,7 +22,11 @@ export async function fetchContactAppointments({ clientId, contactId, start, nex
     allPages((from, to) => supabase.from('call_lists').select('id,contact_id,contact_ids,manager_name').eq('org_id', orgId).eq('client_id', clientId).order('id').range(from, to)),
   ]);
   if (!contacts.some(contact => contact.id === contactId)) throw new Error('担当者情報を取得できませんでした');
-  const listContacts = new Map(lists.map(list => [list.id, calendarListContactIds(list, contacts)]));
+  return { clientId, orgId, listContacts: new Map(lists.map(list => [list.id, calendarListContactIds(list, contacts)])), contactId };
+}
+
+export async function fetchContactAppointments({ clientId, contactId, start, next }) {
+  const { orgId, listContacts } = await fetchContactCalendarScope({ clientId, contactId });
   const startAt = `${start}T00:00:00+09:00`;
   const endAt = `${next}T00:00:00+09:00`;
   const rows = await allPages((from, to) => supabase.from('appointments')

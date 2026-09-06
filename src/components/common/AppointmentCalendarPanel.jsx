@@ -1,47 +1,49 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, DataTable, Badge } from '../ui';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { fetchContactAppointments } from '../../lib/appointmentCalendar';
-import { APPOINTMENTS_CHANGED_EVENT } from '../../lib/appointmentEvents';
+import { subscribeContactCalendar } from '../../lib/appointmentCalendarSubscription';
 import { calendarMonth, jstDate, shiftCalendarMonth } from '../../utils/appointmentCalendar';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
-export default function AppointmentCalendarPanel({ clientId, contact, refreshKey }) {
+export default function AppointmentCalendarPanel({ clientId, contact }) {
   const [selectedDate, setSelectedDate] = useState(jstDate);
   const [revision, setRevision] = useState(0);
-  const [state, setState] = useState({ key: '', loading: true, rows: [], error: '' });
+  const [state, setState] = useState({ key: '', loading: true, loaded: false, rows: [], error: '' });
+  const [connectionError, setConnectionError] = useState('');
   const month = useMemo(() => calendarMonth(selectedDate), [selectedDate.slice(0, 7)]);
   const key = `${clientId}:${contact.id}:${month.start}`;
+  const snapshot = useRef();
+  snapshot.current = { rows: state.key === key ? state.rows : [], start: month.start, next: month.next };
 
   useEffect(() => {
-    const refresh = () => setRevision(value => value + 1);
-    const visibleRefresh = () => { if (document.visibilityState === 'visible') refresh(); };
-    window.addEventListener(APPOINTMENTS_CHANGED_EVENT, refresh);
-    window.addEventListener('focus', refresh);
-    document.addEventListener('visibilitychange', visibleRefresh);
-    // 別の架電者の保存も、タブを表示している間は定期的に取り込む。
-    const timer = window.setInterval(visibleRefresh, 60000);
-    return () => {
-      window.removeEventListener(APPOINTMENTS_CHANGED_EVENT, refresh);
-      window.removeEventListener('focus', refresh);
-      document.removeEventListener('visibilitychange', visibleRefresh);
-      window.clearInterval(timer);
-    };
-  }, []);
+    setConnectionError('');
+    return subscribeContactCalendar({
+      clientId, contactId: contact.id,
+      getSnapshot: () => snapshot.current,
+      onChange: () => setRevision(value => value + 1),
+      onConnection: setConnectionError,
+    });
+  }, [clientId, contact.id]);
 
   useEffect(() => {
     let cancelled = false;
-    setState({ key, loading: true, rows: [], error: '' });
+    setState(previous => ({ key, loading: true, loaded: previous.key === key && previous.loaded, rows: previous.key === key ? previous.rows : [], error: '' }));
     fetchContactAppointments({ clientId, contactId: contact.id, start: month.start, next: month.next })
-      .then(rows => { if (!cancelled) setState({ key, loading: false, rows, error: '' }); })
-      .catch(() => { if (!cancelled) setState({ key, loading: false, rows: [], error: '予定を取得できませんでした。「更新」で再取得してください。' }); });
+      .then(rows => { if (!cancelled) setState({ key, loading: false, loaded: true, rows, error: '' }); })
+      .catch(() => {
+        if (!cancelled) setState(previous => ({ ...previous, loading: false, error: previous.loaded
+          ? '更新に失敗しました。前回取得した予定を表示しています。「更新」で再取得してください。'
+          : '予定を取得できませんでした。「更新」で再取得してください。' }));
+      });
     return () => { cancelled = true; };
-  }, [key, revision, refreshKey]);
+  }, [key, revision]);
 
-  const loading = state.key !== key || state.loading;
+  const loading = state.key !== key || (!state.loaded && state.loading);
+  const refreshing = state.key === key && state.loaded && state.loading;
   const error = state.key === key ? state.error : '';
-  const rows = !loading && !error ? state.rows : [];
+  const rows = state.key === key && state.loaded ? state.rows : [];
   const daily = rows.filter(row => row.date === selectedDate);
   const today = jstDate();
   const columns = [
@@ -68,13 +70,13 @@ export default function AppointmentCalendarPanel({ clientId, contact, refreshKey
         <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold }}>{month.start.slice(0, 4)}年{Number(month.start.slice(5, 7))}月</span>
         <Button variant="outline" size="sm" aria-label="翌月" onClick={() => setSelectedDate(date => shiftCalendarMonth(date, 1))}>›</Button>
         <Button variant="ghost" size="sm" onClick={() => setSelectedDate(jstDate())}>今日</Button>
-        <Button variant="ghost" size="sm" loading={loading} onClick={() => setRevision(value => value + 1)}>更新</Button>
+        <Button variant="ghost" size="sm" disabled={loading || refreshing} onClick={() => setRevision(value => value + 1)}>更新</Button>
         <Input type="date" aria-label="表示する日" size="sm" value={selectedDate} onChange={event => { if (/^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) setSelectedDate(event.target.value); }} containerStyle={{ width: 155 }} />
       </div>
       <div aria-live="polite" style={{ minHeight: space[5], fontSize: font.size.xs, color: error ? color.danger : color.textMid }}>
-        {loading ? '面談予定を読み込み中…' : error || `${rows.length}件の面談予定（キャンセル・日時未確定のリスケは除外）`}
+        {loading ? '面談予定を読み込み中…' : error || connectionError || `${rows.length}件の面談予定（キャンセル・日時未確定のリスケは除外）`}
       </div>
-      {!error && !loading && (
+      {state.key === key && state.loaded && (
         <div style={{ overflowX: 'auto', marginTop: space[1], marginBottom: space[3] }}>
           <div style={{ minWidth: 420, display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: space[0.5] }}>
             {WEEKDAYS.map(day => <div key={day} style={{ textAlign: 'center', padding: space[1], background: color.navy, color: color.white, fontSize: font.size.xs }}>{day}</div>)}
@@ -99,7 +101,7 @@ export default function AppointmentCalendarPanel({ clientId, contact, refreshKey
         </div>
       )}
       <div style={{ fontWeight: font.weight.semibold, fontSize: font.size.sm, margin: `${space[2]}px 0` }}>{selectedDate.replaceAll('-', '/')}の面談</div>
-      <DataTable columns={columns} rows={daily} rowKey="id" loading={loading} error={error} height={240} fillWidth
+      <DataTable columns={columns} rows={daily} rowKey="id" loading={loading} error={state.loaded && state.key === key ? '' : error} height={240} fillWidth
         ariaLabel="選択日の面談予定" emptyMessage="この日の当社登録アポはありません" />
     </section>
   );

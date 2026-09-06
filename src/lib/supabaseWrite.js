@@ -666,15 +666,28 @@ export async function deleteClient(supaId) {
 // Appointments (アポ管理)
 // ============================================================
 
+// カレンダーの対象判定・表示に必要な列だけを保存通知に載せる。
+const APPOINTMENT_CALENDAR_FIELDS = [
+  'id', 'org_id', 'client_id', 'list_id', 'meeting_date', 'meeting_time',
+  'meeting_location', 'is_online', 'status', 'rescheduled_at', 'company_name',
+  'report_data', 'appo_report',
+]
+const APPOINTMENT_CALENDAR_SELECT = APPOINTMENT_CALENDAR_FIELDS.join(', ')
+function appointmentCalendarSnapshot(row) {
+  if (!row) return null
+  return Object.fromEntries(APPOINTMENT_CALENDAR_FIELDS.map(field => [field, row[field]]))
+}
+
 export async function updateAppointment(supaId, data) {
   if (!supaId) { console.warn('[DB] updateAppointment: no supaId'); return null }
   // 確定済み報酬の自動再計算用に、更新前の面談日を控える。
   // 面談日を別の月へ動かした場合は旧月・新月の両方を引き直す必要があるため。
-  const { data: before } = await supabase
+  const { data: before, error: beforeError } = await supabase
     .from('appointments')
-    .select('meeting_date')
+    .select(APPOINTMENT_CALENDAR_SELECT)
     .eq('id', supaId)
     .maybeSingle()
+  if (beforeError) return beforeError
   const scheduleUpdates = {}
   // 日付だけの編集では時刻を維持。日時が明示された場合は古い meetTime よりそちらを優先する。
   const embeddedTime = meetingTimestampTime(data.meetDate)
@@ -685,7 +698,7 @@ export async function updateAppointment(supaId, data) {
   if (data.isOnline !== undefined) scheduleUpdates.is_online = data.isOnline
   if (data.reportData !== undefined) scheduleUpdates.report_data = data.reportData
   else if (data.report_data !== undefined) scheduleUpdates.report_data = data.report_data
-  const { error } = await supabase
+  const { data: result, error: writeError } = await supabase
     .from('appointments')
     .update({
       company_name: data.company,
@@ -703,9 +716,12 @@ export async function updateAppointment(supaId, data) {
       ...scheduleUpdates,
     })
     .eq('id', supaId)
+    .select(APPOINTMENT_CALENDAR_SELECT)
+    .maybeSingle()
+  const error = writeError || (!result ? new Error('保存できませんでした (RLS拒否または対象なし)') : null)
   if (error) console.error('[DB] updateAppointment error:', error)
   else {
-    notifyAppointmentsChanged({ id: supaId, operation: 'update' })
+    notifyAppointmentsChanged({ id: supaId, operation: 'update', old: before, new: result })
     enqueuePayrollSyncForMeetingDates(before?.meeting_date, data.meetDate)
   }
   return error
@@ -745,7 +761,6 @@ export async function updateAppointmentReport(supaId, { style, supplement }) {
     .update({ report_style: style ?? null, report_supplement: supplement ?? null })
     .eq('id', supaId)
   if (error) console.error('[DB] updateAppointmentReport error:', error)
-  else notifyAppointmentsChanged({ id: supaId, operation: 'update' })
   return { error }
 }
 
@@ -943,10 +958,11 @@ export async function insertAppointment(data, engagementId = null) {
   //   見つからなければ従来どおり insert（トリガーが安全に通す）。
   let existingId = null
   let existingMeetingDate = null
+  let existingSnapshot = null
   if (payload.list_id && payload.company_name && payload.appointment_date && payload.getter_name) {
     const { data: dupRows } = await supabase
       .from('appointments')
-      .select('id, status, item_id, sales_amount, appo_report, meeting_date')
+      .select(`${APPOINTMENT_CALENDAR_SELECT}, item_id, sales_amount`)
       .eq('org_id', orgId)
       .eq('list_id', payload.list_id)
       .eq('company_name', payload.company_name)
@@ -960,6 +976,7 @@ export async function insertAppointment(data, engagementId = null) {
     )
     existingId = match?.id || null
     existingMeetingDate = match?.meeting_date || null
+    existingSnapshot = appointmentCalendarSnapshot(match)
   }
 
   let result, error
@@ -983,7 +1000,12 @@ export async function insertAppointment(data, engagementId = null) {
 
   // 確定済み報酬の自動再計算。上書き保存で面談日が別の月へ動いた場合は旧月も引き直す。
   if (!error && result) {
-    notifyAppointmentsChanged({ id: result.id, operation: existingId ? 'update' : 'insert' })
+    notifyAppointmentsChanged({
+      id: result.id,
+      operation: existingId ? 'update' : 'insert',
+      old: existingSnapshot,
+      new: appointmentCalendarSnapshot(result),
+    })
     enqueuePayrollSyncForMeetingDates(existingMeetingDate, payload.meeting_date)
   }
 
@@ -1001,12 +1023,13 @@ export async function insertAppointment(data, engagementId = null) {
 export async function updatePreCheckResult(supaId, data) {
   if (!supaId) { console.warn('[DB] updatePreCheckResult: no supaId'); return null }
   // この経路は面談日を変えないので、現在の面談日の月だけ引き直せばよい
-  const { data: before } = await supabase
+  const { data: before, error: beforeError } = await supabase
     .from('appointments')
-    .select('meeting_date')
+    .select(APPOINTMENT_CALENDAR_SELECT)
     .eq('id', supaId)
     .maybeSingle()
-  const { error } = await supabase
+  if (beforeError) return beforeError
+  const { data: result, error: writeError } = await supabase
     .from('appointments')
     .update({
       pre_check_status: data.preCheckStatus || null,
@@ -1016,9 +1039,12 @@ export async function updatePreCheckResult(supaId, data) {
       status: data.status,
     })
     .eq('id', supaId)
+    .select(APPOINTMENT_CALENDAR_SELECT)
+    .maybeSingle()
+  const error = writeError || (!result ? new Error('保存できませんでした (RLS拒否または対象なし)') : null)
   if (error) console.error('[DB] updatePreCheckResult error:', error)
   else {
-    notifyAppointmentsChanged({ id: supaId, operation: 'update' })
+    notifyAppointmentsChanged({ id: supaId, operation: 'update', old: before, new: result })
     enqueuePayrollSyncForMeetingDates(before?.meeting_date)
   }
   return error
@@ -1026,18 +1052,22 @@ export async function updatePreCheckResult(supaId, data) {
 
 export async function deleteAppointment(supaId) {
   if (!supaId) { console.warn('[DB] deleteAppointment: no supaId'); return null }
-  const { data: before } = await supabase
+  const { data: before, error: beforeError } = await supabase
     .from('appointments')
-    .select('meeting_date')
+    .select(APPOINTMENT_CALENDAR_SELECT)
     .eq('id', supaId)
     .maybeSingle()
-  const { error } = await supabase
+  if (beforeError) return beforeError
+  const { data: result, error: writeError } = await supabase
     .from('appointments')
     .delete()
     .eq('id', supaId)
+    .select('id')
+    .maybeSingle()
+  const error = writeError || (!result ? new Error('削除できませんでした (RLS拒否または対象なし)') : null)
   if (error) console.error('[DB] deleteAppointment error:', error)
   else {
-    notifyAppointmentsChanged({ id: supaId, operation: 'delete' })
+    notifyAppointmentsChanged({ id: supaId, operation: 'delete', old: before, new: null })
     enqueuePayrollSyncForMeetingDates(before?.meeting_date)
   }
   return error
