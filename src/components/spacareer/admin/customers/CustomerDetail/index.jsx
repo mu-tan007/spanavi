@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { color, space, radius, font } from '../../../../../constants/design';
 import { Badge, Button } from '../../../../ui';
 import { supabase } from '../../../../../lib/supabase';
@@ -68,6 +68,13 @@ export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onA
   const { profile } = useAuth();
   const isMobile = useIsMobile();
   const [tab, setTab] = useState('basic');
+  // 顧客を切り替えたらタブを「基本情報」に戻す。
+  // CustomerDetail は顧客が変わってもアンマウントされないため、以前は前の受講生で開いていた
+  // 「第N回セッション管理」タブがそのまま残り、次の受講生でも同じ第N回の画面が開いていた。
+  // その回はタブ一覧に出ていない（＝まだ到達していない）回なので、そこで次回日時を入れて
+  // 「セッション完了」を押すと、実施していない先の回が完了扱いになる事故が起きる
+  // （2026-09-03 古藤さんの第2回が第7回として記録された事象）。切替時に必ず基本情報へ戻す。
+  useEffect(() => { setTab('basic'); }, [customerId]);
   const [impersonating, setImpersonating] = useState(false);
   const [archiving, setArchiving] = useState(false);
 
@@ -224,8 +231,13 @@ export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onA
     ? TABS.flatMap((t) => (t.id === 'kickoff' ? [t, ...sessionMgmtTabs] : [t]))
     : TABS;
 
+  // タブ一覧に無いタブは開かない（未到達の回の画面を出さないための安全弁）。
+  // 顧客切替時のリセット（上の useEffect）が効く前の一瞬や、コース変更・完了取り消しで
+  // 表示条件が変わったときに、存在しないタブの中身が描画されるのを防ぐ。
+  const activeTab = tabs.some((t) => t.id === tab) ? tab : 'basic';
+
   let CenterContent = null;
-  const sessionMgmtMatch = /^session-([1-8])-([12])$/.exec(tab);
+  const sessionMgmtMatch = /^session-([1-8])-([12])$/.exec(activeTab);
   if (sessionMgmtMatch) {
     CenterContent = (
       <TabSessionManage detail={detail}
@@ -234,7 +246,7 @@ export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onA
         onRefresh={refresh} />
     );
   } else {
-    switch (tab) {
+    switch (activeTab) {
       case 'basic':           CenterContent = <TabBasicInfo detail={detail} />; break;
       case 'kickoff_hearing': CenterContent = <TabKickoffHearing detail={detail} onRefresh={refresh} />; break;
       case 'kickoff':         CenterContent = <TabKickoff detail={detail} onRefresh={refresh} />; break;
@@ -384,9 +396,9 @@ export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onA
                 padding: `${space[3]}px ${space[3]}px`,
                 fontSize: font.size.sm,
                 fontWeight: font.weight.semibold,
-                color: tab === t.id ? color.navy : color.textMid,
+                color: activeTab === t.id ? color.navy : color.textMid,
                 background: 'transparent', border: 'none',
-                borderBottom: tab === t.id ? `2px solid ${color.navy}` : '2px solid transparent',
+                borderBottom: activeTab === t.id ? `2px solid ${color.navy}` : '2px solid transparent',
                 cursor: 'pointer', whiteSpace: 'nowrap',
                 letterSpacing: font.letterSpacing.wide,
               }}>{t.label}</button>
@@ -400,7 +412,7 @@ export default function CustomerDetail({ customerId, isAdmin, onRefreshList, onA
       </div>
 
       <div style={{ overflowY: 'auto', minHeight: 0 }}>
-        <RightSidebar detail={detail} activeTab={tab} onRefresh={refresh} />
+        <RightSidebar detail={detail} activeTab={activeTab} onRefresh={refresh} />
       </div>
     </div>
     </SessionJobsProvider>
