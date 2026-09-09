@@ -13,7 +13,7 @@ const LINKS = [
     key: 'calendar',
     label: '日程調整',
     desc: 'ご都合のよい日時をお選びいただけます',
-    href: 'https://calendar.app.google/Fa8MMo7KgZMcQa5Q8',
+    href: 'https://calendar.app.google/hYWZfcUcMV3LP9XR7',
   },
   {
     key: 'deck',
