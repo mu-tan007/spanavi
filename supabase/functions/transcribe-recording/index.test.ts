@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(() => ({})),
 }))
 vi.mock('https://esm.sh/@supabase/supabase-js@2', () => ({ createClient: mocks.createClient }))
-vi.mock('../_shared/recordingSource.ts', () => mocks)
+vi.mock('./recordingSource.ts', () => mocks)
 
 const audio = new Uint8Array([0, 1, 2, 3, 250, 251, 252, 253])
 const zoomUrl = 'https://api.zoom.us/v2/phone/recording-fixture.mp4'

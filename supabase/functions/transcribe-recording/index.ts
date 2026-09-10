@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { resolveRecordingSource, r2PutFromBuffer, recShareUrl } from '../_shared/recordingSource.ts'
+// Keep the v49 deployed storage/signing behavior for this performance-only release.
+// The repository-wide helper contains separate, not-yet-deployed behavior changes.
+import { resolveRecordingSource, r2PutFromBuffer, recShareUrl } from './recordingSource.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
