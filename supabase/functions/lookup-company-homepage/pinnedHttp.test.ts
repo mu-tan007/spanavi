@@ -24,11 +24,32 @@ describe('bounded HTTP/1.1 parser', () => {
   ])('rejects incomplete or ambiguous framing', wire => expect(() => read(wire)).toThrow())
   it('rejects large headers and bodies before trusting text', () => {
     expect(() => read('HTTP/1.1 200 OK\r\nX: ' + 'a'.repeat(16384) + '\r\n\r\n')).toThrow()
-    expect(() => read('HTTP/1.1 200 OK\r\nContent-Length: 262145\r\n\r\n')).toThrow()
-    expect(() => read('HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n40001\r\n')).toThrow()
+    expect(() => read('HTTP/1.1 200 OK\r\nContent-Length: 2097153\r\n\r\n')).toThrow()
+    expect(() => read('HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n200001\r\n')).toThrow()
+  })
+  it('accepts a modern company page above the former cap and up to 2 MiB', () => {
+    const body = 'x'.repeat(2 * 1024 * 1024)
+    expect(read(`HTTP/1.1 200 OK\r\nContent-Length: ${body.length}\r\n\r\n${body}`).body.length).toBe(body.length)
+    expect(() => read(`HTTP/1.1 200 OK\r\n\r\n${body}x`)).toThrow()
   })
 })
 describe('Deno pinned TCP/TLS transport', () => {
+  it.each([
+    ['HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok', true],
+    ['HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n', true],
+    ['HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nok', false],
+    ['HTTP/1.1 200 OK\r\n\r\nok', false],
+  ])('accepts a TLS abrupt EOF only with provably complete HTTP framing', async (wire, accepted) => {
+    let readOnce = false
+    const conn = { close: vi.fn(), write: vi.fn(async (chunk: Uint8Array) => chunk.length), read: vi.fn(async (buffer: Uint8Array) => {
+      if (readOnce) throw Object.assign(new Error('missing close_notify'), { name: 'UnexpectedEof' })
+      readOnce = true; const content = bytes(String(wire)); buffer.set(content); return content.length
+    }) }
+    vi.stubGlobal('Deno', { connect: vi.fn(async () => conn), startTls: vi.fn(async () => conn) })
+    const pending = pinnedHttp(new URL('https://company.co.jp/'), '93.184.216.34', new AbortController().signal)
+    if (accepted) expect((await pending).status).toBe(200)
+    else await expect(pending).rejects.toThrow()
+  })
   it('connects only to the checked IP and verifies TLS against the original hostname', async () => {
     const response = bytes('HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok')
     let offset = 0

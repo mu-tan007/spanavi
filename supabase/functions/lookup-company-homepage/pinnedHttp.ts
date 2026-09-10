@@ -1,6 +1,7 @@
 const HEADER_LIMIT = 16384
-const BODY_LIMIT = 262144
-const WIRE_LIMIT = HEADER_LIMIT + BODY_LIMIT + 32768
+// Modern company sites (e.g. Wix) can exceed 256 KiB before visible text extraction.
+const BODY_LIMIT = 2 * 1024 * 1024
+const WIRE_LIMIT = HEADER_LIMIT + BODY_LIMIT + 128 * 1024
 export type HttpPage = { status: number; headers: Record<string, string>; body: Uint8Array }
 function fault(code: string): never { throw Object.assign(new Error(code), { code }) }
 const ascii = (bytes: Uint8Array) => new TextDecoder('latin1').decode(bytes)
@@ -101,7 +102,17 @@ export async function pinnedHttp(url: URL, ip: string, signal: AbortSignal): Pro
     const wire = new Uint8Array(WIRE_LIMIT + 1)
     let length = 0
     while (true) {
-      const count = await connection.read(wire.subarray(length))
+      let count: number | null
+      try { count = await connection.read(wire.subarray(length)) }
+      catch (error) {
+        // Some CDNs close TLS without close_notify after the complete HTTP message.
+        // Only explicit, strictly validated framing can prove that no body was lost.
+        if (error instanceof Error && error.name === 'UnexpectedEof') {
+          const page = parseHttpPage(wire.subarray(0, length))
+          if (page.headers['content-length'] !== undefined || page.headers['transfer-encoding']?.toLowerCase() === 'chunked') return page
+        }
+        throw error
+      }
       if (count === null) break
       length += count
       if (length > WIRE_LIMIT) fault('HTTP_BODY_LIMIT')
