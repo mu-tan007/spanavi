@@ -524,28 +524,28 @@ async function runDossierGeneration(appointmentId: string, providedHpUrl: string
     return
   }
 
-  // HP 本文取得を開始。同業界ニュースは本文に依存しないため並行して取得する。
-  const hpPagesPromise = hpUrl
-    ? fetchCompanyPagesFromDomain(hpUrl).catch(() => [])
-    : Promise.resolve([])
+  // HP 本文取得
+  const hpPages: { url: string; text: string }[] = hpUrl
+    ? await fetchCompanyPagesFromDomain(hpUrl).catch(() => [])
+    : []
 
   // 社内DB情報・MASP メモは Claude を経由せず Edge Function 側で構築
   const internalDb = buildInternalDb(master)
   const maspMemo = extractMaspMemoFromAppoReport(appointment.appo_report)
 
-  // === HP 本文を待つ企業コアと、独立したニュース取得 ===
+  // === 2 並列 Claude 呼び出し（時間半減）===
   // Call 1: 企業コア（HP本文ベース、web_search 1回まで）
   // Call 2: 同業界M&Aニュース（web_search 2回まで）
-  // 両方の結果が揃ってから、従来どおりマージ・保存する。
+  // 最遅 call の時間で完了する → 直列なら 60-120秒、並列なら 30-70秒程度を目標
   const coreBaseArgs = { targetCompany, targetRep, targetAddress, master, spec }
   const [coreResult, maNewsResult] = await Promise.all([
-    hpPagesPromise.then(hpPages => callClaude({
+    callClaude({
       prompt: buildCompanyCorePrompt({ ...coreBaseArgs, hpUrl, hpPages }),
       maxTokens: 3000,
       maxWebSearches: 1,
       timeoutMs: 120_000,
       label: 'core',
-    })),
+    }),
     callClaude({
       prompt: buildIndustryMaNewsPrompt(coreBaseArgs),
       maxTokens: 2500,
