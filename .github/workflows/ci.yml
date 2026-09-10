@@ -50,20 +50,22 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.117.0
-      - name: 検証済みHP検索を本番反映
+      - name: 検証済みHP検索と録音処理を本番反映
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           git fetch origin main
           if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
-            echo '新しいmainがあるため古い検索関数の反映をスキップします'
+            echo '新しいmainがあるため古い関数の反映をスキップします'
             exit 0
           fi
           node --input-type=module <<'NODE'
           import { spawnSync } from 'node:child_process';
-          const result = spawnSync('supabase', ['functions', 'deploy', 'lookup-company-homepage', '--project-ref', 'baiiznjzvzhxwwqzsozn', '--use-api'], {
-            stdio: 'inherit',
-            env: { ...process.env, SUPABASE_ACCESS_TOKEN: (process.env.SUPABASE_ACCESS_TOKEN || '').trim() },
-          });
-          process.exit(result.status ?? 1);
+          for (const name of ['lookup-company-homepage', 'r2', 'transcribe-recording']) {
+            const result = spawnSync('supabase', ['functions', 'deploy', name, '--project-ref', 'baiiznjzvzhxwwqzsozn', '--use-api'], {
+              stdio: 'inherit',
+              env: { ...process.env, SUPABASE_ACCESS_TOKEN: (process.env.SUPABASE_ACCESS_TOKEN || '').trim() },
+            });
+            if (result.status !== 0) process.exit(result.status ?? 1);
+          }
           NODE

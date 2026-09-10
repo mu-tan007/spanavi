@@ -66,38 +66,41 @@ Deno.serve(async (req) => {
       )
     }
 
-    const zoomAccountId    = Deno.env.get('ZOOM_ACCOUNT_ID')
-    const zoomClientId     = Deno.env.get('ZOOM_CLIENT_ID')
-    const zoomClientSecret = Deno.env.get('ZOOM_CLIENT_SECRET')
-
-    if (!zoomAccountId || !zoomClientId || !zoomClientSecret) {
-      return new Response(
-        JSON.stringify({ error: 'Zoom credentials not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const tokenRes = await fetch(
-      `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${zoomAccountId}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${zoomClientId}:${zoomClientSecret}`),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
-    )
-    const tokenData = await tokenRes.json()
-    const zoomToken: string = tokenData.access_token
-
-    if (!zoomToken) {
-      return new Response(
-        JSON.stringify({ error: 'Failed to obtain Zoom access token' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     const isZoomUrl = /zoom\.us/i.test(recording_url)
+    let zoomToken = ''
+    if (isZoomUrl) {
+      const zoomAccountId    = Deno.env.get('ZOOM_ACCOUNT_ID')
+      const zoomClientId     = Deno.env.get('ZOOM_CLIENT_ID')
+      const zoomClientSecret = Deno.env.get('ZOOM_CLIENT_SECRET')
+
+      if (!zoomAccountId || !zoomClientId || !zoomClientSecret) {
+        return new Response(
+          JSON.stringify({ error: 'Zoom credentials not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const tokenRes = await fetch(
+        `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${zoomAccountId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Basic ' + btoa(`${zoomClientId}:${zoomClientSecret}`),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      )
+      const tokenData = await tokenRes.json()
+      zoomToken = tokenData.access_token
+
+      if (!zoomToken) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to obtain Zoom access token' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     // 録音の実体は R2 へ移した。保存されている公開URLのままでは読めないので、
     // いまの置き場所に読み替えてから取りに行く。
     const sourceUrl = isZoomUrl ? recording_url : await resolveRecordingSource(supabase, recording_url)

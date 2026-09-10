@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getOrgId } from './orgContext';
 
 // 架電録音の再生URLを解決する
 // -----------------------------------------------------------------------------
@@ -27,6 +28,29 @@ const SHARE_MARK = '/functions/v1/rec/';
 // 出した署名を覚えておく（1時間有効なので作り直す必要がない）。
 // ⚠️ 押すたびにEdge Functionを呼ぶと、そのたびに起動と権限確認の待ちが入る。
 const signedCache = new Map();
+const pendingSignatures = new Map();
+let sessionScope = null;
+let scopeRevision = 0;
+
+// Successful and in-flight signatures belong to the same authenticated context.
+// A late response must never repopulate a cache after logout/account/org changes.
+function updateScope(session, force = false) {
+  const next = session?.user?.id && session?.access_token
+    ? JSON.stringify([session.user.id, getOrgId(), session.access_token]) : null;
+  if (force || next !== sessionScope) {
+    sessionScope = next;
+    scopeRevision += 1;
+    signedCache.clear();
+    pendingSignatures.clear();
+  }
+  return next;
+}
+const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+  updateScope(session, event === 'SIGNED_OUT' || event === 'USER_UPDATED');
+});
+if (import.meta.hot) import.meta.hot.dispose(() => authListener.subscription.unsubscribe());
+
+const unavailable = () => ({ url: null, gone: true, external: false });
 
 /** URLからファイルの位置を取り出す。録音の鍵を包んだURLでなければ null。 */
 export function recordingKeyOf(url) {
@@ -51,26 +75,45 @@ export async function resolveRecordingUrl(url) {
   const key = recordingKeyOf(url);
   if (!key) return { url, gone: false, external: true };
 
+  const { data, error } = await supabase.auth.getSession();
+  const scope = updateScope(error ? null : data?.session);
+  if (!scope) return unavailable();
+  const revision = scopeRevision;
+
   // 一度出した署名は1時間有効。同じ録音を押し直すたびに作り直さない。
   const cached = signedCache.get(key);
   if (cached && cached.until > Date.now()) return { url: cached.url, gone: false, external: false };
 
-  const t0 = performance.now();
-  const { data: r2, error: r2err } = await supabase.functions.invoke('r2', {
-    body: { action: 'sign-get', kind: 'recordings', key, expires: 3600 },
-  });
-  const ms = Math.round(performance.now() - t0);
-  console.info(`[録音] 署名の取得 ${ms}ms`, r2err ? '（失敗）' : '');
+  if (pendingSignatures.has(key)) return pendingSignatures.get(key);
 
-  if (!r2err && r2?.ok && r2.url) {
-    // 期限より少し手前で捨てる
-    signedCache.set(key, { url: r2.url, until: Date.now() + 50 * 60 * 1000 });
-    return { url: r2.url, gone: false, external: false };
+  const request = (async () => {
+    const t0 = performance.now();
+    const { data: r2, error: r2err } = await supabase.functions.invoke('r2', {
+      body: { action: 'sign-get', kind: 'recordings', key, expires: 3600 },
+    });
+    const ms = Math.round(performance.now() - t0);
+    console.info(`[録音] 署名の取得 ${ms}ms`, r2err ? '（失敗）' : '');
+
+    const current = await supabase.auth.getSession();
+    updateScope(current.error ? null : current.data?.session);
+    if (scopeRevision !== revision || sessionScope !== scope) return unavailable();
+
+    if (!r2err && r2?.ok && r2.url) {
+      // 期限より少し手前で捨てる
+      signedCache.set(key, { url: r2.url, until: Date.now() + 50 * 60 * 1000 });
+      return { url: r2.url, gone: false, external: false };
+    }
+
+    // ⚠️ かつてここに Supabase Storage の署名付きURLへ回る道があったが、外した
+    //    （2026-09-04）。recordings バケットは移設後に消してあり `NoSuchBucket` しか
+    //    返らない。成功しうる道ではないので、残すと「まだ2か所を見ている」と読めてしまう。
+    console.error('[recordingUrl] R2に見つかりません:', key, r2err ?? r2);
+    return unavailable();
+  })();
+  pendingSignatures.set(key, request);
+  try {
+    return await request;
+  } finally {
+    if (pendingSignatures.get(key) === request) pendingSignatures.delete(key);
   }
-
-  // ⚠️ かつてここに Supabase Storage の署名付きURLへ回る道があったが、外した
-  //    （2026-09-04）。recordings バケットは移設後に消してあり `NoSuchBucket` しか
-  //    返らない。成功しうる道ではないので、残すと「まだ2か所を見ている」と読めてしまう。
-  console.error('[recordingUrl] R2に見つかりません:', key, r2err ?? r2);
-  return { url: null, gone: true, external: false };
 }

@@ -1,3 +1,5 @@
+import { probeRecording } from './recordingProbe.ts';
+import type { ProbeResult } from './recordingProbe.ts';
 // Cloudflare R2 との受け渡し
 // ---------------------------------------------------------------------------
 // 講義録画と架電録音の置き場を Supabase Storage から R2 へ移すために置く。
@@ -435,33 +437,13 @@ Deno.serve(async (req) => {
       if (!(await mayRead(uid, kind, key))) {
         return reply({ ok: false, error: 'このファイルは見られません' }, 403);
       }
-      // ⚠️ 実体があるかを必ず確かめてから署名を出す。
-      //    一度これを外して速くしたが、**移送のあとに録音された分がR2に無く**、
-      //    「ある」前提の鍵を返してしまって再生できなくなった（2026-08-24）。
-      //    無いと分かれば呼び出し側がSupabaseに回れる。往復1回ぶん(60〜80ms)は
-      //    その安全のために払う。速さの主因は別（プリフライトの往復）だった。
-      const h = await head(kind, key);
+      // 権限確認後、録音は範囲GETで存在・全体サイズ・音声型をまとめて確認する。
+      // 講義録画は従来のHEADを維持。存在確認やiOS向けMP3型補正は省略しない。
+      const h: ProbeResult = kind === 'recordings'
+        ? await probeRecording(await presign('GET', bucketOf(kind), key, 60), key, () => head(kind, key))
+        : await head(kind, key);
       if (!h.ok) return reply({ ok: false, error: 'R2にありません', status: h.status }, 404);
-
-      // ⚠️ **架電録音は中身がMP3なのに `audio/mp4` を名乗って保存されている**
-      //    （鍵の名前も .mp4 / .m4a）。パソコンのブラウザは中身を見て鳴らすが、
-      //    型を信じる相手（iOS・一部の <audio>）は解けずに黙って止まる。
-      //    2026-09-04 判明。実体は触らず、渡すときだけ正しく名乗らせる。
-      //    ⚠️ 講義録画(spacareer)は本物のMP4なので触らない。
-      let as: { type: string; filename: string } | undefined;
-      if (kind === 'recordings') {
-        const probe = await presign('GET', bucketOf(kind), key, 60);
-        const res = await fetch(probe, { headers: { Range: 'bytes=0-11' } }).catch(() => null);
-        const b = res && (res.status === 200 || res.status === 206)
-          ? new Uint8Array(await res.arrayBuffer().catch(() => new ArrayBuffer(0)))
-          : new Uint8Array(0);
-        const isMp3 = (b.length >= 3 && b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33)
-          || (b.length >= 2 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0);
-        if (isMp3) {
-          as = { type: 'audio/mpeg', filename: `${key.replace(/\.[^.]+$/, '')}.mp3` };
-        }
-      }
-
+      const as = h.as;
       const url = await presign('GET', bucketOf(kind), key, Number(body.expires ?? 3600), as);
       return reply({ ok: true, url, size: h.size });
     }
