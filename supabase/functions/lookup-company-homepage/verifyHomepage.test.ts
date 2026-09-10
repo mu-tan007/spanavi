@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasIdentifier, publicIpv4, publicUrl, verifyHomepage as checkHomepage, visibleText } from './verifyHomepage.ts'
+import { hasIdentifier, publicIpv4, publicUrl, verifyHomepage as checkHomepage, verifyHomepagePages, visibleText } from './verifyHomepage.ts'
 
 const tokyo = { company_name: '株式会社白石工務店', address: '東京都昭島市東町４-１４-８', phone: '0425446525', representative: '白石　悟' }
 const valid = { url: 'https://shiraishi.example.co.jp/', confidence: 'high', evidence_url: 'https://shiraishi.example.co.jp/company/', ...tokyo }
@@ -7,6 +7,21 @@ const verifyHomepage = (input: Parameters<typeof checkHomepage>[0], candidate: P
 const body = (c: typeof valid) => `会社概要 会社名 ${c.company_name} 所在地 ${c.address} TEL ${c.phone} 代表者 ${c.representative}`
 
 describe('official homepage identity verification', () => {
+  it('uses fetched root evidence after a missing profile page, with every check intact', () => {
+    expect(verifyHomepagePages(tokyo, valid, '', body(valid), tokyo.company_name).verified).toBe(true)
+  })
+  it('uses actual root evidence if the model omits the evidence URL', () => {
+    expect(verifyHomepagePages(tokyo, { ...valid, evidence_url: '' }, '', body(valid), tokyo.company_name).verified).toBe(true)
+  })
+  it('does not assemble identity fragments across different pages', () => {
+    expect(verifyHomepagePages(tokyo, valid, `${tokyo.company_name} ${tokyo.address}`, `${tokyo.company_name} ${tokyo.phone} ${tokyo.representative}`, tokyo.company_name).verified).toBe(false)
+  })
+  it('does not weaken confidence, ownership, identifier, or evidence-domain checks on fallback', () => {
+    for (const change of [{ confidence: 'low' }, { representative: '' }, { address: '愛媛県新居浜市黒島一丁目3番29号' }, { evidence_url: 'https://directory.co.jp/' }]) {
+      expect(verifyHomepagePages(tokyo, { ...valid, ...change }, '', body(valid), tokyo.company_name).verified).toBe(false)
+    }
+    expect(verifyHomepagePages(tokyo, valid, '', body(valid), '第三者企業一覧').verified).toBe(false)
+  })
   it('rejects the incident: Tokyo company versus the same-name Ehime company', () => {
     const wrong = { ...valid, company_name: '株式会社 白石工務店', url: 'https://siraisi-koumuten.jp/', evidence_url: 'https://siraisi-koumuten.jp/company/', address: '愛媛県新居浜市黒島一丁目3番29号', phone: '0897-46-2275', representative: '白石 誠一' }
     expect(verifyHomepage(tokyo, wrong, body(wrong))).toMatchObject({ url: null, verified: false })

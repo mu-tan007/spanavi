@@ -1,4 +1,4 @@
-import { hasIdentifier, publicUrl, verifyHomepage } from './verifyHomepage.ts'
+import { hasIdentifier, publicUrl, verifyHomepagePages } from './verifyHomepage.ts'
 import { fetchEvidenceResult } from './fetchEvidence.ts'
 // 企業名と住所・電話を公式サイト本文と照合してから URL を返す。
 //
@@ -46,7 +46,9 @@ ${prefecture ? `都道府県: ${prefecture}\n` : ''}${address ? `住所: ${addre
 注意:
 - 公式コーポレートサイト（ドメインがその会社のもの）を優先。SNS・求人掲載ページ・第三者媒体は除外。
 - 同名企業が複数ある場合は住所/電話番号で識別。代表者だけの一致は不十分。
-- evidence_url は公式サイトと同じドメインにある会社概要ページ。会社名と住所または電話番号が同じページに掲載されていること。
+- evidence_url は検索結果または公式サイトで実際に確認したURLを使う。/company/ 等のパスを推測して作らない。
+- トップページに会社名・住所・電話番号・代表者が掲載されている場合はトップページ自身を evidence_url にする。別の会社概要ページを必須にしない。
+- それ以外は同じドメインにある実在の会社概要ページを使う。入力された各識別情報が同じページに掲載されていること。
 - 各項目は evidence_url の本文からそのまま抜き出す。入力情報をコピーしたり推測して埋めない。記載がなければ空文字。
 - 住所・電話番号・代表者に矛盾があれば url は null。取引先一覧や施工事例に載った他社の情報は根拠にしない。
 - 同名企業を確実に識別できない場合や公式サイトが見つからない場合は {"url":null,"confidence":"low"}。
@@ -87,21 +89,22 @@ ${prefecture ? `都道府県: ${prefecture}\n` : ''}${address ? `住所: ${addre
     try {
       const result = JSON.parse(match[0])
       const candidateUrl = publicUrl(result.url)
-      const evidenceUrl = publicUrl(result.evidence_url)
+      const evidenceUrl = result.evidence_url ? publicUrl(result.evidence_url) : (candidateUrl ? new URL(candidateUrl.origin + '/') : null)
       if (!candidateUrl || !evidenceUrl || candidateUrl.hostname.replace(/^www\./, '') !== evidenceUrl.hostname.replace(/^www\./, '') || result.confidence !== 'high') {
         return json({ url: null, confidence: 'low', verified: false, reason: '同名企業を確実に識別できる公式サイトの根拠がありません' })
       }
+      const homepageFetch = fetchEvidenceResult(candidateUrl.origin + '/')
       const [page, homepage] = await Promise.all([
-        fetchEvidenceResult(evidenceUrl.href),
-        fetchEvidenceResult(candidateUrl.origin + '/', 'title'),
+        evidenceUrl.href === candidateUrl.origin + '/' ? homepageFetch : fetchEvidenceResult(evidenceUrl.href),
+        homepageFetch,
       ])
-      if (!page.text || !homepage.text) {
+      if (!homepage.title || (!page.text && !homepage.text)) {
         const diagnostics = { evidence: page.status, homepage: homepage.status, homepage_host: candidateUrl.hostname, homepage_protocol: candidateUrl.protocol }
         console.info('[lookup-company-homepage] evidence unavailable', diagnostics)
         return json({ url: null, confidence: 'low', verified: false, reason: '公式サイト本文を取得できないため企業を確認できません', diagnostics })
       }
-      const verified = verifyHomepage(identity, result, page.text, homepage.text)
-      return json(verified.verified ? verified : { ...verified, diagnostics: { evidence: page.status, homepage: homepage.status, homepage_host: candidateUrl.hostname, homepage_title: homepage.text.slice(0, 180) } })
+      const verified = verifyHomepagePages(identity, { ...result, evidence_url: evidenceUrl.href }, page.text, homepage.text, homepage.title)
+      return json(verified.verified ? verified : { ...verified, diagnostics: { evidence: page.status, homepage: homepage.status, homepage_host: candidateUrl.hostname, homepage_title: homepage.title.slice(0, 180) } })
     } catch (e) {
       return json({ url: null, confidence: 'low', reason: 'failed to parse JSON', raw: lastText })
     }

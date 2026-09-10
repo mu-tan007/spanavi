@@ -4,7 +4,7 @@ import { publicIpv4, publicUrl, visibleText } from './verifyHomepage.ts'
 
 // Pin the validated DNS address to the socket lookup to prevent DNS rebinding.
 // Canonical same-host redirects only; no cookies, credentials, IP literals or private networks.
-export async function fetchEvidenceResult(rawUrl: unknown, field: 'text' | 'title' = 'text', context?: { timeout: AbortSignal; host: string; hop: number }): Promise<{ text: string; status: string }> {
+export async function fetchEvidenceResult(rawUrl: unknown, field: 'text' | 'title' = 'text', context?: { timeout: AbortSignal; host: string; hop: number }): Promise<{ text: string; status: string; title?: string }> {
   const fail = (status: string) => ({ text: '', status })
   const errorCode = (error: any) => /^[A-Z_0-9]{1,40}$/.test(String(error?.code)) ? error.code : 'error'
   const url = publicUrl(rawUrl)
@@ -35,8 +35,9 @@ export async function fetchEvidenceResult(rawUrl: unknown, field: 'text' | 'titl
     if (page.status !== 200) return fail(`http_${page.status}`)
     if (!/text\/html|application\/xhtml/i.test(page.headers['content-type'] || '')) return fail('non_html')
     const html = new TextDecoder().decode(page.body)
-    const text = visibleText(field === 'title' ? (html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '') : html)
-    return { text, status: text ? 'ok' : `empty_${field}` }
+    const title = visibleText(html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '')
+    const text = field === 'title' ? title : visibleText(html)
+    return { text, title, status: text ? 'ok' : `empty_${field}` }
   } catch (error) { return fail(timeout.aborted ? `timeout_${phase}` : `${phase}_${errorCode(error)}`) }
 }
 

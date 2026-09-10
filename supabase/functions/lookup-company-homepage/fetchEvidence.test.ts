@@ -27,6 +27,13 @@ describe('bounded DNS-pinned evidence fetch', () => {
     response(200, ['<html><head><title>企業検索一覧</title></head><body>株式会社白石工務店</body></html>'])
     expect(await fetchEvidence('https://directory.co.jp/', 'title')).toBe('企業検索一覧')
   })
+  it('retains root text and title from one HTTP request for evidence fallback', async () => {
+    response(200, ['<title>株式会社白石工務店</title><p>愛媛県新居浜市</p>'])
+    const result = await fetchEvidenceResult('https://company.co.jp/')
+    expect(result.title).toBe('株式会社白石工務店')
+    expect(result.text).toContain('愛媛県新居浜市')
+    expect(mocks.request).toHaveBeenCalledTimes(1)
+  })
   it('does not follow redirects without a location', async () => { response(302, []); expect(await fetchEvidence('https://company.co.jp/')).toBe(''); expect(mocks.request).toHaveBeenCalledTimes(1) })
   it('follows HTTP to HTTPS canonical redirects with a newly pinned DNS lookup', async () => {
     response(301, [], 'text/html', 'https://company.co.jp/')

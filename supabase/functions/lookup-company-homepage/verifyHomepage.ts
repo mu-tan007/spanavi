@@ -71,3 +71,16 @@ export function verifyHomepage(input: Identity, candidate: Candidate, pageText: 
   if (!addressMatch && !phoneMatch) return rejected('住所または電話番号の一致を確認できません')
   return { url: url.href, confidence: 'high' as const, verified: true, reason: `公式サイト本文で会社名と${addressMatch ? '住所' : '電話番号'}の一致を確認` }
 }
+
+// A missing/invented profile path must not hide evidence already on the fetched root.
+// Re-run the complete identity and ownership checks against that actual page; never
+// combine fragments from different pages or relax a conflicting/missing identifier.
+export function verifyHomepagePages(input: Identity, candidate: Candidate, evidenceText: string, homepageText: string, homepageTitle: string) {
+  const primary = verifyHomepage(input, candidate, evidenceText, homepageTitle)
+  if (primary.verified) return primary
+  const root = publicUrl(candidate.url)
+  if (!root || !homepageText) return primary
+  const evidence = publicUrl(candidate.evidence_url)
+  if (candidate.evidence_url && (!evidence || evidence.hostname.replace(/^www\./, '') !== root.hostname.replace(/^www\./, ''))) return primary
+  return verifyHomepage(input, { ...candidate, evidence_url: root.origin + '/' }, homepageText, homepageTitle)
+}
