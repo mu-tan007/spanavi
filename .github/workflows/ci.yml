@@ -59,4 +59,11 @@ jobs:
             echo '新しいmainがあるため古い検索関数の反映をスキップします'
             exit 0
           fi
-          supabase functions deploy lookup-company-homepage --project-ref baiiznjzvzhxwwqzsozn --use-api
+          node --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          const result = spawnSync('supabase', ['functions', 'deploy', 'lookup-company-homepage', '--project-ref', 'baiiznjzvzhxwwqzsozn', '--use-api'], {
+            stdio: 'inherit',
+            env: { ...process.env, SUPABASE_ACCESS_TOKEN: (process.env.SUPABASE_ACCESS_TOKEN || '').trim() },
+          });
+          process.exit(result.status ?? 1);
+          NODE

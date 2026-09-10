@@ -532,7 +532,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const [transcribeStep, setTranscribeStep] = React.useState('idle');
   const [hpStep, setHpStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
   const hpDetailContext = React.useRef(null);
-  hpDetailContext.current = { id: reportDetail?._supaId, company: reportDetail?.company, report: detailEditForm?.appoReport };
+  hpDetailContext.current = { id: reportDetail?._supaId, company: detailEditForm?.company || reportDetail?.company, report: detailEditForm?.appoReport };
   React.useEffect(() => { setHpStep('idle'); }, [reportDetail?._supaId]);
   const [keymanMobileInput, setKeymanMobileInput] = React.useState('');
   const [keymanLookupStep, setKeymanLookupStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
@@ -1174,7 +1174,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           console.warn('[handleFetchHpDetail] fetchCallListItemById error:', e);
         }
       }
-      const companyName = reportDetail?.company || detailEditForm?.company || '';
+      const companyName = detailEditForm?.company || reportDetail?.company || '';
       if (!companyName) { setHpStep('error'); setTimeout(() => setHpStep('idle'), 3000); return; }
       const { url, reason } = await invokeLookupCompanyHomepage({
         company_name: companyName, address, representative, phone,
