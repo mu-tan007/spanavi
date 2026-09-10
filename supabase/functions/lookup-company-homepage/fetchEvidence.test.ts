@@ -34,6 +34,17 @@ describe('bounded DNS-pinned evidence fetch', () => {
     expect(result.text).toContain('愛媛県新居浜市')
     expect(mocks.request).toHaveBeenCalledTimes(1)
   })
+  it('does not start fallback network work after the shared deadline expires', async () => {
+    const controller = new AbortController()
+    const context = { timeout: controller.signal, host: 'company.co.jp', hop: 0 }
+    response(200, ['<a href="/real-profile/">会社概要</a>'])
+    const root = await fetchEvidenceResult('https://company.co.jp/', 'text', context)
+    expect(root.companyUrl).toBe('https://company.co.jp/real-profile/')
+    controller.abort()
+    expect(await fetchEvidenceResult(root.companyUrl, 'text', context)).toEqual({ text: '', status: 'timeout_dns' })
+    expect(mocks.lookup).toHaveBeenCalledTimes(1)
+    expect(mocks.request).toHaveBeenCalledTimes(1)
+  })
   it('does not follow redirects without a location', async () => { response(302, []); expect(await fetchEvidence('https://company.co.jp/')).toBe(''); expect(mocks.request).toHaveBeenCalledTimes(1) })
   it('follows HTTP to HTTPS canonical redirects with a newly pinned DNS lookup', async () => {
     response(301, [], 'text/html', 'https://company.co.jp/')

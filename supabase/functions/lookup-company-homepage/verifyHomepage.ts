@@ -39,6 +39,25 @@ export function visibleText(html: string): string {
   }
   return parts.join(' ').replace(/&#(x[0-9a-f]+|\d+);/gi, (_, n) => { const code = n[0].toLowerCase() === 'x' ? parseInt(n.slice(1), 16) : Number(n); return code <= 0x10ffff ? String.fromCodePoint(code) : '' }).replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
 }
+
+// Only choose a company/about link actually present on the fetched homepage.
+// Never synthesize common paths or follow third-party company-directory links.
+export function companyLinkFromHtml(html: string, pageUrl: string): string | undefined {
+  const base = publicUrl(pageUrl)
+  if (!base) return undefined
+  for (const match of html.replace(/<!--[\s\S]*?-->|<script\b[^>]*>[\s\S]*?<\/script>/gi, '').matchAll(/<a\b([^>]*?)>([\s\S]*?)<\/a>/gi)) {
+    const href = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(match[1])
+    if (!href) continue
+    const label = compact(visibleText(match[2]))
+    if (!/^(会社概要|企業概要|会社案内|会社情報|企業情報|当社について|company|companyprofile|about|aboutus)$/.test(label)) continue
+    let target: URL | null
+    try { target = publicUrl(new URL((href[1] || href[2] || href[3]).replace(/&amp;/g, '&'), base).href) } catch { target = null }
+    if (!target || target.hostname.replace(/^www\./, '') !== base.hostname.replace(/^www\./, '') || (base.protocol === 'https:' && target.protocol !== 'https:')) continue
+    if (target.href === base.origin + '/') continue
+    return target.href
+  }
+  return undefined
+}
 const rejected = (reason: string) => ({ url: null, confidence: 'low' as const, verified: false, reason })
 export function verifyHomepage(input: Identity, candidate: Candidate, pageText: string, originTitle = '') {
   const url = publicUrl(candidate.url), evidence = publicUrl(candidate.evidence_url)

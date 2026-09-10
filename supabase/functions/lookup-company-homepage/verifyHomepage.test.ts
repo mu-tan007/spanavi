@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasIdentifier, publicIpv4, publicUrl, verifyHomepage as checkHomepage, verifyHomepagePages, visibleText } from './verifyHomepage.ts'
+import { companyLinkFromHtml, hasIdentifier, publicIpv4, publicUrl, verifyHomepage as checkHomepage, verifyHomepagePages, visibleText } from './verifyHomepage.ts'
 
 const tokyo = { company_name: '株式会社白石工務店', address: '東京都昭島市東町４-１４-８', phone: '0425446525', representative: '白石　悟' }
 const valid = { url: 'https://shiraishi.example.co.jp/', confidence: 'high', evidence_url: 'https://shiraishi.example.co.jp/company/', ...tokyo }
@@ -84,6 +84,18 @@ describe('official homepage identity verification', () => {
   })
 })
 describe('evidence network boundaries', () => {
+  it('discovers only actual same-host company links', () => {
+    const html = '<a href="https://directory.co.jp/company/">会社概要</a><a href="/news/">お知らせ</a><a href="/real-profile/"><span>会社概要</span></a>'
+    expect(companyLinkFromHtml(html, 'https://company.co.jp/')).toBe('https://company.co.jp/real-profile/')
+  })
+  it('never invents a company path or accepts unrelated/external/unsafe links', () => {
+    for (const html of ['<p>会社概要</p>', '<a href="/company/">ニュース</a>', '<a href="https://other.co.jp/about/">会社概要</a>', '<a href="javascript:alert(1)">会社概要</a>', '<a href="http://127.0.0.1/">会社概要</a>', '<a href="http://company.co.jp/company/">会社概要</a>']) {
+      expect(companyLinkFromHtml(html, 'https://company.co.jp/')).toBeUndefined()
+    }
+  })
+  it('selects at most one linked profile and ignores script/comment pseudo-links', () => {
+    expect(companyLinkFromHtml('<script>"<a href="/fake/">会社概要</a>"</script><!-- <a href="/fake/">会社概要</a> --><a href="/first/">Company</a><a href="/second/">About us</a>', 'https://company.co.jp/')).toBe('https://company.co.jp/first/')
+  })
   it.each(['file:///etc/passwd', 'https://127.0.0.1/', 'http://[::1]/', 'https://localhost/', 'https://x.internal/', 'https://user:pass@company.jp/', 'https://company.jp:8443/', 'javascript:alert(1)', 'https://instagram.com/company'])('rejects %s', url => expect(publicUrl(url)).toBeNull())
   it.each(['127.0.0.1', '10.1.2.3', '169.254.169.254', '172.16.0.1', '192.168.0.1', '100.64.0.1', '0.0.0.0', '224.0.0.1', '198.18.0.1', '192.0.2.1', '203.0.113.1'])('rejects nonpublic DNS %s', ip => expect(publicIpv4(ip)).toBe(false))
   it('allows ordinary public company host and IP', () => { expect(publicUrl('https://company.co.jp/company/')).not.toBeNull(); expect(publicIpv4('93.184.216.34')).toBe(true) })

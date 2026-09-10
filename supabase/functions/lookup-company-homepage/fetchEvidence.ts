@@ -1,10 +1,10 @@
 import { lookup } from 'node:dns/promises'
 import { pinnedHttp } from './pinnedHttp.ts'
-import { publicIpv4, publicUrl, visibleText } from './verifyHomepage.ts'
+import { companyLinkFromHtml, publicIpv4, publicUrl, visibleText } from './verifyHomepage.ts'
 
 // Pin the validated DNS address to the socket lookup to prevent DNS rebinding.
 // Canonical same-host redirects only; no cookies, credentials, IP literals or private networks.
-export async function fetchEvidenceResult(rawUrl: unknown, field: 'text' | 'title' = 'text', context?: { timeout: AbortSignal; host: string; hop: number }): Promise<{ text: string; status: string; title?: string }> {
+export async function fetchEvidenceResult(rawUrl: unknown, field: 'text' | 'title' = 'text', context?: { timeout: AbortSignal; host: string; hop: number }): Promise<{ text: string; status: string; title?: string; companyUrl?: string }> {
   const fail = (status: string) => ({ text: '', status })
   const errorCode = (error: any) => /^[A-Z_0-9]{1,40}$/.test(String(error?.code)) ? error.code : 'error'
   const url = publicUrl(rawUrl)
@@ -12,6 +12,7 @@ export async function fetchEvidenceResult(rawUrl: unknown, field: 'text' | 'titl
   const timeout = context?.timeout || AbortSignal.timeout(8000)
   const host = context?.host || url.hostname.replace(/^www\./, '')
   const hop = context?.hop || 0
+  if (timeout.aborted) return fail('timeout_dns')
   let phase = 'dns'
   try {
     const records = await Promise.race([
@@ -37,7 +38,7 @@ export async function fetchEvidenceResult(rawUrl: unknown, field: 'text' | 'titl
     const html = new TextDecoder().decode(page.body)
     const title = visibleText(html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '')
     const text = field === 'title' ? title : visibleText(html)
-    return { text, title, status: text ? 'ok' : `empty_${field}` }
+    return { text, title, status: text ? 'ok' : `empty_${field}`, companyUrl: companyLinkFromHtml(html, url.href) }
   } catch (error) { return fail(timeout.aborted ? `timeout_${phase}` : `${phase}_${errorCode(error)}`) }
 }
 

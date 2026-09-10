@@ -93,9 +93,11 @@ ${prefecture ? `都道府県: ${prefecture}\n` : ''}${address ? `住所: ${addre
       if (!candidateUrl || !evidenceUrl || candidateUrl.hostname.replace(/^www\./, '') !== evidenceUrl.hostname.replace(/^www\./, '') || result.confidence !== 'high') {
         return json({ url: null, confidence: 'low', verified: false, reason: '同名企業を確実に識別できる公式サイトの根拠がありません' })
       }
-      const homepageFetch = fetchEvidenceResult(candidateUrl.origin + '/')
+      // One shared evidence deadline also covers the optional real company link below.
+      const fetchContext = { timeout: AbortSignal.timeout(8000), host: candidateUrl.hostname.replace(/^www\./, ''), hop: 0 }
+      const homepageFetch = fetchEvidenceResult(candidateUrl.origin + '/', 'text', fetchContext)
       const [page, homepage] = await Promise.all([
-        evidenceUrl.href === candidateUrl.origin + '/' ? homepageFetch : fetchEvidenceResult(evidenceUrl.href),
+        evidenceUrl.href === candidateUrl.origin + '/' ? homepageFetch : fetchEvidenceResult(evidenceUrl.href, 'text', fetchContext),
         homepageFetch,
       ])
       if (!homepage.title || (!page.text && !homepage.text)) {
@@ -103,7 +105,11 @@ ${prefecture ? `都道府県: ${prefecture}\n` : ''}${address ? `住所: ${addre
         console.info('[lookup-company-homepage] evidence unavailable', diagnostics)
         return json({ url: null, confidence: 'low', verified: false, reason: '公式サイト本文を取得できないため企業を確認できません', diagnostics })
       }
-      const verified = verifyHomepagePages(identity, { ...result, evidence_url: evidenceUrl.href }, page.text, homepage.text, homepage.title)
+      let verified = verifyHomepagePages(identity, { ...result, evidence_url: evidenceUrl.href }, page.text, homepage.text, homepage.title)
+      if (!verified.verified && homepage.companyUrl && homepage.companyUrl !== evidenceUrl.href && !fetchContext.timeout.aborted) {
+        const linkedPage = await fetchEvidenceResult(homepage.companyUrl, 'text', fetchContext)
+        verified = verifyHomepagePages(identity, { ...result, evidence_url: homepage.companyUrl }, linkedPage.text, homepage.text, homepage.title)
+      }
       return json(verified.verified ? verified : { ...verified, diagnostics: { evidence: page.status, homepage: homepage.status, homepage_host: candidateUrl.hostname, homepage_title: homepage.title.slice(0, 180) } })
     } catch (e) {
       return json({ url: null, confidence: 'low', reason: 'failed to parse JSON', raw: lastText })
