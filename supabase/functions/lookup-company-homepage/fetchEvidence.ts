@@ -1,6 +1,5 @@
 import { lookup } from 'node:dns/promises'
-import { request as httpsRequest } from 'node:https'
-import { request as httpRequest } from 'node:http'
+import { pinnedHttp } from './pinnedHttp.ts'
 import { publicIpv4, publicUrl, visibleText } from './verifyHomepage.ts'
 
 // Pin the validated DNS address to the socket lookup to prevent DNS rebinding.
@@ -25,47 +24,23 @@ export async function fetchEvidenceResult(rawUrl: unknown, field: 'text' | 'titl
     if (!records.length || records.some(r => !publicIpv4(r.address))) return fail('nonpublic_dns')
     const ip = records[0].address
     phase = 'http'
-    return await new Promise<{ text: string; status: string }>((resolve) => {
-      const request = url.protocol === 'https:' ? httpsRequest : httpRequest
-      const req = request(url, {
-        signal: timeout, agent: false,
-        lookup: (_host: string, options: { all?: boolean }, callback: any) => options?.all ? callback(null, [{ address: ip, family: 4 }]) : callback(null, ip, 4),
-        headers: { 'User-Agent': 'SpanaviCompanyInfoBot/1.0', Accept: 'text/html', 'Accept-Encoding': 'identity' },
-      }, res => {
-        if ([301, 302, 303, 307, 308].includes(res.statusCode || 0) && res.headers.location) {
-          res.destroy()
-          let next: URL | null
-          try { next = publicUrl(new URL(res.headers.location, url).href) } catch { next = null }
-          if (!next || next.hostname.replace(/^www\./, '') !== host || (url.protocol === 'https:' && next.protocol !== 'https:')) { resolve(fail('unsafe_redirect')); return }
-          if (hop >= 2) { resolve(fail('redirect_limit')); return }
-          fetchEvidenceResult(next.href, field, { timeout, host, hop: hop + 1 }).then(resolve)
-          return
-        }
-        if (res.statusCode !== 200) { res.destroy(); resolve(fail(`http_${res.statusCode}`)); return }
-        if (!/text\/html|application\/xhtml/i.test(String(res.headers['content-type'] || ''))) { res.destroy(); resolve(fail('non_html')); return }
-        let bytes = 0
-        const chunks: Uint8Array[] = []
-        res.on('data', (chunk: Uint8Array) => {
-          bytes += chunk.length
-          if (bytes > 262144) { res.destroy(); resolve(fail('body_limit')); return }
-          chunks.push(chunk)
-        })
-        res.on('end', () => {
-          const all = new Uint8Array(bytes)
-          let offset = 0
-          for (const chunk of chunks) { all.set(chunk, offset); offset += chunk.length }
-          const html = new TextDecoder().decode(all)
-          const text = visibleText(field === 'title' ? (html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '') : html)
-          resolve({ text, status: text ? 'ok' : `empty_${field}` })
-        })
-        res.on('error', error => resolve(fail(`body_${errorCode(error)}`)))
-      })
-      req.on('error', error => resolve(fail(timeout.aborted ? 'timeout_http' : `transport_${errorCode(error)}`)))
-      req.end()
-    })
+    const page = await pinnedHttp(url, ip, timeout)
+    if ([301, 302, 303, 307, 308].includes(page.status) && page.headers.location) {
+      let next: URL | null
+      try { next = publicUrl(new URL(page.headers.location, url).href) } catch { next = null }
+      if (!next || next.hostname.replace(/^www\./, '') !== host || (url.protocol === 'https:' && next.protocol !== 'https:')) return fail('unsafe_redirect')
+      if (hop >= 2) return fail('redirect_limit')
+      return await fetchEvidenceResult(next.href, field, { timeout, host, hop: hop + 1 })
+    }
+    if (page.status !== 200) return fail(`http_${page.status}`)
+    if (!/text\/html|application\/xhtml/i.test(page.headers['content-type'] || '')) return fail('non_html')
+    const html = new TextDecoder().decode(page.body)
+    const text = visibleText(field === 'title' ? (html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '') : html)
+    return { text, status: text ? 'ok' : `empty_${field}` }
   } catch (error) { return fail(timeout.aborted ? `timeout_${phase}` : `${phase}_${errorCode(error)}`) }
 }
 
 export async function fetchEvidence(rawUrl: unknown, field: 'text' | 'title' = 'text'): Promise<string> {
   return (await fetchEvidenceResult(rawUrl, field)).text
 }
+

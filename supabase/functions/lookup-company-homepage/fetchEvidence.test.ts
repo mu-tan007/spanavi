@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { EventEmitter } from 'node:events'
 const mocks = vi.hoisted(() => ({ lookup: vi.fn(), request: vi.fn() }))
 vi.mock('node:dns/promises', () => ({ lookup: mocks.lookup }))
-vi.mock('node:http', () => ({ request: mocks.request }))
-vi.mock('node:https', () => ({ request: mocks.request }))
+vi.mock('./pinnedHttp.ts', () => ({ pinnedHttp: mocks.request }))
 import { fetchEvidence, fetchEvidenceResult } from './fetchEvidence.ts'
 
 beforeEach(() => {
@@ -11,27 +9,14 @@ beforeEach(() => {
   mocks.lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }])
 })
 function response(status: number, chunks: string[], contentType = 'text/html', location?: string) {
-  mocks.request.mockImplementation((_url, _options, callback) => {
-    const req = new EventEmitter() as EventEmitter & { end: () => void }
-    req.end = () => {
-      const res = Object.assign(new EventEmitter(), { statusCode: status, headers: { 'content-type': contentType, location }, destroy: vi.fn() })
-      callback(res)
-      if (status === 200 && contentType === 'text/html') { for (const chunk of chunks) res.emit('data', new TextEncoder().encode(chunk)); res.emit('end') }
-    }
-    return req
-  })
+  mocks.request.mockResolvedValue({ status, headers: { 'content-type': contentType, location }, body: new TextEncoder().encode(chunks.join('')) })
 }
 describe('bounded DNS-pinned evidence fetch', () => {
-  it('pins the checked IP for both Node DNS callback conventions', async () => {
+  it('passes only the validated IP to the socket transport', async () => {
     response(200, ['<h1>株式会社白石工務店</h1><p>愛媛県新居浜市</p>'])
     expect(await fetchEvidence('https://siraisi-koumuten.jp/company/')).toContain('愛媛県')
-    const options = mocks.request.mock.calls[0][1]
-    const callback = vi.fn()
-    options.lookup('siraisi-koumuten.jp', {}, callback)
-    expect(callback).toHaveBeenLastCalledWith(null, '93.184.216.34', 4)
-    options.lookup('siraisi-koumuten.jp', { all: true }, callback)
-    expect(callback).toHaveBeenLastCalledWith(null, [{ address: '93.184.216.34', family: 4 }])
-    expect(options.agent).toBe(false)
+    expect(mocks.request.mock.calls[0][1]).toBe('93.184.216.34')
+    expect(mocks.request.mock.calls[0][0].hostname).toBe('siraisi-koumuten.jp')
   })
   it('never connects to a private DNS address', async () => {
     mocks.lookup.mockResolvedValue([{ address: '127.0.0.1', family: 4 }])
@@ -49,7 +34,7 @@ describe('bounded DNS-pinned evidence fetch', () => {
     response(200, ['<title>株式会社白石工務店</title>'])
     expect(await fetchEvidence('http://company.co.jp/', 'title')).toBe('株式会社白石工務店')
     expect(mocks.lookup).toHaveBeenCalledTimes(2)
-    expect(mocks.request.mock.calls[0][1].signal).toBe(mocks.request.mock.calls[1][1].signal)
+    expect(mocks.request.mock.calls[0][2]).toBe(mocks.request.mock.calls[1][2])
   })
   it.each(['https://other-company.co.jp/', 'http://company.co.jp/', 'http://127.0.0.1/'])('rejects unsafe redirect %s', async target => {
     response(302, [], 'text/html', target)
@@ -65,11 +50,11 @@ describe('bounded DNS-pinned evidence fetch', () => {
     mocks.lookup.mockRejectedValue(Object.assign(new Error('internal DNS details'), { code: 'ENOTFOUND' }))
     expect(await fetchEvidenceResult('https://company.co.jp/')).toEqual({ text: '', status: 'dns_ENOTFOUND' })
   })
-  it('rejects oversized bodies', async () => { response(200, ['x'.repeat(262145)]); expect(await fetchEvidence('https://company.co.jp/')).toBe('') })
+  it('rejects transport body-limit errors', async () => { mocks.request.mockRejectedValue(Object.assign(new Error('body too big'), { code: 'HTTP_BODY_LIMIT' })); expect(await fetchEvidence('https://company.co.jp/')).toBe('') })
   it('rejects non-HTML', async () => { response(200, [], 'application/json'); expect(await fetchEvidence('https://company.co.jp/')).toBe('') })
   it('fails closed on DNS failure', async () => { mocks.lookup.mockRejectedValue(new Error('no DNS')); expect(await fetchEvidence('https://company.co.jp/')).toBe('') })
   it('fails closed on transport failure', async () => {
-    mocks.request.mockImplementation(() => { const req = Object.assign(new EventEmitter(), { end() { this.emit('error', new Error('timeout')) } }); return req })
+    mocks.request.mockRejectedValue(new Error('timeout'))
     expect(await fetchEvidence('https://company.co.jp/')).toBe('')
   })
 })
