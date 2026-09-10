@@ -1,5 +1,5 @@
 import { hasIdentifier, publicUrl, verifyHomepage } from './verifyHomepage.ts'
-import { fetchEvidence } from './fetchEvidence.ts'
+import { fetchEvidenceResult } from './fetchEvidence.ts'
 // 企業名と住所・電話を公式サイト本文と照合してから URL を返す。
 //
 // Input (POST JSON):
@@ -91,11 +91,17 @@ ${prefecture ? `都道府県: ${prefecture}\n` : ''}${address ? `住所: ${addre
       if (!candidateUrl || !evidenceUrl || candidateUrl.hostname.replace(/^www\./, '') !== evidenceUrl.hostname.replace(/^www\./, '') || result.confidence !== 'high') {
         return json({ url: null, confidence: 'low', verified: false, reason: '同名企業を確実に識別できる公式サイトの根拠がありません' })
       }
-      const [pageText, originTitle] = await Promise.all([
-        fetchEvidence(evidenceUrl.href),
-        fetchEvidence(candidateUrl.origin + '/', 'title'),
+      const [page, homepage] = await Promise.all([
+        fetchEvidenceResult(evidenceUrl.href),
+        fetchEvidenceResult(candidateUrl.origin + '/', 'title'),
       ])
-      return json(verifyHomepage(identity, result, pageText, originTitle))
+      if (!page.text || !homepage.text) {
+        const diagnostics = { evidence: page.status, homepage: homepage.status, homepage_host: candidateUrl.hostname, homepage_protocol: candidateUrl.protocol }
+        console.info('[lookup-company-homepage] evidence unavailable', diagnostics)
+        return json({ url: null, confidence: 'low', verified: false, reason: '公式サイト本文を取得できないため企業を確認できません', diagnostics })
+      }
+      const verified = verifyHomepage(identity, result, page.text, homepage.text)
+      return json(verified.verified ? verified : { ...verified, diagnostics: { evidence: page.status, homepage: homepage.status, homepage_host: candidateUrl.hostname, homepage_title: homepage.text.slice(0, 180) } })
     } catch (e) {
       return json({ url: null, confidence: 'low', reason: 'failed to parse JSON', raw: lastText })
     }
