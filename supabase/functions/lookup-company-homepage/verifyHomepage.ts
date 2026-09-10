@@ -3,8 +3,37 @@ export type Candidate = { url?: unknown; confidence?: unknown; evidence_url?: un
 const text = (v: unknown) => typeof v === 'string' ? v.normalize('NFKC').trim() : ''
 const compact = (v: unknown) => text(v).replace(/[\s\u3000]/g, '').toLowerCase()
 const company = (v: unknown) => compact(v).replace(/\(株\)/g, '株式会社').replace(/\(有\)/g, '有限会社')
-const address = (v: unknown) => compact(v).replace(/〒?\d{3}-?\d{4}/g, '').replace(/[‐‑–—−ー]/g, '-').replace(/(丁目|番地|番|号)/g, '-').replace(/-+$/g, '')
-const phone = (v: unknown) => text(v).replace(/\D/g, '').replace(/^81(?=\d{9,10}$)/, '0')
+function addressNumber(value: string): string {
+  const digits: Record<string, number> = { 零: 0, 〇: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 }
+  if (!/[十百千]/.test(value)) return [...value].map(c => digits[c]).join('')
+  let sum = 0, digit = 0
+  for (const char of value) {
+    const unit = ({ 十: 10, 百: 100, 千: 1000 } as Record<string, number>)[char]
+    if (unit) { sum += (digit || 1) * unit; digit = 0 } else digit = digits[char]
+  }
+  return String(sum + digit)
+}
+const address = (v: unknown) => compact(v).replace(/〒\d{3}-?\d{4}/g, '').replace(/^\d{3}-?\d{4}(?=[^\d])/, '').replace(/[零〇一二三四五六七八九十百千]+(?=丁目|番地|番|号)/g, addressNumber).replace(/[‐‑–—−ー]/g, '-').replace(/(丁目|番地|番|号)/g, '-').replace(/-+$/g, '')
+const phone = (v: unknown) => text(v).replace(/\D/g, '').replace(/^810?(?=\d{9,10}$)/, '0')
+const escaped = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function factOnPage(key: 'company_name' | 'address' | 'phone' | 'representative', value: unknown, page: string): boolean {
+  if (key === 'phone') {
+    const wanted = phone(value)
+    if (!/^0\d{9,10}$/.test(wanted)) return false
+    const source = text(page).replace(/[‐‑–—−]/g, '-')
+    const tokens = source.match(/(?<![\d()+-])(?:\+81|0)[\d ()-]{7,24}\d(?![\d()+-])/g) || []
+    return tokens.some(token => phone(token) === wanted)
+  }
+  if (key === 'address') {
+    const wanted = address(value)
+    return !!wanted && new RegExp(escaped(wanted) + '(?!\\d|-\\d)').test(address(page))
+  }
+  if (key === 'representative') {
+    const name = [...compact(value)].map(escaped).join('\\s*')
+    return !!name && new RegExp('(?:^|[\\s:：、,／/（(]|代表取締役|代表者|社長)' + name + '(?=$|[\\s、,。:：／/）)（(])', 'i').test(text(page))
+  }
+  return !!compact(value) && compact(page).includes(compact(value))
+}
 export const hasIdentifier = (i: Identity) => strongAddress(i.address) || /^0\d{9,10}$/.test(phone(i.phone))
 function strongAddress(value: unknown) { const a = address(value); return /[市区町村]/.test(a) && /\d/.test(a) && a.length >= 8 }
 export function publicUrl(value: unknown): URL | null {
@@ -63,20 +92,18 @@ export function verifyHomepage(input: Identity, candidate: Candidate, pageText: 
   const url = publicUrl(candidate.url), evidence = publicUrl(candidate.evidence_url)
   if (!hasIdentifier(input)) return rejected('会社を識別できる住所または電話番号がありません')
   if (!url || !evidence || url.hostname.replace(/^www\./, '') !== evidence.hostname.replace(/^www\./, '')) return rejected('公式サイトと同じドメインの根拠が確認できません')
-  if (candidate.confidence !== 'high') return rejected('同名企業を確実に識別できませんでした')
   // Check the origin homepage title, not a directory/listing's target-specific page title.
   const title = compact(originTitle), legalName = compact(input.company_name)
   const titleIndex = title.indexOf(legalName)
   const afterName = title.slice(titleIndex + legalName.length)
   if (titleIndex < 0 || (afterName && !/^[|｜/／・:：\-–—～~「『（(【]/.test(afterName))) return rejected('サイト運営企業をトップページで確認できません')
   if (/企業検索|企業一覧|法人検索|法人一覧|求人検索|電話帳|企業情報データベース/.test(title)) return rejected('第三者の企業掲載サイトのため採用できません')
-  if (!company(input.company_name) || company(input.company_name) !== company(candidate.company_name)) return rejected('会社名が一致しません')
-  const body = compact(pageText)
-  // Facts must occur on the independently retrieved page, not merely in model JSON.
+  if (!company(input.company_name) || (text(candidate.company_name) && company(input.company_name) !== company(candidate.company_name))) return rejected('会社名が一致しません')
+  const labels = { company_name: '会社名', address: '住所', phone: '電話番号', representative: '代表者' }
+  // Independently prove every supplied input fact. AI confidence/spelling/omissions
+  // do not count as proof and cannot substitute for facts on the actual page.
   for (const key of ['company_name', 'address', 'phone', 'representative'] as const) {
-    const fact = compact(candidate[key])
-    if (compact(input[key]) && !fact) return rejected('入力された企業情報を公式サイト本文で確認できません')
-    if (fact && !body.includes(fact)) return rejected('検索結果の根拠を公式サイト本文で確認できません')
+    if (compact(input[key]) && !factOnPage(key, input[key], pageText)) return rejected(`${labels[key]}を公式サイト本文で確認できません`)
   }
   const ia = address(input.address), ca = address(candidate.address)
   const ip = phone(input.phone), cp = phone(candidate.phone)
@@ -85,8 +112,8 @@ export function verifyHomepage(input: Identity, candidate: Candidate, pageText: 
   if (ia && ca && ia !== ca) return rejected('住所が一致しません')
   if (ip && cp && ip !== cp) return rejected('電話番号が一致しません')
   if (ir && cr && ir !== cr) return rejected('代表者が一致しません')
-  const addressMatch = strongAddress(input.address) && ia === ca
-  const phoneMatch = /^0\d{9,10}$/.test(ip) && ip === cp
+  const addressMatch = strongAddress(input.address) && factOnPage('address', input.address, pageText)
+  const phoneMatch = /^0\d{9,10}$/.test(ip) && factOnPage('phone', input.phone, pageText)
   if (!addressMatch && !phoneMatch) return rejected('住所または電話番号の一致を確認できません')
   return { url: url.href, confidence: 'high' as const, verified: true, reason: `公式サイト本文で会社名と${addressMatch ? '住所' : '電話番号'}の一致を確認` }
 }

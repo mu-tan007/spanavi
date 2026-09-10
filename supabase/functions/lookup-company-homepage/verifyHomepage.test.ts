@@ -16,8 +16,8 @@ describe('official homepage identity verification', () => {
   it('does not assemble identity fragments across different pages', () => {
     expect(verifyHomepagePages(tokyo, valid, `${tokyo.company_name} ${tokyo.address}`, `${tokyo.company_name} ${tokyo.phone} ${tokyo.representative}`, tokyo.company_name).verified).toBe(false)
   })
-  it('does not weaken confidence, ownership, identifier, or evidence-domain checks on fallback', () => {
-    for (const change of [{ confidence: 'low' }, { representative: '' }, { address: '愛媛県新居浜市黒島一丁目3番29号' }, { evidence_url: 'https://directory.co.jp/' }]) {
+  it('does not weaken ownership, identifier conflicts, or evidence-domain checks on fallback', () => {
+    for (const change of [{ representative: '別人' }, { address: '愛媛県新居浜市黒島一丁目3番29号' }, { evidence_url: 'https://directory.co.jp/' }]) {
       expect(verifyHomepagePages(tokyo, { ...valid, ...change }, '', body(valid), tokyo.company_name).verified).toBe(false)
     }
     expect(verifyHomepagePages(tokyo, valid, '', body(valid), '第三者企業一覧').verified).toBe(false)
@@ -41,8 +41,9 @@ describe('official homepage identity verification', () => {
       expect(verifyHomepage(input, valid, body(valid)).url).toBeNull()
     }
   })
-  it.each(['low', 'medium', undefined])('rejects ambiguous confidence %s despite matching text', confidence => {
-    expect(verifyHomepage(tokyo, { ...valid, confidence }, body(valid)).url).toBeNull()
+  it.each(['low', 'medium', undefined])('independently verifies facts regardless of AI confidence %s', confidence => {
+    expect(verifyHomepage(tokyo, { ...valid, confidence }, body(valid))).toMatchObject({ verified: true, confidence: 'high' })
+    expect(verifyHomepage(tokyo, { ...valid, confidence }, '会社名だけ 株式会社白石工務店').verified).toBe(false)
   })
   it.each(['address', 'phone', 'representative', 'company_name'] as const)('rejects explicit %s conflict even with another matching identifier', key => {
     const changed = { ...valid, [key]: key === 'phone' ? '089-978-0409' : '別会社の情報' }
@@ -66,8 +67,27 @@ describe('official homepage identity verification', () => {
   it('rejects missing homepage title', () => {
     expect(checkHomepage(tokyo, valid, body(valid)).verified).toBe(false)
   })
-  it.each(['address', 'phone', 'representative'] as const)('rejects omitted supplied %s even if another fact matches', key => {
-    expect(verifyHomepage(tokyo, { ...valid, [key]: '' }, body(valid) + ' 代表者 別人太郎').verified).toBe(false)
+  it.each(['address', 'phone', 'representative'] as const)('AI omission of %s still requires the actual input fact on the page', key => {
+    expect(verifyHomepage(tokyo, { ...valid, [key]: '' }, body(valid)).verified).toBe(true)
+    expect(verifyHomepage(tokyo, { ...valid, [key]: '' }, body({ ...valid, [key]: '異なる情報' })).verified).toBe(false)
+  })
+  it('requires all supplied input facts even if the AI returns only a candidate URL', () => {
+    const candidate = { url: valid.url, evidence_url: valid.evidence_url }
+    expect(verifyHomepage(tokyo, candidate, body(valid)).verified).toBe(true)
+    expect(verifyHomepage(tokyo, candidate, body({ ...valid, representative: '別人' })).verified).toBe(false)
+  })
+  it('normalizes phone punctuation and address-unit numerals without changing identity', () => {
+    const input = { ...tokyo, address: '東京都昭島市東町4-14-8', phone: '0425446525' }
+    const actual = { ...valid, address: '東京都昭島市東町四丁目十四番八号', phone: '042-544-6525' }
+    expect(verifyHomepage(input, { url: valid.url, evidence_url: valid.evidence_url }, body(actual)).verified).toBe(true)
+  })
+  it('does not accept a phone prefix, concatenate numbers across labels, or accept a street-number prefix', () => {
+    for (const actual of [{ ...valid, phone: '04254465250' }, { ...valid, phone: '0425 別項目 446525' }, { ...valid, address: '東京都昭島市東町4-14-80' }, { ...valid, address: '東京都昭島市東町4-14-8-1' }, { ...valid, representative: '白石 悟朗' }]) {
+      expect(verifyHomepage(tokyo, { url: valid.url, evidence_url: valid.evidence_url }, body(actual)).verified).toBe(false)
+    }
+  })
+  it('identifies the missing field without disclosing its raw value', () => {
+    expect(verifyHomepage(tokyo, valid, body({ ...valid, phone: '099-999-9999' })).reason).toBe('電話番号を公式サイト本文で確認できません')
   })
   it('accepts legal company name in an official homepage title with tagline', () => {
     expect(verifyHomepage(tokyo, valid, body(valid), '株式会社 白石工務店 | 会社案内').verified).toBe(true)
