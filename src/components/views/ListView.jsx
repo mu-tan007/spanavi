@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
-import { updateCallList, insertCallList, archiveCallList, restoreCallList, uploadCompanyOverviewPdf, deleteCompanyOverviewPdfObject, updateCallListCompanyOverviewPdfs, getCompanyOverviewPdfSignedUrl } from '../../lib/supabaseWrite';
+import { updateCallList, insertCallList, archiveCallList, restoreCallList, uploadCompanyOverviewPdf, deleteCompanyOverviewPdfObject, updateCallListCompanyOverviewPdfs, getCompanyOverviewPdfSignedUrl, invokeLookupCompanyHomepage } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { applyTaxIfPretax, hasListUnitPrice } from '../../utils/money';
 import { useEngagements } from '../../hooks/useEngagements';
@@ -511,6 +511,12 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // URLに保持してハードリロード/共有/戻る進むでも保持。プレフィックス lv_ で他画面と衝突回避。
   const [viewMode, setViewMode] = useUrlState('lv_view', 'lists', { allowed: ['lists', 'smart_queue'] });
   const [extractingUrl, setExtractingUrl] = useState(false);
+  const overviewRequestVersion = useRef(0);
+  useEffect(() => {
+    overviewRequestVersion.current++;
+    setExtractingUrl(false);
+    return () => { overviewRequestVersion.current++; };
+  }, [listFormOpen, editingListId, formData.company, formData.companyInfo]);
 
   // 「既存リストから転記」: 新規リスト追加時、同じクライアントの既存リストから
   // 企業概要・スクリプト・アウト返し・注意事項・備考・担当者を引き継ぐ
@@ -591,19 +597,25 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   // 「企業概要」ボタン: 会社名から HP URL を AI で推定 → そのページから企業情報を抽出
   // (旧: 手動で URL を貼って自動入力 → 廃止。ワンクリックで完結させる)
   const handleGenerateOverview = async () => {
+    if (extractingUrl) return;
     const company = (formData.company || '').trim();
     if (!company) { alert('先に「クライアント企業名」を入力してください。'); return; }
     if ((formData.companyInfo || '').trim().length > 0) {
       if (!window.confirm('企業概要に既存の内容があります。AI抽出結果で置き換えますか？')) return;
     }
+    const requestVersion = ++overviewRequestVersion.current;
+    const isCurrent = () => requestVersion === overviewRequestVersion.current;
     setExtractingUrl(true);
     try {
-      // Step 1: 会社名から HP URL を推定
-      const { data: lookupData, error: lookupError } = await supabase.functions.invoke(
-        'lookup-company-homepage',
-        { body: { company_name: company } }
-      );
-      if (lookupError) throw lookupError;
+      // Step 1: 顧客台帳の識別情報で公式HPを照合。会社名だけでは採用しない。
+      const client = clientData.find(c => c.company === company);
+      const lookupData = await invokeLookupCompanyHomepage({
+        company_name: company,
+        address: client?.address || '',
+        representative: client?.representativeName || '',
+        phone: client?.contactPhone || '',
+      });
+      if (!isCurrent()) return;
       if (!lookupData?.url) {
         throw new Error(`公式ホームページが見つかりませんでした (${lookupData?.reason || 'no url'})`);
       }
@@ -612,6 +624,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         'extract-company-from-url',
         { body: { url: lookupData.url } }
       );
+      if (!isCurrent()) return;
       if (extractError) throw extractError;
       if (extractData?.error) {
         if (extractData.error === 'not_found') {
@@ -627,9 +640,9 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
       if (!extractData?.overview) throw new Error('企業概要の抽出に失敗しました。');
       setFormData(p => ({ ...p, companyInfo: extractData.overview }));
     } catch (e) {
-      alert('自動生成に失敗しました: ' + (e?.message || '不明なエラー'));
+      if (isCurrent()) alert('自動生成に失敗しました: ' + (e?.message || '不明なエラー'));
     } finally {
-      setExtractingUrl(false);
+      if (isCurrent()) setExtractingUrl(false);
     }
   };
 

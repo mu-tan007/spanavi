@@ -35,3 +35,28 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/check-edge-functions.mjs
+
+  deploy-homepage-lookup:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-homepage-lookup
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      - name: 検証済みHP検索を本番反映
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+            echo '新しいmainがあるため古い検索関数の反映をスキップします'
+            exit 0
+          fi
+          supabase functions deploy lookup-company-homepage --project-ref baiiznjzvzhxwwqzsozn --use-api

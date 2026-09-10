@@ -62,9 +62,13 @@ export default function TemplateDrivenAppoReportModal({
   // form リセットを引き起こすため、template.id の変化のみで判定する。
   // （ユーザーが入力中・AI添削中に initialValues 参照変更で消える事故への対策）
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setForm(initialValues); setOurSalesEdited(false); }, [template?.id]);
+  useEffect(() => { setForm(initialValues); setOurSalesEdited(false); }, [template?.id, row?._supaId, row?.id, row?.company]);
   const set = (key, value) => {
     if (key === 'ourSales') setOurSalesEdited(true);
+    if (template?.schema?.some(f => f.key === key && f.auto_fetch === 'homepage_url')) {
+      hpRequestVersion.current++;
+      setHpLoadingKey(null);
+    }
     setForm(p => ({ ...p, [key]: value }));
   };
 
@@ -301,48 +305,55 @@ export default function TemplateDrivenAppoReportModal({
 
   // HP 取得
   const [hpLoadingKey, setHpLoadingKey] = useState(null);
+  const hpRequestVersion = useRef(0);
   const handleFetchHp = async (key) => {
+    const requestVersion = ++hpRequestVersion.current;
+    const previousValue = form[key];
     setHpLoadingKey(key);
     try {
-      const { url, confidence, reason } = await invokeLookupCompanyHomepage({
+      const { url, reason } = await invokeLookupCompanyHomepage({
         company_name: row?.company || '',
         address: row?.address || '',
         representative: row?.representative || '',
+        phone: row?.phone || '',
       });
+      if (requestVersion !== hpRequestVersion.current) return;
       if (url) {
-        set(key, url);
+        setForm(p => p[key] === previousValue ? { ...p, [key]: url } : p);
       } else {
-        setAiError(`HP取得失敗: ${reason || '不明'}`);
+        setAiError(`HP未確認: ${reason || '対象企業との一致を確認できませんでした'}`);
       }
     } catch (e) {
-      setAiError('HP取得に失敗しました');
+      if (requestVersion === hpRequestVersion.current) setAiError('HP取得に失敗しました');
     } finally {
-      setHpLoadingKey(null);
+      if (requestVersion === hpRequestVersion.current) setHpLoadingKey(null);
     }
   };
 
   // テンプレ切替時 / 画面オープン時、auto_fetch='homepage_url' のフィールドが
   // 空なら裏で自動取得。アポインターが HP取得ボタンを押し忘れても URL が入る。
   useEffect(() => {
-    if (!template?.schema || !row?.company) return;
-    const hpField = template.schema.find(f => f.auto_fetch === 'homepage_url');
-    if (!hpField) return;
-    if (form[hpField.key]) return;
+    const requestVersion = ++hpRequestVersion.current;
     let cancelled = false;
+    const cleanup = () => { cancelled = true; hpRequestVersion.current++; };
+    setHpLoadingKey(null);
+    const hpField = template?.schema?.find(f => f.auto_fetch === 'homepage_url');
+    if (!hpField || !row?.company || initialValues[hpField.key]) return cleanup;
     setHpLoadingKey(hpField.key);
     invokeLookupCompanyHomepage({
       company_name: row.company,
       address: row.address || '',
       representative: row.representative || '',
+      phone: row.phone || '',
     }).then(({ url }) => {
-      if (cancelled || !url) return;
+      if (cancelled || requestVersion !== hpRequestVersion.current || !url) return;
       setForm(p => (p[hpField.key] ? p : { ...p, [hpField.key]: url }));
     }).catch(() => {})
-      .finally(() => { if (!cancelled) setHpLoadingKey(null); });
-    return () => { cancelled = true; };
+      .finally(() => { if (!cancelled && requestVersion === hpRequestVersion.current) setHpLoadingKey(null); });
+    return cleanup;
     // 既存値がある状態で form を依存に入れると無限ループするので template/company だけで発火
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template?.id, row?.company]);
+  }, [template?.id, row?._supaId, row?.id, row?.company, row?.address, row?.representative, row?.phone]);
 
   // 売上高 / 当期純利益が架電リスト側で空のとき、自社 company_master (約49万社/TSR)
   // から会社名 + 補助情報 (電話/代表者/住所) で 1 社に特定して自動補完する。

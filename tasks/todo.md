@@ -1,3 +1,9 @@
+# HP誤取得防止（2026-09-10）
+
+計画・検証: [homepage-verification-20260910.md](./homepage-verification-20260910.md)
+
+---
+
 # 高野さんの架電カレンダー（2026-09-06）
 
 計画・検証結果: [takano_appointment_calendar.md](./takano_appointment_calendar.md)

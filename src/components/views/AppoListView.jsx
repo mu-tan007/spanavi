@@ -531,6 +531,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // 'idle' | 'fetching' | 'transcribing' | 'enhancing' | 'done' | 'error'
   const [transcribeStep, setTranscribeStep] = React.useState('idle');
   const [hpStep, setHpStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
+  const hpDetailContext = React.useRef(null);
+  hpDetailContext.current = { id: reportDetail?._supaId, company: reportDetail?.company, report: detailEditForm?.appoReport };
+  React.useEffect(() => { setHpStep('idle'); }, [reportDetail?._supaId]);
   const [keymanMobileInput, setKeymanMobileInput] = React.useState('');
   const [keymanLookupStep, setKeymanLookupStep] = React.useState('idle'); // 'idle' | 'fetching' | 'done' | 'error'
   const [showKeymanLookup, setShowKeymanLookup] = React.useState(false);
@@ -1152,17 +1155,20 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // 企業HPを自動取得して appoReport の「HP：」行を更新する
   const handleFetchHpDetail = async () => {
     if (hpStep !== 'idle') return;
+    const context = hpDetailContext.current;
     setHpStep('fetching');
     try {
       // 対象企業情報を call_list_items から引いて住所・代表者を補完
-      let address = '';
-      let representative = '';
+      let address = reportDetail?.report_data?.address || '';
+      let representative = reportDetail?.report_data?.decision_maker_name || '';
+      let phone = reportDetail?.phone || reportDetail?.report_data?.fixed_phone || '';
       if (reportDetail?.item_id) {
         try {
           const { data: item } = await fetchCallListItemById(reportDetail.item_id);
           if (item) {
             address = (item.address || '').replace(/\/\s*$/, '');
             representative = item.representative || '';
+            phone = item.phone || phone;
           }
         } catch (e) {
           console.warn('[handleFetchHpDetail] fetchCallListItemById error:', e);
@@ -1170,9 +1176,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       }
       const companyName = reportDetail?.company || detailEditForm?.company || '';
       if (!companyName) { setHpStep('error'); setTimeout(() => setHpStep('idle'), 3000); return; }
-      const { url, confidence, reason } = await invokeLookupCompanyHomepage({
-        company_name: companyName, address, representative,
+      const { url, reason } = await invokeLookupCompanyHomepage({
+        company_name: companyName, address, representative, phone,
       });
+      const current = hpDetailContext.current;
+      if (current.id !== context.id || current.company !== context.company || current.report !== context.report) {
+        if (current.id === context.id) setHpStep('idle');
+        return;
+      }
       if (!url) {
         console.warn('[handleFetchHpDetail] no url:', reason);
         setHpStep('error');

@@ -4,6 +4,7 @@ import { statusIdToLabel } from '../hooks/useCallStatuses'
 import { enqueuePayrollSyncForMeetingDates } from './payrollAutoSync'
 import { notifyAppointmentsChanged } from './appointmentEvents'
 import { meetingTimestampTime } from '../utils/appointmentCalendar'
+import { verifiedHomepageResult } from './homepageLookup'
 
 // ============================================================
 // Drive CORS Proxy
@@ -566,7 +567,7 @@ export async function invokeExtractClientProfileForContract({ company_name, addr
 }
 
 // 企業名・住所・代表者から公式 HP URL を AI + web search で推定
-export async function invokeLookupCompanyHomepage({ company_name, address, prefecture, representative }) {
+export async function invokeLookupCompanyHomepage({ company_name, address, prefecture, representative, phone }) {
   try {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
@@ -578,11 +579,12 @@ export async function invokeLookupCompanyHomepage({ company_name, address, prefe
         'Authorization': `Bearer ${token}`,
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ company_name, address, prefecture, representative }),
+      body: JSON.stringify({ company_name, address, prefecture, representative, phone }),
+      signal: AbortSignal.timeout(45000),
     })
     const json = await res.json().catch(() => ({}))
     if (!res.ok) return { url: null, confidence: 'low', reason: json.reason || `HTTP ${res.status}` }
-    return json
+    return verifiedHomepageResult(json)
   } catch (e) {
     console.warn('[lookup-homepage] error:', e)
     return { url: null, confidence: 'low', reason: e?.message || String(e) }

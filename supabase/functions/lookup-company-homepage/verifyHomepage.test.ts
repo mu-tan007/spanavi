@@ -1,0 +1,75 @@
+import { describe, expect, it } from 'vitest'
+import { hasIdentifier, publicIpv4, publicUrl, verifyHomepage as checkHomepage, visibleText } from './verifyHomepage.ts'
+
+const tokyo = { company_name: '株式会社白石工務店', address: '東京都昭島市東町４-１４-８', phone: '0425446525', representative: '白石　悟' }
+const valid = { url: 'https://shiraishi.example.co.jp/', confidence: 'high', evidence_url: 'https://shiraishi.example.co.jp/company/', ...tokyo }
+const verifyHomepage = (input: Parameters<typeof checkHomepage>[0], candidate: Parameters<typeof checkHomepage>[1], page: string, title = tokyo.company_name) => checkHomepage(input, candidate, page, title)
+const body = (c: typeof valid) => `会社概要 会社名 ${c.company_name} 所在地 ${c.address} TEL ${c.phone} 代表者 ${c.representative}`
+
+describe('official homepage identity verification', () => {
+  it('rejects the incident: Tokyo company versus the same-name Ehime company', () => {
+    const wrong = { ...valid, company_name: '株式会社 白石工務店', url: 'https://siraisi-koumuten.jp/', evidence_url: 'https://siraisi-koumuten.jp/company/', address: '愛媛県新居浜市黒島一丁目3番29号', phone: '0897-46-2275', representative: '白石 誠一' }
+    expect(verifyHomepage(tokyo, wrong, body(wrong))).toMatchObject({ url: null, verified: false })
+  })
+  it('accepts independently supported company + full address + phone', () => {
+    expect(verifyHomepage(tokyo, valid, body(valid))).toMatchObject({ verified: true, confidence: 'high', url: valid.url })
+  })
+  it('accepts company + phone when address is unavailable', () => {
+    expect(verifyHomepage({ company_name: tokyo.company_name, phone: tokyo.phone }, { ...valid, address: '', representative: '' }, body(valid)).verified).toBe(true)
+  })
+  it('accepts width, space and street separator normalization', () => {
+    expect(verifyHomepage({ ...tokyo, address: '東京都昭島市東町4丁目14番8号', phone: '042-544-6525' }, valid, body(valid)).verified).toBe(true)
+  })
+  it('rejects a matching name or prefecture without a distinct identifier', () => {
+    for (const input of [{ company_name: tokyo.company_name }, { company_name: tokyo.company_name, address: '東京都' }, { company_name: tokyo.company_name, representative: tokyo.representative }]) {
+      expect(hasIdentifier(input)).toBe(false)
+      expect(verifyHomepage(input, valid, body(valid)).url).toBeNull()
+    }
+  })
+  it.each(['low', 'medium', undefined])('rejects ambiguous confidence %s despite matching text', confidence => {
+    expect(verifyHomepage(tokyo, { ...valid, confidence }, body(valid)).url).toBeNull()
+  })
+  it.each(['address', 'phone', 'representative', 'company_name'] as const)('rejects explicit %s conflict even with another matching identifier', key => {
+    const changed = { ...valid, [key]: key === 'phone' ? '089-978-0409' : '別会社の情報' }
+    expect(verifyHomepage(tokyo, changed, body(changed)).verified).toBe(false)
+  })
+  it('rejects fabricated matching model fields absent from actual page', () => {
+    expect(verifyHomepage(tokyo, valid, '株式会社白石工務店 愛媛県松山市 TEL 089-978-0409').verified).toBe(false)
+  })
+  it('rejects empty evidence and a third-party evidence domain', () => {
+    expect(verifyHomepage(tokyo, valid, '').verified).toBe(false)
+    expect(verifyHomepage(tokyo, { ...valid, evidence_url: 'https://directory.co.jp/company/' }, body(valid)).verified).toBe(false)
+  })
+  it('rejects directory and vendor partner listings despite matching facts', () => {
+    for (const title of ['企業検索ディレクトリ', '株式会社別の会社']) {
+      expect(verifyHomepage(tokyo, { ...valid, url: 'https://directory.co.jp/listing/', evidence_url: 'https://directory.co.jp/listing/' }, body(valid), title).verified).toBe(false)
+    }
+  })
+  it('rejects a same-name substring in a different company title', () => {
+    expect(verifyHomepage(tokyo, valid, body(valid), '株式会社白石工務店サービス').verified).toBe(false)
+  })
+  it('rejects missing homepage title', () => {
+    expect(checkHomepage(tokyo, valid, body(valid)).verified).toBe(false)
+  })
+  it.each(['address', 'phone', 'representative'] as const)('rejects omitted supplied %s even if another fact matches', key => {
+    expect(verifyHomepage(tokyo, { ...valid, [key]: '' }, body(valid) + ' 代表者 別人太郎').verified).toBe(false)
+  })
+  it('accepts legal company name in an official homepage title with tagline', () => {
+    expect(verifyHomepage(tokyo, valid, body(valid), '株式会社 白石工務店 | 会社案内').verified).toBe(true)
+  })
+  it('does not obtain fabricated facts from scripts or comments', () => {
+    const html = `<script>${body(valid)}</script><!-- ${body(valid)} --><p>別企業</p>`
+    expect(verifyHomepage(tokyo, valid, visibleText(html)).verified).toBe(false)
+  })
+  it('does not obtain facts from explicitly hidden elements and their children', () => {
+    for (const attribute of ['hidden', 'style="display: none"', 'aria-hidden="true"']) {
+      const html = `<div ${attribute}><p>${body(valid)}</p></div><p>別企業</p>`
+      expect(verifyHomepage(tokyo, valid, visibleText(html)).verified).toBe(false)
+    }
+  })
+})
+describe('evidence network boundaries', () => {
+  it.each(['file:///etc/passwd', 'https://127.0.0.1/', 'http://[::1]/', 'https://localhost/', 'https://x.internal/', 'https://user:pass@company.jp/', 'https://company.jp:8443/', 'javascript:alert(1)', 'https://instagram.com/company'])('rejects %s', url => expect(publicUrl(url)).toBeNull())
+  it.each(['127.0.0.1', '10.1.2.3', '169.254.169.254', '172.16.0.1', '192.168.0.1', '100.64.0.1', '0.0.0.0', '224.0.0.1', '198.18.0.1', '192.0.2.1', '203.0.113.1'])('rejects nonpublic DNS %s', ip => expect(publicIpv4(ip)).toBe(false))
+  it('allows ordinary public company host and IP', () => { expect(publicUrl('https://company.co.jp/company/')).not.toBeNull(); expect(publicIpv4('93.184.216.34')).toBe(true) })
+})
