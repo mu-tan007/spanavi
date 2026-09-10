@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import React from 'react';
 import { zoomPhone } from '../../lib/zoomPhoneStore';
+import { createCallActionGuard } from '../../lib/callActionGuard';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
@@ -306,6 +307,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   };
   const PAGE_SIZE = 30;
   const sessionIdRef = React.useRef(null);
+  const callActionGuard = useRef(createCallActionGuard());
   const [autoDial, setAutoDial] = useState(() => {
     try { return localStorage.getItem('cf_autocall') === 'true'; } catch { return false; }
   });
@@ -855,7 +857,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // callStatusColor を getStatusColor で代替（isExcluded時も実際のステータス色を使用）
   const callStatusColor = (st) => getStatusColor(st || '未架電');
 
-  const handleResult = async (result) => {
+  const handleResult = (result) => callActionGuard.current.run(async () => {
     console.log('[test] ステータスボタン押下');
     zoomPhone.hangUp();
     if (!selectedRow || selectedRound === null) { console.warn('[handleResult] 早期リターン — selectedRow:', selectedRow, '/ selectedRound:', selectedRound); return; }
@@ -949,7 +951,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         }
       } catch (e) { console.warn('[handleResult] 録音URL取得エラー:', e); }
     })();
-  };
+  });
 
   const handleDeleteRecord = async (record) => {
     await deleteCallRecord(record.id);
@@ -1015,16 +1017,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     return null;
   };
 
-  const handleAppoSave = async (formData) => {
+  const handleAppoSave = (formData) => callActionGuard.current.run(async () => {
     if (!appoModal || selectedRound === null) return;
-    // 再入防止 (同一 appoModal インスタンスに対し handleAppoSave が 2回呼ばれた場合に弾く)
-    if (handleAppoSave._inFlight === appoModal.id) {
-      console.warn('[handleAppoSave] 再入検知: 既に処理中のため skip', appoModal.id);
-      return;
-    }
-    handleAppoSave._inFlight = appoModal.id;
-    try {
-
     const calledAtAppo = new Date().toISOString();
     const _prevRecAppo = callRecords
       .filter(r => r.item_id === appoModal.id)
@@ -1155,10 +1149,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
     // zoom.us URLをSupabase Storageに変換（非ブロッキング）
     if (recordingUrlAppo && newRec?.id) uploadRecordingToStorage(newRec.id, recordingUrlAppo);
-    } finally {
-      handleAppoSave._inFlight = null;
-    }
-  };
+  });
 
   // 買い手マッチング ニーズヒアリング保存（アポとは独立。売上/報酬計算には一切干渉しない）
   const handleNeedsSave = async (fields) => {
@@ -1181,7 +1172,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     return true;
   };
 
-  const handleRecallSave = async (recallData) => {
+  const handleRecallSave = (recallData) => callActionGuard.current.run(async () => {
     if (!recallModal) return;
     const { row, round, label } = recallModal;
     const memoJson = JSON.stringify({
@@ -1262,7 +1253,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setSelectedRow(next || updatedItem);
       if (autoDial && next?.phone) dialPhone(next.phone);
     }
-  };
+  });
 
   const handleMemoBlur = async () => {
     if (!selectedRow) return;
