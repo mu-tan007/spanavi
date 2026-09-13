@@ -12,7 +12,7 @@ import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { getCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
 import CompanyAddressMatchFilter from '../common/CompanyAddressMatchFilter';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallFlowRecords, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -212,6 +212,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);
   const [search, setSearch] = useUrlState('flow_q', '');
   const [pageStr, setPageStr] = useUrlState('flow_page', '0');
@@ -261,6 +263,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [addressMatchFilter, setAddressMatchFilter] = useState(() => normalizeAddressMatchFilter(initialAddressMatchFilter));
   const handleAddressMatchFilterChange = value => {
     const next = normalizeAddressMatchFilter(value);
+    if (next !== addressMatchFilter) {
+      setLoading(true);
+      setLoadError(null);
+    }
     setAddressMatchFilter(next);
     setPage(0);
     onAddressMatchFilterChange?.(next);
@@ -354,23 +360,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       return;
     }
     let cancelled = false;
+    const controller = new AbortController();
+    setLoading(true);
+    setLoadError(null);
 
-    // 全件ロード（リストモード・ソート・架電開始で必要）。
-    // defaultItemId 指定時は背景で並行実行し、UI ブロックしない。
-    // startNo/endNo 指定時は範囲だけ取得して大規模リストのラグを回避。
+    // 住所条件と番号範囲はDBで先に絞る。企業と該当履歴を並行取得し、
+    // 両方揃うまで架電を無効にして、除外判定・架電回数を正確に保つ。
     const hasRange = (startNo != null && endNo != null);
-    const loadFull = () => fetchCallListItems(list._supaId, hasRange ? { startNo, endNo } : {})
-      .then(async (itemsRes) => {
-        if (cancelled) return { itemsRes, recordsRes: { data: [] } };
-        const fetchedItems = itemsRes.data || [];
-        // 範囲指定時は item_id で絞った records だけ取得（全件取得を回避）
-        const recordsRes = hasRange
-          ? { data: (await fetchCallRecordsByItemIds(fetchedItems.map(i => i.id))).data || [] }
-          : await fetchCallRecords(list._supaId);
-        return { itemsRes, recordsRes };
-      })
-      .then(({ itemsRes, recordsRes }) => {
+    const options = { ...(hasRange ? { startNo, endNo } : {}), addressMatch: addressMatchFilter, signal: controller.signal };
+    const loadFull = () => Promise.all([
+      fetchCallListItems(list._supaId, options),
+      fetchCallFlowRecords(list._supaId, options),
+    ]).then(([itemsRes, recordsRes]) => {
       if (cancelled) return;
+      if (itemsRes.error || recordsRes.error) throw (itemsRes.error || recordsRes.error);
       const fetchedItems = itemsRes.data || [];
       const fetchedRecords = recordsRes.data || [];
       setItems(fetchedItems);
@@ -378,13 +381,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       if (defaultItemId) {
         // 高速パスで既に selectedRow セット済みでも、全件版に差し替えて参照同一性を保つ
         const target = fetchedItems.find(i => i.id === defaultItemId);
-        if (target) setSelectedRow(target);
+        setSelectedRow(target || null);
       } else {
         try {
           const savedId = sessionStorage.getItem('callflow_selected_id');
           if (savedId) {
             const target = fetchedItems.find(i => String(i.id) === savedId);
-            if (target) setSelectedRow(target);
+            setSelectedRow(target || null);
           }
         } catch {}
       }
@@ -392,10 +395,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }).catch(err => {
       if (cancelled) return;
       console.error('[CallFlowView] データ取得エラー:', err);
+      setLoadError('企業一覧を取得できませんでした。再読み込みしてください。');
       setLoading(false);
     });
 
-    if (defaultItemId) {
+    if (defaultItemId && !addressMatchFilter) {
       // ★ 高速パス: アポ一覧等から特定企業を開く時、その1件＋関連レコードだけ即取得し
       // すぐに描画する。3万件級リストでも体感ラグなし。
       // singleItemMode の場合は1件のみで全件ロードしない。
@@ -426,8 +430,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       loadFull();
     }
 
-    return () => { cancelled = true; };
-  }, [list._supaId, startNo, endNo]);
+    return () => { cancelled = true; controller.abort(); };
+  }, [list._supaId, startNo, endNo, addressMatchFilter, loadAttempt]);
 
   useEffect(() => {
     fetchSetting('qa_data').then(({ value }) => {
@@ -458,7 +462,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   // 架電開始ハンドラ: セッション作成 + Slack通知 + フォーカスモード遷移
   const handleStartCalling = () => {
-    if (sessionStarted) return;
+    if (sessionStarted || loading || loadError) return;
     const cacheKey = `${list.id}|${startNo ?? ''}|${endNo ?? ''}`;
     // 既にセッション作成済み（再マウント時）はセッション復元のみ
     if (_cfSessionCache.has(cacheKey)) {
@@ -669,9 +673,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       .catch(e => console.error('[Session] _updateSessionProgress error:', e));
   };
 
-  const addressMatchByItem = useMemo(() => new Map(
+  const addressMatchByItem = useMemo(() => addressMatchFilter ? new Map(
     items.map(item => [item.id, getCompanyAddressMatch(item)])
-  ), [items]);
+  ) : new Map(), [items, addressMatchFilter]);
 
   const filtered = (() => {
     const result = statusFilteredItems.filter(item => {
@@ -1423,6 +1427,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           <div style={{ flex: 1, overflow: 'auto' }}>
             {loading ? (
               <div style={{ textAlign: 'center', padding: '60px 0', color: C.textLight, fontSize: 13 }}>読み込み中...</div>
+            ) : loadError ? (
+              <div role="alert" style={{ textAlign: 'center', padding: space[6], color: color.danger }}>{loadError} <Button size="sm" onClick={() => setLoadAttempt(n => n + 1)}>再読み込み</Button></div>
             ) : !list._supaId ? (
               <div style={{ textAlign: 'center', padding: '60px 0', color: C.textLight, fontSize: 13 }}>Supabase未登録リストです</div>
             ) : (
@@ -2283,7 +2289,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     variant="primary"
                     size="sm"
                     onClick={handleStartCalling}
-                    disabled={sessionStarted || sorted.length === 0}
+                    disabled={loading || !!loadError || sessionStarted || sorted.length === 0}
                     style={{ padding: '6px 20px', fontSize: font.size.xs, fontWeight: font.weight.bold, whiteSpace: 'nowrap', borderRadius: radius.md }}
                   >
                     {sessionStarted ? '架電中' : '架電開始'}
@@ -2294,6 +2300,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
                 {loading ? (
                   <div style={{ textAlign: 'center', padding: '60px 0', color: color.textMid, fontSize: font.size.base }}>読み込み中...</div>
+                ) : loadError ? (
+                  <div role="alert" style={{ textAlign: 'center', padding: space[6], color: color.danger }}>{loadError} <Button size="sm" onClick={() => setLoadAttempt(n => n + 1)}>再読み込み</Button></div>
                 ) : !list._supaId ? (
                   <div style={{ textAlign: 'center', padding: '60px 0', color: color.textMid, fontSize: font.size.base }}>Supabase未登録リストです</div>
                 ) : (

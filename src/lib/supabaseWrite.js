@@ -5,6 +5,7 @@ import { enqueuePayrollSyncForMeetingDates } from './payrollAutoSync'
 import { notifyAppointmentsChanged } from './appointmentEvents'
 import { meetingTimestampTime } from '../utils/appointmentCalendar'
 import { verifiedHomepageResult } from './homepageLookup'
+import { queryCallItems, queryCallFlowRecords } from './callListRead'
 
 // ============================================================
 // Drive CORS Proxy
@@ -1318,29 +1319,15 @@ export async function deleteClientContact(id) {
 // ============================================================
 
 export async function fetchCallListItems(listId, opts = {}) {
-  const { startNo = null, endNo = null } = opts
-  const PAGE_SIZE = 1000
-  let from = 0
-  let allData = []
-  while (true) {
-    let q = supabase
-      .from('call_list_items')
-      .select('*')
-      .eq('list_id', listId)
-    if (startNo != null) q = q.gte('no', startNo)
-    if (endNo != null) q = q.lte('no', endNo)
-    const { data, error } = await q
-      .order('no')
-      .range(from, from + PAGE_SIZE - 1)
-    if (error) {
-      console.error('[DB] fetchCallListItems error:', error)
-      return { data: allData.length ? allData : [], error }
-    }
-    allData = allData.concat(data || [])
-    if (!data || data.length < PAGE_SIZE) break
-    from += PAGE_SIZE
-  }
-  return { data: allData, error: null }
+  return queryCallItems(supabase, listId, opts)
+}
+
+export async function fetchCallFlowRecords(listId, opts = {}) {
+  return queryCallFlowRecords(supabase, listId, opts)
+}
+
+export async function fetchCallListFilterSummary(listId) {
+  return supabase.rpc('call_list_filter_summary', { p_list_id: listId })
 }
 
 // スクリプト閲覧用の軽量取得。差し込み口 {{企業別トーク}} を含むスクリプトを

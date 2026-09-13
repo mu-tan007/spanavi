@@ -5,7 +5,7 @@ import { Button, Input, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { getIndustryCategory } from '../../utils/industry';
-import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListItems, insertCallListItems } from '../../lib/supabaseWrite';
+import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListFilterSummary, insertCallListItems } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
 import { ScorePill } from '../common/ScorePill';
 import CallHistoryPanel from './CallHistoryPanel';
@@ -44,7 +44,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
     if (e3) { alert('件数更新に失敗しました: ' + (e3.message || JSON.stringify(e3))); setDeleting(false); return; }
     setDeleting(false);
     setItemCount(0);
-    setCsvData([]);
+    setAvailablePrefs([]);
     setImportResult(null);
     if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: 0 } : l));
     alert('CSVデータをクリアしました');
@@ -53,7 +53,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [flowStartNo, setFlowStartNo] = useState('');
   const [flowEndNo, setFlowEndNo] = useState('');
   const [itemCount, setItemCount] = useState(null);
-  const [csvData, setCsvData] = useState([]);
+  const [availablePrefs, setAvailablePrefs] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]); // 空配列=全ステータス
   const [addressMatchFilter, setAddressMatchFilter] = useState('');
   const [revenueMin, setRevenueMin] = useState('');
@@ -84,14 +84,14 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
     if (!list._supaId) {
       return;
     }
-    fetchCallListItems(list._supaId).then(({ data }) => {
-      const items = data || [];
-      setItemCount(items.length);
-      setCsvData(items);
+    let cancelled = false;
+    fetchCallListFilterSummary(list._supaId).then(({ data, error }) => {
+      if (cancelled || error || !data) return;
+      setItemCount(data.count);
+      setAvailablePrefs(data.prefectures || []);
     });
+    return () => { cancelled = true; };
   }, [list._supaId]);
-
-  const availablePrefs = [...new Set(csvData.map(r => extractPref(r.address)).filter(Boolean))].sort();
 
   // ファイル選択（CSV / Excel）→ パースしてカラム紐付けモーダルを開く
   // （ヘッダー名がスパナビの項目名と違っても、モーダルで列を選び直せる）
@@ -135,8 +135,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       setItemCount(newTotalCount);
       setPendingImport(null);
       // 追加分をモーダル内の一覧・絞り込みにも反映
-      const { data: refreshed } = await fetchCallListItems(list._supaId);
-      if (refreshed) setCsvData(refreshed);
+      const { data: refreshed } = await fetchCallListFilterSummary(list._supaId);
+      if (refreshed) setAvailablePrefs(refreshed.prefectures || []);
     } finally {
       setCsvImporting(false);
     }

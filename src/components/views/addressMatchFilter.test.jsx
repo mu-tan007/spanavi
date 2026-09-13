@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../lib/supabaseWrite', () => ({
-  fetchCallListItems: vi.fn(), fetchCallRecords: vi.fn(), fetchCallRecordsByItemIds: vi.fn(),
+  fetchCallListItems: vi.fn(), fetchCallFlowRecords: vi.fn(), fetchCallListFilterSummary: vi.fn(),
   fetchCallListItemById: vi.fn(), fetchCallRecordsByItem: vi.fn(), fetchSetting: vi.fn(),
   insertCallRecord: vi.fn(), findRecentApoCallRecord: vi.fn(), updateCallRecordFields: vi.fn(),
   updateCallListItem: vi.fn(), unlinkIncomingCallsByCallerNumber: vi.fn(),
@@ -33,7 +33,8 @@ vi.mock('../common/ScriptTreeGuide', () => ({ default: () => null }));
 
 import DetailModal from './DetailModal';
 import CallFlowView from './CallFlowView';
-import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchSetting, insertCallSession } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallFlowRecords, fetchCallListFilterSummary, fetchSetting, insertCallSession } from '../../lib/supabaseWrite';
+import { getCompanyAddressMatch } from '../../utils/companyAddressMatch';
 import { dialPhone } from '../../utils/phone';
 
 const list = { id: 'address-test', _supaId: 'address-test', company: '検証リスト', industry: '全業種', count: 4, recommendation: {} };
@@ -53,9 +54,12 @@ async function mountFlow(extra = {}) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  fetchCallListItems.mockResolvedValue({ data: rows });
-  fetchCallRecords.mockResolvedValue({ data: [] });
-  fetchCallRecordsByItemIds.mockResolvedValue({ data: [] });
+  fetchCallListItems.mockImplementation(async (_, opts = {}) => ({ data: rows.filter(row =>
+    (!opts.addressMatch || getCompanyAddressMatch(row) === opts.addressMatch)
+    && (opts.startNo == null || row.no >= opts.startNo) && (opts.endNo == null || row.no <= opts.endNo)
+  ) }));
+  fetchCallFlowRecords.mockResolvedValue({ data: [] });
+  fetchCallListFilterSummary.mockResolvedValue({ data: { count: 4, prefectures: ['東京都'] } });
   fetchSetting.mockResolvedValue({ value: null });
   vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn() });
@@ -76,12 +80,16 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
     }
     act(() => button('検索').props.onClick());
     expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ addressMatchFilter: 'different', startNo: 1, endNo: 3 }));
+    expect(fetchCallListItems).not.toHaveBeenCalled();
+    expect(fetchCallListFilterSummary).toHaveBeenCalledWith(list._supaId);
   });
 
   it('一致条件を売上・ステータス条件とANDで適用し、一覧から変更・解除できる', async () => {
     const changed = vi.fn();
     await mountFlow({ initialAddressMatchFilter: 'same', initialRevenueMin: 100000, statusFilter: ['未架電'], onAddressMatchFilterChange: changed });
     expect(companies()).toEqual(['一致企業']);
+    expect(fetchCallListItems).toHaveBeenCalledWith(list._supaId, expect.objectContaining({ addressMatch: 'same' }));
+    expect(fetchCallFlowRecords).toHaveBeenCalledWith(list._supaId, expect.objectContaining({ addressMatch: 'same' }));
     await act(async () => { select().props.onChange({ target: { value: 'different' } }); });
     expect(companies()).toEqual(['不一致企業']);
     expect(changed).toHaveBeenLastCalledWith('different');
@@ -106,5 +114,30 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
     expect(renderer.root.findAllByType('td').some(node => node.children.includes('一致企業'))).toBe(false);
     expect(JSON.stringify(renderer.toJSON())).toContain('不一致企業');
     expect(dialPhone).not.toHaveBeenCalled();
+  });
+
+  it('履歴待ち・取得失敗中は架電開始できず、不完全な結果を表示しない', async () => {
+    let finish;
+    fetchCallFlowRecords.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    await mountFlow({ initialAddressMatchFilter: 'same' });
+    expect(button('架電開始').props.disabled).toBe(true);
+    expect(companies()).toEqual([]);
+    await act(async () => { finish({ data: [], error: { message: 'timeout' } }); });
+    expect(button('架電開始').props.disabled).toBe(true);
+    expect(JSON.stringify(renderer.toJSON())).toContain('企業一覧を取得できませんでした');
+    await act(async () => { button('再読み込み').props.onClick(); });
+    expect(companies()).toEqual(['一致企業', '一致低売上企業']);
+    expect(button('架電開始').props.disabled).toBe(false);
+  });
+
+  it('条件を素早く変更しても遅れて到着した古い検索結果で上書きしない', async () => {
+    let finishOld;
+    fetchCallListItems.mockReturnValueOnce(new Promise(resolve => { finishOld = resolve; }));
+    await mountFlow({ initialAddressMatchFilter: 'same' });
+    await act(async () => { select().props.onChange({ target: { value: 'different' } }); });
+    expect(companies()).toEqual(['不一致企業']);
+    await act(async () => { finishOld({ data: [rows[0], rows[3]] }); });
+    expect(companies()).toEqual(['不一致企業']);
+    expect(fetchCallListItems.mock.calls[0][1].signal.aborted).toBe(true);
   });
 });
