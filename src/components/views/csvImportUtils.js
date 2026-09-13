@@ -56,7 +56,26 @@ export function parseCSVLine(line) {
 
 // ── ファイル読み込み（CSV / Excel 共通）──────────────────────────
 // ファイル選択 input の accept 属性。旧形式(.xls)はライブラリが読めないため含めない。
-export const IMPORT_FILE_ACCEPT = '.csv,.xlsx,.xlsm';
+export const IMPORT_FILE_ACCEPT = '.csv,.tsv,.xlsx,.xlsm';
+
+// Parse quoted line breaks as part of a cell, including representative addresses.
+export function parseDelimitedText(text, delimiter = ',') {
+  const rows = []; let row = [], cell = '', quoted = false;
+  const endCell = () => { row.push(cell.trim()); cell = ''; };
+  const endRow = () => { endCell(); if (row.some(value => value !== '')) rows.push(row); row = []; };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (quoted && text[i + 1] === '"') { cell += '"'; i++; }
+      else quoted = !quoted;
+    } else if (ch === delimiter && !quoted) endCell();
+    else if ((ch === '\r' || ch === '\n') && !quoted) { if (ch === '\r' && text[i + 1] === '\n') i++; endRow(); }
+    else cell += ch;
+  }
+  if (quoted) throw new Error('CSVの引用符が閉じられていません。元ファイルを確認してください。');
+  if (cell || row.length) endRow();
+  return rows;
+}
 
 // Excel セルの値 → 文字列。
 // 数式セルは計算結果、リッチテキストは連結、リンクセルは表示テキストを取る。
@@ -103,8 +122,7 @@ function toSheet(name, matrix) {
 
 async function readCsvSheets(file) {
   const text = await file.text(); // UTF-8
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  return [toSheet(null, lines.map(l => parseCSVLine(l)))];
+  return [toSheet(null, parseDelimitedText(text, /\.tsv$/i.test(file.name) ? '\t' : ','))];
 }
 
 async function readExcelSheets(file) {

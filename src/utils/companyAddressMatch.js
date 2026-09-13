@@ -67,9 +67,7 @@ function isComparable(address) {
 export function getCompanyAddressMatch(item) {
   const companyAddress = normalizeCompanyAddress(item?.address);
   if (!isComparable(companyAddress)) return 'unknown';
-  const memo = readMemo(item?.memo);
-  const values = [...Object.entries(memo), ...Object.entries(item || {})]
-    .filter(([key]) => HOME_KEYS.has(normalizeKey(key)))
+  const values = getRepresentativeAddressEntries(item)
     .map(([, value]) => normalizeCompanyAddress(value))
     .filter(isComparable);
   const addresses = [...new Set(values)];
@@ -77,4 +75,16 @@ export function getCompanyAddressMatch(item) {
   // 複数の住所欄が矛盾する場合は推測しない（住所コード欄は上で除外）。
   if (addresses.length > 1) return 'unknown';
   return companyAddress === addresses[0] ? 'same' : 'different';
+}
+
+export function getRepresentativeAddressEntries(item) {
+  return [...Object.entries(readMemo(item?.memo)), ...Object.entries(item || {})]
+    .filter(([key]) => HOME_KEYS.has(normalizeKey(key)));
+}
+
+// The paged staff RPC resolves shared facts and returns its indexed comparison.
+// Imported memo fields cannot supply this value; raw local records keep the fallback.
+export function getEffectiveCompanyAddressMatch(item) {
+  return item?.company_id && ['same', 'different', 'unknown'].includes(item.shared_address_match)
+    ? item.shared_address_match : getCompanyAddressMatch(item);
 }

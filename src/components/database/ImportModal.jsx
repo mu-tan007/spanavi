@@ -3,6 +3,8 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { X, Upload, ArrowRight, Check, AlertTriangle } from 'lucide-react';
 import { checkDuplicates, executeImport } from '../../lib/companyMasterImport';
+import { parseImportFile, IMPORT_FILE_ACCEPT, restorePhoneLeadingZero } from '../views/csvImportUtils';
+import { specificCompanyImportField } from '../../utils/companyMasterImportMapping';
 
 // カラムマッピング候補
 const DB_COLUMNS = [
@@ -15,6 +17,8 @@ const DB_COLUMNS = [
   { key: 'address', label: '住所' },
   { key: 'phone', label: '電話番号' },
   { key: 'representative', label: '代表者' },
+  { key: 'representative_address', label: '代表者自宅住所（企業カルテに共有）' },
+  { key: 'corporate_number', label: '法人番号（企業カルテに共有）' },
   { key: 'representative_age', label: '代表者年齢' },
   { key: 'revenue_k', label: '売上高（千円）' },
   { key: 'net_income_k', label: '当期純利益（千円）' },
@@ -53,6 +57,8 @@ const AUTO_MAP = {
 };
 
 function autoMap(header) {
+  const specific = specificCompanyImportField(header);
+  if (specific !== null) return specific;
   if (AUTO_MAP[header]) return AUTO_MAP[header];
   for (const [pattern, col] of Object.entries(AUTO_MAP)) {
     if (header.includes(pattern)) return col;
@@ -71,39 +77,24 @@ export default function ImportModal({ onClose, onImportComplete }) {
   const [finalResult, setFinalResult] = useState(null);
   const [error, setError] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [sheets, setSheets] = useState([]);
+  const [sheetIndex, setSheetIndex] = useState(0);
+
+  const applySheet = (allSheets, index) => {
+    const sheet = allSheets[index];
+    setSheetIndex(index); setHeaders(sheet.headersOriginal); setRawRows(sheet.dataRows);
+    const map = {}, used = new Set();
+    sheet.headersOriginal.forEach((h, i) => { const field = autoMap(h.trim()); map[i] = used.has(field) ? '' : field; if (field) used.add(field); });
+    setColumnMap(map); setDedupResult(null);
+  };
 
   // Step 1: File upload
   const handleFile = useCallback(async (file) => {
     setFileName(file.name);
     setError(null);
     try {
-      const ext = file.name.split('.').pop().toLowerCase();
-      let hdrs = [], rows = [];
-
-      if (ext === 'csv' || ext === 'tsv') {
-        const text = await file.text();
-        const sep = ext === 'tsv' ? '\t' : ',';
-        const lines = text.split(/\r?\n/).filter(l => l.trim());
-        hdrs = parseCSVLine(lines[0], sep);
-        rows = lines.slice(1).map(l => parseCSVLine(l, sep));
-      } else {
-        const ExcelJS = (await import('exceljs')).default;
-        const wb = new ExcelJS.Workbook();
-        await wb.xlsx.load(await file.arrayBuffer());
-        const ws = wb.worksheets[0];
-        ws.eachRow((row, i) => {
-          const vals = row.values.slice(1).map(v => v == null ? '' : String(v));
-          if (i === 1) hdrs = vals;
-          else rows.push(vals);
-        });
-      }
-
-      setHeaders(hdrs);
-      setRawRows(rows);
-      // Auto-map
-      const map = {};
-      hdrs.forEach((h, i) => { map[i] = autoMap(h.trim()); });
-      setColumnMap(map);
+      const parsed = await parseImportFile(file);
+      setSheets(parsed.sheets); applySheet(parsed.sheets, 0);
       setStep(2);
     } catch (e) {
       setError('ファイルの読み込みに失敗: ' + e.message);
@@ -122,6 +113,7 @@ export default function ImportModal({ onClose, onImportComplete }) {
             obj[dbCol] = row[idx]?.trim() || '';
           }
         });
+        if (obj.phone) obj.phone = restorePhoneLeadingZero(obj.phone);
         return obj;
       }).filter(r => r.company_name);
 
@@ -195,7 +187,7 @@ export default function ImportModal({ onClose, onImportComplete }) {
                 border: `2px dashed ${color.border}`, borderRadius: radius.xl, padding: '60px 20px',
                 textAlign: 'center', cursor: 'pointer',
               }}
-              onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,.tsv,.xlsx,.xls'; inp.onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); }; inp.click(); }}
+              onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = IMPORT_FILE_ACCEPT; inp.onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); }; inp.click(); }}
             >
               <Upload size={40} color={color.textLight} style={{ marginBottom: space[3] }} />
               <div style={{ fontSize: font.size.md, color: color.textDark, marginBottom: space[1.5] }}>ファイルをドラッグ＆ドロップ</div>
@@ -206,6 +198,8 @@ export default function ImportModal({ onClose, onImportComplete }) {
           {/* Step 2: Column Mapping */}
           {step === 2 && (
             <div>
+              {sheets.length > 1 && <Select label="取り込むシート" aria-label="取り込むシート" value={sheetIndex} onChange={e => applySheet(sheets, Number(e.target.value))}
+                options={sheets.map((sheet, i) => ({ value: i, label: `${sheet.name}（${sheet.dataRows.length.toLocaleString()}行）` }))} containerStyle={{ marginBottom: space[3] }} />}
               <div style={{ fontSize: font.size.base, color: color.textMid, marginBottom: space[3] }}>
                 <strong>{fileName}</strong> — {rawRows.length.toLocaleString()}行 / {headers.length}列
               </div>
@@ -246,7 +240,7 @@ export default function ImportModal({ onClose, onImportComplete }) {
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: space[3], marginBottom: space[4] }}>
                 <StatCard label="新規追加" count={dedupResult.newRows.length} statColor={color.success} />
-                <StatCard label="上書き更新（インポート側の情報が多い）" count={dedupResult.updateRows.length} statColor={color.warn} />
+                <StatCard label="企業情報を補完・更新" count={dedupResult.updateRows.length} statColor={color.warn} />
                 <StatCard label="スキップ（既存の情報が多い）" count={dedupResult.skipRows.length} statColor={color.textLight} />
               </div>
               {dedupResult.updateRows.length > 0 && (

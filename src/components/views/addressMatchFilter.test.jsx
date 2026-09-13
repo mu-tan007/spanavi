@@ -48,7 +48,8 @@ const rows = [
 let renderer;
 const select = () => renderer.root.findAllByType('select').find(node => node.props['aria-label'] === '会社住所と代表者自宅住所');
 const button = text => renderer.root.findAllByType('button').find(node => node.children.includes(text));
-const companies = () => renderer.root.findAllByType('td').map(node => node.children[0]).filter(text => rows.some(row => row.company === text));
+const companies = () => renderer.root.findAllByType('button')
+  .map(node => node.props['aria-label']).filter(label => label?.endsWith('の企業カルテ')).map(label => label.replace(/の企業カルテ$/, ''));
 async function mountFlow(extra = {}) {
   await act(async () => { renderer = create(<MemoryRouter><CallFlowView list={list} onClose={vi.fn()} {...extra} /></MemoryRouter>); });
 }
@@ -68,6 +69,13 @@ beforeEach(() => {
 afterEach(() => { if (renderer) act(() => renderer.unmount()); renderer = null; vi.unstubAllGlobals(); });
 
 describe('住所照合条件を詳細モーダルから架電対象まで維持', () => {
+  it('元リストに自宅住所がなくても、共有企業の住所で一致した結果を表示する', async () => {
+    fetchCallFlowData.mockResolvedValue({ data: { items: [{ ...rows[0], memo: '{}', company_id: 'company-a', shared_address_match: 'same' }], records: [] } });
+    await mountFlow({ initialAddressMatchFilter: 'same' });
+    expect(companies()).toEqual(['一致企業']);
+    expect(insertCallSession).not.toHaveBeenCalled();
+    expect(dialPhone).not.toHaveBeenCalled();
+  });
   it('詳細モーダルの全件・番号範囲の両経路で条件を渡す', async () => {
     const open = vi.fn();
     await act(async () => { renderer = create(<DetailModal list={list} onClose={vi.fn()} industryRules={[]} now={new Date()} callListData={[list]} setCallFlowScreen={open} />); });

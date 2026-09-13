@@ -13,6 +13,7 @@ import { useCompanySearch } from '../../hooks/useCompanySearch';
 import { searchCompanies } from '../../lib/companyMasterApi';
 import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
+import CompanyDirectory from '../company/CompanyDirectory';
 
 // CSVエクスポート対象カラム。
 // 先頭14列は Spanavi の企業リスト納品標準フォーマット（クライアント渡し・NGチェック用）。
@@ -65,6 +66,8 @@ export default function DatabaseView({ isAdmin }) {
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
   const [dbTotal, setDbTotal] = useState(null);
+  const [directoryMode, setDirectoryMode] = useState('shared');
+  const [directoryRevision, setDirectoryRevision] = useState(0);
 
   useEffect(() => {
     supabase.from('company_master').select('id', { count: 'exact', head: true })
@@ -123,11 +126,11 @@ export default function DatabaseView({ isAdmin }) {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="企業DB"
-        description={dbTotal != null ? `Total: ${dbTotal.toLocaleString()} companies` : undefined}
+        description="企業DBと架電リストの企業情報・対応履歴を共有"
         style={{ marginBottom: 24 }}
         right={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setShowAiChat(true)}>
+            <Button variant="secondary" size="sm" onClick={() => { setDirectoryMode('advanced'); setShowAiChat(true); }}>
               AIで検索
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowTsrModal(true)}>
@@ -141,6 +144,12 @@ export default function DatabaseView({ isAdmin }) {
           </>
         }
       />
+
+      <div style={{ display: 'flex', gap: space[2], marginBottom: space[4] }}>
+        <Button variant={directoryMode === 'shared' ? 'primary' : 'outline'} onClick={() => setDirectoryMode('shared')}>共有企業・CRM</Button>
+        <Button variant={directoryMode === 'advanced' ? 'primary' : 'outline'} onClick={() => setDirectoryMode('advanced')}>企業DBの詳細検索{dbTotal != null ? `（${dbTotal.toLocaleString()}件）` : ''}</Button>
+      </div>
+      {directoryMode === 'shared' ? <CompanyDirectory revision={directoryRevision} /> : <>
 
       {/* Filters */}
       <DatabaseFilterPanel
@@ -191,6 +200,7 @@ export default function DatabaseView({ isAdmin }) {
           <div style={{ fontSize: font.size.sm }}>業種・エリア・売上高・従業員数・代表者年齢・電話番号などで絞り込めます</div>
         </Card>
       )}
+      </>}
 
       {showTsrModal && <TsrIndustryModal onClose={() => setShowTsrModal(false)} />}
 
@@ -198,7 +208,7 @@ export default function DatabaseView({ isAdmin }) {
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
-          onImportComplete={() => { if (hasSearched) doSearch(); }}
+          onImportComplete={() => { setDirectoryRevision(n => n + 1); if (hasSearched) doSearch(); }}
         />
       )}
 
@@ -217,7 +227,7 @@ export default function DatabaseView({ isAdmin }) {
         open={showAiChat}
         onClose={() => setShowAiChat(false)}
         baseFilters={filters}
-        onApplyFilters={(f) => { setShowAiChat(false); handleApplyFromChat(f); }}
+        onApplyFilters={(f) => { setDirectoryMode('advanced'); setShowAiChat(false); handleApplyFromChat(f); }}
       />
     </div>
   );

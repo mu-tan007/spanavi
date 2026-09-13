@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { companyImportFullAddress } from '../utils/companyMasterImportMapping';
 
 const BATCH_SIZE = 300;
 
@@ -13,6 +14,9 @@ export async function checkDuplicates(mappedRows) {
       row_index: i + idx,
       company_name: row.company_name || '',
       representative: row.representative || '',
+      phone: row.phone || '',
+      address: companyImportFullAddress(row),
+      corporate_number: row.corporate_number || '',
     }));
 
     const { data, error } = await supabase.rpc('match_company_duplicates', { p_rows: batch });
@@ -32,6 +36,8 @@ export async function checkDuplicates(mappedRows) {
       const importFieldCount = countFields(row);
       if (importFieldCount > match.existing_field_count) {
         results.updateRows.push({ ...row, id: match.existing_id, existingName: match.existing_name });
+      } else if (row.representative_address || row.corporate_number) {
+        results.updateRows.push({ ...row, id: match.existing_id, existingName: match.existing_name, _facts_only: true });
       } else {
         results.skipRows.push({ ...row, existingName: match.existing_name, existingRep: match.existing_representative });
       }
@@ -44,10 +50,10 @@ export async function checkDuplicates(mappedRows) {
 /** インポート実行 */
 export async function executeImport(newRows, updateRows, sourceFile, onProgress) {
   let totalInserted = 0, totalUpdated = 0;
-  const allInserts = newRows.map(r => ({ ...r, source_file: sourceFile }));
+  const allInserts = newRows.map(r => ({ ...r, full_address: companyImportFullAddress(r), source_file: sourceFile }));
   const allUpdates = updateRows.map(r => {
     const { existingName, ...rest } = r;
-    return { ...rest, source_file: sourceFile };
+    return { ...rest, full_address: companyImportFullAddress(r), source_file: sourceFile };
   });
 
   const totalBatches = Math.ceil(allInserts.length / BATCH_SIZE) + Math.ceil(allUpdates.length / BATCH_SIZE);

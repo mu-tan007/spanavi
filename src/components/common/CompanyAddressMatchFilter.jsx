@@ -11,7 +11,7 @@ export default function CompanyAddressMatchFilter({ value, onChange, counts }) {
         size="sm"
         fullWidth={false}
         aria-label="会社住所と代表者自宅住所"
-        title="登録住所の空白・全角半角・番地表記を揃えて比較します。住所不足は判定不可です。"
+        title="企業DB・各リストで共有された代表者住所も参照します。空白・全角半角・番地表記を揃えて比較し、住所不足・相違は判定不可です。"
         value={value}
         onChange={event => onChange(event.target.value)}
         options={ADDRESS_MATCH_OPTIONS.map(option => ({

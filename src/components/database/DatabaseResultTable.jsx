@@ -3,6 +3,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge } from '../ui';
 import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { CALL_RESULTS } from '../../constants/callResults';
+import CompanyProfileDialog from '../company/CompanyProfileDialog';
 import { fetchCompanyCallHistory, fetchCompanyLabels, toggleCompanyLabel, DB_LABEL_OPTIONS } from '../../lib/companyMasterApi';
 
 // 架電ステータスのラベル→色（企業DB詳細の履歴バッジ用）。org既定=CALL_RESULTS。
@@ -73,6 +74,7 @@ function formatNumber(val) {
 
 export default function DatabaseResultTable({ results, totalCount, page, pageSize, onPageChange, loading, sortCol, sortDir, onSort }) {
   const [selectedRow, setSelectedRow] = useState(null);
+  const [profileTarget, setProfileTarget] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [labels, setLabels] = useState([]);
@@ -226,6 +228,7 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
       )}
 
       {/* Detail Modal */}
+      {profileTarget && <CompanyProfileDialog target={profileTarget} onClose={() => setProfileTarget(null)} onSelectCompany={companyId => setProfileTarget({ companyId })} />}
       {selectedRow && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
           onClick={() => setSelectedRow(null)}>
@@ -240,6 +243,7 @@ export default function DatabaseResultTable({ results, totalCount, page, pageSiz
             </div>
             {/* Modal body */}
             <div style={{ flex: 1, overflow: 'auto', padding: space[5] }}>
+              <Button onClick={() => setProfileTarget({ masterId: selectedRow.id })} style={{ marginBottom: space[4] }}>企業カルテ・共有情報を開く</Button>
               {/* 企業DBラベル（会社属性タグ。ON/OFF可） */}
               <div style={{ marginBottom: space[4], display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
                 <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>企業DBラベル</span>

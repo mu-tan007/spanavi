@@ -10,7 +10,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
-import { getCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
+import { getEffectiveCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
 import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
@@ -28,6 +28,8 @@ import ScriptBody from '../common/ScriptBody';
 import ScriptTreeGuide from '../common/ScriptTreeGuide';
 import { resolveListContacts, resolveListClient } from '../../utils/listContacts';
 import { initialAppoStatus } from '../../utils/appoStatus';
+
+const CompanyProfileDialog = React.lazy(() => import('../company/CompanyProfileDialog'));
 
 // ============================================================
 // Call Flow View (架電フロー) — 左右分割レイアウト
@@ -216,6 +218,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [loadError, setLoadError] = useState(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [profileTarget, setProfileTarget] = useState(null);
   const [search, setSearch] = useUrlState('flow_q', '');
   const [pageStr, setPageStr] = useUrlState('flow_page', '0');
   const page = parseInt(pageStr, 10) || 0;
@@ -690,7 +693,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   };
 
   const addressMatchByItem = useMemo(() => addressMatchFilter ? new Map(
-    items.map(item => [item.id, getCompanyAddressMatch(item)])
+    items.map(item => [item.id, getEffectiveCompanyAddressMatch(item)])
   ) : new Map(), [items, addressMatchFilter]);
 
   const filtered = (() => {
@@ -2048,6 +2051,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: color.offWhite, zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: font.family.sans }}>
+      {profileTarget && <React.Suspense fallback={<div role="status">企業カルテを読み込んでいます…</div>}><CompanyProfileDialog target={profileTarget} onClose={() => setProfileTarget(null)} onChanged={() => setLoadAttempt(n => n + 1)} onSelectCompany={companyId => setProfileTarget({ companyId })} /></React.Suspense>}
 
       {/* ── ヘッダーバー（height:48px） ── */}
       <div style={{ height: 48, background: color.navyDeep, display: 'flex', alignItems: 'center', padding: `0 ${space[4] - 2}px`, gap: space[2] + 2, flexShrink: 0, borderBottom: `1px solid ${alpha('#FFFFFF', 0.08)}` }}>
@@ -2353,7 +2357,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = alpha(color.navyLight, 0.08); }}
                             onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? color.white : color.offWhite; }}>
                             <td style={{ padding: '7px 8px', fontFamily: font.family.mono, fontSize: 9, color: color.gray500, textAlign: 'right', whiteSpace: 'nowrap' }}>{item.no}</td>
-                            <td style={{ padding: '7px 8px', fontWeight: font.weight.semibold, color: color.navyDeep, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
+                            <td style={{ padding: '7px 8px', fontWeight: font.weight.semibold, color: color.navyDeep, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: space[1] }}>
+                                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company}</span>
+                                <Button variant="ghost" size="sm" aria-label={`${item.company}の企業カルテ`} title="共有情報・全リストの対応履歴を開く"
+                                  onClick={e => { e.stopPropagation(); setProfileTarget({ itemId: item.id }); }} style={{ flexShrink: 0, padding: space[1], fontSize: font.size.xs }}>カルテ</Button>
+                              </div>
+                            </td>
                             <td style={{ padding: '7px 8px', color: color.gray500, fontSize: font.size.xs - 1, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
                             <td style={{ padding: '7px 8px', color: color.gray500, fontSize: 9, width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
                             <td style={{ padding: '7px 8px', fontFamily: font.family.mono, fontSize: 9, color: color.gray500, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
@@ -2429,6 +2439,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   <div style={{ padding: space[5], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: space[3] }}>
                       <div style={{ fontSize: font.size.xl + 2, fontWeight: font.weight.bold, color: color.navyDeep, flex: 1, lineHeight: 1.3 }}>{selectedRow.company}</div>
+                      <Button variant="outline" size="sm" onClick={() => setProfileTarget({ itemId: selectedRow.id })}>企業カルテ</Button>
                       <span style={{ fontSize: font.size.xs, padding: '1px 6px', borderRadius: radius.sm, fontWeight: font.weight.semibold, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
                         {lastResult}
                       </span>
