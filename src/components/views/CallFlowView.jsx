@@ -268,9 +268,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       setLoadError(null);
     }
     setAddressMatchFilter(next);
-    setPage(0);
     onAddressMatchFilterChange?.(next);
   };
+  const previousAddressMatchFilter = useRef(addressMatchFilter);
+  useEffect(() => {
+    if (previousAddressMatchFilter.current === addressMatchFilter) return;
+    previousAddressMatchFilter.current = addressMatchFilter;
+    // 全件/架電可能のURL更新と同時に古い検索パラメーターを書き戻さない。
+    // 条件変更後の描画で、必要なときだけページを戻す。
+    if (page !== 0) setPage(0);
+  }, [addressMatchFilter, page]);
   const [prefDropOpen, setPrefDropOpen] = useState(false);
   // リストのカードは overflow:hidden なので、absolute のままだと行数が少ない時に切れる。
   // fixed + ボタン座標で描画し、下に余白がなければ上向きに開く

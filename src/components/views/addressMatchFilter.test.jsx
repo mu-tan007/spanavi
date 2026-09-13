@@ -138,4 +138,17 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
     expect(companies()).toEqual(['不一致企業']);
     expect(fetchCallFlowData.mock.calls[0][1].signal.aborted).toBe(true);
   });
+
+  it('全件表示と住所条件を続けて変えても全件表示を維持する', async () => {
+    fetchCallFlowData.mockImplementation(async (_, opts = {}) => ({ data: {
+      items: rows.filter(row => !opts.addressMatch || getCompanyAddressMatch(row) === opts.addressMatch)
+        .map(row => ({ ...row, is_excluded: row.id === 'a' })), records: [],
+    } }));
+    await mountFlow({ initialAddressMatchFilter: 'different' });
+    await act(async () => {
+      button('全件').props.onClick();
+      select().props.onChange({ target: { value: 'same' } });
+    });
+    expect(companies()).toEqual(['一致企業', '一致低売上企業']);
+  });
 });
