@@ -161,7 +161,7 @@ export default function CompanyImportDialog({ initialFile = null, listId = null,
               ]} />
             </Card>
             {settingsErrors.length > 0 && <ul style={{ color: color.warn, fontSize: font.size.sm }}>{settingsErrors.map((message, i) => <li key={i}>{message}</li>)}</ul>}
-            <p style={{ color: color.textMid, fontSize: font.size.sm }}>企業名が空欄の行や形式に問題がある行は登録せず、取込結果に残します。内容を修正したファイルから再度取り込めます。</p>
+            <p style={{ color: color.textMid, fontSize: font.size.sm }}>企業名が空欄の行や形式に問題がある行は登録せず、取込結果に残します。要修正の行だけを抜き出し、内容を直したファイルから再度取り込んでください。</p>
           </>}
         </>}
         {visibleJob && <Card title={busy ? '取り込み中' : visibleJob.processed === visibleJob.total ? '取込結果' : '中断した取込'} style={{ marginTop: space[4] }}>
