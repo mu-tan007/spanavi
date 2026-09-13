@@ -4,6 +4,7 @@ import { Button, Input, Select, Card, Badge, DataTable } from '../ui';
 import { color, space, font, radius, shadow, alpha } from '../../constants/design';
 import { COMPANY_CRM_STAGES, COMPANY_REGISTRY_STATUSES } from '../../utils/companyProfileIdentity';
 import { fetchCompanyProfile, saveCompanyProfile, resolveCompanyReview, mergeCompanyReview } from '../../lib/companyProfileApi';
+import CompanyImportedFields from './CompanyImportedFields';
 
 const homeLabels = { available: '住所あり', unknown: '住所未確認', conflict: '住所の相違あり' };
 const fieldLabels = { company_name: '企業名', representative: '代表者', phone: '会社電話番号', address: '会社住所',
@@ -153,6 +154,7 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
               </div>}
             </Card>
           </>}
+          {profile && tab === 'overview' && <CompanyImportedFields companyId={profile.id} />}
           {profile && tab === 'history' && <>
             <Card title="リストをまたぐ架電履歴" style={{ marginBottom: space[3] }}>
               <DataTable ariaLabel="企業の架電履歴" columns={[
@@ -186,9 +188,10 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
             </Card>
           </>}
           {profile && tab === 'sources' && <>
+            <CompanyImportedFields companyId={profile.id} showOriginal />
             <Card title={`紐付いた企業データ（${profile.source_count.toLocaleString()}件）`} style={{ marginBottom: space[3] }}>
               <DataTable ariaLabel="企業情報の出典" columns={[
-                { key: 'source', label: '出典', width: 240, align: 'left', render: r => r.master_id ? `企業DB：${r.source_data.source_file || ''}` : `${r.list_name || '架電リスト'}${r.is_archived ? '（アーカイブ）' : ''}` },
+                { key: 'source', label: '出典', width: 240, align: 'left', render: r => !r.item_id ? `企業DB：${r.source_data.source_file || ''}` : `${r.list_name || '架電リスト'}${r.is_archived ? '（アーカイブ）' : ''}` },
                 { key: 'company', label: '企業名', width: 200, align: 'left', render: r => r.source_data.company_name },
                 { key: 'representative', label: '代表者', width: 100, align: 'left', render: r => r.source_data.representative },
                 { key: 'phone', label: '登録電話番号', width: 130, align: 'left', render: r => r.source_data.phone },

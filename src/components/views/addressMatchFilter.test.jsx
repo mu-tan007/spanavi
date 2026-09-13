@@ -16,6 +16,7 @@ vi.mock('../../lib/supabaseWrite', () => ({
   deleteCallRecordsByListId: vi.fn(), deleteCallListItemsByListId: vi.fn(), updateCallListCount: vi.fn(), insertCallListItems: vi.fn(),
 }));
 vi.mock('../../lib/zoomPhoneStore', () => ({ zoomPhone: {} }));
+vi.mock('../../lib/companyImportApi', () => ({ fetchCompanyImportConfig: vi.fn(), saveCompanyImportTemplate: vi.fn(), companyImportFingerprint: vi.fn(), executeCompanyImport: vi.fn(), fetchCompanyImportJob: vi.fn(), fetchCompanyImportSources: vi.fn(async () => []) }));
 vi.mock('../../utils/phone', () => ({ dialPhone: vi.fn() }));
 vi.mock('../../hooks/useIsMobile', () => ({ useIsMobile: () => false }));
 vi.mock('../../hooks/useCallStatuses', () => ({ useCallStatuses: () => ({
@@ -158,6 +159,18 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
       select().props.onChange({ target: { value: 'same' } });
     });
     expect(companies()).toEqual(['一致企業', '一致低売上企業']);
+  });
+
+  it('先行表示中は架電を開始せず、条件変更後の古い途中結果も無視する', async () => {
+    let previousProgress, finishOld;
+    fetchCallFlowData.mockImplementationOnce((_, opts) => { previousProgress = opts.onProgress; return new Promise(resolve => { finishOld = resolve; }); });
+    await mountFlow({ initialAddressMatchFilter: 'same' });
+    await act(async () => { previousProgress({ items: [rows[0]], records: [], count: 2 }); });
+    expect(companies()).toEqual(['一致企業']); expect(button('架電開始').props.disabled).toBe(true);
+    await act(async () => { select().props.onChange({ target: { value: 'different' } }); });
+    await act(async () => { previousProgress({ items: [rows[0], rows[3]], records: [], count: 2 }); finishOld({ data: { items: [rows[0], rows[3]], records: [] } }); });
+    expect(companies()).toEqual(['不一致企業']); expect(button('架電開始').props.disabled).toBe(false);
+    expect(dialPhone).not.toHaveBeenCalled(); expect(insertCallSession).not.toHaveBeenCalled();
   });
 
   it('住所が全件不足している場合、詳細モーダルで比較できない理由と件数を先に示す', async () => {

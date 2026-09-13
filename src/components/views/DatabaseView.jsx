@@ -6,7 +6,7 @@ import { Database, Upload } from 'lucide-react';
 import DatabaseFilterPanel from '../database/DatabaseFilterPanel';
 import DatabaseResultTable from '../database/DatabaseResultTable';
 import DatabaseChatPanel from '../database/DatabaseChatPanel';
-import ImportModal from '../database/ImportModal';
+import CompanyImportDialog from '../company/CompanyImportDialog';
 import DatabaseExportColumnModal from '../database/DatabaseExportColumnModal';
 import TsrIndustryModal from '../TsrIndustryModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
@@ -61,6 +61,7 @@ export default function DatabaseView({ isAdmin }) {
     doSearch({ ...newFilters, page: 0 });
   }, [setFilters, doSearch]);
   const [showImport, setShowImport] = useState(false);
+  const [importTab, setImportTab] = useState('import');
   const [showTsrModal, setShowTsrModal] = useState(false);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
@@ -129,8 +130,9 @@ export default function DatabaseView({ isAdmin }) {
             <Button variant="secondary" size="sm" onClick={() => setShowTsrModal(true)}>
               TSR業種分類一覧
             </Button>
+            {isAdmin && <Button variant="outline" size="sm" onClick={() => { setImportTab('settings'); setShowImport(true); }}>項目・取込設定</Button>}
             {isAdmin && (
-              <Button size="sm" iconLeft={<Upload size={14} />} onClick={() => setShowImport(true)}>
+              <Button size="sm" iconLeft={<Upload size={14} />} onClick={() => { setImportTab('import'); setShowImport(true); }}>
                 リストインポート
               </Button>
             )}
@@ -199,9 +201,9 @@ export default function DatabaseView({ isAdmin }) {
 
       {/* Import Modal */}
       {showImport && (
-        <ImportModal
+        <CompanyImportDialog initialTab={importTab}
           onClose={() => setShowImport(false)}
-          onImportComplete={() => { setDirectoryRevision(n => n + 1); if (hasSearched) doSearch(); }}
+          onDone={() => { setDirectoryRevision(n => n + 1); if (hasSearched) doSearch(); }}
         />
       )}
 

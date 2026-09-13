@@ -5,13 +5,13 @@ import { Button, Input, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { getIndustryCategory } from '../../utils/industry';
-import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListFilterSummary, insertCallListItems } from '../../lib/supabaseWrite';
+import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListFilterSummary } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
 import { ScorePill } from '../common/ScorePill';
 import CallHistoryPanel from './CallHistoryPanel';
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
-import CSVColumnMappingModal from './CSVColumnMappingModal';
-import { parseImportFile, buildPendingImport, buildRowsFromMapping, IMPORT_FILE_ACCEPT } from './csvImportUtils';
+import CompanyImportDialog from '../company/CompanyImportDialog';
+import { IMPORT_FILE_ACCEPT } from './csvImportUtils';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -28,7 +28,6 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const isOutsideHours = list.recommendation?.isOutsideHours;
 
   const [importResult, setImportResult] = useState(null); // { insertedCount, startNo, endNo, totalCount }
-  const [csvImporting, setCsvImporting] = useState(false);
   const [pendingImport, setPendingImport] = useState(null); // カラム紐付け待ちのCSV
   const [deleting, setDeleting] = useState(false);
 
@@ -106,45 +105,18 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       alert('このリストはSupabase IDが未設定のためインポートできません。');
       return;
     }
-    try {
-      const { fileName, sheets } = await parseImportFile(file);
-      setPendingImport(buildPendingImport(fileName, sheets, 0));
-    } catch (err) {
-      alert(err?.message || 'ファイルを読み込めませんでした');
-    }
+    setPendingImport(file);
   };
 
-  // 紐付け確定 → 行を組み立てて取込
-  const doImport = async (mapping, units) => {
-    if (!pendingImport) return;
-    setCsvImporting(true);
-    try {
-      const rows = buildRowsFromMapping(pendingImport.dataRows, pendingImport.headers, mapping, units);
-      if (rows.length === 0) {
-        alert('取り込める企業行がありません。「企業名」の列が正しく紐付いているか確認してください。');
-        return;
-      }
-      const { error, insertedCount, startNo, endNo, totalCount } = await insertCallListItems(list._supaId, rows);
-      if (error) {
-        console.error('[取込] Supabase エラー:', error);
-        alert('取込に失敗しました: ' + (error.message || JSON.stringify(error)));
-        return;
-      }
-      // 件数はDBの実件数で上書きする（CSVの行数で足すと、取込が一部落ちた時に表示だけ増える）
-      const newTotalCount = totalCount ?? ((itemCount ?? 0) + insertedCount);
-      await updateCallListCount(list._supaId, newTotalCount);
-      if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: newTotalCount } : l));
-      setImportResult({ insertedCount, startNo, endNo, totalCount: newTotalCount });
-      setItemCount(newTotalCount);
-      setPendingImport(null);
-      // 追加分をモーダル内の一覧・絞り込みにも反映
-      const { data: refreshed } = await fetchCallListFilterSummary(list._supaId);
-      if (refreshed) {
-        setAvailablePrefs(refreshed.prefectures || []);
-        setAddressMatchCounts(refreshed.address_match || null);
-      }
-    } finally {
-      setCsvImporting(false);
+  const onImported = async (result) => {
+    const newTotalCount = result.totalCount;
+    if (setCallListData) setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, count: newTotalCount } : l));
+    setImportResult({ insertedCount: result.saved, startNo: result.first_no, endNo: result.last_no, totalCount: newTotalCount });
+    setItemCount(newTotalCount);
+    const { data: refreshed } = await fetchCallListFilterSummary(list._supaId);
+    if (refreshed) {
+      setAvailablePrefs(refreshed.prefectures || []);
+      setAddressMatchCounts(refreshed.address_match || null);
     }
   };
 
@@ -491,10 +463,10 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
               background: color.offWhite, color: color.navy, cursor: "pointer",
               fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
               border: `1px solid ${color.border}`,
-              opacity: csvImporting ? 0.6 : 1,
-              pointerEvents: csvImporting ? "none" : "auto",
+              opacity: pendingImport ? 0.6 : 1,
+              pointerEvents: pendingImport ? "none" : "auto",
             }}>
-              {csvImporting ? "取込中..." : "CSV/Excel取込"}
+              {pendingImport ? "取込中..." : "CSV/Excel取込"}
               <input type="file" accept={IMPORT_FILE_ACCEPT} onChange={handleCSVImport} style={{ display: "none" }} />
             </label>
           )}
@@ -525,22 +497,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
     </div>
 
     {pendingImport && (
-      <CSVColumnMappingModal
-        key={pendingImport.sheetIndex}
-        fileName={pendingImport.fileName}
-        sheetName={pendingImport.sheetName}
-        sheetNames={pendingImport.sheets.map(s => s.name)}
-        sheetIndex={pendingImport.sheetIndex}
-        onSheetChange={(idx) => setPendingImport(p => buildPendingImport(p.fileName, p.sheets, idx))}
-        headers={pendingImport.headers}
-        headersOriginal={pendingImport.headersOriginal}
-        dataRows={pendingImport.dataRows}
-        initialMapping={pendingImport.mapping}
-        initialUnits={pendingImport.units}
-        busy={csvImporting}
-        onCancel={() => { if (!csvImporting) setPendingImport(null); }}
-        onConfirm={doImport}
-      />
+      <CompanyImportDialog initialFile={pendingImport} listId={list._supaId} listName={list.company || list.name}
+        onClose={() => setPendingImport(null)} onDone={onImported} />
     )}
     </>
   );

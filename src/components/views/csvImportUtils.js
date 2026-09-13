@@ -59,18 +59,18 @@ export function parseCSVLine(line) {
 export const IMPORT_FILE_ACCEPT = '.csv,.tsv,.xlsx,.xlsm';
 
 // Parse quoted line breaks as part of a cell, including representative addresses.
-export function parseDelimitedText(text, delimiter = ',') {
-  const rows = []; let row = [], cell = '', quoted = false;
+export function parseDelimitedText(text, delimiter = ',', rowNumbers = null) {
+  const rows = []; let row = [], cell = '', quoted = false, line = 1, rowStart = 1;
   const endCell = () => { row.push(cell.trim()); cell = ''; };
-  const endRow = () => { endCell(); if (row.some(value => value !== '')) rows.push(row); row = []; };
+  const endRow = () => { endCell(); if (row.some(value => value !== '')) { rows.push(row); rowNumbers?.push(rowStart); } row = []; };
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (ch === '"') {
       if (quoted && text[i + 1] === '"') { cell += '"'; i++; }
       else quoted = !quoted;
     } else if (ch === delimiter && !quoted) endCell();
-    else if ((ch === '\r' || ch === '\n') && !quoted) { if (ch === '\r' && text[i + 1] === '\n') i++; endRow(); }
-    else cell += ch;
+    else if ((ch === '\r' || ch === '\n') && !quoted) { if (ch === '\r' && text[i + 1] === '\n') i++; endRow(); line++; rowStart = line; }
+    else { cell += ch; if (ch === '\n' || (ch === '\r' && text[i + 1] !== '\n')) line++; }
   }
   if (quoted) throw new Error('CSVの引用符が閉じられていません。元ファイルを確認してください。');
   if (cell || row.length) endRow();
@@ -110,19 +110,29 @@ export function restorePhoneLeadingZero(v) {
 }
 
 // 1行目をヘッダー、以降をデータ行とみなして {headers, headersOriginal, dataRows} を作る
-function toSheet(name, matrix) {
+function toSheet(name, matrix, rowNumbers = []) {
   const headersOriginal = matrix[0] || [];
   return {
     name,
     headers: headersOriginal.map(normalizeHeader),
     headersOriginal,
     dataRows: matrix.slice(1),
+    sourceRowNumbers: rowNumbers.slice(1),
+    headerRow: rowNumbers[0] || 1,
   };
 }
 
 async function readCsvSheets(file) {
-  const text = await file.text(); // UTF-8
-  return [toSheet(null, parseDelimitedText(text, /\.tsv$/i.test(file.name) ? '\t' : ','))];
+  let text, encoding = 'utf-8';
+  if (file.arrayBuffer) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (bytes[0] === 255 && bytes[1] === 254) encoding = 'utf-16le';
+    else if (bytes[0] === 254 && bytes[1] === 255) encoding = 'utf-16be';
+    try { text = new TextDecoder(encoding, { fatal: true }).decode(bytes); }
+    catch { encoding = 'shift_jis'; text = new TextDecoder(encoding, { fatal: true }).decode(bytes); }
+  } else text = await file.text();
+  const rowNumbers = [];
+  return [{ ...toSheet(null, parseDelimitedText(text, /\.tsv$/i.test(file.name) ? '\t' : ',', rowNumbers), rowNumbers), encoding }];
 }
 
 async function readExcelSheets(file) {
@@ -132,12 +142,13 @@ async function readExcelSheets(file) {
   return wb.worksheets.map(ws => {
     const colCount = ws.columnCount || 0;
     const matrix = [];
+    const rowNumbers = [];
     ws.eachRow({ includeEmpty: false }, (row) => {
       const cells = [];
       for (let c = 1; c <= colCount; c++) cells.push(cellValueToString(row.getCell(c).value));
-      if (cells.some(v => v !== '')) matrix.push(cells); // 空行は詰める（CSV側の filter と同じ挙動）
+      if (cells.some(v => v !== '')) { matrix.push(cells); rowNumbers.push(row.number); }
     });
-    return toSheet(ws.name, matrix);
+    return toSheet(ws.name, matrix, rowNumbers);
   });
 }
 

@@ -3,6 +3,7 @@ import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../lib/companyProfileApi', () => ({ fetchCompanyProfile: vi.fn(), saveCompanyProfile: vi.fn(), resolveCompanyReview: vi.fn(), mergeCompanyReview: vi.fn() }));
 vi.mock('../../hooks/useIsMobile', () => ({ useIsMobile: () => false }));
+vi.mock('../../lib/companyImportApi', () => ({ fetchCompanyImportSources: vi.fn(async () => []) }));
 import { fetchCompanyProfile, saveCompanyProfile } from '../../lib/companyProfileApi';
 import CompanyProfileDialog from './CompanyProfileDialog';
 
