@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
@@ -11,7 +11,6 @@ import DatabaseExportColumnModal from '../database/DatabaseExportColumnModal';
 import TsrIndustryModal from '../TsrIndustryModal';
 import { useCompanySearch } from '../../hooks/useCompanySearch';
 import { searchCompanies } from '../../lib/companyMasterApi';
-import { supabase } from '../../lib/supabase';
 import PageHeader from '../common/PageHeader';
 import CompanyDirectory from '../company/CompanyDirectory';
 
@@ -65,14 +64,8 @@ export default function DatabaseView({ isAdmin }) {
   const [showTsrModal, setShowTsrModal] = useState(false);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
-  const [dbTotal, setDbTotal] = useState(null);
   const [directoryMode, setDirectoryMode] = useState('shared');
   const [directoryRevision, setDirectoryRevision] = useState(0);
-
-  useEffect(() => {
-    supabase.from('company_master').select('id', { count: 'exact', head: true })
-      .then(({ count }) => setDbTotal(count));
-  }, [showImport]);
 
   const handleExport = useCallback(() => {
     if (totalCount === 0) return;
@@ -146,8 +139,8 @@ export default function DatabaseView({ isAdmin }) {
       />
 
       <div style={{ display: 'flex', gap: space[2], marginBottom: space[4] }}>
-        <Button variant={directoryMode === 'shared' ? 'primary' : 'outline'} onClick={() => setDirectoryMode('shared')}>共有企業・CRM</Button>
-        <Button variant={directoryMode === 'advanced' ? 'primary' : 'outline'} onClick={() => setDirectoryMode('advanced')}>企業DBの詳細検索{dbTotal != null ? `（${dbTotal.toLocaleString()}件）` : ''}</Button>
+        <Button variant={directoryMode === 'shared' ? 'primary' : 'outline'} onClick={() => setDirectoryMode('shared')}>企業一覧</Button>
+        <Button variant={directoryMode === 'advanced' ? 'primary' : 'outline'} onClick={() => setDirectoryMode('advanced')}>企業DBの詳細検索</Button>
       </div>
       {directoryMode === 'shared' ? <CompanyDirectory revision={directoryRevision} /> : <>
 

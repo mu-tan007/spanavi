@@ -26,15 +26,8 @@ export default function CompanyDirectory({ revision = 0 }) {
   const select = (field, value) => setDraft(prev => ({ ...prev, [field]: value }));
   const search = event => { event?.preventDefault(); setFilters({ ...draft, page: 0 }); };
   return <>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: space[3], marginBottom: space[4] }}>
-      {[
-        ['名寄せ後の登録企業', 'total', ''], ['企業DBとリストに共通', 'shared', 'shared'],
-        ['架電リストから追加', 'list_only', 'list_only'], ['代表者住所あり', 'home_available', 'home'],
-      ].map(([label, key, scope]) => <Card key={key} padding="md">
-        <div style={{ color: color.textMid, fontSize: font.size.sm }}>{label}</div>
-        <div style={{ color: color.navy, fontWeight: font.weight.bold, fontSize: font.size.xl, marginTop: space[1] }}>{stats ? stats[key].toLocaleString() : '—'}<span style={{ fontSize: font.size.sm, marginLeft: space[1] }}>社</span></div>
-        <Button variant="ghost" size="sm" onClick={() => { const f = { ...empty, scope: scope === 'home' ? '' : scope, home: scope === 'home' ? 'available' : '' }; setDraft(f); setFilters(f); }}>企業を表示</Button>
-      </Card>)}
+    <div style={{ color: color.textMid, marginBottom: space[4], fontSize: font.size.sm }}>
+      登録企業 <strong style={{ color: color.navy, fontSize: font.size.xl, marginLeft: space[2] }}>{stats ? stats.total.toLocaleString() : '—'}</strong> 社
     </div>
     <Card style={{ marginBottom: space[3] }}>
       <form onSubmit={search}>
@@ -44,7 +37,7 @@ export default function CompanyDirectory({ revision = 0 }) {
           <Select label="対応状況" aria-label="共有企業の対応状況" value={draft.stage} onChange={e => select('stage', e.target.value)} options={[{ value: '', label: 'すべて' }, ...COMPANY_CRM_STAGES.map(value => ({ value, label: value }))]} />
           <Select label="代表者自宅住所" aria-label="共有企業の代表者自宅住所" value={draft.home} onChange={e => select('home', e.target.value)} options={[{ value: '', label: 'すべて' }, ...Object.entries(homeLabels).map(([value, label]) => ({ value, label }))]} />
           <Select label="対象" aria-label="共有企業の対象" value={draft.scope} onChange={e => select('scope', e.target.value)} options={[
-            { value: '', label: 'すべての企業' }, { value: 'shared', label: '企業DB・リストに共通' }, { value: 'list_only', label: '架電リストから追加' },
+            { value: '', label: 'すべての企業' },
             { value: 'review', label: '名寄せ・情報の確認が必要' }, { value: 'due', label: '次回対応の期限が到来' },
           ]} />
           <Select label="登記の確認状況" aria-label="共有企業の登記状況" value={draft.registry} onChange={e => select('registry', e.target.value)} options={[{ value: '', label: 'すべて' }, ...COMPANY_REGISTRY_STATUSES]} />
@@ -53,11 +46,10 @@ export default function CompanyDirectory({ revision = 0 }) {
           <Button type="submit" iconLeft={<Search size={16} />} loading={loading}>検索</Button>
           <Button variant="outline" type="button" onClick={() => { setDraft(empty); setFilters(empty); }}>条件を解除</Button>
           <Button variant="ghost" type="button" aria-label="共有企業を再読み込み" iconLeft={<RefreshCw size={16} />} onClick={() => setAttempt(n => n + 1)}>再読み込み</Button>
-          <span style={{ marginLeft: 'auto', color: color.textMid, fontSize: font.size.sm }}>法人番号、または企業名と代表者・電話・住所の一致で紐付け。未確定の候補は分けて集計しています。</span>
         </div>
       </form>
     </Card>
-    <DataTable ariaLabel="共有企業一覧" loading={loading} error={error} rows={result.rows} rowKey="id" fillWidth height="calc(100vh - 430px)" showCount={false}
+    <DataTable ariaLabel="共有企業一覧" loading={loading} error={error} rows={result.rows} rowKey="id" fillWidth height="calc(100vh - 360px)" showCount={false}
       onRowClick={row => setTarget({ companyId: row.id })} emptyMessage="条件に合う企業はありません" rowAccent={row => row.needs_review ? 'warn' : null}
       columns={[
         { key: 'company_name', label: '企業名', width: 235, align: 'left', mobilePrimary: true },
