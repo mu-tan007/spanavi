@@ -11,7 +11,8 @@ import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { getCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
-import CompanyAddressMatchFilter from '../common/CompanyAddressMatchFilter';
+import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
+import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
 import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
@@ -261,6 +262,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [callCountMin, setCallCountMin] = useState(initialCallCountMin != null ? String(initialCallCountMin) : '');  // 架電回数の下限（空=指定なし）
   const [callCountMax, setCallCountMax] = useState(initialCallCountMax != null ? String(initialCallCountMax) : '');  // 架電回数の上限（空=指定なし）
   const [addressMatchFilter, setAddressMatchFilter] = useState(() => normalizeAddressMatchFilter(initialAddressMatchFilter));
+  const [addressMatchCounts, setAddressMatchCounts] = useState(null);
+  useEffect(() => {
+    setAddressMatchCounts(null);
+    if (!list._supaId) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    fetchCallListFilterSummary(list._supaId, { signal: controller.signal }).then(({ data, error }) => {
+      if (!cancelled && !error) setAddressMatchCounts(data?.address_match || null);
+    }).catch(() => { /* 件数取得の失敗を0件と表示しない。企業一覧の取得は独立して続ける。 */ });
+    return () => { cancelled = true; controller.abort(); };
+  }, [list._supaId, loadAttempt]);
   const handleAddressMatchFilterChange = value => {
     const next = normalizeAddressMatchFilter(value);
     if (next !== addressMatchFilter) {
@@ -2286,7 +2298,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </React.Fragment>
                   ))}
                 </div>
-                <CompanyAddressMatchFilter value={addressMatchFilter} onChange={handleAddressMatchFilterChange} />
+                <CompanyAddressMatchFilter value={addressMatchFilter} onChange={handleAddressMatchFilterChange} counts={addressMatchCounts} />
                 {/* 架電開始ボタン（右端） */}
                 <div style={{ marginLeft: 'auto', paddingLeft: space[6] }}>
                   <Button
@@ -2300,6 +2312,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   </Button>
                 </div>
               </div>
+              {addressMatchFilter && <div style={{ padding: `${space[1]}px ${space[3]}px ${space[2]}px` }}>
+                <CompanyAddressMatchSummary counts={addressMatchCounts} value={addressMatchFilter} onChange={handleAddressMatchFilterChange} />
+              </div>}
               {/* テーブル */}
               <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
                 {loading ? (
@@ -2324,6 +2339,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       </tr>
                     </thead>
                     <tbody>
+                      {sorted.length === 0 && <tr><td colSpan={11} style={{ padding: space[8], textAlign: 'center', color: color.textMid }}>
+                        現在の検索条件に該当する企業がありません。
+                        {addressMatchFilter && <div style={{ marginTop: space[1] }}>住所を比較できない企業は「判定不可」に含まれます。</div>}
+                      </td></tr>}
                       {pageItems.map((item, i) => {
                         const isSelected = selectedRow?.id === item.id;
                         const sc = callStatusColor(item.call_status);

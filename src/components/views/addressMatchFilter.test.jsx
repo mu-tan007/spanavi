@@ -58,7 +58,7 @@ beforeEach(() => {
     (!opts.addressMatch || getCompanyAddressMatch(row) === opts.addressMatch)
     && (opts.startNo == null || row.no >= opts.startNo) && (opts.endNo == null || row.no <= opts.endNo)
   ), records: [] } }));
-  fetchCallListFilterSummary.mockResolvedValue({ data: { count: 4, prefectures: ['東京都'] } });
+  fetchCallListFilterSummary.mockResolvedValue({ data: { count: 4, prefectures: ['東京都'], address_match: { same: 2, different: 1, unknown: 1 } } });
   fetchSetting.mockResolvedValue({ value: null });
   vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn() });
@@ -150,5 +150,43 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
       select().props.onChange({ target: { value: 'same' } });
     });
     expect(companies()).toEqual(['一致企業', '一致低売上企業']);
+  });
+
+  it('住所が全件不足している場合、詳細モーダルで比較できない理由と件数を先に示す', async () => {
+    fetchCallListFilterSummary.mockResolvedValue({ data: { count: 4, prefectures: ['東京都'], address_match: { same: 0, different: 0, unknown: 4 } } });
+    await act(async () => { renderer = create(<DetailModal list={list} onClose={vi.fn()} industryRules={[]} now={new Date()} callListData={[list]} setCallFlowScreen={vi.fn()} />); });
+    const view = JSON.stringify(renderer.toJSON());
+    expect(view).toContain('比較できる住所データがありません');
+    expect(view).toContain('一致（0件）');
+    expect(view).toContain('判定不可（4件）');
+  });
+
+  it('全件判定不可の0件画面から、判定不可へ切り替えて企業を表示できる', async () => {
+    fetchCallListFilterSummary.mockResolvedValue({ data: { count: 4, prefectures: ['東京都'], address_match: { same: 0, different: 0, unknown: 4 } } });
+    fetchCallFlowData.mockImplementation(async (_, opts) => ({ data: {
+      items: opts.addressMatch === 'same' || opts.addressMatch === 'different' ? [] : rows.map(row => ({ ...row, memo: null })), records: [],
+    } }));
+    await mountFlow({ initialAddressMatchFilter: 'same' });
+    expect(companies()).toEqual([]);
+    expect(JSON.stringify(renderer.toJSON())).toContain('比較できる住所データがありません');
+    expect(button('架電開始').props.disabled).toBe(true);
+    await act(async () => { button('判定不可を表示').props.onClick(); });
+    expect(select().props.value).toBe('unknown');
+    expect(companies()).toHaveLength(4);
+    expect(insertCallSession).not.toHaveBeenCalled();
+    expect(dialPhone).not.toHaveBeenCalled();
+  });
+
+  it('他の条件による0件や件数取得の失敗を、住所不足と決めつけない', async () => {
+    await mountFlow({ initialAddressMatchFilter: 'same', initialRevenueMin: 99999999 });
+    expect(companies()).toEqual([]);
+    expect(JSON.stringify(renderer.toJSON())).toContain('現在の検索条件に該当する企業がありません');
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('比較できる住所データがありません');
+    act(() => renderer.unmount()); renderer = null;
+    fetchCallListFilterSummary.mockRejectedValue(new Error('timeout'));
+    await mountFlow({ initialAddressMatchFilter: 'different' });
+    expect(companies()).toEqual(['不一致企業']);
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('一致（0件）');
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('比較できる住所データがありません');
   });
 });

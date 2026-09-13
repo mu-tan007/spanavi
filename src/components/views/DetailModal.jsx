@@ -9,7 +9,7 @@ import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListC
 import { Badge } from '../common/Badge';
 import { ScorePill } from '../common/ScorePill';
 import CallHistoryPanel from './CallHistoryPanel';
-import CompanyAddressMatchFilter from '../common/CompanyAddressMatchFilter';
+import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import CSVColumnMappingModal from './CSVColumnMappingModal';
 import { parseImportFile, buildPendingImport, buildRowsFromMapping, IMPORT_FILE_ACCEPT } from './csvImportUtils';
 
@@ -54,6 +54,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [flowEndNo, setFlowEndNo] = useState('');
   const [itemCount, setItemCount] = useState(null);
   const [availablePrefs, setAvailablePrefs] = useState([]);
+  const [addressMatchCounts, setAddressMatchCounts] = useState(null);
   const [selectedStatuses, setSelectedStatuses] = useState([]); // 空配列=全ステータス
   const [addressMatchFilter, setAddressMatchFilter] = useState('');
   const [revenueMin, setRevenueMin] = useState('');
@@ -81,6 +82,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [callCountMax, setCallCountMax] = useState('');
 
   useEffect(() => {
+    setAddressMatchCounts(null);
     if (!list._supaId) {
       return;
     }
@@ -89,6 +91,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       if (cancelled || error || !data) return;
       setItemCount(data.count);
       setAvailablePrefs(data.prefectures || []);
+      setAddressMatchCounts(data.address_match || null);
     });
     return () => { cancelled = true; };
   }, [list._supaId]);
@@ -136,7 +139,10 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
       setPendingImport(null);
       // 追加分をモーダル内の一覧・絞り込みにも反映
       const { data: refreshed } = await fetchCallListFilterSummary(list._supaId);
-      if (refreshed) setAvailablePrefs(refreshed.prefectures || []);
+      if (refreshed) {
+        setAvailablePrefs(refreshed.prefectures || []);
+        setAddressMatchCounts(refreshed.address_match || null);
+      }
     } finally {
       setCsvImporting(false);
     }
@@ -469,10 +475,11 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
         </div>
 
         <div style={{ marginBottom: space[2.5] }}>
-          <CompanyAddressMatchFilter value={addressMatchFilter} onChange={setAddressMatchFilter} />
-          <div style={{ marginTop: space[1], color: color.textLight, fontSize: font.size.xs }}>
+          <CompanyAddressMatchFilter value={addressMatchFilter} onChange={setAddressMatchFilter} counts={addressMatchCounts} />
+          <CompanyAddressMatchSummary counts={addressMatchCounts} value={addressMatchFilter} onChange={setAddressMatchFilter} />
+          {!addressMatchCounts && <div style={{ marginTop: space[1], color: color.textLight, fontSize: font.size.xs }}>
             住所不足・判定できない企業は「判定不可」に含まれます。
-          </div>
+          </div>}
         </div>
 
         {/* CSV取込 / リスト削除（管理者のみ） */}

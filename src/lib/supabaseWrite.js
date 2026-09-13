@@ -1326,8 +1326,9 @@ export async function fetchCallFlowData(listId, opts = {}) {
   return queryCallFlowData(supabase, listId, opts)
 }
 
-export async function fetchCallListFilterSummary(listId) {
-  return supabase.rpc('call_list_filter_summary', { p_list_id: listId })
+export async function fetchCallListFilterSummary(listId, opts = {}) {
+  const query = supabase.rpc('call_list_filter_summary', { p_list_id: listId })
+  return opts.signal ? query.abortSignal(opts.signal) : query
 }
 
 // スクリプト閲覧用の軽量取得。差し込み口 {{企業別トーク}} を含むスクリプトを
