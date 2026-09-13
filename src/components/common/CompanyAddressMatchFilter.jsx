@@ -30,9 +30,9 @@ export function CompanyAddressMatchSummary({ counts, value, onChange }) {
   if (!counts || !['same', 'different', 'unknown'].every(key => Number.isInteger(counts[key]) && counts[key] >= 0)) return null;
   const noComparable = counts.same + counts.different === 0 && counts.unknown > 0;
   return (
-    <div role="status" style={{ marginTop: space[1], color: color.textMid, fontSize: font.size.xs, lineHeight: font.lineHeight.relaxed }}>
+    <div role="status" style={{ marginTop: space[1], color: color.textMid, fontSize: font.size.sm, lineHeight: font.lineHeight.relaxed }}>
       <div>リスト全体の住所判定：一致 {counts.same.toLocaleString()}件 ／ 不一致 {counts.different.toLocaleString()}件 ／ 判定不可 {counts.unknown.toLocaleString()}件</div>
-      {noComparable && <div style={{ color: color.warn }}>比較できる住所データがありません。会社住所・代表者自宅住所の登録内容を確認してください。</div>}
+      {noComparable && <div style={{ color: color.textDark, fontWeight: font.weight.semibold }}>比較できる住所データがありません。会社住所・代表者自宅住所の登録内容を確認してください。</div>}
       {counts.unknown > 0 && <div>住所不足などで「判定不可」の企業は、一致・不一致には含まれません。</div>}
       {noComparable && (value === 'same' || value === 'different') && (
         <div style={{ display: 'flex', gap: space[2], marginTop: space[1] }}>
