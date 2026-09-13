@@ -9,6 +9,7 @@ import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListC
 import { Badge } from '../common/Badge';
 import { ScorePill } from '../common/ScorePill';
 import CallHistoryPanel from './CallHistoryPanel';
+import CompanyAddressMatchFilter from '../common/CompanyAddressMatchFilter';
 import CSVColumnMappingModal from './CSVColumnMappingModal';
 import { parseImportFile, buildPendingImport, buildRowsFromMapping, IMPORT_FILE_ACCEPT } from './csvImportUtils';
 
@@ -54,6 +55,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [itemCount, setItemCount] = useState(null);
   const [csvData, setCsvData] = useState([]);
   const [selectedStatuses, setSelectedStatuses] = useState([]); // 空配列=全ステータス
+  const [addressMatchFilter, setAddressMatchFilter] = useState('');
   const [revenueMin, setRevenueMin] = useState('');
   const [revenueMax, setRevenueMax] = useState('');
   const [prefFilters, setPrefFilters] = useState([]);
@@ -296,7 +298,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             disabled={!flowStartNo || !flowEndNo}
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
+              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
             }}
           >検索</Button>
           <Button
@@ -305,7 +307,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             title="ナンバーを入力せず、リスト全件を一覧で開く"
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
+              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
             }}
           >全件</Button>
           {itemCount !== null && (
@@ -463,6 +465,13 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                 </select>
               </React.Fragment>
             ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: space[2.5] }}>
+          <CompanyAddressMatchFilter value={addressMatchFilter} onChange={setAddressMatchFilter} />
+          <div style={{ marginTop: space[1], color: color.textLight, fontSize: font.size.xs }}>
+            住所不足・判定できない企業は「判定不可」に含まれます。
           </div>
         </div>
 

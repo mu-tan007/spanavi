@@ -10,6 +10,8 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
+import { getCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
+import CompanyAddressMatchFilter from '../common/CompanyAddressMatchFilter';
 import { fetchCallListItems, fetchCallRecords, fetchCallRecordsByItemIds, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
@@ -190,7 +192,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -256,6 +258,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   const [prefMode, setPrefMode] = useState(initialPrefMode === 'exclude' ? 'exclude' : 'include');  // include=選んだ県だけ / exclude=選んだ県を除く
   const [callCountMin, setCallCountMin] = useState(initialCallCountMin != null ? String(initialCallCountMin) : '');  // 架電回数の下限（空=指定なし）
   const [callCountMax, setCallCountMax] = useState(initialCallCountMax != null ? String(initialCallCountMax) : '');  // 架電回数の上限（空=指定なし）
+  const [addressMatchFilter, setAddressMatchFilter] = useState(() => normalizeAddressMatchFilter(initialAddressMatchFilter));
+  const handleAddressMatchFilterChange = value => {
+    const next = normalizeAddressMatchFilter(value);
+    setAddressMatchFilter(next);
+    setPage(0);
+    onAddressMatchFilterChange?.(next);
+  };
   const [prefDropOpen, setPrefDropOpen] = useState(false);
   // リストのカードは overflow:hidden なので、absolute のままだと行数が少ない時に切れる。
   // fixed + ボタン座標で描画し、下に余白がなければ上向きに開く
@@ -660,10 +669,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       .catch(e => console.error('[Session] _updateSessionProgress error:', e));
   };
 
+  const addressMatchByItem = useMemo(() => new Map(
+    items.map(item => [item.id, getCompanyAddressMatch(item)])
+  ), [items]);
+
   const filtered = (() => {
     const result = statusFilteredItems.filter(item => {
       const matchSearch = !search || item.company?.includes(search) || item.representative?.includes(search) || item.phone?.includes(search);
       if (!matchSearch) return false;
+      if (addressMatchFilter && addressMatchByItem.get(item.id) !== addressMatchFilter) return false;
       if (filterMode === 'callable') { if (isHiddenFromCallable(item.id)) return false; }
       else if (filterMode === 'excluded') { if (!isExcludedItem(item.id)) return false; }
       if (revenueMin !== '') {
@@ -2262,6 +2276,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </React.Fragment>
                   ))}
                 </div>
+                <CompanyAddressMatchFilter value={addressMatchFilter} onChange={handleAddressMatchFilterChange} />
                 {/* 架電開始ボタン（右端） */}
                 <div style={{ marginLeft: 'auto', paddingLeft: space[6] }}>
                   <Button
