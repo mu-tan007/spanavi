@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchCallPages, queryCallItems, queryCallFlowRecords } from './callListRead';
+import { fetchCallPages, queryCallFlowData } from './callListRead';
 
 describe('大規模架電リストを欠落させずに取得', () => {
   it('先頭ページを含む全ページを最大4並列で、元の順序どおり結合する', async () => {
@@ -29,21 +29,33 @@ describe('大規模架電リストを欠落させずに取得', () => {
     expect(result.data).toEqual(rows);
   });
 
-  it('企業と架電履歴の両方に同じ住所条件・番号範囲を適用する', async () => {
+  it('企業と架電履歴を住所条件・番号範囲で絞った一つのスナップショットとして取得する', async () => {
     const calls = [];
-    const client = { from(table) {
-      const query = { then(resolve) { resolve({ data: [] }); } };
-      for (const method of ['select', 'eq', 'gte', 'lte', 'order', 'range', 'abortSignal']) {
-        query[method] = (...args) => { calls.push([table, method, ...args]); return query; };
-      }
-      return query;
+    const data = { items: [{ id: 'a' }], records: [{ item_id: 'a' }], count: 1 };
+    const client = { rpc(name, args) {
+      calls.push([name, args]);
+      return Promise.resolve({ data, error: null });
     } };
     const opts = { addressMatch: 'same', startNo: 10, endNo: 200 };
-    await Promise.all([queryCallItems(client, 'list', opts), queryCallFlowRecords(client, 'list', opts)]);
-    expect(calls).toContainEqual(['call_list_items', 'eq', 'company_address_match', 'same']);
-    expect(calls).toContainEqual(['call_records', 'eq', 'call_list_items.company_address_match', 'same']);
-    expect(calls).toContainEqual(['call_records', 'gte', 'call_list_items.no', 10]);
-    expect(calls).toContainEqual(['call_records', 'lte', 'call_list_items.no', 200]);
-    expect(calls).toContainEqual(['call_records', 'select', '*,call_list_items!inner()', { count: 'exact' }]);
+    expect((await queryCallFlowData(client, 'list', opts)).data).toEqual({ items: data.items, records: data.records });
+    expect(calls).toEqual([['call_list_filtered_data', { p_list_id: 'list', p_address_match: 'same', p_start_no: 10, p_end_no: 200, p_offset: 0, p_limit: 1000, p_include_count: true }]]);
+  });
+
+  it('履歴の欠けた応答を空の架電履歴として扱わない', async () => {
+    const result = await queryCallFlowData({ rpc: async () => ({ data: { items: [] } }) }, 'list');
+    expect(result.data).toBeNull();
+    expect(result.error).toBeTruthy();
+  });
+
+  it('1000件を超える企業と各社の複数回の履歴を最後まで保持する', async () => {
+    const items = Array.from({ length: 2051 }, (_, id) => ({ id }));
+    const client = { rpc: async (_, args) => {
+      const page = items.slice(args.p_offset, args.p_offset + args.p_limit);
+      return { data: { items: page, records: page.flatMap(i => [{ item_id: i.id, round: 1 }, { item_id: i.id, round: 2 }]), count: args.p_include_count ? items.length : null } };
+    } };
+    const result = await queryCallFlowData(client, 'list');
+    expect(result.data.items).toEqual(items);
+    expect(result.data.records).toHaveLength(4102);
+    expect(result.data.records.at(-1)).toEqual({ item_id: 2050, round: 2 });
   });
 });

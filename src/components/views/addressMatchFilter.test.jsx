@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../lib/supabaseWrite', () => ({
-  fetchCallListItems: vi.fn(), fetchCallFlowRecords: vi.fn(), fetchCallListFilterSummary: vi.fn(),
+  fetchCallListItems: vi.fn(), fetchCallFlowData: vi.fn(), fetchCallListFilterSummary: vi.fn(),
   fetchCallListItemById: vi.fn(), fetchCallRecordsByItem: vi.fn(), fetchSetting: vi.fn(),
   insertCallRecord: vi.fn(), findRecentApoCallRecord: vi.fn(), updateCallRecordFields: vi.fn(),
   updateCallListItem: vi.fn(), unlinkIncomingCallsByCallerNumber: vi.fn(),
@@ -33,7 +33,7 @@ vi.mock('../common/ScriptTreeGuide', () => ({ default: () => null }));
 
 import DetailModal from './DetailModal';
 import CallFlowView from './CallFlowView';
-import { fetchCallListItems, fetchCallFlowRecords, fetchCallListFilterSummary, fetchSetting, insertCallSession } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallFlowData, fetchCallListFilterSummary, fetchSetting, insertCallSession } from '../../lib/supabaseWrite';
 import { getCompanyAddressMatch } from '../../utils/companyAddressMatch';
 import { dialPhone } from '../../utils/phone';
 
@@ -54,11 +54,10 @@ async function mountFlow(extra = {}) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  fetchCallListItems.mockImplementation(async (_, opts = {}) => ({ data: rows.filter(row =>
+  fetchCallFlowData.mockImplementation(async (_, opts = {}) => ({ data: { items: rows.filter(row =>
     (!opts.addressMatch || getCompanyAddressMatch(row) === opts.addressMatch)
     && (opts.startNo == null || row.no >= opts.startNo) && (opts.endNo == null || row.no <= opts.endNo)
-  ) }));
-  fetchCallFlowRecords.mockResolvedValue({ data: [] });
+  ), records: [] } }));
   fetchCallListFilterSummary.mockResolvedValue({ data: { count: 4, prefectures: ['東京都'] } });
   fetchSetting.mockResolvedValue({ value: null });
   vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
@@ -88,8 +87,7 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
     const changed = vi.fn();
     await mountFlow({ initialAddressMatchFilter: 'same', initialRevenueMin: 100000, statusFilter: ['未架電'], onAddressMatchFilterChange: changed });
     expect(companies()).toEqual(['一致企業']);
-    expect(fetchCallListItems).toHaveBeenCalledWith(list._supaId, expect.objectContaining({ addressMatch: 'same' }));
-    expect(fetchCallFlowRecords).toHaveBeenCalledWith(list._supaId, expect.objectContaining({ addressMatch: 'same' }));
+    expect(fetchCallFlowData).toHaveBeenCalledWith(list._supaId, expect.objectContaining({ addressMatch: 'same' }));
     await act(async () => { select().props.onChange({ target: { value: 'different' } }); });
     expect(companies()).toEqual(['不一致企業']);
     expect(changed).toHaveBeenLastCalledWith('different');
@@ -118,7 +116,7 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
 
   it('履歴待ち・取得失敗中は架電開始できず、不完全な結果を表示しない', async () => {
     let finish;
-    fetchCallFlowRecords.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    fetchCallFlowData.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
     await mountFlow({ initialAddressMatchFilter: 'same' });
     expect(button('架電開始').props.disabled).toBe(true);
     expect(companies()).toEqual([]);
@@ -132,12 +130,12 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
 
   it('条件を素早く変更しても遅れて到着した古い検索結果で上書きしない', async () => {
     let finishOld;
-    fetchCallListItems.mockReturnValueOnce(new Promise(resolve => { finishOld = resolve; }));
+    fetchCallFlowData.mockReturnValueOnce(new Promise(resolve => { finishOld = resolve; }));
     await mountFlow({ initialAddressMatchFilter: 'same' });
     await act(async () => { select().props.onChange({ target: { value: 'different' } }); });
     expect(companies()).toEqual(['不一致企業']);
-    await act(async () => { finishOld({ data: [rows[0], rows[3]] }); });
+    await act(async () => { finishOld({ data: { items: [rows[0], rows[3]], records: [] } }); });
     expect(companies()).toEqual(['不一致企業']);
-    expect(fetchCallListItems.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(fetchCallFlowData.mock.calls[0][1].signal.aborted).toBe(true);
   });
 });

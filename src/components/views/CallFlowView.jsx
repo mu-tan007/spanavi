@@ -12,7 +12,7 @@ import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { getCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
 import CompanyAddressMatchFilter from '../common/CompanyAddressMatchFilter';
-import { fetchCallListItems, fetchCallFlowRecords, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -364,18 +364,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setLoading(true);
     setLoadError(null);
 
-    // 住所条件と番号範囲はDBで先に絞る。企業と該当履歴を並行取得し、
+    // 住所条件と番号範囲はDBで先に絞る。企業と該当履歴を同じ時点のデータで取得し、
     // 両方揃うまで架電を無効にして、除外判定・架電回数を正確に保つ。
     const hasRange = (startNo != null && endNo != null);
     const options = { ...(hasRange ? { startNo, endNo } : {}), addressMatch: addressMatchFilter, signal: controller.signal };
-    const loadFull = () => Promise.all([
-      fetchCallListItems(list._supaId, options),
-      fetchCallFlowRecords(list._supaId, options),
-    ]).then(([itemsRes, recordsRes]) => {
+    const loadFull = () => fetchCallFlowData(list._supaId, options).then(({ data, error }) => {
       if (cancelled) return;
-      if (itemsRes.error || recordsRes.error) throw (itemsRes.error || recordsRes.error);
-      const fetchedItems = itemsRes.data || [];
-      const fetchedRecords = recordsRes.data || [];
+      if (error) throw error;
+      const fetchedItems = data.items;
+      const fetchedRecords = data.records;
       setItems(fetchedItems);
       setCallRecords(fetchedRecords);
       if (defaultItemId) {

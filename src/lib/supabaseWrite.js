@@ -5,7 +5,7 @@ import { enqueuePayrollSyncForMeetingDates } from './payrollAutoSync'
 import { notifyAppointmentsChanged } from './appointmentEvents'
 import { meetingTimestampTime } from '../utils/appointmentCalendar'
 import { verifiedHomepageResult } from './homepageLookup'
-import { queryCallItems, queryCallFlowRecords } from './callListRead'
+import { queryCallItems, queryCallFlowData } from './callListRead'
 
 // ============================================================
 // Drive CORS Proxy
@@ -1322,8 +1322,8 @@ export async function fetchCallListItems(listId, opts = {}) {
   return queryCallItems(supabase, listId, opts)
 }
 
-export async function fetchCallFlowRecords(listId, opts = {}) {
-  return queryCallFlowRecords(supabase, listId, opts)
+export async function fetchCallFlowData(listId, opts = {}) {
+  return queryCallFlowData(supabase, listId, opts)
 }
 
 export async function fetchCallListFilterSummary(listId) {

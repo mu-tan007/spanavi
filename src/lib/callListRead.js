@@ -34,31 +34,39 @@ export async function fetchCallPages(queryPage) {
 
 export function queryCallItems(client, listId, opts = {}) {
   const { startNo = null, endNo = null, signal } = opts;
-  const addressMatch = normalizeAddressMatchFilter(opts.addressMatch);
   return fetchCallPages((from, to, count) => {
     let query = client.from('call_list_items').select('*', count ? { count: 'exact' } : {})
       .eq('list_id', listId);
     if (startNo != null) query = query.gte('no', startNo);
     if (endNo != null) query = query.lte('no', endNo);
-    if (addressMatch) query = query.eq('company_address_match', addressMatch);
     query = query.order('no').range(from, to);
     return signal ? query.abortSignal(signal) : query;
   });
 }
 
-export function queryCallFlowRecords(client, listId, opts = {}) {
-  const { startNo = null, endNo = null, signal } = opts;
-  const addressMatch = normalizeAddressMatchFilter(opts.addressMatch);
-  const restricted = !!addressMatch || startNo != null || endNo != null;
-  return fetchCallPages((from, to, count) => {
-    // Empty embedding filters the related items without returning them twice.
-    let query = client.from('call_records')
-      .select(restricted ? '*,call_list_items!inner()' : '*', count ? { count: 'exact' } : {})
-      .eq('list_id', listId);
-    if (startNo != null) query = query.gte('call_list_items.no', startNo);
-    if (endNo != null) query = query.lte('call_list_items.no', endNo);
-    if (addressMatch) query = query.eq('call_list_items.company_address_match', addressMatch);
-    query = query.order('round').order('id').range(from, to);
-    return signal ? query.abortSignal(signal) : query;
+export async function queryCallFlowData(client, listId, opts = {}) {
+  const recordPages = new Map();
+  const result = await fetchCallPages(async (from, to, includeCount) => {
+    let query = client.rpc('call_list_filtered_data', {
+      p_list_id: listId,
+      p_address_match: normalizeAddressMatchFilter(opts.addressMatch),
+      p_start_no: opts.startNo ?? null,
+      p_end_no: opts.endNo ?? null,
+      p_offset: from,
+      p_limit: to - from + 1,
+      p_include_count: includeCount,
+    });
+    if (opts.signal) query = query.abortSignal(opts.signal);
+    const page = await query;
+    if (page.error) return page;
+    if (!Array.isArray(page.data?.items) || !Array.isArray(page.data?.records)
+      || (includeCount && !Number.isInteger(page.data?.count))) {
+      return { data: null, error: new Error('企業一覧の取得結果が不完全です') };
+    }
+    recordPages.set(from, page.data.records);
+    return { data: page.data.items, count: page.data.count, error: null };
   });
+  if (result.error) return { data: null, error: result.error };
+  const records = [...recordPages.keys()].sort((a, b) => a - b).flatMap(from => recordPages.get(from));
+  return { data: { items: result.data, records }, error: null };
 }
