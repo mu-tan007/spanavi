@@ -6,6 +6,7 @@ Usage: python verify-company-crm.py SNAPSHOT_DIR ORG_ID AUTH_USER_ID CALL_LIST_I
 import json
 import os
 import pathlib
+import re
 import sys
 import time
 import uuid
@@ -81,6 +82,13 @@ try:
     details=query('SELECT public.get_company_profile(NULL,NULL,%s)',(sample['id'],))
     profile=details['profile']
     check('home_source_present',profile['home_source'].get('label') and profile['representative_address'])
+    phone=re.sub(r'\D','',profile['phone'])
+    variants={'digits':phone,'formatted':profile['phone'],
+              'full_width':phone.translate(str.maketrans('0123456789','０１２３４５６７８９')),
+              'international':'+81'+phone[1:]}
+    for label,value in variants.items():
+        found=query('SELECT public.search_company_profiles(%s)',(value,))
+        check('phone_search_'+label,any(row['id']==profile['id'] for row in found['rows']))
     master_id=next(s['master_id'] for s in details['sources'] if s['master_id'])
     same=query('SELECT public.get_company_profile(NULL,%s)',(master_id,))
     check('master_and_list_share_identity',same['profile']['id']==profile['id'])

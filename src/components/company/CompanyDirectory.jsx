@@ -28,7 +28,7 @@ export default function CompanyDirectory({ revision = 0 }) {
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: space[3], marginBottom: space[4] }}>
       {[
-        ['重複を除いた企業', 'total', ''], ['企業DBとリストに共通', 'shared', 'shared'],
+        ['名寄せ後の登録企業', 'total', ''], ['企業DBとリストに共通', 'shared', 'shared'],
         ['架電リストから追加', 'list_only', 'list_only'], ['代表者住所あり', 'home_available', 'home'],
       ].map(([label, key, scope]) => <Card key={key} padding="md">
         <div style={{ color: color.textMid, fontSize: font.size.sm }}>{label}</div>
@@ -53,7 +53,7 @@ export default function CompanyDirectory({ revision = 0 }) {
           <Button type="submit" iconLeft={<Search size={16} />} loading={loading}>検索</Button>
           <Button variant="outline" type="button" onClick={() => { setDraft(empty); setFilters(empty); }}>条件を解除</Button>
           <Button variant="ghost" type="button" aria-label="共有企業を再読み込み" iconLeft={<RefreshCw size={16} />} onClick={() => setAttempt(n => n + 1)}>再読み込み</Button>
-          <span style={{ marginLeft: 'auto', color: color.textMid, fontSize: font.size.sm }}>法人番号、または企業名と代表者・電話・住所の一致で紐付けています。</span>
+          <span style={{ marginLeft: 'auto', color: color.textMid, fontSize: font.size.sm }}>法人番号、または企業名と代表者・電話・住所の一致で紐付け。未確定の候補は分けて集計しています。</span>
         </div>
       </form>
     </Card>
