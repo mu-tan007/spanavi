@@ -79,14 +79,15 @@ export function parseDelimitedText(text, delimiter = ',', rowNumbers = null) {
 
 // Excel セルの値 → 文字列。
 // 数式セルは計算結果、リッチテキストは連結、リンクセルは表示テキストを取る。
-function cellValueToString(v) {
+function cellValueToString(v, numFmt = '') {
   if (v == null) return '';
   if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && /^0{2,32}$/.test(numFmt)) return String(v).padStart(numFmt.length, '0');
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
   if (v instanceof Date) return formatExcelDate(v);
   if (typeof v === 'object') {
     if (Array.isArray(v.richText)) return v.richText.map(t => t?.text || '').join('').trim();
-    if ('formula' in v || 'sharedFormula' in v) return cellValueToString(v.result);
+    if ('formula' in v || 'sharedFormula' in v) return cellValueToString(v.result, numFmt);
     if (v.error) return '';               // #N/A などのエラーセル
     if (v.text != null) return String(v.text).trim();  // ハイパーリンクセル
   }
@@ -114,6 +115,7 @@ function toSheet(name, matrix, rowNumbers = []) {
   const headersOriginal = matrix[0] || [];
   return {
     name,
+    matrix, rowNumbers,
     headers: headersOriginal.map(normalizeHeader),
     headersOriginal,
     dataRows: matrix.slice(1),
@@ -145,7 +147,7 @@ async function readExcelSheets(file) {
     const rowNumbers = [];
     ws.eachRow({ includeEmpty: false }, (row) => {
       const cells = [];
-      for (let c = 1; c <= colCount; c++) cells.push(cellValueToString(row.getCell(c).value));
+      for (let c = 1; c <= colCount; c++) { const cell = row.getCell(c); cells.push(cellValueToString(cell.value, cell.numFmt)); }
       if (cells.some(v => v !== '')) { matrix.push(cells); rowNumbers.push(row.number); }
     });
     return toSheet(ws.name, matrix, rowNumbers);

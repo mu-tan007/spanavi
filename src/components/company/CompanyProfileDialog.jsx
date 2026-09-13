@@ -5,6 +5,7 @@ import { color, space, font, radius, shadow, alpha } from '../../constants/desig
 import { COMPANY_CRM_STAGES, COMPANY_REGISTRY_STATUSES } from '../../utils/companyProfileIdentity';
 import { fetchCompanyProfile, saveCompanyProfile, resolveCompanyReview, mergeCompanyReview } from '../../lib/companyProfileApi';
 import CompanyImportedFields from './CompanyImportedFields';
+import CompanyDirectoryValues from './CompanyDirectoryValues';
 
 const homeLabels = { available: '住所あり', unknown: '住所未確認', conflict: '住所の相違あり' };
 const fieldLabels = { company_name: '企業名', representative: '代表者', phone: '会社電話番号', address: '会社住所',
@@ -107,7 +108,7 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
             <Button key={key} variant={tab === key ? 'primary' : 'ghost'} size="sm" iconLeft={<Icon size={16} />} onClick={() => setTab(key)}>{label}</Button>
           ))}
           <span style={{ marginLeft: 'auto', alignSelf: 'center', color: color.textMid, fontSize: font.size.sm }}>
-            {profile.master_count > 0 ? '企業DBと共有' : '架電リストから登録'} · {profile.list_count}リスト
+            {profile.list_count}リストに登録
           </span>
         </div>}
         <div style={{ flex: 1, overflow: 'auto', padding: space[4] }}>
@@ -154,7 +155,7 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
               </div>}
             </Card>
           </>}
-          {profile && tab === 'overview' && <CompanyImportedFields companyId={profile.id} />}
+          {profile && tab === 'overview' && <><CompanyDirectoryValues companyId={profile.id} onChanged={() => { setAttempt(n => n + 1); onChanged?.(); }} /><CompanyImportedFields companyId={profile.id} supplementalOnly /></>}
           {profile && tab === 'history' && <>
             <Card title="リストをまたぐ架電履歴" style={{ marginBottom: space[3] }}>
               <DataTable ariaLabel="企業の架電履歴" columns={[
@@ -183,7 +184,7 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
             <Card title="共有情報の更新履歴（直近50件）">
               {data.events.length ? data.events.map(event => <div key={event.id} style={{ borderBottom: `1px solid ${color.borderLight}`, padding: `${space[2]}px 0`, fontSize: font.size.sm, color: color.textDark }}>
                 <span style={{ color: color.textMid }}>{dateText(event.created_at)}　</span>
-                {event.event_type === 'shared_updated' ? `共有情報を更新：${Object.keys(event.changes.updated || {}).map(k => fieldLabels[k] || k).join('、')}` : event.event_type === 'identity_reviewed' ? `別会社として確認：${event.changes.note}` : event.event_type === 'company_merged' ? `同一企業として統合：${event.changes.note}` : '取込データを更新'}
+                {event.event_type === 'shared_updated' ? `共有情報を更新：${Object.keys(event.changes.updated || {}).map(k => fieldLabels[k] || k).join('、')}` : event.event_type === 'identity_reviewed' ? `別会社として確認：${event.changes.note}` : event.event_type === 'company_merged' ? `同一企業として統合：${event.changes.note}` : event.event_type === 'label_updated' ? `企業ラベルを${event.changes.enabled ? '設定' : '解除'}：${event.changes.label}` : '取込データを更新'}
               </div>) : <div style={{ color: color.textMid }}>共有情報の更新履歴はまだありません。</div>}
             </Card>
           </>}

@@ -3,9 +3,11 @@ import { Button, Card, DataTable, Select } from '../ui';
 import { color, space, font } from '../../constants/design';
 import { fetchCompanyImportSources } from '../../lib/companyImportApi';
 import { IMPORT_PROVIDERS } from '../../utils/companyImportFields';
+import { DIRECTORY_EXPORT_COLUMNS } from '../../utils/companyDirectoryFilters';
 
 const basic = new Set(['company_name','representative','phone','address','prefecture','city','street','business','industry','representative_address','corporate_number']);
-export default function CompanyImportedFields({ companyId, showOriginal = false }) {
+const shared = new Set(['tsr_code', ...DIRECTORY_EXPORT_COLUMNS.map(c => c.key)]);
+export default function CompanyImportedFields({ companyId, showOriginal = false, supplementalOnly = false }) {
   const [sources, setSources] = useState([]), [error, setError] = useState(''), [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0), [selected, setSelected] = useState(''), [expanded, setExpanded] = useState(false);
   useEffect(() => {
@@ -14,12 +16,12 @@ export default function CompanyImportedFields({ companyId, showOriginal = false 
       .catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; controller.abort(); };
   }, [companyId, attempt]);
-  const values = useMemo(() => sources.flatMap(source => Object.entries(source.normalized || {}).filter(([key]) => !basic.has(key)).map(([key, value]) => {
+  const values = useMemo(() => sources.flatMap(source => Object.entries(source.normalized || {}).filter(([key]) => !basic.has(key) && (!supplementalOnly || !shared.has(key))).map(([key, value]) => {
     const field = source.fields?.find(f => f.key === key);
     return { id: `${source.id}:${key}`, label: field?.label || key,
       value: typeof value === 'number' ? `${value.toLocaleString()}${field?.money ? ' 千円' : ''}` : value,
       source: [source.provider_name || IMPORT_PROVIDERS.find(p => p.value === source.provider)?.label, source.file_name, source.sheet_name, `${source.source_row}行目`].filter(Boolean).join(' ／ ') };
-  })), [sources]);
+  })), [sources, supplementalOnly]);
   if (loading) return null;
   if (error) return <Card style={{ marginTop: space[3] }}><p role="alert" style={{ color: color.danger }}>取込情報を読み込めませんでした。<Button size="sm" variant="outline" onClick={() => setAttempt(n => n + 1)}>再読み込み</Button></p></Card>;
   if (!sources.length || (!showOriginal && !values.length)) return null;

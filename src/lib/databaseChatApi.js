@@ -7,6 +7,7 @@
 
 import { supabase } from './supabase';
 import { fetchCategories, fetchCategoryGroups } from './companyMasterApi';
+import { DIRECTORY_FILTERS } from '../utils/companyDirectoryFilters';
 
 // INITIAL_FILTERS の「保存対象」フィールド（UI状態は除く、queryEmbedding は揮発性なので除外）
 const PERSIST_KEYS = [
@@ -21,7 +22,8 @@ const PERSIST_KEYS = [
 
 export function pickPersistableFilters(filters) {
   const out = {};
-  for (const k of PERSIST_KEYS) if (filters[k] !== undefined) out[k] = filters[k];
+  const keys = [...new Set([...PERSIST_KEYS, ...Object.keys(DIRECTORY_FILTERS)])].filter(k => !['page','pageSize','sortCol','sortDir','directory'].includes(k));
+  for (const k of keys) if (filters[k] !== undefined) out[k] = filters[k];
   return out;
 }
 
@@ -176,7 +178,8 @@ export async function applyAiFiltersToBase(baseFilters, aiFilters) {
   //     ヒット候補から除外され、結果が極端に少なくなる）
   const semQ = (aiFilters.semanticQuery || '').trim();
   merged.queryEmbedding = null;
-  if (semQ) {
+  if (semQ && baseFilters.directory && !merged.keyword && !merged.keywords?.length && !merged.daibunrui?.length && !merged.saibunrui?.length) merged.keyword = semQ;
+  if (semQ && !baseFilters.directory) {
     const coverage = await getEmbeddingCoverage().catch(() => 0);
     if (coverage >= 0.9) {
       try {

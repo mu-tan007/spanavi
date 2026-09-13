@@ -16,6 +16,7 @@ import { color, space, radius, font, shadow, alpha } from '../../constants/desig
 import { Button, Input, Select, Badge } from '../ui';
 import { MessageSquare, Send, Save, BookmarkCheck, Trash2, RotateCcw, Sparkles, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { DIRECTORY_FILTERS } from '../../utils/companyDirectoryFilters';
 import {
   createChatSession, listChatSessions, loadChatMessages, appendChatMessage, deleteChatSession,
   sendChatToAi, applyAiFiltersToBase,
@@ -120,7 +121,7 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters, open, o
   const handleLoadSaved = async (id) => {
     const item = savedSearches.find(s => s.id === id);
     if (!item) return;
-    const merged = { ...baseFilters, ...item.filters_json, page: 0 };
+    const merged = { ...(baseFilters.directory ? DIRECTORY_FILTERS : baseFilters), ...item.filters_json, page: 0 };
     onApplyFilters(merged);
     setShowSaved(false);
   };

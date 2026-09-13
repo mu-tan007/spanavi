@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { color, space, radius, font, shadow } from '../../constants/design';
-import { Input, Badge } from '../ui';
+import { Input, Badge, Button } from '../ui';
 
 /**
  * 複数選択対応インクリメンタルサーチ
@@ -10,7 +10,7 @@ import { Input, Badge } from '../ui';
  * onChange: (val: string[]) => void
  * placeholder: string
  */
-export default function CategorySearchInput({ items, value = [], onChange, placeholder }) {
+export default function CategorySearchInput({ items, value = [], onChange, placeholder, ariaLabel }) {
   const [input, setInput] = useState('');
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -100,18 +100,16 @@ export default function CategorySearchInput({ items, value = [], onChange, place
               style={{ background: color.navy, gap: 2 }}
             >
               {v}
-              <X size={11} style={{ cursor: 'pointer', opacity: 0.8 }} onClick={() => handleRemove(v)} />
+              <Button type="button" variant="ghost" size="sm" aria-label={v + 'を解除'} style={{ color: 'inherit', padding: 0, minHeight: 16 }} onClick={() => handleRemove(v)}><X size={11} /></Button>
             </Badge>
           ))}
-          <button onClick={handleClearAll} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: color.textLight, fontSize: 10, padding: '2px 4px',
-          }}>全解除</button>
+          <Button type="button" size="sm" variant="ghost" onClick={handleClearAll}>全解除</Button>
         </div>
       )}
 
       {/* Input */}
       <Input
+        aria-label={ariaLabel || placeholder}
         size="sm"
         type="text"
         value={input}
@@ -130,10 +128,11 @@ export default function CategorySearchInput({ items, value = [], onChange, place
           marginTop: 2,
         }}>
           {filtered.map((item, i) => (
-            <div
+            <Button type="button" variant="ghost"
               key={i}
               onClick={() => handleSelect(item)}
               style={{
+                width: '100%', justifyContent: 'flex-start', textAlign: 'left', whiteSpace: 'normal',
                 padding: `7px ${space[2.5]}px`, cursor: 'pointer', fontSize: font.size.base,
                 borderBottom: i < filtered.length - 1 ? `1px solid ${color.borderLight}` : 'none',
               }}
@@ -141,7 +140,7 @@ export default function CategorySearchInput({ items, value = [], onChange, place
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
               {item}
-            </div>
+            </Button>
           ))}
         </div>
       )}

@@ -4,7 +4,7 @@ import { Button, Input, Select, Card, Badge, DataTable } from '../ui';
 import { color, space, font, radius, shadow, alpha } from '../../constants/design';
 import { parseImportFile, IMPORT_FILE_ACCEPT } from '../views/csvImportUtils';
 import { IMPORT_PROVIDERS, MONEY_FACTORS, STANDARD_COMPANY_FIELDS, guessImportProvider, detectCompanyImportMapping,
-  validateCompanyImportMapping, applyCompanyImportTemplate, companyImportTemplateSettings, normalizeCompanyImportRow } from '../../utils/companyImportFields';
+  validateCompanyImportMapping, applyCompanyImportTemplate, companyImportTemplateSettings, normalizeCompanyImportRow, selectCompanyImportHeader } from '../../utils/companyImportFields';
 import { fetchCompanyImportConfig, saveCompanyImportTemplate, companyImportFingerprint, executeCompanyImport, fetchCompanyImportJob } from '../../lib/companyImportApi';
 import CompanyImportSettings from './CompanyImportSettings';
 
@@ -58,6 +58,11 @@ export default function CompanyImportDialog({ initialFile = null, listId = null,
     setProvider(value); setTemplateId(''); setTemplateName(''); setNotice('出所に合わせて列の対応と単位の候補を更新しました。');
     setMapping(detectCompanyImportMapping(headers, value, fields));
   };
+  const changeHeader = index => {
+    const next = selectCompanyImportHeader(sheet, index);
+    const parsed = { ...book, sheets: book.sheets.map((s, i) => i === sheetIndex ? next : s) };
+    selectSheet(parsed, sheetIndex);
+  };
   const applyTemplate = id => {
     setTemplateId(id); const template = config.templates.find(t => t.id === id); if (!template) return;
     try { const applied = applyCompanyImportTemplate(headers, provider, template, fields); setMapping(applied.mapping); setTemplateName(template.name); setNotice(applied.warnings.join('\n') || '保存した列の対応を適用しました。プレビューを確認してください。'); }
@@ -78,7 +83,7 @@ export default function CompanyImportDialog({ initialFile = null, listId = null,
     if (!sheet || settingsErrors.length || busy) return;
     setBusy(true); setError(''); setDone(false); controller.current = new AbortController();
     try {
-      const metadata = { fileName: book.fileName, sheetName: sheet.name || '', provider, providerName: providerName.trim(), headers, mapping };
+      const metadata = { fileName: book.fileName, sheetName: sheet.name || '', headerRow: sheet.headerRow || 1, provider, providerName: providerName.trim(), headers, mapping };
       const rows = sheet.dataRows.map((values, i) => ({ row_no: i + 1, source_row: sheet.sourceRowNumbers?.[i] || i + 2, values }));
       const fingerprint = await companyImportFingerprint(listId, metadata, rows);
       const result = await executeCompanyImport({ listId, metadata, rows, fingerprint, signal: controller.current.signal,
@@ -131,11 +136,14 @@ export default function CompanyImportDialog({ initialFile = null, listId = null,
               {book.sheets.length > 1 && <Select aria-label="取込シート" value={sheetIndex} disabled={locked} onChange={e => selectSheet(book, Number(e.target.value))} options={book.sheets.map((s, i) => ({ value: i, label: s.name || 'CSV' }))} />}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: space[3], marginTop: space[4] }}>
+              <Select label="列名が書かれている行" aria-label="取込ファイルの見出し行" disabled={locked} value={sheet.headerIndex || 0} onChange={e => changeHeader(Number(e.target.value))}
+                options={(sheet.matrix || [sheet.headersOriginal, ...sheet.dataRows]).slice(0, -1).slice(0, 30).map((row, index) => ({ value: index, label: `${sheet.rowNumbers?.[index] || index + 1}行目：${row.slice(0, 3).join(' / ').slice(0, 60)}` }))} />
               <Select label="出所" aria-label="取込データの出所" value={provider} options={IMPORT_PROVIDERS} disabled={locked} onChange={e => changeProvider(e.target.value)} />
               <Input label="提供元・資料名（任意）" aria-label="取込データの提供元" value={providerName} maxLength={120} disabled={locked} onChange={e => setProviderName(e.target.value)} placeholder="クライアント名、商品名など" />
               <Select label="保存した列の対応" aria-label="保存した列の対応" value={templateId} disabled={locked} onChange={e => applyTemplate(e.target.value)}
                 options={[{ value: '', label: '選択してください' }, ...config.templates.filter(t => t.provider === provider && t.active).map(t => ({ value: t.id, label: t.name }))]} />
             </div>
+            {mapping.some(m => m.needsChoice && !m.key) && <p role="status" style={{ color: color.warn }}>同じ候補に当てはまる列があります。該当する列の取込先を選んでください。指定しない列も元の列名・値として保存します。</p>}
             <p style={{ color: color.textMid, fontSize: font.size.sm }}>列の対応と金額の単位を確認してください。元の列と値は出典として保存し、同じ企業の情報を企業DB・各架電リストで共有します。</p>
             <DataTable ariaLabel="インポート列の対応" rows={mappingRows} rowKey="id" height={330} showCount={false} columns={[
               { key: 'header', label: '元の列名', width: 200, align: 'left', render: r => `${r.id + 1}. ${r.header || '（空欄）'}` },

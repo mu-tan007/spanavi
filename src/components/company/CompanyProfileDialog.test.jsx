@@ -51,3 +51,4 @@ describe('企業カルテの共有編集', () => {
     expect(stop).toHaveBeenCalledOnce();
   });
 });
+vi.mock('./CompanyDirectoryValues', () => ({ default: () => null }));

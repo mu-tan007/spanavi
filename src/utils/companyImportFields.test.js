@@ -1,9 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import { STANDARD_COMPANY_FIELDS as fields, detectCompanyImportMapping, validateCompanyImportMapping, normalizeCompanyImportRow,
-  companyImportTemplateSettings, applyCompanyImportTemplate, normalizeImportPhone } from './companyImportFields';
+  companyImportTemplateSettings, applyCompanyImportTemplate, normalizeImportPhone, selectCompanyImportHeader, guessImportProvider } from './companyImportFields';
 import { parseImportFile, parseDelimitedText } from '../components/views/csvImportUtils';
 
 describe('企業DB・架電リスト共通の列マッピング', () => {
+  it('全角の提供元コードでも出所を認識する', () => {
+    expect(guessImportProvider(['企業名','ＴＤＢ企業コード'])).toBe('tdb');
+    expect(guessImportProvider(['企業名','ＴＳＲコード'])).toBe('tsr');
+  });
+  it('クライアント・英語の列名と提供元固有の番号をTSRコードに混ぜない', () => {
+    const m=detectCompanyImportMapping(['Company Name','Phone Number','Company Address','企業コード','業種細分類'],'client');
+    expect(m.map(x=>x.key)).toEqual(['company_name','phone','address','source_company_code','industry_sub']);
+    const row=normalizeCompanyImportRow(['A社','03-1234-5678','東京都港区1-2-3','000012','製造'],m,fields);
+    expect(row.source_company_code).toBe('000012'); expect(row.industry).toBe('製造'); expect(row.tsr_code).toBeUndefined();
+  });
+  it('重複した列・別名の衝突・旧住所を黙って現在値にしない', () => {
+    const m=detectCompanyImportMapping(['会社名','企業名','住所（旧）','連絡先'],'other',[
+      ...fields,{key:'custom_contact',label:'連絡先',aliases:[]},{key:'custom_phone',label:'連絡先2',aliases:['連絡先']},
+    ]);
+    expect(m.map(x=>x.key)).toEqual(['','','','']); expect(m[0].needsChoice).toBe(true); expect(m[3].candidates).toHaveLength(2);
+  });
+  it('角括弧・末尾に明示された金額の単位も認識する', () => {
+    for(const h of ['売上高[百万円]','売上高千円']) {
+      const m=detectCompanyImportMapping(['企業名',h],'other');expect(m[1].key).toBe('revenue_k');expect(m[1].unitConfirmed).toBe(true);
+    }
+  });
   it('TSRとTDBの同名コード・金額を出所別に分ける', () => {
     const headers = ['企業名','企業コード','売上高','資本金'];
     for (const provider of ['tsr','tdb']) {
@@ -68,6 +89,19 @@ describe('企業DB・架電リスト共通の列マッピング', () => {
 });
 
 describe('出典の文字コード・行番号', () => {
+  it('表題が先頭にあるファイルで見出しを選び直しても元の行番号を保持する', async () => {
+    const book=await parseImportFile({name:'client.csv',text:async()=>'顧客提供一覧\n\n企業名,顧客番号\nA社,00001\nB社,00002'});
+    const sheet=selectCompanyImportHeader(book.sheets[0],1);
+    expect(sheet.headerRow).toBe(3);expect(sheet.headersOriginal).toEqual(['企業名','顧客番号']);expect(sheet.sourceRowNumbers).toEqual([4,5]);
+    expect(selectCompanyImportHeader(sheet,0).dataRows).toHaveLength(3);
+    expect(()=>selectCompanyImportHeader(sheet,3)).toThrow('見出し行');
+  });
+  it('Excelのゼロ埋め書式の企業コードを表示通り保持する', async () => {
+    const ExcelJS=(await import('exceljs')).default, book=new ExcelJS.Workbook(), sheet=book.addWorksheet('Client');
+    sheet.addRow(['会社名','顧客番号']);sheet.addRow(['A社',12]);sheet.getCell('B2').numFmt='000000000';
+    const bytes=await book.xlsx.writeBuffer(), parsed=await parseImportFile({name:'client.xlsx',arrayBuffer:async()=>bytes});
+    expect(parsed.sheets[0].dataRows[0][1]).toBe('000000012');
+  }, 15000);
   it('空行やセル内改行を含むCSVでも元の行位置を保持する', () => {
     const positions = [];
     const rows = parseDelimitedText('\n会社名,メモ\n\nA,"一行目\n二行目"\n\nB,確認済み',',',positions);

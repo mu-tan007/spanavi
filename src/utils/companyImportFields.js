@@ -7,18 +7,21 @@ export const IMPORT_PROVIDERS = [
 export const MONEY_FACTORS = { '円': 0.001, '千円': 1, '万円': 10, '百万円': 1000, '億円': 100000 };
 const field = (key, label, aliases = [], type = 'text', money = false) => ({ key, label, aliases, type, money, active: true });
 export const STANDARD_COMPANY_FIELDS = [
-  field('company_name', '企業名', ['会社名', '社名', '商号', '法人名', '商号又は名称', '企業名称']),
-  field('representative', '代表者', ['代表者名', '代表取締役', '代表']),
-  field('phone', '電話番号', ['TEL', '電話', '会社電話番号']),
-  field('address', '会社住所', ['住所', '所在地', '本社所在地', '本店所在地']),
+  field('company_name', '企業名', ['会社名', '社名', '商号', '法人名', '商号又は名称', '企業名称', 'company name', 'company', '法人名称']),
+  field('representative', '代表者', ['代表者名', '代表取締役', '代表', '代表者氏名', 'representative name']),
+  field('phone', '電話番号', ['TEL', '電話', '会社電話番号', 'phone number', 'telephone']),
+  field('address', '会社住所', ['住所', '所在地', '本社所在地', '本店所在地', 'company address', 'full_address']),
   field('prefecture', '都道府県', ['県']), field('city', '市区町村', ['市区郡', '市町村', '区市町村']),
   field('street', '番地・建物名', ['番地', '番地以降', '番地・以降', '丁目番地']),
   field('postal_code', '郵便番号', ['〒']),
   field('representative_address', '代表者自宅住所', ['代表者現住所', '代表者住所', '代表者現住所詳細', '代表者住所詳細', '自宅住所', '社長住所', '社長自宅住所']),
   field('corporate_number', '法人番号', ['法人番号13桁', 'corporate_number']),
   field('business', '事業内容', ['事業概要', '営業種目', '取扱品目', '業務内容']),
-  field('industry', '業種', ['業種名', '業種細分類', '主業', '業種1', '中業種']),
+  field('industry', '業種', ['業種名', '主業', '業種1', '中業種']),
   field('source_industry_code', '出所の業種コード', ['業種コード', '産業分類コード']),
+  field('industry_major', '業種大分類', ['大分類', '大業種']),
+  field('industry_sub', '業種細分類', ['細分類']),
+  field('source_company_code', '提供元の企業コード', ['顧客番号', '顧客コード', '顧客ID', 'customer_id', 'company code']),
   field('tsr_code', 'TSR企業コード', ['TSRID', 'TSRコード', 'tsr_id']),
   field('tdb_code', 'TDB企業コード', ['TDBコード', '帝国企業コード']),
   field('revenue_k', '売上高', ['売上', '最新売上', '直近売上', '売上金額', '売上千円'], 'number', true),
@@ -39,21 +42,38 @@ export function explicitMoneyUnit(header) {
   return ['億円', '百万円', '万円', '千円', '円'].find(unit => text.includes(unit)) || '';
 }
 export function guessImportProvider(headers) {
-  const tsr = headers.some(h => /tsr/i.test(h)), tdb = headers.some(h => /tdb|cosmos|コスモス/i.test(h));
+  const normalized = headers.map(importHeaderKey);
+  const tsr = normalized.some(h => /tsr/i.test(h)), tdb = normalized.some(h => /tdb|cosmos|コスモス/i.test(h));
   return tsr === tdb ? 'client' : tsr ? 'tsr' : 'tdb';
 }
 export function detectCompanyImportMapping(headers, provider, fields = STANDARD_COMPANY_FIELDS) {
-  const used = new Set();
-  return headers.map(header => {
+  const candidates = headers.map(header => {
     const core = importHeaderCore(header);
-    const key = core === '企業コード' ? ({ tsr: 'tsr_code', tdb: 'tdb_code' }[provider] || '')
-      : fields.find(f => f.active !== false && [f.key, f.label, ...(f.aliases || [])].some(a => importHeaderCore(a) === core))?.key || '';
-    if (!key || used.has(key)) return { key: '' };
-    used.add(key);
-    const f = fields.find(item => item.key === key);
-    const explicit = f.money ? explicitMoneyUnit(header) : '';
-    return { key, ...(f.money ? { unit: explicit || (provider === 'tdb' ? key === 'capital_k' ? '万円' : '百万円' : '千円'), unitConfirmed: !!explicit } : {}) };
+    if (core === '企業コード') return [({ tsr: 'tsr_code', tdb: 'tdb_code' }[provider] || 'source_company_code')];
+    return fields.filter(f => f.active !== false && [f.key, f.label, ...(f.aliases || [])].some(a => {
+      if (importHeaderKey(a) === importHeaderKey(header)) return true;
+      // Only strip unit annotations for monetary fields. “住所(旧)” must not become the current address.
+      if (!f.money || !explicitMoneyUnit(header)) return false;
+      const moneyCore = value => importHeaderKey(value).replace(/(?:\(|\[)?(?:億円|百万円|万円|千円|円)(?:\)|\])?/g, '');
+      return moneyCore(a) === moneyCore(header);
+    })).map(f => f.key);
   });
+  return headers.map((header, index) => {
+    const options = [...new Set(candidates[index])], key = options[0];
+    if (!key) return { key: '' };
+    if (options.length > 1 || candidates.filter(keys => keys.includes(key)).length > 1) return { key: '', candidates: options, needsChoice: true };
+    const f = fields.find(item => item.key === key);
+    const explicit = f?.money ? explicitMoneyUnit(header) : '';
+    return { key, ...(f?.money ? { unit: explicit || (provider === 'tdb' ? key === 'capital_k' ? '万円' : '百万円' : '千円'), unitConfirmed: !!explicit } : {}) };
+  });
+}
+export function selectCompanyImportHeader(sheet, rowIndex = 0) {
+  const matrix = sheet.matrix || [sheet.headersOriginal, ...sheet.dataRows];
+  const positions = sheet.rowNumbers || [sheet.headerRow || 1, ...(sheet.sourceRowNumbers || sheet.dataRows.map((_, i) => i + 2))];
+  if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= matrix.length - 1) throw new Error('データ行より前の見出し行を選択してください。');
+  const headersOriginal = matrix[rowIndex];
+  return { ...sheet, matrix, rowNumbers: positions, headersOriginal, headers: headersOriginal,
+    headerIndex: rowIndex, headerRow: positions[rowIndex], dataRows: matrix.slice(rowIndex + 1), sourceRowNumbers: positions.slice(rowIndex + 1) };
 }
 export function validateCompanyImportMapping(headers, mapping, fields, provider) {
   const errors = [], used = new Set();
@@ -130,6 +150,7 @@ export function normalizeCompanyImportRow(cells, mapping, fields) {
     } else normalized[m.key] = m.key === 'phone' ? normalizeImportPhone(value) : value;
   });
   if (!normalized.company_name) throw new Error('企業名がありません');
+  if (!normalized.industry && (normalized.industry_sub || normalized.industry_major)) normalized.industry = normalized.industry_sub || normalized.industry_major;
   let address = normalized.address || '', prefix = (normalized.prefecture || '') + (normalized.city || '');
   if (address) {
     if (normalized.city && !address.startsWith(prefix) && !address.startsWith(normalized.city) && !address.startsWith(normalized.prefecture || '\0')) address = normalized.city + address;
