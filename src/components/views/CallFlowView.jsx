@@ -215,6 +215,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -281,6 +282,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (next !== addressMatchFilter) {
       setLoading(true);
       setLoadError(null);
+      setLoadProgress(null);
+      setItems([]);
+      setSelectedRow(null);
+      setCallRecords([]);
     }
     setAddressMatchFilter(next);
     onAddressMatchFilterChange?.(next);
@@ -385,11 +390,22 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const controller = new AbortController();
     setLoading(true);
     setLoadError(null);
+    setLoadProgress(null);
+    setItems([]);
+    setCallRecords([]);
+    setSelectedRow(null);
 
     // 住所条件と番号範囲はDBで先に絞る。企業と該当履歴を同じ時点のデータで取得し、
     // 両方揃うまで架電を無効にして、除外判定・架電回数を正確に保つ。
     const hasRange = (startNo != null && endNo != null);
-    const options = { ...(hasRange ? { startNo, endNo } : {}), addressMatch: addressMatchFilter, signal: controller.signal };
+    const options = { ...(hasRange ? { startNo, endNo } : {}), addressMatch: addressMatchFilter, signal: controller.signal,
+      onProgress: defaultItemId ? undefined : ({ items: nextItems, records, count }) => {
+        if (cancelled) return;
+        setItems(nextItems);
+        setCallRecords(records);
+        setLoadProgress({ loaded: nextItems.length, total: count });
+      },
+    };
     const loadFull = () => fetchCallFlowData(list._supaId, options).then(({ data, error }) => {
       if (cancelled) return;
       if (error) throw error;
@@ -441,7 +457,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         if (recRes.data && recRes.data.length > 0) {
           setCallRecords(prev => prev.length > recRes.data.length ? prev : recRes.data);
         }
-        setLoading(false);
+        // A requested single company is complete; a list queue is not.
+        if (singleItemMode) setLoading(false);
       }).catch(err => {
         console.warn('[CallFlowView] 高速パスエラー（全件ロードにフォールバック）:', err);
       });
@@ -2319,9 +2336,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {addressMatchFilter && <div style={{ padding: `${space[1]}px ${space[3]}px ${space[2]}px` }}>
                 <CompanyAddressMatchSummary counts={addressMatchCounts} value={addressMatchFilter} onChange={handleAddressMatchFilterChange} />
               </div>}
+              {loading && loadProgress && <div role="status" style={{ padding: space[3], color: color.textMid, fontSize: font.size.sm }}>
+                {loadProgress.loaded.toLocaleString()} / {loadProgress.total?.toLocaleString() ?? '—'}件を読み込み済み。残りの企業を取得しています。
+              </div>}
               {/* テーブル */}
               <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
-                {loading ? (
+                {loading && !loadProgress ? (
                   <div style={{ textAlign: 'center', padding: '60px 0', color: color.textMid, fontSize: font.size.base }}>読み込み中...</div>
                 ) : loadError ? (
                   <div role="alert" style={{ textAlign: 'center', padding: space[6], color: color.danger }}>{loadError} <Button size="sm" onClick={() => setLoadAttempt(n => n + 1)}>再読み込み</Button></div>
@@ -2344,7 +2364,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     </thead>
                     <tbody>
                       {sorted.length === 0 && <tr><td colSpan={11} style={{ padding: space[8], textAlign: 'center', color: color.textMid }}>
-                        現在の検索条件に該当する企業がありません。
+                        {loading ? '条件に合う企業を読み込み中...' : '現在の検索条件に該当する企業がありません。'}
                         {addressMatchFilter && <div style={{ marginTop: space[1] }}>住所を比較できない企業は「判定不可」に含まれます。</div>}
                       </td></tr>}
                       {pageItems.map((item, i) => {
@@ -2352,7 +2372,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         const sc = callStatusColor(item.call_status);
                         return (
                           <tr key={item.id}
-                            onClick={() => { setSelectedRow(item); setListMode(false); }}
+                            onClick={() => { if (loading || loadError) return; setSelectedRow(item); setListMode(false); }}
                             style={{ cursor: 'pointer', background: isSelected ? alpha(color.navyLight, 0.08) : i % 2 === 0 ? color.white : color.offWhite, borderBottom: `1px solid ${color.gray200}`, transition: 'background 0.12s', borderLeft: isSelected ? `3px solid ${color.navyDeep}` : '3px solid transparent' }}
                             onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = alpha(color.navyLight, 0.08); }}
                             onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? color.white : color.offWhite; }}>

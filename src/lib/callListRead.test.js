@@ -58,4 +58,43 @@ describe('大規模架電リストを欠落させずに取得', () => {
     expect(result.data.records).toHaveLength(4102);
     expect(result.data.records.at(-1)).toEqual({ item_id: 2050, round: 2 });
   });
+
+  it('残りが待機中でも先頭50社とその履歴を表示し、全件取得は完了扱いにしない', async () => {
+    const items = Array.from({ length: 2103 }, (_, id) => ({ id }));
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const progress = [];
+    let finished = false;
+    const result = queryCallFlowData({ rpc: async (_, args) => {
+      if (args.p_offset) await gate;
+      const rows = items.slice(args.p_offset, args.p_offset + args.p_limit);
+      return { data: { items: rows, records: rows.map(row => ({ item_id: row.id, status: '除外' })), count: args.p_include_count ? items.length : null } };
+    } }, 'list', { onProgress: data => progress.push(data) }).then(data => { finished = true; return data; });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(finished).toBe(false);
+    expect(progress).toHaveLength(1);
+    expect(progress[0].items).toHaveLength(50);
+    expect(progress[0].records).toHaveLength(50);
+    expect(progress[0].count).toBe(2103);
+    release();
+    expect((await result).data.items).toEqual(items);
+    expect(progress.at(-1).records).toHaveLength(2103);
+  });
+
+  it('先頭を表示した後に失敗しても、部分取得を架電用の成功結果にしない', async () => {
+    const progress = [];
+    const result = await queryCallFlowData({ rpc: async (_, args) => args.p_offset
+      ? { error: new Error('timeout') }
+      : { data: { items: Array.from({ length: 50 }, (_, id) => ({ id })), records: [], count: 3000 } },
+    }, 'list', { onProgress: data => progress.push(data) });
+    expect(progress[0].items).toHaveLength(50);
+    expect(result.data).toBeNull();
+    expect(result.error.message).toBe('timeout');
+  });
+
+  it('全件取得中の行欠落を検知し、不完全なキューを返さない', async () => {
+    const result = await fetchCallPages(async from => ({ data: Array.from({ length: from ? 49 : 50 }, (_, id) => ({ id: from + id })), count: from ? null : 100 }), { firstPageSize: 50 });
+    expect(result.error).toBeTruthy();
+    expect(result.data).toEqual([]);
+  });
 });
