@@ -86,6 +86,8 @@ BEGIN
   SELECT item_id INTO other_item FROM public.company_import_rows WHERE batch_id=jid AND row_no=2;
   DELETE FROM public.call_lists WHERE id=lid;
   IF EXISTS(SELECT 1 FROM public.call_list_items WHERE id=other_item) OR (SELECT count(*) FROM public.company_profile_links l JOIN public.company_import_rows r ON r.id=l.import_row_id WHERE r.batch_id=jid)<>2 THEN RAISE EXCEPTION 'FAIL retention after list delete'; END IF;
+  result:=public.search_company_profiles(title);
+  IF (result->>'count')::integer IS DISTINCT FROM 2 THEN RAISE EXCEPTION 'FAIL company directory after list deletion: %',result; END IF;
   SET LOCAL ROLE anon;
   rejected:=false; BEGIN PERFORM public.company_import_config(); EXCEPTION WHEN insufficient_privilege THEN rejected:=true; END;
   IF NOT rejected THEN RAISE EXCEPTION 'FAIL anonymous access'; END IF;
