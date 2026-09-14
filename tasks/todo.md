@@ -9,7 +9,12 @@
 - [x] 3. 取込: `csvImportUtils` の TARGET_FIELDS / detectField / buildRowsFromMapping に2フィールド追加、`insertCallListItems` で書き込み、紐付けモーダルのプレビューにも表示
 - [x] 4. 画面/CSV: `ListApproachPage` に法人番号列（常時）とID列（1件でも値があれば）を企業名の右に追加。CSVも同じ並び。絞り込みも法人番号・IDで効くように
 - [x] 5. テスト追加（detectField / buildRowsFromMapping）→ vitest → build
-- [ ] 6. commit（触ったパスだけ）→ push → 本番画面で確認
+- [x] 6. commit（触ったパスだけ）→ push → 本番画面で確認
+
+## 結果
+- 本番 spanavi.jp の案件 → レバレジーズ様 → 物流「開く」で、企業名の右に法人番号列が出ることを確認（1〜11行目の値がDBと一致）
+- Excel出力はNodeでexceljsの経路を再現し、13桁が文字列セル（numFmt @）で保たれることを確認
+- 既存テスト `addressMatchFilter.test.jsx` は `react-test-renderer` 未インストールで元から落ちる（今回の変更と無関係）
 
 ## 見送り
 - memo内で `4.01E+12` のように指数表記で壊れている434行（他リスト）は復元不能。元ファイルからの再取込が必要
