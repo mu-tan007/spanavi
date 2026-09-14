@@ -61,6 +61,8 @@ export default function CSVColumnMappingModal({
 
   const previewCols = [
     { key: 'company', label: '企業名', w: 160 },
+    { key: 'corporate_number', label: '法人番号', w: 120, mono: true },
+    { key: 'client_ref_id', label: 'ID', w: 90, mono: true },
     { key: 'phone', label: '電話番号', w: 110, mono: true },
     { key: 'pref', label: '都道府県', w: 80 },
     { key: 'address', label: '住所', w: 200 },

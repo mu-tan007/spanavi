@@ -62,9 +62,14 @@ export default function ListApproachPage({ list, orgId, onBack }) {
   // 絞り込み
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    return (q ? items.filter(it => (it.company || '').toLowerCase().includes(q)) : items)
+    const hit = (it) => [it.company, it.corporate_number, it.client_ref_id]
+      .some(v => (v || '').toLowerCase().includes(q));
+    return (q ? items.filter(hit) : items)
       .map(it => ({ ...it, _calls: parseCalls(it.calls) }));
   }, [items, filter]);
+
+  // クライアント付与のIDは次回以降のリストから入る。1件も無いリストでは列ごと出さない
+  const hasRefId = useMemo(() => items.some(it => it.client_ref_id), [items]);
 
   // 表示中の全行で最大の「架電回数」を求める (横幅決定用)
   const maxCallCount = useMemo(
@@ -81,48 +86,63 @@ export default function ListApproachPage({ list, orgId, onBack }) {
   );
   useEffect(() => { setPage(1); }, [filter]);
 
-  // CSV エクスポート: 企業 × 架電回数分のセルを横に並べて出力
-  const handleExport = () => {
-    const esc = (v) => {
-      if (v == null) return '';
-      const s = String(v).replace(/"/g, '""');
-      return /[,"\n\r]/.test(s) ? `"${s}"` : s;
-    };
-    // header
-    const header = ['No', '企業名'];
-    for (let i = 1; i <= maxCallCount; i++) {
-      header.push(`${i}回目 日時`, `${i}回目 ステータス`, `${i}回目 架電者`);
-    }
-    const rows = [header.map(esc).join(',')];
+  // Excel 出力: 企業 × 架電回数分のセルを横に並べて xlsx で出力。
+  // CSV だと13桁の法人番号を Excel が数値と見なして 6.1E+12 に化かすので、文字列セルとして書く
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('架電詳細');
 
-    for (const it of filtered) {
-      const calls = it._calls;
-      const row = [it.no ?? '', it.company ?? ''];
-      for (let i = 0; i < maxCallCount; i++) {
-        const c = calls[i];
-        if (!c) {
-          row.push('', '', '');
-        } else {
-          const dt = c.called_at
-            ? new Date(c.called_at).toLocaleString('ja-JP', { hour12: false })
-            : '';
-          row.push(dt, c.status || '', c.getter_name || '');
-        }
+      const header = ['No', '企業名', '法人番号', ...(hasRefId ? ['ID'] : [])];
+      for (let i = 1; i <= maxCallCount; i++) {
+        header.push(`${i}回目 日時`, `${i}回目 ステータス`, `${i}回目 架電者`);
       }
-      rows.push(row.map(esc).join(','));
-    }
+      ws.addRow(header).font = { bold: true };
 
-    const bom = '﻿';
-    const blob = new Blob([bom + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const safeName = (list.list_name || 'list').replace(/[^\w぀-ヿ一-鿿]/g, '_');
-    a.href = url;
-    a.download = `架電詳細_${safeName}_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+      for (const it of filtered) {
+        const calls = it._calls;
+        const row = [it.no ?? null, it.company ?? '', it.corporate_number ?? '', ...(hasRefId ? [it.client_ref_id ?? ''] : [])];
+        for (let i = 0; i < maxCallCount; i++) {
+          const c = calls[i];
+          if (!c) {
+            row.push('', '', '');
+          } else {
+            const dt = c.called_at
+              ? new Date(c.called_at).toLocaleString('ja-JP', { hour12: false })
+              : '';
+            row.push(dt, c.status || '', c.getter_name || '');
+          }
+        }
+        ws.addRow(row);
+      }
+
+      const fixed = [8, 32, 16, ...(hasRefId ? [12] : [])];
+      ws.columns.forEach((col, i) => { col.width = fixed[i] ?? 18; });
+      ws.getColumn(3).numFmt = '@';
+      if (hasRefId) ws.getColumn(4).numFmt = '@';
+      ws.views = [{ state: 'frozen', xSplit: 2, ySplit: 1 }];
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeName = (list.list_name || 'list').replace(/[^\w぀-ヿ一-鿿]/g, '_');
+      a.href = url;
+      a.download = `架電詳細_${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('[ListApproachPage] export', e);
+      alert('Excel 出力に失敗しました');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -149,14 +169,14 @@ export default function ListApproachPage({ list, orgId, onBack }) {
             fullWidth={false}
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            placeholder="企業名で絞り込み"
-            style={{ width: 200 }}
+            placeholder="企業名・法人番号・IDで絞り込み"
+            style={{ width: 220 }}
           />
           <Button
             size="sm"
             onClick={handleExport}
-            disabled={loading || items.length === 0}
-          >⬇ Excel 出力</Button>
+            disabled={loading || exporting || items.length === 0}
+          >{exporting ? '出力中...' : '⬇ Excel 出力'}</Button>
         </div>
       </Card>
 
@@ -173,6 +193,8 @@ export default function ListApproachPage({ list, orgId, onBack }) {
                 <tr style={{ background: color.cream, borderBottom: `1px solid ${color.border}` }}>
                   <th style={{ ...th, width: 40 }}>#</th>
                   <th style={{ ...th, textAlign: 'left', minWidth: 220, position: 'sticky', left: 0, background: color.cream, zIndex: 2 }}>企業名</th>
+                  <th style={{ ...th, minWidth: 130 }}>法人番号</th>
+                  {hasRefId && <th style={{ ...th, minWidth: 100 }}>ID</th>}
                   {Array.from({ length: maxCallCount }).map((_, i) => (
                     <th key={i} style={{ ...th, minWidth: 180 }}>{i + 1}回目</th>
                   ))}
@@ -187,6 +209,8 @@ export default function ListApproachPage({ list, orgId, onBack }) {
                       <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.medium, color: color.navy, position: 'sticky', left: 0, background: color.white, zIndex: 1 }}>
                         {it.company || '—'}
                       </td>
+                      <td style={{ ...td, fontFamily: font.family.mono, color: color.textMid }}>{it.corporate_number || '—'}</td>
+                      {hasRefId && <td style={{ ...td, fontFamily: font.family.mono, color: color.textMid }}>{it.client_ref_id || '—'}</td>}
                       {Array.from({ length: maxCallCount }).map((_, i) => {
                         const c = calls[i];
                         if (!c) return <td key={i} style={{ ...td, color: color.textLight }}>—</td>;

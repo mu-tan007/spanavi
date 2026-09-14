@@ -8,6 +8,8 @@
 export const TARGET_FIELDS = [
   { key: 'no',             label: 'No.（取込時に自動採番）' },
   { key: 'company',        label: '企業名', required: true },
+  { key: 'corporate_number', label: '法人番号' },
+  { key: 'client_ref_id',  label: 'ID（クライアント付与）' },
   { key: 'business',       label: '事業内容' },
   { key: 'representative', label: '代表者' },
   { key: 'phone',          label: '電話番号' },
@@ -234,7 +236,21 @@ export function detectField(h) {
   if (base === '従業員数' || base === '社員数' || base === '従業員') return 'employees';
   if (base === 'URL' || base === 'url' || base === 'HP' || base === '会社URL' || base === '会社HP' || base.includes('ホームページ')) return 'url';
   if (base === '代表者年齢' || base === '年齢') return 'age';
+  if (base === '法人番号' || base === '法人番号13桁' || base.toLowerCase() === 'corporate_number') return 'corporate_number';
+  if (/^(ID|企業ID|会社ID|顧客ID|管理ID|ID番号|管理番号)$/i.test(base)) return 'client_ref_id';
   return null;
+}
+
+// ── 法人番号の正規化 ────────────────────────────────────────────
+// 全角数字・区切りを落として13桁ならその形に揃える。13桁にならない値（Excel経由で
+// 「4.01E+12」に壊れた等）は捨てずにそのまま残し、画面で気づけるようにする。
+export function normalizeCorporateNumber(v) {
+  const raw = (v == null ? '' : String(v)).trim();
+  if (!raw) return null;
+  const half = raw.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+  const digits = half.replace(/[\s\-‐－]/g, '');
+  if (/^\d{13}$/.test(digits)) return digits;
+  return half;
 }
 
 // ── 金額列の実データから単位を推定 ────────────────────────────
@@ -347,6 +363,8 @@ export function buildRowsFromMapping(dataRows, headers, mapping, units) {
     rows.push({
       no: rows.length + 1,
       company: sanitizeCSV(companyVal),
+      corporate_number: normalizeCorporateNumber(get('corporate_number')),
+      client_ref_id: sanitizeCSV(get('client_ref_id') || '') || null,
       business: sanitizeCSV(get('business') || ''),
       address: sanitizeCSV(address),
       pref: prefVal,

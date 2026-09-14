@@ -1507,6 +1507,8 @@ export async function insertCallListItems(listId, rows) {
       list_id: listId,
       no: baseNo + i + j + 1,
       company: stripLabelPrefix(r.company || '', 'company'),
+      corporate_number: r.corporate_number || null,
+      client_ref_id: r.client_ref_id || null,
       business: stripLabelPrefix(r.business || '', 'business'),
       representative: stripLabelPrefix(r.representative || '', 'representative'),
       phone: stripLabelPrefix(r.phone || '', 'phone'),
