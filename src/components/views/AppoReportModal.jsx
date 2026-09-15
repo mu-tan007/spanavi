@@ -274,7 +274,9 @@ HP：${form.hp}
     if (insError || !insResult?.id) {
       savingRef.current = false;
       setSaving(false);
-      setAiStatus('error');
+      // 登録そのものが失敗した状態。'error'（＝AI処理の失敗）と混ぜると
+      // 「アポ登録は完了」と表示され、1件も入っていないのに完了したように見える。
+      setAiStatus('save_error');
       alert('アポを保存できませんでした: ' + (insError?.message || '保存結果を取得できませんでした'));
       return;
     }
@@ -514,13 +516,14 @@ HP：${form.hp}
           {/* AI処理ステータス表示 */}
           {aiStatus !== 'idle' && (
             <div style={{ fontFamily: font.family.sans }}>
-              <div style={{ fontSize: font.size.xs, color: aiStatus === 'error' ? color.danger : aiStatus.startsWith('done') ? color.success : color.textMid }}>
+              <div style={{ fontSize: font.size.xs, color: (aiStatus === 'error' || aiStatus === 'save_error') ? color.danger : aiStatus.startsWith('done') ? color.success : color.textMid }}>
                 {aiStatus === 'saving'        && 'アポ登録中...'}
                 {aiStatus === 'slack'         && '#アポ取得報告 に投稿中...'}
                 {aiStatus === 'ai'            && 'AI処理中（録音取得・レポート強化・Slack投稿）...'}
                 {aiStatus === 'done_slack'    && '完了！Slackに投稿しました'}
                 {aiStatus === 'done_no_slack' && 'AI処理完了（Slack未設定）'}
                 {aiStatus === 'error'         && 'AI処理でエラーが発生しました（アポ登録は完了）'}
+                {aiStatus === 'save_error'    && 'アポ登録に失敗しました。入力はそのままです。もう一度お試しください'}
               </div>
               {slackAppoFailed && aiStatus !== 'slack' && (
                 <div style={{ fontSize: font.size.xs - 1, color: color.danger, marginTop: 2 }}>#アポ取得報告への投稿に失敗しました</div>
@@ -528,7 +531,7 @@ HP：${form.hp}
             </div>
           )}
           <div style={{ display: 'flex', gap: space[2] }}>
-            {aiStatus === 'idle' && (
+            {(aiStatus === 'idle' || aiStatus === 'save_error') && (
               <Button variant="outline" onClick={onClose}>キャンセル</Button>
             )}
             {aiStatus.startsWith('done') || aiStatus === 'error' ? (

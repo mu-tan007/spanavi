@@ -1,3 +1,37 @@
+# アポ取得報告が「AI処理でエラー（アポ登録は完了）」で落ちる（2026-09-15）
+
+症状: 興村さんが有限会社マザーエキスプレスのアポ報告を保存したところ、赤字で
+「AI処理でエラーが発生しました（アポ登録は完了）」。実際には `appointments` に1件も入っていない。
+
+## 原因（ログで確定）
+- 2026-09-15 02:18:08 UTC（11:18 JST）`POST /rest/v1/appointments` が **401**。
+  同じ瞬間に clients / call_lists / engagements / appointments(GET) も一斉に401。
+- auth_logs: 同ユーザー（2021k0080@gmail.com = 興村 重貴）で
+  `token has invalid claims: token is expired` / `bad_jwt`。
+  02:09:32 頃に access token が期限切れ → 更新されたのは **02:19:15**。
+  その10分間の読み書きが全部401で落ちていた（supabase-js の自動更新タイマーは
+  タブが凍結されると止まる）。
+- 直近24時間で `POST call_records` が5件、`POST appointments` が1件、同じ401で消えている。
+- 画面側は insert 失敗を AI 失敗と同じ `aiStatus='error'` にしていたため
+  「アポ登録は完了」と表示し、ボタンも「閉じる」に変わって再保存できなかった。
+
+## やること
+- [x] 1. `src/lib/authRetryFetch.js` 新規。401を掴んだら refreshSession してから同じ要求を1回だけ再送する fetch を作る（認証API・匿名キー・送り直せないbodyは対象外、同時401の更新は1本にまとめる）
+- [x] 2. `src/lib/supabase.js` の createClient に `global.fetch` として差す（全テーブル・全Functionが対象）
+- [x] 3. `AppoReportModal.jsx`: 保存失敗を `save_error` に分離。「アポ登録に失敗しました。入力はそのままです。もう一度お試しください」と出し、保存ボタンとキャンセルを残す
+- [x] 4. テスト `src/lib/authRetryFetch.test.js`（9件）→ vitest → build
+- [x] 5. commit → push → 本番画面で確認
+
+## 結果
+- vitest: 405件パス。落ちている7ファイルは `react-test-renderer` 未インストールで元から落ちるもの（今回と無関係）
+- vite build 成功
+- 本番 spanavi.jp を開いて通常の読み書きが素通りすること（fetchを差し替えても壊れていないこと）を確認
+
+## 残
+- マザーエキスプレスのアポは1件も入っていないので、興村さんに再登録してもらう必要がある
+
+---
+
 # 案件「各企業のアプローチ詳細」に法人番号・ID列を追加（2026-09-14）
 
 依頼: レバレジーズM&Aアドバイザリー様。物流リストの詳細画面とExcel出力で、企業名の右に「法人番号」、その右に「ID（クライアント付与）」を出す。

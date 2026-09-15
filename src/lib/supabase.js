@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { createAuthRetryFetch } from './authRetryFetch'
 
 // Supabase の auth-js は初期化時に URL の hash を処理して即座にクリアする。
 // 「招待リンクからの初回ログイン」を検知するには、createClient より先に hash を読む必要がある。
@@ -59,4 +60,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         detectSessionInUrl: true,
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       },
+  // タブ凍結などで自動更新が止まり、期限切れトークンのまま送ってしまった要求を
+  // 401 の時点で拾い、トークンを取り直して1回だけ再送する。
+  // これが無いと保存が黙って落ちる（詳細は authRetryFetch.js の冒頭）。
+  global: {
+    fetch: createAuthRetryFetch({
+      fetch: (...args) => fetch(...args),
+      refreshSession: () => supabase.auth.refreshSession(),
+      anonKey: supabaseAnonKey,
+    }),
+  },
 })
