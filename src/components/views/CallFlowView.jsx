@@ -13,7 +13,7 @@ import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { getEffectiveCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
-import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -347,6 +347,25 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (error || !url) { alert('PDFを開けませんでした'); return; }
     setPdfPreview({ name: pdf.name, url });
   };
+
+  // スクリプトPDF（call_lists.script_pdfs）: 企業概要PDFと同じ作り
+  const [scriptPdfUrls, setScriptPdfUrls] = useState({}); // { [path]: signedUrl }
+  const [selectedScriptPdfPath, setSelectedScriptPdfPath] = useState(null);
+
+  const ensureScriptPdfUrl = async (pdf) => {
+    if (!pdf?.path || scriptPdfUrls[pdf.path]) return;
+    const { url } = await getScriptPdfSignedUrl(pdf.path);
+    if (url) setScriptPdfUrls(prev => ({ ...prev, [pdf.path]: url }));
+  };
+
+  const handleOpenScriptPdfModal = async (pdf) => {
+    if (!pdf?.path) return;
+    setPdfPreviewLoading(true);
+    const { url, error } = await getScriptPdfSignedUrl(pdf.path);
+    setPdfPreviewLoading(false);
+    if (error || !url) { alert('PDFを開けませんでした'); return; }
+    setPdfPreview({ name: pdf.name, url });
+  };
   const PAGE_SIZE = 30;
   const sessionIdRef = React.useRef(null);
   const callActionGuard = useRef(createCallActionGuard());
@@ -371,6 +390,28 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (!stillValid) setSelectedOverviewPdfPath(target.path);
     ensureOverviewPdfUrl(target);
   }, [scriptTab, list?._supaId, list?.companyOverviewPdfs]);
+
+  // スクリプトの表示切替: 持っているものだけ出す（ガイド=ツリー型 / 全文=テキスト型 / PDF=添付）
+  const scriptPdfList = Array.isArray(list?.scriptPdfs) ? list.scriptPdfs : [];
+  const scriptModes = [
+    ...(list?.scriptTree && Array.isArray(list.scriptTree.nodes) && list.scriptTree.nodes.length ? [['guide', 'ガイド']] : []),
+    ...((list?.scriptBody || '').trim() ? [['text', '全文']] : []),
+    ...(scriptPdfList.length ? [['pdf', 'PDF']] : []),
+  ];
+  // 持っていないものを指したままにならないよう、実際に表示するモードをここで決める
+  const effectiveScriptMode = scriptModes.some(([m]) => m === scriptViewMode)
+    ? scriptViewMode
+    : (scriptModes[0]?.[0] || 'text');
+
+  // スクリプトタブで「PDF」を表示する時、先頭PDFを自動選択＋署名URL取得
+  useEffect(() => {
+    if (scriptTab !== 'script' || effectiveScriptMode !== 'pdf') return;
+    if (scriptPdfList.length === 0) return;
+    const stillValid = selectedScriptPdfPath && scriptPdfList.some(p => p.path === selectedScriptPdfPath);
+    const target = stillValid ? scriptPdfList.find(p => p.path === selectedScriptPdfPath) : scriptPdfList[0];
+    if (!stillValid) setSelectedScriptPdfPath(target.path);
+    ensureScriptPdfUrl(target);
+  }, [scriptTab, effectiveScriptMode, list?._supaId, list?.scriptPdfs]);
 
   const toggleAutoDial = () => {
     setAutoDial(prev => {
@@ -1882,29 +1923,37 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               let rdScript = null;
               try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
               const rebuttal = rdScript || qaData;
-              const hasTree = !!(list.scriptTree && Array.isArray(list.scriptTree.nodes) && list.scriptTree.nodes.length);
-              const showGuide = hasTree && scriptViewMode === 'guide';
               return (
                 <>
-                  {hasTree && (
+                  {scriptModes.length > 1 && (
                     <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
-                      {[['guide', 'ガイド'], ['text', '全文']].map(([m, l]) => (
+                      {scriptModes.map(([m, l]) => (
                         <button key={m} onClick={() => setScriptViewMode(m)}
                           style={{ fontSize: 9, padding: '2px 10px', borderRadius: 4, cursor: 'pointer', fontFamily: "'Noto Sans JP'",
-                            border: scriptViewMode === m ? '1px solid ' + C.gold : '1px solid ' + C.borderLight,
-                            background: scriptViewMode === m ? C.gold + '20' : C.white,
-                            color: scriptViewMode === m ? C.navy : C.textMid,
-                            fontWeight: scriptViewMode === m ? 700 : 400 }}>
+                            border: effectiveScriptMode === m ? '1px solid ' + C.gold : '1px solid ' + C.borderLight,
+                            background: effectiveScriptMode === m ? C.gold + '20' : C.white,
+                            color: effectiveScriptMode === m ? C.navy : C.textMid,
+                            fontWeight: effectiveScriptMode === m ? 700 : 400 }}>
                           {l}
                         </button>
                       ))}
                     </div>
                   )}
-                  {showGuide
-                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} row={selectedRow} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: 11, color: C.textDark }} />
-                    : list.scriptBody
-                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={selectedRow} style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7 }} />
-                      : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>}
+                  {/* この下部パネルは120pxしかないので、PDFはモーダルで開く */}
+                  {effectiveScriptMode === 'pdf'
+                    ? scriptPdfList.map((pdf, i) => (
+                        <button key={pdf.path || i}
+                          onClick={() => handleOpenScriptPdfModal(pdf)}
+                          title={pdf.name}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: '#F8F9FA', border: '1px solid ' + C.borderLight, borderLeft: '2px solid ' + C.navy, borderRadius: 3, padding: '3px 6px', fontSize: 10, color: C.navy, fontWeight: 500, cursor: 'pointer', marginBottom: 3, textDecoration: 'underline', fontFamily: "'Noto Sans JP'", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {pdf.name}
+                        </button>
+                      ))
+                    : effectiveScriptMode === 'guide'
+                      ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} row={selectedRow} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: 11, color: C.textDark }} />
+                      : list.scriptBody
+                        ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={selectedRow} style={{ fontSize: 11, color: C.textDark, lineHeight: 1.7 }} />
+                        : <div style={{ color: C.textLight, fontSize: 11 }}>スクリプト未設定</div>}
                 </>
               );
             })()}
@@ -2776,24 +2825,79 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               let rdScript = null;
               try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
               const rebuttal = rdScript || qaData;
-              const hasTree = !!(list.scriptTree && Array.isArray(list.scriptTree.nodes) && list.scriptTree.nodes.length);
-              const showGuide = hasTree && scriptViewMode === 'guide';
+              const selectedPdf = scriptPdfList.find(p => p.path === selectedScriptPdfPath) || scriptPdfList[0] || null;
+              const scriptIframeUrl = selectedPdf ? scriptPdfUrls[selectedPdf.path] : null;
+              const modeTabs = scriptModes.length > 1 ? (
+                <div style={{ display: 'flex', gap: space[1], marginBottom: space[2], flexShrink: 0 }}>
+                  {scriptModes.map(([m, l]) => (
+                    <button key={m} onClick={() => setScriptViewMode(m)}
+                      style={{ fontSize: font.size.xs, padding: '4px 14px', borderRadius: radius.md, cursor: 'pointer', fontFamily: font.family.sans, border: 'none',
+                        background: effectiveScriptMode === m ? color.navyDeep : color.gray100,
+                        color: effectiveScriptMode === m ? color.white : color.gray500,
+                        fontWeight: effectiveScriptMode === m ? font.weight.semibold : font.weight.normal }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              ) : null;
+              if (effectiveScriptMode === 'pdf') {
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[2] }}>
+                    {modeTabs}
+                    {scriptPdfList.length > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flexShrink: 0, borderBottom: `1px solid ${color.gray200}`, paddingBottom: space[2] }}>
+                        {scriptPdfList.map(pdf => {
+                          const active = pdf.path === (selectedPdf?.path);
+                          return (
+                            <button key={pdf.path}
+                              onClick={() => { setSelectedScriptPdfPath(pdf.path); ensureScriptPdfUrl(pdf); }}
+                              title={pdf.name}
+                              style={{
+                                padding: '4px 10px', fontSize: font.size.xs, borderRadius: radius.sm,
+                                border: active ? `1px solid ${color.navyDeep}` : `1px solid ${color.gray200}`,
+                                background: active ? color.navyDeep : color.white,
+                                color: active ? color.white : color.navyDeep,
+                                cursor: 'pointer', fontWeight: active ? font.weight.semibold : font.weight.normal,
+                                fontFamily: font.family.sans,
+                                maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                              {pdf.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {selectedPdf && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexShrink: 0 }}>
+                          <span style={{ fontSize: font.size.xs, color: color.gray500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedPdf.name}</span>
+                          {scriptIframeUrl && (
+                            <a href={scriptIframeUrl} target="_blank" rel="noopener noreferrer"
+                              style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
+                              新規タブで開く
+                            </a>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
+                          {scriptIframeUrl ? (
+                            <iframe
+                              src={`${scriptIframeUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                              title={selectedPdf.name}
+                              style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }}
+                            />
+                          ) : (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>PDFを読み込み中...</div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              }
               return (
                 <>
-                  {hasTree && (
-                    <div style={{ display: 'flex', gap: space[1], marginBottom: space[2] }}>
-                      {[['guide', 'ガイド'], ['text', '全文']].map(([m, l]) => (
-                        <button key={m} onClick={() => setScriptViewMode(m)}
-                          style={{ fontSize: font.size.xs, padding: '4px 14px', borderRadius: radius.md, cursor: 'pointer', fontFamily: font.family.sans, border: 'none',
-                            background: scriptViewMode === m ? color.navyDeep : color.gray100,
-                            color: scriptViewMode === m ? color.white : color.gray500,
-                            fontWeight: scriptViewMode === m ? font.weight.semibold : font.weight.normal }}>
-                          {l}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {showGuide
+                  {modeTabs}
+                  {effectiveScriptMode === 'guide'
                     ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} row={selectedRow} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: font.size.sm, color: color.navyDeep }} />
                     : list.scriptBody
                       ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={selectedRow} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />

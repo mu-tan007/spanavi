@@ -127,7 +127,7 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
       // ポータルからでも RLS (call_lists_select_client) で自社のリスト行だけが返る。
       const { data: listRows } = await supabase
         .from('call_lists')
-        .select('id, engagement_id, total_count, script_name, script_body, script_tree, rebuttal_data')
+        .select('id, engagement_id, total_count, script_name, script_body, script_tree, rebuttal_data, script_pdfs')
         .eq('org_id', orgId)
         .eq('client_id', client.id);
       if (!cancelled) {
@@ -142,6 +142,7 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
             scriptBody: l.script_body || '',
             scriptTree: l.script_tree || null,
             rebuttalData: l.rebuttal_data || null,
+            scriptPdfs: Array.isArray(l.script_pdfs) ? l.script_pdfs : [],
           };
         }
         setListEngMap(map);
@@ -250,14 +251,15 @@ export default function CallResultsTab({ client, filterEngagementId = null }) {
   // 行の「企業数」列用: リストに入っている企業数
   const getCompanies = (listId) => Number(listCountMap[listId] || 0);
 
-  // 行の「スクリプト」ボタン用: テキスト型・ツリー型のどちらかがあれば閲覧可
+  // 行の「スクリプト」ボタン用: テキスト型・ツリー型・添付PDFのいずれかがあれば閲覧可
   const getScript = (listId) => {
     const s = listScriptMap[listId];
     if (!s) return null;
     const hasText = !!(s.scriptBody || '').trim();
     const hasTree = !!(s.scriptTree && Array.isArray(s.scriptTree.nodes) && s.scriptTree.nodes.length);
-    if (!hasText && !hasTree) return null;
-    return { ...s, hasText, hasTree };
+    const hasPdf = Array.isArray(s.scriptPdfs) && s.scriptPdfs.length > 0;
+    if (!hasText && !hasTree && !hasPdf) return null;
+    return { ...s, hasText, hasTree, hasPdf };
   };
 
   const ratePct = (num, den) => den > 0 ? `${((num / den) * 100).toFixed(1)}%` : '—';

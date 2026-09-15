@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
-import { fetchSetting, updateCallListRebuttal, updateCallListScript, updateCallListScriptTree } from '../../lib/supabaseWrite';
+import { fetchSetting, updateCallListRebuttal, updateCallListScript, updateCallListScriptTree, uploadScriptPdf, deleteScriptPdfObject, updateCallListScriptPdfs, getScriptPdfSignedUrl } from '../../lib/supabaseWrite';
 import { toHtml, fromHtml, isSelectionMarked, applyMarker, removeMarker, createChipElement } from '../../utils/scriptMarker';
 import PageHeader from '../common/PageHeader';
 import ScriptBody, { flattenRebuttal } from '../common/ScriptBody';
@@ -140,6 +140,85 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
   const [feSavedOk, setFeSavedOk] = useState(false);
   // 他リスト（同じ商材・タイプ）のアウト返し候補セクションの開閉
   const [feCandOpen, setFeCandOpen] = useState(false);
+
+  // ── 添付PDF（call_lists.script_pdfs） ──
+  // 本文とは別立て。架電画面のスクリプトタブで「PDF」として開ける
+  const [fePdfUploading, setFePdfUploading] = useState(false);
+  const [fePdfDeletingPath, setFePdfDeletingPath] = useState(null);
+  const [fePdfPreview, setFePdfPreview] = useState(null); // { name, url }
+  const [fePdfPreviewLoading, setFePdfPreviewLoading] = useState(false);
+  const [fePdfDragOver, setFePdfDragOver] = useState(false);
+  const fePdfInputRef = useRef(null);
+
+  const feList = (callListData || []).find(l => l._supaId === fullEditor) || null;
+  const fePdfs = Array.isArray(feList?.scriptPdfs) ? feList.scriptPdfs : [];
+
+  const formatFileSize = (bytes) => {
+    if (!bytes && bytes !== 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  const handleUploadScriptPdf = async (file) => {
+    if (!fullEditor || !file) return;
+    if (file.type !== 'application/pdf') { alert('PDFファイルのみアップロードできます'); return; }
+    if (file.size > 20 * 1024 * 1024) { alert('ファイルサイズは20MB以下にしてください'); return; }
+    setFePdfUploading(true);
+    const { item, error } = await uploadScriptPdf(fullEditor, file);
+    if (error || !item) {
+      setFePdfUploading(false);
+      alert('PDFのアップロードに失敗しました');
+      return;
+    }
+    const nextPdfs = [...fePdfs, item];
+    const updErr = await updateCallListScriptPdfs(fullEditor, nextPdfs);
+    setFePdfUploading(false);
+    if (updErr) {
+      // 行に残せなかったオブジェクトは孤児になるので消す
+      await deleteScriptPdfObject(item.path);
+      alert('PDFの保存に失敗しました');
+      return;
+    }
+    if (setCallListData) {
+      setCallListData(prev => prev.map(l => l._supaId === fullEditor ? { ...l, scriptPdfs: nextPdfs } : l));
+    }
+  };
+
+  const handleDeleteScriptPdf = async (pdf) => {
+    if (!fullEditor || !pdf?.path) return;
+    if (!window.confirm(`「${pdf.name}」を削除しますか？`)) return;
+    setFePdfDeletingPath(pdf.path);
+    const nextPdfs = fePdfs.filter(p => p.path !== pdf.path);
+    const updErr = await updateCallListScriptPdfs(fullEditor, nextPdfs);
+    if (updErr) {
+      setFePdfDeletingPath(null);
+      alert('PDFの削除に失敗しました');
+      return;
+    }
+    await deleteScriptPdfObject(pdf.path);
+    setFePdfDeletingPath(null);
+    if (setCallListData) {
+      setCallListData(prev => prev.map(l => l._supaId === fullEditor ? { ...l, scriptPdfs: nextPdfs } : l));
+    }
+  };
+
+  const handleOpenScriptPdfPreview = async (pdf) => {
+    if (!pdf?.path) return;
+    setFePdfPreviewLoading(true);
+    const { url, error } = await getScriptPdfSignedUrl(pdf.path);
+    setFePdfPreviewLoading(false);
+    if (error || !url) { alert('PDFを開けませんでした'); return; }
+    setFePdfPreview({ name: pdf.name, url });
+  };
+
+  const handleDropScriptPdf = (e) => {
+    e.preventDefault();
+    setFePdfDragOver(false);
+    if (fePdfUploading) return;
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleUploadScriptPdf(file);
+  };
 
   // ── ツリー型スクリプト編集 ──
   // feMode: 左ペインの編集対象 'text'(従来のテキスト型) | 'tree'(ツリー型)
@@ -975,13 +1054,13 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                   />
                 )}
               </div>
-              {/* 右パネルはテキスト型のときのみ（ツリー型はアウト返し不使用・PDF廃止のため全幅で編集） */}
-              {feMode !== 'tree' && (
+              {/* 右パネル: アウト返し（テキスト型のみ）＋ 添付PDF（両方の型で使う） */}
               <div style={{
-                width: 400, flexShrink: 0, borderLeft: `1px solid ${color.border}`,
+                width: feMode === 'tree' ? 300 : 400, flexShrink: 0, borderLeft: `1px solid ${color.border}`,
                 overflowY: 'auto', background: color.white,
               }}>
-                {/* アウト返し（このリスト専用） */}
+                {feMode !== 'tree' && (
+                /* アウト返し（このリスト専用） */
                 <div style={{ padding: '14px 16px', borderBottom: `1px solid ${color.border}` }}>
                   <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>アウト返し</div>
                   <div style={{ fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.6, marginBottom: 10 }}>
@@ -1106,12 +1185,131 @@ export default function ScriptView({ isAdmin, clientData, callListData, setCallL
                     );
                   })()}
                 </div>
+                )}
+
+                {/* 添付PDF（call_lists.script_pdfs）: 架電画面のスクリプトタブで「PDF」として開ける */}
+                <div style={{ padding: '14px 16px' }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: 4 }}>添付PDF</div>
+                  <div style={{ fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.6, marginBottom: 10 }}>
+                    架電画面のスクリプトタブに「PDF」として並び、そのまま読めます。本文とは別立てで、どちらも残ります。
+                  </div>
+
+                  <input
+                    ref={fePdfInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadScriptPdf(file);
+                      e.target.value = '';
+                    }}
+                  />
+                  <div
+                    onClick={() => { if (!fePdfUploading) fePdfInputRef.current?.click(); }}
+                    onDragOver={e => { e.preventDefault(); setFePdfDragOver(true); }}
+                    onDragLeave={() => setFePdfDragOver(false)}
+                    onDrop={handleDropScriptPdf}
+                    style={{
+                      border: `1px dashed ${fePdfDragOver ? color.navy : color.gray400}`,
+                      background: fePdfDragOver ? alpha(color.navy, 0.06) : color.offWhite,
+                      borderRadius: radius.md, padding: '14px 12px', textAlign: 'center',
+                      cursor: fePdfUploading ? 'wait' : 'pointer', marginBottom: 10,
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}>
+                    <div style={{ fontSize: font.size.xs, color: color.navy, fontWeight: font.weight.semibold }}>
+                      {fePdfUploading ? 'アップロード中...' : 'PDFをドラッグ&ドロップ'}
+                    </div>
+                    {!fePdfUploading && (
+                      <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 3 }}>
+                        クリックでファイル選択（20MBまで）
+                      </div>
+                    )}
+                  </div>
+
+                  {fePdfs.length === 0 ? (
+                    <div style={{ fontSize: font.size.xs, color: color.textLight, fontStyle: 'italic' }}>未添付</div>
+                  ) : fePdfs.map((pdf, i) => (
+                    <div key={pdf.path || i} style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '5px 8px', borderRadius: radius.sm,
+                      background: color.gray50, borderLeft: `2px solid ${color.navy}`,
+                      marginBottom: 4,
+                    }}>
+                      <button
+                        onClick={() => handleOpenScriptPdfPreview(pdf)}
+                        title={pdf.name}
+                        style={{
+                          flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent',
+                          border: 'none', cursor: 'pointer', padding: 0,
+                          fontSize: font.size.xs, color: color.navy,
+                          fontWeight: font.weight.medium, textDecoration: 'underline',
+                          fontFamily: font.family.sans,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                        {pdf.name}
+                      </button>
+                      <span style={{ fontSize: font.size.xs - 1, color: color.gray400, flexShrink: 0 }}>{formatFileSize(pdf.size)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={fePdfDeletingPath === pdf.path}
+                        onClick={() => handleDeleteScriptPdf(pdf)}
+                        style={{ borderColor: '#fca5a5', color: color.danger, fontSize: font.size.xs - 1, flexShrink: 0 }}>
+                        {fePdfDeletingPath === pdf.path ? '...' : '削除'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
-              )}
             </div>
           </div>
         );
       })()}
+
+      {fePdfPreviewLoading && (
+        <div style={{
+          position: 'fixed', inset: 0, background: alpha('#000000', 0.4), zIndex: 9700,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: color.white, fontSize: font.size.base, fontFamily: font.family.sans,
+        }}>
+          PDFを読み込み中...
+        </div>
+      )}
+
+      {fePdfPreview && (
+        <div onClick={() => setFePdfPreview(null)}
+          style={{
+            position: 'fixed', inset: 0, background: alpha('#000000', 0.75), zIndex: 9800,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{
+              width: '95vw', height: '92vh', maxWidth: 1200, borderRadius: radius.md,
+              background: color.white, border: `1px solid ${color.border}`,
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}>
+            <div style={{
+              background: color.navy, padding: '10px 20px', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', flexShrink: 0,
+              fontWeight: font.weight.semibold, fontSize: font.size.base, color: color.white,
+            }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fePdfPreview.name}</span>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                <a href={fePdfPreview.url} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: font.size.xs, color: color.white, textDecoration: 'underline' }}>新規タブで開く</a>
+                <button onClick={() => setFePdfPreview(null)}
+                  style={{ background: 'none', border: 'none', color: color.white, fontSize: font.size.lg + 2, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              </div>
+            </div>
+            <iframe
+              src={`${fePdfPreview.url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+              title={fePdfPreview.name}
+              style={{ flex: 1, border: 'none', width: '100%' }}
+            />
+          </div>
+        </div>
+      )}
 
 
 

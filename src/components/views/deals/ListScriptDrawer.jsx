@@ -3,19 +3,23 @@ import { color, space, radius, font, shadow, alpha } from '../../../constants/de
 import { Button, Select } from '../../ui';
 import ScriptBody, { hasPlaceholder, treeHasPlaceholder } from '../../common/ScriptBody';
 import ScriptTreeGuide from '../../common/ScriptTreeGuide';
-import { fetchCallListItemScripts } from '../../../lib/supabaseWrite';
+import { fetchCallListItemScripts, getScriptPdfSignedUrl } from '../../../lib/supabaseWrite';
 
 // リスト別スクリプトの閲覧パネル（社内「案件」/ クライアントポータル 共通）。
 // 架電者の1画面集中ページ(CallFlowView)の右カラムと同じ見せ方に揃える:
-//  - ツリー型とテキスト型の両方があるときだけ「ガイド / 全文」トグルを出す
-//  - 片方だけならトグルなしでそのまま表示
+//  - ツリー型・テキスト型・添付PDFのうち2つ以上あるときだけ「ガイド / 全文 / PDF」トグルを出す
+//  - 1つだけならトグルなしでそのまま表示
 // script  : リストの script_body (テキスト型)
 // tree    : リストの script_tree (ツリー型 / { nodes, startId })
 // rebuttal: リストの rebuttal_data (本文中の [[Q:〜]] チップを開くのに必要)
+// pdfs   : リストの script_pdfs (添付PDF / 署名付きURLを取ってiframeで表示)
 export default function ListScriptDrawer({ open, onClose, list }) {
   const hasTree = !!(list?.scriptTree && Array.isArray(list.scriptTree.nodes) && list.scriptTree.nodes.length);
   const hasText = !!(list?.scriptBody || '').trim();
+  const pdfs = useMemo(() => (Array.isArray(list?.scriptPdfs) ? list.scriptPdfs : []), [list?.scriptPdfs]);
   const [viewMode, setViewMode] = useState('guide');
+  const [pdfUrls, setPdfUrls] = useState({}); // { [path]: signedUrl }
+  const [pickedPdfPath, setPickedPdfPath] = useState('');
   // 企業ごとに差し替わる部分があるスクリプトは、閲覧時にどの企業で見るかを選ばせる
   const [items, setItems] = useState([]);
   const [pickedId, setPickedId] = useState('');
@@ -26,8 +30,10 @@ export default function ListScriptDrawer({ open, onClose, list }) {
 
   // リストを開き直すたびに既定表示へ戻す（ツリーがあればガイド優先）
   useEffect(() => {
-    if (open) setViewMode(hasTree ? 'guide' : 'text');
-  }, [open, list?.listId, hasTree]);
+    if (!open) return;
+    setViewMode(hasTree ? 'guide' : hasText ? 'text' : 'pdf');
+    setPickedPdfPath(pdfs[0]?.path || '');
+  }, [open, list?.listId, hasTree, hasText, pdfs]);
 
   // 差し込み口があるときだけ企業一覧を読む
   useEffect(() => {
@@ -41,6 +47,18 @@ export default function ListScriptDrawer({ open, onClose, list }) {
     })();
     return () => { alive = false; };
   }, [open, perCompany, list?.listId]);
+
+  // 表示するPDFが決まったら署名付きURLを取る（取れたものはキャッシュ）
+  useEffect(() => {
+    if (!open || viewMode !== 'pdf' || !pickedPdfPath) return;
+    if (pdfUrls[pickedPdfPath]) return;
+    let alive = true;
+    (async () => {
+      const { url } = await getScriptPdfSignedUrl(pickedPdfPath);
+      if (alive && url) setPdfUrls(prev => ({ ...prev, [pickedPdfPath]: url }));
+    })();
+    return () => { alive = false; };
+  }, [open, viewMode, pickedPdfPath, pdfUrls]);
 
   // Esc で閉じる
   useEffect(() => {
@@ -59,8 +77,15 @@ export default function ListScriptDrawer({ open, onClose, list }) {
 
   if (!open || !list) return null;
 
-  const showGuide = hasTree && (viewMode === 'guide' || !hasText);
+  const modes = [
+    ...(hasTree ? [['guide', 'ガイド（ツリー型）']] : []),
+    ...(hasText ? [['text', '全文（テキスト型）']] : []),
+    ...(pdfs.length ? [['pdf', 'PDF']] : []),
+  ];
+  const mode = modes.some(([m]) => m === viewMode) ? viewMode : (modes[0]?.[0] || 'text');
   const pickedRow = items.find(i => i.id === pickedId) || null;
+  const pickedPdf = pdfs.find(p => p.path === pickedPdfPath) || pdfs[0] || null;
+  const pdfUrl = pickedPdf ? pdfUrls[pickedPdf.path] : null;
 
   return (
     <div
@@ -113,17 +138,17 @@ export default function ListScriptDrawer({ open, onClose, list }) {
 
         {/* 本文 */}
         <div style={{ flex: 1, overflowY: 'auto', padding: space[5] }}>
-          {!hasTree && !hasText ? (
+          {!hasTree && !hasText && !pdfs.length ? (
             <div style={{ color: color.textLight, fontSize: font.size.sm, textAlign: 'center', padding: space[8] }}>
               このリストにはスクリプトが登録されていません。
             </div>
           ) : (
             <>
-              {/* 両方あるときだけ切替（架電者の1画面集中ページと同じ挙動） */}
-              {hasTree && hasText && (
+              {/* 2つ以上あるときだけ切替（架電者の1画面集中ページと同じ挙動） */}
+              {modes.length > 1 && (
                 <div style={{ display: 'flex', gap: space[1], marginBottom: space[3] }}>
-                  {[['guide', 'ガイド（ツリー型）'], ['text', '全文（テキスト型）']].map(([m, label]) => {
-                    const active = viewMode === m;
+                  {modes.map(([m, label]) => {
+                    const active = mode === m;
                     return (
                       <button
                         key={m}
@@ -147,7 +172,7 @@ export default function ListScriptDrawer({ open, onClose, list }) {
                   })}
                 </div>
               )}
-              {perCompany && (
+              {perCompany && mode !== 'pdf' && (
                 <div style={{ marginBottom: space[3] }}>
                   <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1] }}>
                     このスクリプトは企業ごとに一部の文面が異なります。表示する企業をお選びください。
@@ -161,7 +186,59 @@ export default function ListScriptDrawer({ open, onClose, list }) {
                   />
                 </div>
               )}
-              {showGuide
+              {mode === 'pdf'
+                ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], height: '100%', minHeight: 480 }}>
+                    {pdfs.length > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', borderBottom: `1px solid ${color.border}`, paddingBottom: space[2] }}>
+                        {pdfs.map(pdf => {
+                          const active = pdf.path === pickedPdf?.path;
+                          return (
+                            <button key={pdf.path} type="button"
+                              onClick={() => setPickedPdfPath(pdf.path)}
+                              title={pdf.name}
+                              style={{
+                                padding: '4px 10px', fontSize: font.size.xs, borderRadius: radius.sm,
+                                border: active ? `1px solid ${color.navyDeep}` : `1px solid ${color.border}`,
+                                background: active ? color.navyDeep : color.white,
+                                color: active ? color.white : color.navyDeep,
+                                cursor: 'pointer', fontFamily: font.family.sans,
+                                fontWeight: active ? font.weight.semibold : font.weight.normal,
+                                maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                              {pdf.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {pickedPdf && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
+                          <span style={{ fontSize: font.size.xs, color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pickedPdf.name}</span>
+                          {pdfUrl && (
+                            <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
+                              style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.textMid, textDecoration: 'underline', flexShrink: 0 }}>
+                              新規タブで開く
+                            </a>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minHeight: 440, borderRadius: radius.md, border: `1px solid ${color.border}`, overflow: 'hidden', background: color.white, display: 'flex' }}>
+                          {pdfUrl ? (
+                            <iframe
+                              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                              title={pickedPdf.name}
+                              style={{ flex: 1, border: 'none', width: '100%' }}
+                            />
+                          ) : (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.textLight, fontSize: font.size.xs }}>PDFを読み込み中...</div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+                : mode === 'guide'
                 ? <ScriptTreeGuide
                     tree={list.scriptTree}
                     rebuttal={rebuttal}
