@@ -9,6 +9,7 @@ import SpacareerClientApp from './components/spacareer/client/SpacareerClientApp
 import SpacareerLoginPage from './components/spacareer/client/SpacareerLoginPage'
 import DesignPreview from './components/views/DesignPreview'
 import GiftLanding from './components/gift/GiftLanding'
+import SampleLanding from './components/gift/SampleLanding'
 import { isPasswordSetupFlow, isAuthCallbackError } from './lib/supabase'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
@@ -247,6 +248,8 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/design-preview" element={<DesignPreview />} />
+      {/* ギフト同梱DMのお手紙サンプル（当社名義）のQRから開く公開ページ。/g/:token より先に置く */}
+      <Route path="/g/sample" element={<SampleLanding />} />
       {/* ギフト同梱DMのお手紙QRから開く公開ページ（送付先ごとのトークン付き） */}
       <Route path="/g/:token" element={<GiftLanding />} />
       {/* dorayaki.AI は独立リポジトリ(dorayaki-portal)へ分離した → app.dorayaki-ai.jp */}
