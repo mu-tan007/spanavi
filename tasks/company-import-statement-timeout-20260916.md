@@ -26,12 +26,18 @@
 テスト `src/lib/companyImportApi.test.js` に3本追加（timeout時の縮小と復帰／応答喪失時に同じ行を送り直さない／
 再試行を使い切ったときの文言）。7本パス。
 
-## 残（むー様の判断待ち）
-- **cron job 39 をどうするか**。8週間1度も成功していないので、15分ごとに回す意味はゼロで害だけある。
-  - 案A: 頻度を夜間1回へ落とす（即効・可逆・機能面の変化なし＝MVは今も8週間前のまま）
-  - 案B: MVの作り直しを速くして復活させる。ボトルネックは keyed 226,017行 →
-    `company_master` 491,292行への **226k回の index probe**（`idx_cm_normname_phone` + heap fetch）。
-    `enable_hashjoin=off` のヒントは2026-07-22時点の規模で決めたもので、今の規模には合っていない。
-    正攻法は company_master に正規化済み列（`spanavi_norm_company(company_name)` と数字だけの電話）を
-    生成列で持たせ、素の btree でハッシュ結合させること。company_master は1.3GBなので書き換えは低負荷時に。
-  - 企業DBの「架電ステータス」絞り込みは、どちらにせよ今は8週間前のデータで動いている点を先に共有する。
+## cron job 39（対応済み・2026-09-16）
+むー様の判断＝「夜間1回に落とす」。`cron.alter_job(39, schedule => '40 18 * * *')`（18:40 UTC = 03:40 JST）を適用。
+- MVは2026-07-22から更新されていないので、頻度を落としても企業DBの「架電ステータス」絞り込みの中身は変わらない。
+- 日中の常時負荷（15分のうち4分＝27%）だけが消える。
+- **jobnameは `refresh_mv_company_call_status_15min` のまま**（cron.job へのUPDATEは権限が無い）。名前と実際の
+  スケジュールがずれている点に注意。unschedule/schedule で振り直すと jobid と履歴が変わるので触っていない。
+
+## 残（別途・要判断）
+- MVの作り直しを速くして15分更新へ戻すか。ボトルネックは keyed 226,017行 → `company_master` 491,292行への
+  **226k回の index probe**（`idx_cm_normname_phone` + heap fetch）。`enable_hashjoin=off` のヒントは
+  2026-07-22時点の規模で決めたもので、今の規模には合っていない。
+  正攻法は company_master に正規化済みの社名・電話を生成列で持たせ、素の btree でハッシュ結合させること
+  （`spanavi_norm_company` は SQL関数で、491,292行の素の評価は実測20秒。生成列にすれば0秒）。
+  company_master は1.3GBなので列追加は低負荷時に。
+- それまで企業DBの「架電ステータス」絞り込みは8週間前のデータで動いている点を運用側に共有しておく。
