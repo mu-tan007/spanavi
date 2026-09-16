@@ -35,7 +35,7 @@ describe('同じ企業ID・適用した条件で検索とCSVを揃える',()=>{
   expect(supabase.rpc).not.toHaveBeenCalled();
  });
  it('納品標準の14列を保持し、0と欠損を区別し、CSV数式を無効化する',()=>{
-  expect(DIRECTORY_EXPORT_COLUMNS.filter(c=>c.defaultExport).map(c=>c.label)).toEqual(['企業名','tsr_id','都道府県','市区町村','住所','電話番号','売上千円','従業員数','設立年','代表者','業種','事業内容','株主','役員']);
+  expect(DIRECTORY_EXPORT_COLUMNS.filter(c=>c.defaultExport).map(c=>c.label)).toEqual(['企業名','tsr_id','都道府県','市区町村','住所','電話番号','売上（千円）','従業員数','設立年','代表者','業種','事業内容','株主','役員']);
   expect(directoryCsvQuote(0)).toBe('"0"');expect(directoryCsvQuote(null)).toBe('""');
   expect(directoryCsvQuote('=HYPERLINK("x")')).toBe('"\'=HYPERLINK(""x"")"');
   expect(directoryCsvQuote(-100)).toBe('"-100"');expect(directoryCsvQuote('A,\nB')).toBe('"A,\nB"');

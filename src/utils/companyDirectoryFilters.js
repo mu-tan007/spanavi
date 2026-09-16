@@ -39,11 +39,11 @@ export function activeDirectoryConditionCount(filters) {
 // The first fourteen delivery columns are intentionally stable.
 export const DIRECTORY_EXPORT_COLUMNS = [
  ['company_name','企業名'],['tsr_id','tsr_id'],['prefecture','都道府県'],['city','市区町村'],['address','住所'],['phone','電話番号'],
- ['revenue_k','売上千円'],['employee_count','従業員数'],['established_year','設立年'],['representative','代表者'],
+ ['revenue_k','売上（千円）'],['employee_count','従業員数'],['established_year','設立年'],['representative','代表者'],
  ['industry_sub','業種',r=>r.industry_sub || r.industry || ''],['business_description','事業内容'],['shareholders','株主'],['officers','役員'],
- ['industry_major','大分類'],['net_income_k','当期純利益(千円)'],['representative_age','代表者年齢'],['capital_k','資本金(千円)'],
+ ['industry_major','大分類'],['net_income_k','当期純利益（千円）'],['representative_age','代表者年齢'],['capital_k','資本金（千円）'],
  ['clients','取引先'],['remarks','備考'],['id','企業ID'],['corporate_number','法人番号'],['tdb_code','TDB企業コード'],
- ['source_company_code','提供元の企業コード'],['ordinary_income_k','経常利益(千円)'],['crm_stage','対応状況'],['owner_name','担当者'],
+ ['source_company_code','提供元の企業コード'],['ordinary_income_k','経常利益（千円）'],['crm_stage','対応状況'],['owner_name','担当者'],
  ['address_match','会社住所と代表者自宅住所',r=>({same:'一致',different:'不一致',unknown:'判定不可'}[r.address_match] || '')],
  ['next_action_at','次回対応'],['registry_status','登記確認状況'],
 ].map(([key,label,get],index)=>({key,label,get,defaultExport:index<14}));
