@@ -15,6 +15,7 @@ import CallResultsTab from './deals/CallResultsTab';
 import AppointmentsTab from './deals/AppointmentsTab';
 import RejectionCandidatesTab from './deals/RejectionCandidatesTab';
 import BuyerMatchingNeedsTab from './deals/BuyerMatchingNeedsTab';
+import GiftDmTab from './deals/GiftDmTab';
 
 const BASE_TABS = [
   { id: 'calls',     label: '架電結果' },
@@ -23,7 +24,8 @@ const BASE_TABS = [
 ];
 // 'needs'(ニーズヒアリング) は買い手マッチングのリストを持つクライアント選択時のみ表示。
 // useUrlState の allowed には常に含めておく(URL直叩き/リロード対応)。
-const TAB_IDS = [...BASE_TABS.map(t => t.id), 'needs'];
+// 'giftdm'(dorayaki AI) はギフト同梱DMの送付先を持つクライアント選択時のみ表示。
+const TAB_IDS = [...BASE_TABS.map(t => t.id), 'needs', 'giftdm'];
 
 export default function DealsView({ isAdmin = false, currentUser = '' }) {
   const { currentEngagement } = useEngagements();
@@ -66,16 +68,40 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
     return () => { cancelled = true; };
   }, [selectedClientId]);
 
+  // ギフト同梱DMの送付先を持つクライアントだけ「dorayaki AI」タブを出す
+  // (クライアントポータルと同条件・データ駆動)
+  const [hasGiftDm, setHasGiftDm] = useState(false);
+  useEffect(() => {
+    if (!selectedClientId) { setHasGiftDm(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('gift_shipments').select('id').eq('client_id', selectedClientId).limit(1);
+        if (!cancelled) setHasGiftDm((data || []).length > 0);
+      } catch (e) {
+        console.warn('[DealsView] gift dm check failed:', e);
+        if (!cancelled) setHasGiftDm(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedClientId]);
+
   // 表示するタブ(needs は買い手マッチング契約クライアント選択時のみ追加)
   const TABS = useMemo(
-    () => (hasMatchingList ? [...BASE_TABS, { id: 'needs', label: 'ニーズヒアリング' }] : BASE_TABS),
-    [hasMatchingList]
+    () => [
+      ...BASE_TABS,
+      ...(hasMatchingList ? [{ id: 'needs', label: 'ニーズヒアリング' }] : []),
+      ...(hasGiftDm ? [{ id: 'giftdm', label: 'dorayaki AI' }] : []),
+    ],
+    [hasMatchingList, hasGiftDm]
   );
 
   // needs タブを開いたままタブが消える状況(別クライアント選択等)では架電結果へ戻す
   useEffect(() => {
     if (activeTab === 'needs' && !hasMatchingList) setActiveTab('calls');
-  }, [activeTab, hasMatchingList, setActiveTab]);
+    if (activeTab === 'giftdm' && !hasGiftDm) setActiveTab('calls');
+  }, [activeTab, hasMatchingList, hasGiftDm, setActiveTab]);
 
   // クライアントが扱う engagement 一覧 (appointments ベース)
   const orgId = getOrgId();
@@ -269,6 +295,11 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
         )}
         {activeTab === 'needs' && selectedClient && (
           <BuyerMatchingNeedsTab
+            client={{ id: selectedClient.id, name: selectedClient.name, org_id: selectedClient.orgId }}
+          />
+        )}
+        {activeTab === 'giftdm' && selectedClient && (
+          <GiftDmTab
             client={{ id: selectedClient.id, name: selectedClient.name, org_id: selectedClient.orgId }}
           />
         )}

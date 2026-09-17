@@ -70,8 +70,16 @@ export default function ClientPortalApp() {
           hasMatchingList = (mlists || []).some(l => matchingIds.has(l.engagement_id));
         }
       } catch (e) { console.warn('[ClientPortalApp] matching list check failed:', e); }
+      // ギフト同梱DMの送付先を持つクライアントだけ
+      // ポータルに「dorayaki AI」タブを出す（データ駆動・自動）
+      let hasGiftDm = false;
+      try {
+        const { data: gifts } = await supabase
+          .from('gift_shipments').select('id').eq('client_id', data.id).limit(1);
+        hasGiftDm = (gifts || []).length > 0;
+      } catch (e) { console.warn('[ClientPortalApp] gift dm check failed:', e); }
       if (cancelled) return;
-      setClient({ ...data, hasMatchingList });
+      setClient({ ...data, hasMatchingList, hasGiftDm });
       setLoading(false);
     })();
     return () => { cancelled = true; };

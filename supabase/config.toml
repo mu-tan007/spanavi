@@ -56,3 +56,9 @@ verify_jwt = false
 
 [functions.unsubscribe]
 verify_jwt = false
+
+[functions.gift-scan]
+verify_jwt = false
+
+[functions.notify-gift-scan]
+verify_jwt = false

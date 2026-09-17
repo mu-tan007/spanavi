@@ -6,6 +6,7 @@ import CallResultsTab from '../views/deals/CallResultsTab';
 import AppointmentsTab from '../views/deals/AppointmentsTab';
 import RejectionCandidatesTab from '../views/deals/RejectionCandidatesTab';
 import BuyerMatchingNeedsTab from '../views/deals/BuyerMatchingNeedsTab';
+import GiftDmTab from '../views/deals/GiftDmTab';
 
 const BASE_TABS = [
   { id: 'calls',     label: '架電結果' },
@@ -19,7 +20,7 @@ const BASE_TABS = [
 export default function ClientDealsView({ client, canEditDossier = false, adminAccessToken = null }) {
   // タブはURLに持つ（ハードリロード・URL共有でも同じ画面に戻る）
   const [activeTab, setActiveTab] = useUrlState('cp_tab', 'calls', {
-    allowed: ['calls', 'appos', 'rejection', 'needs'],
+    allowed: ['calls', 'appos', 'rejection', 'needs', 'giftdm'],
   });
 
   // Ctrl+←/→ は事業タブ切替に統一されたため subtab 切替ショートカットは廃止
@@ -28,9 +29,12 @@ export default function ClientDealsView({ client, canEditDossier = false, adminA
 
   // 買い手マッチング（matching）の架電リストを持つクライアントだけ
   // 「ニーズヒアリング」タブを出す（リスト駆動）
-  const TABS = client.hasMatchingList
-    ? [...BASE_TABS, { id: 'needs', label: 'ニーズヒアリング' }]
-    : BASE_TABS;
+  // ギフト同梱DMの送付先を持つクライアントだけ「dorayaki AI」タブを出す
+  const TABS = [
+    ...BASE_TABS,
+    ...(client.hasMatchingList ? [{ id: 'needs', label: 'ニーズヒアリング' }] : []),
+    ...(client.hasGiftDm ? [{ id: 'giftdm', label: 'dorayaki AI' }] : []),
+  ];
 
   return (
     <div style={{
@@ -89,6 +93,9 @@ export default function ClientDealsView({ client, canEditDossier = false, adminA
         )}
         {activeTab === 'needs' && (
           <BuyerMatchingNeedsTab client={{ id: client.id, name: client.name, org_id: client.org_id }} />
+        )}
+        {activeTab === 'giftdm' && (
+          <GiftDmTab client={{ id: client.id, name: client.name, org_id: client.org_id }} />
         )}
       </div>
     </div>

@@ -1,8 +1,25 @@
+import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 
 // ギフト同梱DM（Renga Partners様）のお手紙QRから開く中継ページ。
 // 送付先ごとに異なるトークンを付けたURL（/g/:token）を手紙へ印刷する。
 // 認証なしで開ける公開ページ。App.jsx の Routes 先頭側に置くこと。
+
+// 読み取りとクリックを記録する先。中継ページ自体の見た目と中身は一切変えない。
+// 記録に失敗しても相手の画面は止めない（catch で握りつぶす）。
+const RECORD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gift-scan`
+
+function record(token, body) {
+  if (!token) return
+  try {
+    fetch(RECORD_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, ...body }),
+      keepalive: true,   // 別タブへ遷移しても送り切る
+    }).catch(() => {})
+  } catch { /* 記録より相手の画面が優先 */ }
+}
 
 const BRICK = '#A35C46'
 const CREAM = '#F6F2ED'
@@ -31,6 +48,11 @@ const LINKS = [
 
 export default function GiftLanding() {
   const { token } = useParams()
+
+  // 開かれたことを1回だけ記録する
+  useEffect(() => {
+    record(token, { type: 'scan', ref: document.referrer || '' })
+  }, [token])
 
   return (
     <div style={{
@@ -61,6 +83,7 @@ export default function GiftLanding() {
             <a
               key={l.key}
               href={l.href}
+              onClick={() => record(token, { type: 'click', target: l.key })}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -95,8 +118,6 @@ export default function GiftLanding() {
           </p>
         </div>
 
-        {/* 送付先の識別子。読み取りの記録を入れるまでは表示のみに使わず保持だけしておく */}
-        <span style={{ display: 'none' }} data-token={token || ''} />
       </div>
     </div>
   )
