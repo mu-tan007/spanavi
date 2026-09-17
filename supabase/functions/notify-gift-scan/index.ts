@@ -43,13 +43,6 @@ Deno.serve(async (req) => {
     const webhookUrl = get('slack_webhook_gift')
     const delayMin = Number(get('gift_scan_notify_delay_min')) || 30
 
-    if (!webhookUrl.startsWith('http')) {
-      return new Response(
-        JSON.stringify({ error: 'org_settings.slack_webhook_gift が未設定です' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
     const cutoff = new Date(Date.now() - delayMin * 60_000).toISOString()
 
     // 初回の読み取りが delayMin 以上前で、まだ知らせていない会社
@@ -66,6 +59,7 @@ Deno.serve(async (req) => {
     // stats はビューなので通知済みフラグを持たない。本体側で未通知のものに絞る。
     const ids = (rows ?? []).map((r) => r.id)
     if (!ids.length) return new Response(JSON.stringify({ sent: 0 }), { headers: corsHeaders })
+
     const { data: pending } = await supabase
       .from('gift_shipments')
       .select('id')
@@ -73,6 +67,16 @@ Deno.serve(async (req) => {
       .is('scan_notified_at', null)
     const pendingIds = new Set((pending ?? []).map((p) => p.id))
     const targets = (rows ?? []).filter((r) => pendingIds.has(r.id))
+    if (!targets.length) return new Response(JSON.stringify({ sent: 0 }), { headers: corsHeaders })
+
+    // 送るものが有るときだけ宛先を確かめる。未設定のまま毎回500を返すと
+    // cron の失敗が積み上がって、本物の異常が埋もれる。
+    if (!webhookUrl.startsWith('http')) {
+      return new Response(
+        JSON.stringify({ error: 'org_settings.slack_webhook_gift が未設定です', pending: targets.length }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
     let sent = 0
     for (const r of targets) {
