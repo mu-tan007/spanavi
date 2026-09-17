@@ -70,7 +70,7 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
 
   // ギフト同梱DMの送付先を持つクライアントだけ「dorayaki AI」タブを出す
   // (クライアントポータルと同条件・データ駆動)
-  const [hasGiftDm, setHasGiftDm] = useState(false);
+  const [hasGiftDm, setHasGiftDm] = useState(null);   // null = 判定前
   useEffect(() => {
     if (!selectedClientId) { setHasGiftDm(false); return; }
     let cancelled = false;
@@ -92,7 +92,7 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
     () => [
       ...BASE_TABS,
       ...(hasMatchingList ? [{ id: 'needs', label: 'ニーズヒアリング' }] : []),
-      ...(hasGiftDm ? [{ id: 'giftdm', label: 'dorayaki AI' }] : []),
+      ...(hasGiftDm === true ? [{ id: 'giftdm', label: 'dorayaki AI' }] : []),
     ],
     [hasMatchingList, hasGiftDm]
   );
@@ -100,7 +100,7 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
   // needs タブを開いたままタブが消える状況(別クライアント選択等)では架電結果へ戻す
   useEffect(() => {
     if (activeTab === 'needs' && !hasMatchingList) setActiveTab('calls');
-    if (activeTab === 'giftdm' && !hasGiftDm) setActiveTab('calls');
+    if (activeTab === 'giftdm' && hasGiftDm === false) setActiveTab('calls');
   }, [activeTab, hasMatchingList, hasGiftDm, setActiveTab]);
 
   // クライアントが扱う engagement 一覧 (appointments ベース)
