@@ -176,6 +176,7 @@ export default function GiftDmTab({ client }) {
       </div>
 
       <DataTable
+        fillWidth
         columns={columns}
         rows={sorted}
         rowKey="id"
