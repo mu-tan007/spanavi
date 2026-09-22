@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { color, space, font } from '../../../constants/design';
 import { Card, Badge, DataTable } from '../../ui';
+import { InlineAudioPlayer } from '../../common/InlineAudioPlayer';
 import { supabase } from '../../../lib/supabase';
 
 // 「dorayaki AI」タブ。ギフト同梱DMの配送と二次元コードの読み取りを出す。
@@ -11,6 +12,16 @@ import { supabase } from '../../../lib/supabase';
 // 読み取り件数は機械（クローラー）を除いた人の読み取りだけ。
 
 const GIFT_LABEL = { beer: 'ビール', dorayaki: 'どら焼き' };
+
+// call_records.status は日本語ラベルで入っている（id ではない）
+const CALL_BADGE = {
+  'アポ獲得': 'success',
+  'キーマン再コール': 'info',
+  '受付再コール': 'info',
+  '問い合わせフォーム': 'info',
+  'キーマン断り': 'warn',
+  '除外': 'danger',
+};
 
 function fmtDate(d) {
   if (!d) return '';
@@ -51,6 +62,7 @@ export default function GiftDmTab({ client }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [onlyScanned, setOnlyScanned] = useState(false);
+  const [activeRec, setActiveRec] = useState(null); // { id, company, url }
 
   useEffect(() => {
     let cancelled = false;
@@ -77,8 +89,10 @@ export default function GiftDmTab({ client }) {
     const clicked = rows.filter(r => r.clicked_calendar || r.clicked_deck || r.clicked_website).length;
     const calendar = rows.filter(r => r.clicked_calendar).length;
     const booked = rows.filter(r => r.booked_at).length;
+    const called = rows.filter(r => r.call_called_at).length;
+    const recorded = rows.filter(r => r.recording_url).length;
     const pct = (v) => (n ? `${Math.round((v / n) * 1000) / 10}%` : '—');
-    return { n, delivered, scanned, clicked, calendar, booked, pct };
+    return { n, delivered, scanned, clicked, calendar, booked, called, recorded, pct };
   }, [rows]);
 
   // 読み取りのあった会社を上に、新しい順。まだの会社は社名順で下に続ける。
@@ -137,7 +151,50 @@ export default function GiftDmTab({ client }) {
         r.clicked_website ? 'ホームページ' : null,
       ].filter(Boolean).join('・') || '—',
     },
+    {
+      key: 'call_status', label: 'フォロー架電', width: 150, align: 'left',
+      render: (r) => (r.call_status ? (
+        <span>
+          <Badge variant={CALL_BADGE[r.call_status] || 'neutral'}>{r.call_status}</Badge>
+          {r.call_count > 1 ? (
+            <span style={{ color: color.textLight, fontSize: font.size.xs }}>{`　計${r.call_count}回`}</span>
+          ) : null}
+        </span>
+      ) : '—'),
+    },
+    {
+      key: 'call_called_at', label: '架電日', width: 150, align: 'right',
+      cellStyle: { color: color.textMid },
+      render: (r) => (r.call_called_at ? (
+        <span>
+          {fmtDateTime(r.call_called_at)}
+          {r.caller_name ? (
+            <span style={{ color: color.textLight, fontSize: font.size.xs }}>{`　${r.caller_name}`}</span>
+          ) : null}
+        </span>
+      ) : '—'),
+    },
+    {
+      key: 'recording_url', label: '録音', width: 88, align: 'center',
+      render: (r) => (r.recording_url ? (
+        <button
+          type="button"
+          onClick={() => setActiveRec({ id: r.id, company: r.company, url: r.recording_url })}
+          style={{
+            border: `1px solid ${color.border}`, background: color.surface,
+            color: color.navy, borderRadius: 4, padding: '2px 10px',
+            fontSize: font.size.xs, cursor: 'pointer',
+          }}
+        >再生</button>
+      ) : '—'),
+    },
   ], []);
+
+  // 録音のある行が1つも無いうちは、空の列を出さない
+  const visibleColumns = useMemo(
+    () => (rows.some(r => r.recording_url) ? columns : columns.filter(c => c.key !== 'recording_url')),
+    [columns, rows],
+  );
 
   const shippedOn = rows.find(r => r.shipped_on)?.shipped_on;
 
@@ -153,7 +210,23 @@ export default function GiftDmTab({ client }) {
         <Tile label="二次元コードの読み取り" value={stats.scanned} sub={stats.pct(stats.scanned)} />
         <Tile label="導線のクリック" value={stats.clicked} sub={`うち日程調整 ${stats.calendar}`} />
         <Tile label="日程調整の予約" value={stats.booked} sub={stats.pct(stats.booked)} />
+        <Tile
+          label="フォロー架電"
+          value={stats.called}
+          sub={stats.called ? `${stats.pct(stats.called)}　録音 ${stats.recorded}` : '架電前'}
+        />
       </div>
+
+      {activeRec ? (
+        <Card padding="sm" style={{ marginBottom: space[3] }}>
+          <div style={{
+            fontSize: font.size.xs, color: color.textMid, marginBottom: space[1],
+          }}>
+            {activeRec.company}
+          </div>
+          <InlineAudioPlayer url={activeRec.url} onClose={() => setActiveRec(null)} />
+        </Card>
+      ) : null}
 
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -177,7 +250,7 @@ export default function GiftDmTab({ client }) {
 
       <DataTable
         fillWidth
-        columns={columns}
+        columns={visibleColumns}
         rows={sorted}
         rowKey="id"
         loading={loading}

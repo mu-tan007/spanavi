@@ -28,6 +28,7 @@ import ScriptBody from '../common/ScriptBody';
 import ScriptTreeGuide from '../common/ScriptTreeGuide';
 import { resolveListContacts, resolveListClient } from '../../utils/listContacts';
 import { initialAppoStatus } from '../../utils/appoStatus';
+import { useAccessControl } from '../../hooks/useAccessControl';
 
 const CompanyProfileDialog = React.lazy(() => import('../company/CompanyProfileDialog'));
 
@@ -209,6 +210,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     () => new Set(callStatuses.filter(s => s.id.includes('recall')).map(s => s.label)),
     [callStatuses]
   );
+
+  // 架電を担当者に限っているリストか。空なら全員が架電できる（今までどおり）。
+  const { memberId: currentMemberId } = useAccessControl();
+  const callerMemberIds = useMemo(
+    () => (Array.isArray(list?.callerMemberIds) ? list.callerMemberIds : []),
+    [list]
+  );
+  const callerNames = useMemo(
+    () => (Array.isArray(list?.callerNames) ? list.callerNames : []),
+    [list]
+  );
+  const canCall = callerMemberIds.length === 0 || callerMemberIds.includes(currentMemberId);
 
   const isMobile = useIsMobile();
   const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
@@ -2369,13 +2382,24 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   ))}
                 </div>
                 <CompanyAddressMatchFilter value={addressMatchFilter} onChange={handleAddressMatchFilterChange} counts={addressMatchCounts} />
-                {/* 架電開始ボタン（右端） */}
-                <div style={{ marginLeft: 'auto', paddingLeft: space[6] }}>
+                {/* 架電開始ボタン（右端）。担当者を限っているリストは押せない */}
+                <div style={{ marginLeft: 'auto', paddingLeft: space[6], display: 'flex', alignItems: 'center', gap: space[3] }}>
+                  {!canCall && (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontSize: font.size.xs, color: color.textMid,
+                      background: alpha(color.navy, 0.06),
+                      border: `1px solid ${color.borderLight}`,
+                      borderRadius: radius.md, padding: '4px 10px', whiteSpace: 'nowrap',
+                    }}>
+                      🔒 架電担当：{callerNames.join('・') || '指定メンバーのみ'}
+                    </span>
+                  )}
                   <Button
                     variant="primary"
                     size="sm"
                     onClick={handleStartCalling}
-                    disabled={loading || !!loadError || sessionStarted || sorted.length === 0}
+                    disabled={!canCall || loading || !!loadError || sessionStarted || sorted.length === 0}
                     style={{ padding: '6px 20px', fontSize: font.size.xs, fontWeight: font.weight.bold, whiteSpace: 'nowrap', borderRadius: radius.md }}
                   >
                     {sessionStarted ? '架電中' : '架電開始'}

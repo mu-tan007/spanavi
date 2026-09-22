@@ -156,6 +156,10 @@ export function useSpanaviData(authOrgId) {
         ])
       )
 
+      // members.id → 氏名（架電担当の表示用）
+      const memberNameById = {}
+      members.forEach(m => { if (m.id) memberNameById[m.id] = m.name || '' })
+
       // call_lists → 既存CALL_LISTSフォーマットに変換
       const callListsFormatted = callLists.map((cl, idx) => {
         const meta = cl.engagement_id ? engagementMetaMap.get(cl.engagement_id) : null
@@ -172,6 +176,11 @@ export function useSpanaviData(authOrgId) {
         industry: cl.industry || '',
         count: cl.total_count || 0,
         manager: cl.manager_name || '',
+        // 架電を許すメンバー（members.id）。空なら全員が架電できる。
+        // 表示用の manager_name（先方の窓口担当者）とは別物。
+        callerMemberIds: Array.isArray(cl.caller_member_ids) ? cl.caller_member_ids : [],
+        callerNames: (Array.isArray(cl.caller_member_ids) ? cl.caller_member_ids : [])
+          .map(id => memberNameById[id]).filter(Boolean),
         companyInfo: cl.company_info || '',
         companyUrl: cl.company_url || '',
         scriptBody: cl.script_body || '',

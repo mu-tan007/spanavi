@@ -49,6 +49,28 @@ const ScorePill = ({ score }) => {
   );
 };
 
+// 架電を担当者に限っているリストに出す鍵印。
+// 表示用の manager_name（先方の窓口担当者）とは別物なので、担当列には混ぜない。
+function CallerLockBadge({ list }) {
+  const names = Array.isArray(list?.callerNames) ? list.callerNames : [];
+  if (!names.length) return null;
+  const label = names.map(n => (n || '').split(/\s+/)[0]).join('・');
+  return (
+    <span
+      title={`架電担当：${names.join('・')}`}
+      style={{
+        flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2,
+        fontSize: 10, color: color.textMid,
+        background: alpha(color.navy, 0.06),
+        border: `1px solid ${color.borderLight}`,
+        borderRadius: radius.sm, padding: '1px 6px', whiteSpace: 'nowrap',
+      }}
+    >
+      🔒 {label}
+    </span>
+  );
+}
+
 const LISTVIEW_COLS = [
   { key: 'client', width: 280, align: 'left' },
   { key: 'category', width: 90, align: 'center' },
@@ -1325,6 +1347,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                       <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: font.weight.medium, paddingRight: space[2], cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[0]?.align || 'left', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         {list.status === "架電停止" && <span style={{ color: color.danger, marginRight: 4 }}>■</span>}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.company}</span>
+                        <CallerLockBadge list={list} />
                       </span>
                       <span style={{ color: color.textMid, fontSize: font.size.xs, textAlign: lvCols[1]?.align || 'center' }}>{engagementToCategoryName[list.engagement_id] || '—'}</span>
                       <span style={{ display: "flex", justifyContent: lvCols[2]?.align === 'right' ? 'flex-end' : lvCols[2]?.align === 'center' ? 'center' : 'flex-start' }}>
