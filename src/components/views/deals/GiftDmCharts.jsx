@@ -45,16 +45,23 @@ function HBarCard({ title, data, total }) {
           <CartesianGrid horizontal={false} stroke={color.gray200} />
           <XAxis type="number" hide domain={[0, Math.max(total, 1)]} />
           <YAxis
-            type="category" dataKey="label" width={112} axisLine={false} tickLine={false}
+            type="category" dataKey="label" width={150} axisLine={false} tickLine={false}
             tick={{ fontSize: 11, fill: color.textMid }}
           />
           <Tooltip cursor={{ fill: color.gray100 }} content={<ChartTooltip total={total} />} />
           <Bar dataKey="value" barSize={BAR} radius={[0, 4, 4, 0]} isAnimationActive={false}>
             {data.map((d) => <Cell key={d.label} fill={d.fill || color.navy} />)}
+            {/* 0件の棒は幅0で既定のラベルが出ないため、位置を自前で決めて必ず数字を出す */}
             <LabelList
-              dataKey="value" position="right"
-              formatter={(v) => `${v}（${pct(v, total)}）`}
-              style={{ fontSize: 11, fill: color.textMid }}
+              dataKey="value"
+              content={({ x, y, width, height, value }) => (
+                <text
+                  x={Number(x) + Number(width || 0) + 6} y={Number(y) + Number(height) / 2}
+                  dominantBaseline="central" fontSize={11} fill={color.textMid}
+                >
+                  {`${value}（${pct(value, total)}）`}
+                </text>
+              )}
             />
           </Bar>
         </BarChart>
