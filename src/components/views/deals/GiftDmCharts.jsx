@@ -49,9 +49,9 @@ function HBarCard({ title, data, total }) {
             tick={{ fontSize: 11, fill: color.textMid }}
           />
           <Tooltip cursor={{ fill: color.gray100 }} content={<ChartTooltip total={total} />} />
-          <Bar dataKey="value" barSize={BAR} radius={[0, 4, 4, 0]} isAnimationActive={false}>
+          <Bar dataKey="value" barSize={BAR} radius={[0, 4, 4, 0]} minPointSize={0.1} isAnimationActive={false}>
             {data.map((d) => <Cell key={d.label} fill={d.fill || color.navy} />)}
-            {/* 0件の棒は幅0で既定のラベルが出ないため、位置を自前で決めて必ず数字を出す */}
+            {/* 0件の棒は描かれずラベルも消えるため、minPointSize で見えない幅を持たせて数字を必ず出す */}
             <LabelList
               dataKey="value"
               content={({ x, y, width, height, value }) => (
