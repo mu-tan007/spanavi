@@ -127,27 +127,36 @@ export function normalizeImportPhone(value) {
   if (!/^0\d{9,10}$/.test(digits)) throw new Error('電話番号の桁数を確認してください');
   return digits;
 }
-export function normalizeCompanyImportRow(cells, mapping, fields) {
+// 「該当しない」等は空欄と同じ扱い。読めない数値・日付・電話は行を落とさず、その項目だけ空にする（元の値は出典に残る）
+const IMPORT_BLANK = /^((該当(し|する情報|情報)?|情報)?な[しい]|無し|不明|非公開|未公開|n\/?a|[-－ー―—‐]+)$/i;
+function parseImportNumber(value, f, unit) {
+  let raw = value.normalize('NFKC').replace(/,/g, '').replace(/\s+/g, '').replace(/[(][^()]*[)]$/, '');
+  const jp = f.money && raw.match(/^(?:(\d+(?:\.\d+)?)億)?(?:(\d+(?:\.\d+)?)万)?(\d+)?円?$/);
+  if (jp && (jp[1] || jp[2])) return (Number(jp[1] || 0) * 1e8 + Number(jp[2] || 0) * 1e4 + Number(jp[3] || 0)) / 1000;
+  raw = raw.replace(f.money ? /円$/ : /[名人]$/, '');
+  if (!/^-?\d+(\.\d+)?$/.test(raw)) return null;
+  return Number(raw) * (f.money ? MONEY_FACTORS[unit] : 1);
+}
+export function normalizeCompanyImportRow(cells, mapping, fields, skipped = []) {
   const normalized = {};
   mapping.forEach((m, i) => {
     if (!m.key) return;
     const value = String(cells[i] ?? '').trim();
-    if (!value) return;
+    if (!value || IMPORT_BLANK.test(value.normalize('NFKC'))) return;
     const f = fields.find(item => item.key === m.key);
     if (!f) throw new Error('取込項目が見つかりません');
     if (f.type === 'number') {
-      const raw = value.normalize('NFKC').replace(/,/g, '').trim();
-      if (!/^-?\d+(\.\d+)?$/.test(raw)) throw new Error(`${f.label}を数値で指定してください`);
-      const number = Number(raw) * (f.money ? MONEY_FACTORS[m.unit] : 1);
-      if (!Number.isFinite(number) || Math.abs(number) > 1e14) throw new Error(`${f.label}の数値が範囲外です`);
+      const number = parseImportNumber(value, f, m.unit);
+      if (number === null || !Number.isFinite(number) || Math.abs(number) > 1e14) { skipped.push(`${f.label}「${value}」`); return; }
       normalized[m.key] = number;
     } else if (f.type === 'date') {
       const raw = value.normalize('NFKC').replaceAll('/', '-');
-      if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(raw)) throw new Error(`${f.label}を年月日で指定してください`);
       const [year, month, day] = raw.split('-').map(Number), date = new Date(Date.UTC(year, month - 1, day));
-      if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) throw new Error(`${f.label}の日付を確認してください`);
+      if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(raw) || date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) { skipped.push(`${f.label}「${value}」`); return; }
       normalized[m.key] = date.toISOString().slice(0, 10);
-    } else normalized[m.key] = m.key === 'phone' ? normalizeImportPhone(value) : value;
+    } else if (m.key === 'phone') {
+      try { normalized.phone = normalizeImportPhone(value); } catch { skipped.push(`${f.label}「${value}」`); }
+    } else normalized[m.key] = value;
   });
   if (!normalized.company_name) throw new Error('企業名がありません');
   if (!normalized.industry && (normalized.industry_sub || normalized.industry_major)) normalized.industry = normalized.industry_sub || normalized.industry_major;

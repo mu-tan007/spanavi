@@ -50,7 +50,10 @@ export default function CompanyImportDialog({ initialFile = null, listId = null,
   const settingsErrors = useMemo(() => sheet ? validateCompanyImportMapping(headers, mapping, fields, provider) : [], [sheet, headers, mapping, fields, provider]);
   const preview = useMemo(() => (sheet?.dataRows || []).slice(0, 5).map((cells, index) => {
     const row = sheet.sourceRowNumbers?.[index] || index + 2;
-    try { return { row, ...normalizeCompanyImportRow(cells, mapping, fields), error: '' }; }
+    try {
+      const skipped = [], value = normalizeCompanyImportRow(cells, mapping, fields, skipped);
+      return { row, ...value, error: skipped.length ? `読めない値は空欄で登録：${skipped.join('、')}` : '' };
+    }
     catch (e) { return { row, error: e.message }; }
   }), [sheet, mapping, fields]);
   const changeMapping = (index, patch) => { setMapping(prev => prev.map((m, i) => i === index ? { ...m, ...patch } : m)); setNotice(''); };
@@ -165,11 +168,11 @@ export default function CompanyImportDialog({ initialFile = null, listId = null,
                 { key: 'row', label: '元の行', width: 70, align: 'right' }, { key: 'company_name', label: '企業名', width: 210, align: 'left' },
                 { key: 'phone', label: '電話番号', width: 130, align: 'left' }, { key: 'address', label: '会社住所', width: 230, align: 'left' },
                 { key: 'representative_address', label: '代表者自宅住所', width: 230, align: 'left' },
-                { key: 'revenue_k', label: '売上高（千円）', width: 130, align: 'right' }, { key: 'error', label: '要修正', width: 240, align: 'left' },
+                { key: 'revenue_k', label: '売上高（千円）', width: 130, align: 'right' }, { key: 'error', label: '確認事項', width: 320, align: 'left' },
               ]} />
             </Card>
             {settingsErrors.length > 0 && <ul style={{ color: color.warn, fontSize: font.size.sm }}>{settingsErrors.map((message, i) => <li key={i}>{message}</li>)}</ul>}
-            <p style={{ color: color.textMid, fontSize: font.size.sm }}>企業名が空欄の行や形式に問題がある行は登録せず、取込結果に残します。要修正の行だけを抜き出し、内容を直したファイルから再度取り込んでください。</p>
+            <p style={{ color: color.textMid, fontSize: font.size.sm }}>企業名が空欄の行は登録せず、取込結果に残します。数値・日付・電話番号として読めない値（「該当しない」など）は、その項目だけ空欄で登録し、元の値は出典として保存します。</p>
           </>}
         </>}
         {visibleJob && <Card title={busy ? '取り込み中' : visibleJob.processed === visibleJob.total ? '取込結果' : '中断した取込'} style={{ marginTop: space[4] }}>

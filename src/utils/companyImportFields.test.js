@@ -74,8 +74,10 @@ describe('企業DB・架電リスト共通の列マッピング', () => {
   it('数値の欠損・形式不正・日付不正を0や部分的な値に変えない', () => {
     const custom = [...fields,{ key: 'custom_date', label:'確認日',type:'date' }];
     expect(normalizeCompanyImportRow(['検証社',''],[{key:'company_name'},{key:'employee_count'}],fields).employee_count).toBeUndefined();
-    expect(() => normalizeCompanyImportRow(['検証社','12名'],[{key:'company_name'},{key:'employee_count'}],fields)).toThrow('数値');
-    expect(() => normalizeCompanyImportRow(['検証社','2026/02/31'],[{key:'company_name'},{key:'custom_date'}],custom)).toThrow('日付');
+    expect(normalizeCompanyImportRow(['検証社','12名'],[{key:'company_name'},{key:'employee_count'}],fields).employee_count).toBe(12);
+    const skipped = [];
+    expect(normalizeCompanyImportRow(['検証社','2026/02/31','約12'],[{key:'company_name'},{key:'custom_date'},{key:'employee_count'}],custom,skipped)).toEqual({ company_name: '検証社' });
+    expect(skipped).toHaveLength(2);
     expect(normalizeCompanyImportRow(['検証社','2026/2/3'],[{key:'company_name'},{key:'custom_date'}],custom).custom_date).toBe('2026-02-03');
   });
   it('電話の先頭0・全角・+81を補正し、不正な番号を接続先として作らない', () => {
@@ -123,4 +125,13 @@ describe('出典の文字コード・行番号', () => {
     expect(result.sheets.map(s => s.name)).toEqual(['TSR','TDB']); expect(result.sheets[0].sourceRowNumbers).toEqual([7]);
     expect(result.sheets[0].headerRow).toBe(2); expect(result.sheets[0].dataRows[0][1]).toBe('312345678');
   }, 20000);
+  it('読めない値は行を落とさず項目だけ空欄にする（オープングループ様リスト 2026-09-24）', () => {
+    const m = [{key:'company_name'},{key:'phone'},{key:'revenue_k',unit:'千円'},{key:'capital_k',unit:'千円'}], skipped = [];
+    expect(normalizeCompanyImportRow(['検証社','該当情報なし','2億9899万円(推定)','該当しない'], m, fields, skipped)).toEqual({ company_name: '検証社', revenue_k: 298990 });
+    expect(skipped).toEqual([]);
+    expect(normalizeCompanyImportRow(['検証社','03-1234-5678 内線9','非上場','－'], m, fields, skipped)).toEqual({ company_name: '検証社' });
+    expect(skipped).toHaveLength(2);
+    expect(normalizeCompanyImportRow(['検証社','','9899万円',''], m, fields).revenue_k).toBe(98990);
+    expect(() => normalizeCompanyImportRow(['','03-1234-5678','1',''], m, fields)).toThrow('企業名');
+  });
 });
