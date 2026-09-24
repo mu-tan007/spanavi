@@ -370,14 +370,14 @@ export default function ContactDrawer({
               )}
 
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Google カレンダー ID</label>
+                <label style={labelStyle}>カレンダー（Google ID／Outlook 予定表 URL）</label>
                 {calIds.map((cid, i) => (
                   <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
                     <input
                       value={cid}
                       onChange={e => { const n = [...calIds]; n[i] = e.target.value; syncCalIds(n) }}
                       style={{ ...inputStyle, flex: 1 }}
-                      placeholder="xxxx@gmail.com"
+                      placeholder="xxxx@gmail.com または https://outlook.office365.com/…/reachcalendar.ics"
                     />
                     {calIds.length > 1 && (
                       <button
@@ -395,7 +395,7 @@ export default function ContactDrawer({
                   style={{ border: `1px dashed ${GRAY_200}`, background: 'none', cursor: 'pointer', fontSize: 11, color: BLUE, padding: '4px 12px', borderRadius: radius.sm, fontFamily: font.family.sans }}
                 >+ カレンダーを追加</button>
                 <div style={{ fontSize: 10, color: C.textLight, marginTop: 4, lineHeight: 1.5 }}>
-                  複数登録すると、1画面集中ページの週カレンダーに全カレンダーの予定を重ねて表示します。
+                  複数登録すると、1画面集中ページの週カレンダーに全カレンダーの予定を重ねて表示します。Outlook は予定表共有メールの「この URL を指定してみてください」のリンクを貼ります。
                 </div>
               </div>
 

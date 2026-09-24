@@ -1,3 +1,5 @@
+import { isIcsUrl, fetchIcsBusy } from './ics.ts'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -138,9 +140,15 @@ Deno.serve(async (req) => {
       }
 
       // カレンダーごとに events.list を試行。失敗（403/404 等）→ freeBusy フォールバック
+      // Outlook 等の ICS URL は Google API を通さず直接読む
       const calendarResults: Record<string, { busy: any[]; errors?: any[] }> = {}
       const fallbackIds: string[] = []
       await Promise.all(calIds.map(async (id) => {
+        if (isIcsUrl(id)) {
+          calendarResults[id] = await fetchIcsBusy(id, timeMin, timeMax)
+            .catch((e) => ({ busy: [], errors: [{ reason: (e as Error).message }] }))
+          return
+        }
         const r = await fetchViaEventsList(id)
         if (r.ok) {
           calendarResults[id] = { busy: r.busy || [] }
