@@ -84,7 +84,9 @@ export default function GiftDmTab({ client }) {
 
   const stats = useMemo(() => {
     const n = rows.length;
-    const delivered = rows.filter(r => r.delivered_on).length;
+    // 受取拒否・返送は到着に数えない（配送業者の記録上は配達完了でも、先方の手元に残っていない）
+    const returned = rows.filter(r => r.return_status).length;
+    const delivered = rows.filter(r => r.delivered_on && !r.return_status).length;
     const scanned = rows.filter(r => r.first_scan_at).length;
     const clicked = rows.filter(r => r.clicked_calendar || r.clicked_deck || r.clicked_website).length;
     const calendar = rows.filter(r => r.clicked_calendar).length;
@@ -92,7 +94,7 @@ export default function GiftDmTab({ client }) {
     const called = rows.filter(r => r.call_called_at).length;
     const recorded = rows.filter(r => r.recording_url).length;
     const pct = (v) => (n ? `${Math.round((v / n) * 1000) / 10}%` : '—');
-    return { n, delivered, scanned, clicked, calendar, booked, called, recorded, pct };
+    return { n, delivered, returned, scanned, clicked, calendar, booked, called, recorded, pct };
   }, [rows]);
 
   // 読み取りのあった会社を上に、新しい順。まだの会社は社名順で下に続ける。
@@ -130,7 +132,9 @@ export default function GiftDmTab({ client }) {
     {
       key: 'delivered_on', label: '到着', width: 84, align: 'right',
       cellStyle: { color: color.textMid },
-      render: (r) => fmtDate(r.delivered_on) || '—',
+      render: (r) => (r.return_status
+        ? <Badge variant="warn">{r.return_status}</Badge>
+        : (fmtDate(r.delivered_on) || '—')),
     },
     {
       key: 'first_scan_at', label: '読み取り', width: 170, align: 'right',
@@ -205,7 +209,10 @@ export default function GiftDmTab({ client }) {
         <Tile
           label="到着"
           value={stats.delivered}
-          sub={stats.delivered ? stats.pct(stats.delivered) : '配送データ待ち'}
+          sub={[
+            stats.delivered ? stats.pct(stats.delivered) : '配送データ待ち',
+            stats.returned ? `返送・受取拒否 ${stats.returned}` : null,
+          ].filter(Boolean).join('　')}
         />
         <Tile label="二次元コードの読み取り" value={stats.scanned} sub={stats.pct(stats.scanned)} />
         <Tile label="導線のクリック" value={stats.clicked} sub={`うち日程調整 ${stats.calendar}`} />
@@ -256,7 +263,7 @@ export default function GiftDmTab({ client }) {
         loading={loading}
         error={error}
         emptyMessage="ギフト同梱DMの送付先がまだありません"
-        rowAccent={(r) => (r.first_scan_at ? 'primary' : null)}
+        rowAccent={(r) => (r.first_scan_at ? 'primary' : (r.return_status ? 'warn' : null))}
         height="calc(100vh - 380px)"
         ariaLabel="ギフト同梱DMの送付先"
       />
