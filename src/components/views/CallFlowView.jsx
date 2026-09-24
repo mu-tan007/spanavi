@@ -47,9 +47,8 @@ const _cfSlackNotified = new Set(); // cacheKey → Slack通知済みフラグ�
 // isRealCloseRef（useRef）はStrict Modeで信頼できないため、同じパターンで管理
 const _cfRealCloseSet = new Set(); // sessionId → リアルクローズ時にadd、cleanup後にdelete
 
-// AI断り分析で温度感LOWと判定され自動除外された企業の除外理由（DBトリガと同じ文字列）。
-// 架電結果を保存するたびに is_excluded を記録から再計算するため、この理由の除外は維持する。
-const AI_EXCLUDE_REASON = 'AI判定:温度感低';
+// 架電結果を保存するたびに is_excluded を記録から再計算するが、
+// exclude_reason 付きの除外（AI判定:温度感低・ギフトDM受取拒否などDB側で立てたもの）は維持する。
 
 const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 const extractPref = (address) => PREFS.find(p => address?.startsWith(p)) || '';
@@ -1001,8 +1000,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     // State更新・次企業遷移（即時）
     const newRecords = [...callRecords, newRec];
     const itemRecs = newRecords.filter(r => r.item_id === selectedRow.id);
-    // AI判定による除外は記録からの再計算で解除しない（次の架電記録で false に戻るのを防ぐ）
-    const newIsExcl = selectedRow.exclude_reason === AI_EXCLUDE_REASON
+    // DB側で理由付きで立てた除外（AI判定・ギフトDM受取拒否など）は記録からの再計算で解除しない
+    const newIsExcl = !!selectedRow.exclude_reason
       || itemRecs.some(r => EXCLUDED_STATUSES.has(r.status));
     // DB更新はバックグラウンドで実行（タイムアウトでUI更新がブロックされるのを防止）
     updateCallListItem(selectedRow.id, { call_status: result, is_excluded: newIsExcl })
@@ -1068,7 +1067,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const itemRecs = newRecords.filter(r => r.item_id === selectedRow.id);
     const lastRec = [...itemRecs].sort((a, b) => b.round - a.round)[0];
     const newStatus = lastRec?.status || '未架電';
-    const newIsExcl = selectedRow.exclude_reason === AI_EXCLUDE_REASON
+    const newIsExcl = !!selectedRow.exclude_reason
       || itemRecs.some(r => EXCLUDED_STATUSES.has(r.status));
     updateCallListItem(selectedRow.id, { call_status: newStatus, is_excluded: newIsExcl })
       .catch(e => console.warn('[handleDeleteRecord] updateCallListItem error:', e));
@@ -1332,7 +1331,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const newRecords = [...callRecords, newRec];
     setCallRecords(newRecords);
     const itemRecs = newRecords.filter(r => r.item_id === row.id);
-    const newIsExcl = row.exclude_reason === AI_EXCLUDE_REASON
+    const newIsExcl = !!row.exclude_reason
       || itemRecs.some(r => EXCLUDED_STATUSES.has(r.status));
     updateCallListItem(row.id, { call_status: label, is_excluded: newIsExcl })
       .catch(e => console.warn('[handleRecallSave] updateCallListItem error:', e));
