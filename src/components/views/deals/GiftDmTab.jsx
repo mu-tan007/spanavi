@@ -3,6 +3,7 @@ import { color, space, font } from '../../../constants/design';
 import { Card, Badge, DataTable } from '../../ui';
 import { InlineAudioPlayer } from '../../common/InlineAudioPlayer';
 import { supabase } from '../../../lib/supabase';
+import GiftDmCharts from './GiftDmCharts';
 
 // 「dorayaki AI」タブ。ギフト同梱DMの配送と二次元コードの読み取りを出す。
 // 社内の案件ページとクライアントポータルの両方から同じものを使う
@@ -223,6 +224,8 @@ export default function GiftDmTab({ client }) {
           sub={stats.called ? `${stats.pct(stats.called)}　録音 ${stats.recorded}` : '架電前'}
         />
       </div>
+
+      <GiftDmCharts rows={rows} />
 
       {activeRec ? (
         <Card padding="sm" style={{ marginBottom: space[3] }}>
