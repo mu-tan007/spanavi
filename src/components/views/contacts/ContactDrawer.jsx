@@ -44,6 +44,7 @@ function emptyContactForm() {
     schedulingLabel2: '',
     schedulingNotes: '',
     isPrimary: false,
+    showInCallCalendar: true,
   }
 }
 
@@ -116,6 +117,7 @@ export default function ContactDrawer({
         schedulingLabel2: existingContact.schedulingLabel2 || '',
         schedulingNotes: existingContact.schedulingNotes || '',
         isPrimary: existingContact.isPrimary === true,
+        showInCallCalendar: existingContact.showInCallCalendar !== false,
       })
       const existingCals = (existingContact.googleCalendarId || '').split(',').map(s => s.trim()).filter(Boolean)
       setCalIds(existingCals.length ? existingCals : [''])
@@ -174,6 +176,7 @@ export default function ContactDrawer({
             schedulingLabel2: data.scheduling_label_2 || '',
             schedulingNotes: data.scheduling_notes || '',
             isPrimary: form.isPrimary,
+            showInCallCalendar: data.show_in_call_calendar !== false,
           },
         })
         onClose?.()
@@ -431,6 +434,20 @@ export default function ContactDrawer({
                 </label>
                 <div style={{ fontSize: 10, color: C.textLight, marginTop: 4, lineHeight: 1.5 }}>
                   CRM 一覧の「主担当」列にこの担当者が表示されます。1 クライアントに 1 名のみ。
+                </div>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1', padding: '10px 12px', border: `1px solid ${GRAY_200}`, borderRadius: radius.md, background: GRAY_50 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.showInCallCalendar !== false}
+                    onChange={e => u('showInCallCalendar', e.target.checked)}
+                  />
+                  <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: NAVY }}>架電画面のカレンダータブに表示</span>
+                </label>
+                <div style={{ fontSize: 10, color: C.textLight, marginTop: 4, lineHeight: 1.5 }}>
+                  外すと、1画面集中ページのカレンダータブにこの担当者のタブが出なくなります。
                 </div>
               </div>
             </div>

@@ -19,6 +19,8 @@ export default function MultiCalendarPanel({
   showRegisteredAppointments = false,
 }) {
   const [activeTab, setActiveTab] = useState(0);
+  // 「架電画面のカレンダータブに表示」を外した担当者はタブを出さない
+  contacts = (contacts || []).filter(ct => ct.showInCallCalendar !== false);
 
   // 担当者が0人: クライアントレベルのカレンダーにフォールバック
   if (!contacts || contacts.length === 0) {

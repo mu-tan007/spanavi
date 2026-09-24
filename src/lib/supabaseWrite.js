@@ -1124,10 +1124,11 @@ export async function invokeSendAppoReport({ channel, text, webhook_url, room_id
 }
 
 // ── クライアント担当者 CRUD ──────────────────────────────────
-export async function insertClientContact(clientId, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes, isPrimary }) {
+export async function insertClientContact(clientId, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes, isPrimary, showInCallCalendar }) {
   const orgId = getOrgId()
   const payload = { org_id: orgId, client_id: clientId, name, email, slack_member_id: slackMemberId || null, google_calendar_id: googleCalendarId || null, scheduling_url: schedulingUrl || null, scheduling_url_2: schedulingUrl2 || null, scheduling_label: schedulingLabel || null, scheduling_label_2: schedulingLabel2 || null, scheduling_notes: schedulingNotes || null }
   if (isPrimary === true || isPrimary === false) payload.is_primary = isPrimary
+  if (showInCallCalendar === true || showInCallCalendar === false) payload.show_in_call_calendar = showInCallCalendar
   const { data, error } = await supabase
     .from('client_contacts')
     .insert(payload)
@@ -1137,9 +1138,10 @@ export async function insertClientContact(clientId, { name, email, slackMemberId
   return { data, error }
 }
 
-export async function updateClientContact(id, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes, isPrimary }) {
+export async function updateClientContact(id, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes, isPrimary, showInCallCalendar }) {
   const patch = { name, email, slack_member_id: slackMemberId ?? undefined, google_calendar_id: googleCalendarId ?? undefined, scheduling_url: schedulingUrl ?? undefined, scheduling_url_2: schedulingUrl2 ?? undefined, scheduling_label: schedulingLabel ?? undefined, scheduling_label_2: schedulingLabel2 ?? undefined, scheduling_notes: schedulingNotes ?? undefined }
   if (isPrimary === true || isPrimary === false) patch.is_primary = isPrimary
+  if (showInCallCalendar === true || showInCallCalendar === false) patch.show_in_call_calendar = showInCallCalendar
   const { error } = await supabase
     .from('client_contacts')
     .update(patch)
