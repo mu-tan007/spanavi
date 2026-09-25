@@ -13,7 +13,7 @@ import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { getEffectiveCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
-import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -424,6 +424,35 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (!stillValid) setSelectedScriptPdfPath(target.path);
     ensureScriptPdfUrl(target);
   }, [scriptTab, effectiveScriptMode, list?._supaId, list?.scriptPdfs]);
+
+  // 手紙タブ: ギフトDMで手紙を送った企業だけに出す（gift_shipments.lead_item_id で引き当て）
+  const [giftLetterPaths, setGiftLetterPaths] = useState({}); // { [itemId]: path | null }（未取得は undefined）
+  const [letterUrl, setLetterUrl] = useState(null); // { path, url }
+  const selectedItemId = selectedRow?.id || null;
+  const letterPath = selectedItemId ? giftLetterPaths[selectedItemId] : undefined;
+  useEffect(() => {
+    if (!selectedItemId || giftLetterPaths[selectedItemId] !== undefined) return;
+    let cancelled = false;
+    fetchGiftLetterPath(selectedItemId).then(({ path, error }) => {
+      if (cancelled || error) return; // 取得失敗を「送っていない」と確定させない
+      setGiftLetterPaths(prev => ({ ...prev, [selectedItemId]: path }));
+    });
+    return () => { cancelled = true; };
+  }, [selectedItemId]);
+  useEffect(() => {
+    // 手紙タブは集中モードだけ。リスト表示の下部パネルには無いので戻す
+    if (scriptTab === 'letter' && (letterPath === null || listMode)) setScriptTab('script');
+  }, [scriptTab, letterPath, listMode]);
+  // 署名URLは10分で切れるので、タブを開くたび・企業が変わるたびに取り直す
+  useEffect(() => {
+    if (scriptTab !== 'letter' || !letterPath) return;
+    let cancelled = false;
+    setLetterUrl(null);
+    getGiftLetterSignedUrl(letterPath).then(({ url }) => {
+      if (!cancelled && url) setLetterUrl({ path: letterPath, url });
+    });
+    return () => { cancelled = true; };
+  }, [scriptTab, letterPath]);
 
   const toggleAutoDial = () => {
     setAutoDial(prev => {
@@ -2831,7 +2860,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           {/* タブヘッダー */}
           <div onClick={() => isMobile && setMobileScriptOpen(o => !o)} style={{ display: 'flex', borderBottom: `2px solid ${color.gray200}`, background: color.offWhite, flexShrink: 0, cursor: isMobile ? 'pointer' : 'default' }}>
             {isMobile && <span style={{ display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: font.size.md, color: color.gray400 }}>{mobileScriptOpen ? '▼' : '▲'}</span>}
-            {[{ key: 'script', label: 'スクリプト' }, { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
+            {[{ key: 'script', label: 'スクリプト' }, ...(letterPath ? [{ key: 'letter', label: '手紙' }] : []), { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
               <button key={tab.key} onClick={(e) => { e.stopPropagation(); setScriptTab(tab.key); if (isMobile) setMobileScriptOpen(true); }}
                 style={{ flex: 1, padding: isMobile ? '12px 4px' : '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? `2px solid ${color.navyDeep}` : '2px solid transparent',
                   background: 'transparent', color: scriptTab === tab.key ? color.navyDeep : color.gray400,
@@ -2926,6 +2955,30 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={selectedRow} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
                       : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
                 </>
+              );
+            })()}
+            {scriptTab === 'letter' && letterPath && (() => {
+              const url = letterUrl?.path === letterPath ? letterUrl.url : null;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[2] }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: font.size.xs, color: color.gray500 }}>
+                    <span>お送りした手紙（印刷したものと同じ紙面）</span>
+                    {url && (
+                      <a href={url} target="_blank" rel="noopener noreferrer"
+                        style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
+                        新規タブで開く
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
+                    {url ? (
+                      <iframe key={letterPath} src={`${url}#toolbar=0&navpanes=0&view=FitH`} title="手紙"
+                        style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }} />
+                    ) : (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>手紙を読み込み中...</div>
+                    )}
+                  </div>
+                </div>
               );
             })()}
             {scriptTab === 'info' && (() => {

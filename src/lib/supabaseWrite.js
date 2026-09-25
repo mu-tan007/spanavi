@@ -2491,6 +2491,32 @@ export async function getScriptPdfSignedUrl(path, expiresIn = 600) {
 }
 
 // ============================================================
+// ギフトDMで送った手紙（gift_shipments.letter_pdf_path → gift-letters バケット）
+// 架電画面の「手紙」タブ用。送っていない企業は path=null
+// ============================================================
+export async function fetchGiftLetterPath(itemId) {
+  if (!itemId) return { path: null, error: null }
+  const { data, error } = await supabase
+    .from('gift_shipments')
+    .select('letter_pdf_path')
+    .eq('lead_item_id', itemId)
+    .not('letter_pdf_path', 'is', null)
+    .limit(1)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchGiftLetterPath error:', error)
+  return { path: data?.letter_pdf_path || null, error }
+}
+
+export async function getGiftLetterSignedUrl(path, expiresIn = 600) {
+  if (!path) return { url: null, error: new Error('no path') }
+  const { data, error } = await supabase.storage
+    .from('gift-letters')
+    .createSignedUrl(path, expiresIn)
+  if (error) console.error('[DB] getGiftLetterSignedUrl error:', error)
+  return { url: data?.signedUrl || null, error }
+}
+
+// ============================================================
 // Company Overview PDFs (架電リスト「企業概要」添付PDF)
 // 既存 script-pdfs バケットを overview/ プレフィックスで間借り
 // ============================================================
