@@ -564,11 +564,12 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
 
       {/* ── Filters + 確定ボタン ──────────────────────────────────── */}
       <div style={{ display: "flex", gap: 8, marginBottom: space[3], alignItems: "center", flexWrap: "wrap" }}>
-        {/* 月タブ */}
-        <div style={{ display: "flex", gap: 4 }}>
+        {/* 月タブ（スマホでは横にスクロール。8か月分並ぶと画面幅を越える） */}
+        <div className="spa-scroll-x" style={{ display: "flex", gap: 4, maxWidth: "100%", overflowX: "auto" }}>
           {payrollMonths.map(({ label }) => (
             <button key={label} onClick={() => setMonthTab(label)} style={{
               padding: "5px 14px", borderRadius: radius.md, fontSize: font.size.xs, fontWeight: font.weight.semibold, cursor: "pointer", fontFamily: font.family.sans,
+              flexShrink: 0, whiteSpace: "nowrap",
               background: monthTab === label ? TH_BG : color.white,
               color: monthTab === label ? color.white : color.textMid,
               border: `1px solid ${monthTab === label ? TH_BG : GRAY_200}`,
@@ -590,7 +591,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
 
         {/* 管理者アクション */}
         {isAdmin && (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {/* Spartia AI は入金の5%だけが報酬なので、入金の登録口をここに置く。
                 登録すると「調整」列と請求書明細に自動で乗る */}
             <Button variant="outline" size="sm" onClick={() => setReceiptsOpen(true)} style={{ borderColor: TH_BG, color: TH_BG }}>

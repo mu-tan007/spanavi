@@ -1,11 +1,12 @@
 import React from 'react';
 import { color, space, font } from '../../constants/design';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 // Spanavi 全ページ共通のヘッダー帯。タイトル + 副題 (青文字) のシンプル構成。
 // - title:   メインタイトル (Outfit, 20/600, navy)
 // - description: 補足テキスト (11px, textMid)
 // - right:   右側アクション (ボタン等)
-// - bleed:   親の padding を相殺 (margin: -28)。既定 true。
+// - bleed:   親の padding を相殺 (PC は -28、スマホは -12)。既定 true。
 // - compact: 下余白を縮小 (タブバーが直下に来るページ用)。既定 false。
 // - children: 帯の内側下部に追加要素 (検索 input / 小さいフィルタ等) を置く場合
 // (eyebrow は廃止。後方互換のため prop は受け取るが描画しない)
@@ -21,6 +22,10 @@ export default function PageHeader({
 }) {
   // style の spread で margin 全体が上書きされないよう、個別プロパティに分解
   const { marginTop, marginBottom, marginLeft, marginRight, margin: _m, ...restStyle } = style || {};
+  // 親 (SpanaviApp の main) の左右 padding と同じ幅だけはみ出させる。
+  // スマホで -28 のままだと main の padding(12px) より 16px 広がり、右端が切れる
+  const isMobile = useIsMobile();
+  const bleedPx = bleed ? (isMobile ? -12 : -28) : 0;
   return (
     <div
       style={{
@@ -28,9 +33,9 @@ export default function PageHeader({
         background: color.white,
         borderBottom: compact ? 'none' : `1px solid ${color.border}`,
         marginTop: marginTop ?? 0,
-        marginRight: marginRight ?? (bleed ? -28 : 0),
+        marginRight: marginRight ?? bleedPx,
         marginBottom: marginBottom ?? 0,
-        marginLeft: marginLeft ?? (bleed ? -28 : 0),
+        marginLeft: marginLeft ?? bleedPx,
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
