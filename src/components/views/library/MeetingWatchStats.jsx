@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { color, space, radius, font } from '../../../constants/design';
 import { supabase } from '../../../lib/supabase';
 import { fetchWeeklyMeetingWatchLogs } from '../../../lib/supabaseWrite';
+import { Button, DataTable } from '../../ui';
 
 // 週次ミーティングの視聴状況。全員に見せる。
 //   player    : 何秒から何秒まで見たか（2026-09-26から記録）
@@ -90,12 +91,9 @@ export function MeetingWatchOverview({ meetings, data }) {
         <div style={{ fontSize: font.size.xs, color: color.textMid }}>
           対象 {members.length}人 ・ 1本も見ていない人 {never.length}人
         </div>
-        <button onClick={() => setOpen(!open)} style={{
-          marginLeft: 'auto', padding: `${space[1]}px ${space[2.5]}px`, borderRadius: radius.md,
-          border: `1px solid ${color.navy}`, background: open ? color.navy : color.white,
-          color: open ? color.white : color.navy, fontSize: font.size.xs, fontWeight: font.weight.semibold,
-          fontFamily: font.family.sans, cursor: 'pointer',
-        }}>{open ? '■ 一覧表を閉じる' : '人 × 回の一覧表'}</button>
+        <Button size="sm" variant={open ? 'primary' : 'outline'} onClick={() => setOpen(!open)} style={{ marginLeft: 'auto' }}>
+          {open ? '■ 一覧表を閉じる' : '人 × 回の一覧表'}
+        </Button>
       </div>
 
       <div style={{ marginTop: space[2] }}>
@@ -106,37 +104,36 @@ export function MeetingWatchOverview({ meetings, data }) {
       </div>
 
       {open && (
-        <div style={{ marginTop: space[3], overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: font.size.xs, whiteSpace: 'nowrap' }}>
-            <thead>
-              <tr>
-                <th style={{ ...th, position: 'sticky', left: 0, background: color.gray50, zIndex: 1, textAlign: 'left' }}>名前</th>
-                <th style={th}>見た回</th>
-                {meetings.map(v => (
-                  <th key={v.id} style={th} title={v.title}>{shortTitle(v.title)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {members.map(m => (
-                <tr key={m.id}>
-                  <td style={{ ...td, position: 'sticky', left: 0, background: color.white, zIndex: 1, textAlign: 'left', fontWeight: font.weight.semibold, color: color.navy }}>{m.name}</td>
-                  <td style={td}>{watchedCount(m)}</td>
-                  {meetings.map(v => {
-                    const s = stats[v.id]?.[m.user_id];
-                    const sec = watchedSec(s, v);
-                    const min = sec ? Math.max(1, Math.round(sec / 60)) : 0;
-                    return (
-                      <td key={v.id} style={{ ...td, color: min ? color.navy : color.gray300, fontWeight: min ? font.weight.semibold : 'normal' }}
-                        title={s?.coveredSec ? '区間の記録あり' : s?.estimatedSec ? '推定' : '未視聴'}>
-                        {min ? `${s.coveredSec ? '' : '~'}${min}分` : '—'}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ marginTop: space[3] }}>
+          <DataTable
+            columns={[
+              { key: 'name', label: '名前', width: 110, align: 'left', sortable: true, sortType: 'string',
+                cellStyle: { fontWeight: font.weight.semibold, color: color.navy } },
+              { key: 'count', label: '見た回', width: 64, align: 'right', sortable: true },
+              ...meetings.map(v => ({
+                key: v.id, label: shortTitle(v.title), width: 64, align: 'right', sortable: true,
+                sortValue: (r) => r.cells[v.id]?.sec || 0,
+                render: (r) => {
+                  const c = r.cells[v.id];
+                  if (!c) return <span style={{ color: color.gray300 }}>—</span>;
+                  return <span title={c.estimated ? '推定' : '区間の記録あり'}>{c.estimated ? '~' : ''}{Math.max(1, Math.round(c.sec / 60))}分</span>;
+                },
+              })),
+            ]}
+            rows={members.map(m => {
+              const cells = {};
+              for (const v of meetings) {
+                const s = stats[v.id]?.[m.user_id];
+                const sec = watchedSec(s, v);
+                if (sec > 0) cells[v.id] = { sec, estimated: !s.coveredSec };
+              }
+              return { id: m.id, name: m.name, count: Object.keys(cells).length, cells };
+            })}
+            rowKey="id"
+            height={Math.min(640, 72 + members.length * 36)}
+            mobileCards={false}
+            showCount={false}
+          />
           <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1.5] }}>「~」は推定。{NOTE}</div>
         </div>
       )}
@@ -238,8 +235,6 @@ function NameChips({ names, tone }) {
   );
 }
 
-const th = { padding: '4px 8px', borderBottom: `1px solid ${color.border}`, color: color.textMid, fontWeight: font.weight.semibold, textAlign: 'center' };
-const td = { padding: '4px 8px', borderBottom: `1px solid ${color.borderLight}`, textAlign: 'center' };
 
 function shortTitle(t) {
   const m = String(t || '').match(/第\s*(\d+)\s*回/);
