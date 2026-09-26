@@ -331,8 +331,9 @@ export default function LibraryView({
                         borderTop: idx === 0 && !isAdmin ? 'none' : `1px solid ${color.borderLight}`,
                         padding: `${space[3]}px 0`,
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* スマホ幅ではボタン群がタイトルの下に回り込む */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap', rowGap: space[2] }}>
+                          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                             {isEditing ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: space[1.5] }}>
                                 <Input

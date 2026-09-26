@@ -3,6 +3,7 @@ import { color, space, radius, font } from '../../../constants/design';
 import { supabase } from '../../../lib/supabase';
 import { fetchWeeklyMeetingWatchLogs } from '../../../lib/supabaseWrite';
 import { Badge, Button, DataTable } from '../../ui';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 
 // 週次ミーティングの視聴状況。全員に見せる。
 //   player    : 何秒から何秒まで見たか（2026-09-26から記録）
@@ -87,14 +88,13 @@ const watchedSec = (s, v) => Math.min(s?.totalSec || 0, v?.duration_sec || Infin
 
 const NOTE = '「何秒〜何秒」は2026年9月26日から記録しています。それより前（6月30日以降）の分は、Cloudflareの再生記録とSpanaviのアクセス記録を突き合わせて推定した視聴分数です（区間なし）。6月29日以前は誰が見たかの記録が残っていません。';
 
-// 一覧の上：人 × 回の視聴分数と、1本も見ていない人
+// 一覧の上：人 × 回の視聴分数と出欠（最初から開いておき、閉じることもできる）
 export function MeetingWatchOverview({ meetings, data }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
+  const isMobile = useIsMobile();
   const { loading, members, stats, attendedSet, isAbsent } = data;
   if (loading) return null;
 
-  const watchedCount = (m) => meetings.filter(v => watchedSec(stats[v.id]?.[m.user_id], v) > 0).length;
-  const never = members.filter(m => watchedCount(m) === 0);
 
   return (
     <div style={{
@@ -104,25 +104,18 @@ export function MeetingWatchOverview({ meetings, data }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap' }}>
         <div style={{ fontWeight: font.weight.bold, color: color.navy, fontSize: font.size.base }}>視聴状況</div>
         <div style={{ fontSize: font.size.xs, color: color.textMid }}>
-          対象 {members.length}人 ・ 1本も見ていない人 {never.length}人
+          対象 {members.length}人
         </div>
         <Button size="sm" variant={open ? 'primary' : 'outline'} onClick={() => setOpen(!open)} style={{ marginLeft: 'auto' }}>
           {open ? '■ 視聴データを閉じる' : '視聴データ'}
         </Button>
       </div>
 
-      <div style={{ marginTop: space[2] }}>
-        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.textMid, marginBottom: space[1] }}>1本も見ていない人</div>
-        {never.length === 0
-          ? <div style={{ fontSize: font.size.xs, color: color.textLight }}>いません</div>
-          : <NameChips names={never.map(m => m.name)} tone="danger" />}
-      </div>
-
       {open && (
         <div style={{ marginTop: space[3] }}>
           <DataTable
             columns={[
-              { key: 'name', label: '名前', width: 110, align: 'left', sortable: true, sortType: 'string', sticky: true,
+              { key: 'name', label: '名前', width: isMobile ? 84 : 110, align: 'left', sortable: true, sortType: 'string', sticky: true,
                 cellStyle: { fontWeight: font.weight.semibold, color: color.navy } },
               { key: 'count', label: '見た回', width: 72, align: 'right', sortable: true },
               { key: 'totalSec', label: '視聴時間', width: 96, align: 'right', sortable: true,
@@ -158,7 +151,7 @@ export function MeetingWatchOverview({ meetings, data }) {
               return { id: m.id, name: m.name, member: m, count: Object.keys(cells).length, totalSec, attended, cells };
             })}
             rowKey="id"
-            height={Math.min(720, 72 + members.length * 42)}
+            height="auto"
             mobileCards={false}
             showCount={false}
           />
