@@ -14,7 +14,8 @@ import { useIsMobile } from '../../hooks/useIsMobile';
  * 6. 件数表示
  * 7. モバイル横スクロール対応
  *
- * @prop columns: [{ key, label, width, align, render, cellStyle, headerStyle, sortable, sortType, sortValue }]
+ * @prop columns: [{ key, label, width, align, render, cellStyle, headerStyle, sortable, sortType, sortValue, sticky }]
+ *   - sticky: true でその列を横スクロール時も左端に固定（先頭列に使う）
  *   - sortable: true でその列をヘッダークリックでソート可能に
  *   - sortType: 'string' なら初回クリックで昇順、それ以外(数値)は初回降順
  *   - sortValue: (row) => 比較に使う値（省略時は row[key]）
@@ -188,7 +189,10 @@ export default function DataTable({
       return c.width || 'minmax(80px, 1fr)';
     })
     .join(' ');
-  const minWidth = effectiveColumns.reduce((sum, c) => sum + (typeof c.width === 'number' ? c.width : 80), 0);
+  // 行の左右パディング(16px×2)と左ボーダー(3px)も足さないと、横スクロール時に最後の列が切れる
+  const minWidth = effectiveColumns.reduce((sum, c) => sum + (typeof c.width === 'number' ? c.width : 80), 0) + 35;
+  // sticky: true の列は横スクロールしても左に固定する（背景は行の色を引き継ぐ）
+  const stickyStyle = (col) => (col.sticky ? { position: 'sticky', left: 0, zIndex: 1, background: 'inherit' } : null);
 
   const getKey = (row, idx) => {
     if (typeof rowKey === 'function') return rowKey(row, idx);
@@ -401,6 +405,7 @@ export default function DataTable({
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     cursor: col.sortable ? 'pointer' : 'default',
+                    ...stickyStyle(col),
                     ...(col.headerStyle || {}),
                   }}
                 >
@@ -467,6 +472,7 @@ export default function DataTable({
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
+                          ...stickyStyle(col),
                           ...(col.cellStyle || {}),
                         }}
                       >

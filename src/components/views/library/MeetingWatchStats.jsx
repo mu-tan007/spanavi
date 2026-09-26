@@ -2,11 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { color, space, radius, font } from '../../../constants/design';
 import { supabase } from '../../../lib/supabase';
 import { fetchWeeklyMeetingWatchLogs } from '../../../lib/supabaseWrite';
-import { Button, DataTable } from '../../ui';
+import { Badge, Button, DataTable } from '../../ui';
 
 // 週次ミーティングの視聴状況。全員に見せる。
 //   player    : 何秒から何秒まで見たか（2026-09-26から記録）
 //   estimated : 記録を始める前の分。Cloudflare の再生記録からの推定分数（区間は無い）
+
+// 合計の視聴時間。1時間を超えたら「3時間12分」
+function fmtDuration(sec) {
+  const min = Math.round(sec / 60);
+  return min >= 60 ? `${Math.floor(min / 60)}時間${min % 60}分` : `${min}分`;
+}
 
 export function fmtSec(sec) {
   const s = Math.max(0, Math.round(sec));
@@ -74,12 +80,12 @@ export function useMeetingWatchData(refreshKey) {
 // 推定は同じ回を何度か開いた分を足すので、動画の長さを上限にする
 const watchedSec = (s, v) => Math.min(s?.totalSec || 0, v?.duration_sec || Infinity);
 
-const NOTE = '「何秒〜何秒」は2026年9月26日から記録しています。それより前（6月30日以降）の分は、Cloudflareの再生記録とSpanaviのアクセス記録を突き合わせて推定した視聴分数です（区間なし・「推定」と表示）。6月29日以前は誰が見たかの記録が残っていません。';
+const NOTE = '「何秒〜何秒」は2026年9月26日から記録しています。それより前（6月30日以降）の分は、Cloudflareの再生記録とSpanaviのアクセス記録を突き合わせて推定した視聴分数です（区間なし）。6月29日以前は誰が見たかの記録が残っていません。';
 
 // 一覧の上：人 × 回の視聴分数と、1本も見ていない人
 export function MeetingWatchOverview({ meetings, data }) {
   const [open, setOpen] = useState(false);
-  const { loading, members, stats } = data;
+  const { loading, members, stats, attendedSet } = data;
   if (loading) return null;
 
   const watchedCount = (m) => meetings.filter(v => watchedSec(stats[v.id]?.[m.user_id], v) > 0).length;
@@ -111,34 +117,44 @@ export function MeetingWatchOverview({ meetings, data }) {
         <div style={{ marginTop: space[3] }}>
           <DataTable
             columns={[
-              { key: 'name', label: '名前', width: 110, align: 'left', sortable: true, sortType: 'string',
+              { key: 'name', label: '名前', width: 110, align: 'left', sortable: true, sortType: 'string', sticky: true,
                 cellStyle: { fontWeight: font.weight.semibold, color: color.navy } },
-              { key: 'count', label: '見た回', width: 64, align: 'right', sortable: true },
+              { key: 'count', label: '見た回', width: 72, align: 'right', sortable: true },
+              { key: 'totalSec', label: '視聴時間', width: 96, align: 'right', sortable: true,
+                render: (r) => (r.totalSec ? fmtDuration(r.totalSec) : '—') },
+              { key: 'attended', label: '出席', width: 64, align: 'right', sortable: true,
+                render: (r) => `${r.attended}回` },
               ...meetings.map(v => ({
-                key: v.id, label: shortTitle(v.title), width: 64, align: 'right', sortable: true,
+                key: v.id, label: shortTitle(v.title), width: 76, align: 'right', sortable: true,
                 sortValue: (r) => r.cells[v.id]?.sec || 0,
                 render: (r) => {
                   const c = r.cells[v.id];
-                  if (!c) return <span style={{ color: color.gray300 }}>—</span>;
-                  return <span title={c.estimated ? '推定' : '区間の記録あり'}>{c.estimated ? '~' : ''}{Math.max(1, Math.round(c.sec / 60))}分</span>;
+                  const att = attendedSet.has(`${v.id}:${r.id}`);
+                  return (
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.3 }}>
+                      <span style={{ color: c ? color.textDark : color.gray300 }}>{c ? `${Math.max(1, Math.round(c.sec / 60))}分` : '—'}</span>
+                      {att && <Badge variant="info" size="sm">出席</Badge>}
+                    </span>
+                  );
                 },
               })),
             ]}
             rows={members.map(m => {
               const cells = {};
+              let totalSec = 0;
               for (const v of meetings) {
-                const s = stats[v.id]?.[m.user_id];
-                const sec = watchedSec(s, v);
-                if (sec > 0) cells[v.id] = { sec, estimated: !s.coveredSec };
+                const sec = watchedSec(stats[v.id]?.[m.user_id], v);
+                if (sec > 0) { cells[v.id] = { sec }; totalSec += sec; }
               }
-              return { id: m.id, name: m.name, count: Object.keys(cells).length, cells };
+              const attended = meetings.filter(v => attendedSet.has(`${v.id}:${m.id}`)).length;
+              return { id: m.id, name: m.name, count: Object.keys(cells).length, totalSec, attended, cells };
             })}
             rowKey="id"
-            height={Math.min(640, 72 + members.length * 36)}
+            height={Math.min(720, 72 + members.length * 48)}
             mobileCards={false}
             showCount={false}
           />
-          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1.5] }}>「~」は推定。{NOTE}</div>
+          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1.5] }}>出席は第23回以降（Zoomの参加者記録から）。{NOTE}</div>
         </div>
       )}
     </div>
@@ -171,7 +187,7 @@ export function MeetingWatchPanel({ meeting, data }) {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: space[2], flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: font.weight.bold, color: color.navy, fontSize: font.size.sm, minWidth: 88 }}>{m.name}</span>
                 <span style={{ fontSize: font.size.sm, color: color.textDark }}>
-                  {Math.max(1, Math.round(watchedSec(s, meeting) / 60))}分{!s.coveredSec && '（推定）'}
+                  {Math.max(1, Math.round(watchedSec(s, meeting) / 60))}分
                   {s.coveredSec > 0 && dur ? ` ・ ${Math.min(100, Math.round(s.coveredSec / dur * 100))}%` : ''}
                 </span>
                 {attendedSet.has(`${meeting.id}:${m.id}`) && <Tag>出席</Tag>}
