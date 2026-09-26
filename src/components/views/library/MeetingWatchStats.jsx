@@ -125,15 +125,16 @@ export function MeetingWatchOverview({ meetings, data }) {
               { key: 'attended', label: '出席', width: 64, align: 'right', sortable: true,
                 render: (r) => `${r.attended}回` },
               ...meetings.map(v => ({
-                key: v.id, label: shortTitle(v.title), width: 76, align: 'right', sortable: true,
+                key: v.id, label: shortTitle(v.title), width: 92, align: 'right', sortable: true,
                 sortValue: (r) => r.cells[v.id]?.sec || 0,
                 render: (r) => {
                   const c = r.cells[v.id];
                   const att = attendedSet.has(`${v.id}:${r.id}`);
+                  if (!c && !att) return <span style={{ color: color.gray300 }}>—</span>;
                   return (
-                    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.3 }}>
-                      <span style={{ color: c ? color.textDark : color.gray300 }}>{c ? `${Math.max(1, Math.round(c.sec / 60))}分` : '—'}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: space[1] }}>
                       {att && <Badge variant="info" size="sm">出席</Badge>}
+                      {c && <span>{Math.max(1, Math.round(c.sec / 60))}分</span>}
                     </span>
                   );
                 },
@@ -150,7 +151,7 @@ export function MeetingWatchOverview({ meetings, data }) {
               return { id: m.id, name: m.name, count: Object.keys(cells).length, totalSec, attended, cells };
             })}
             rowKey="id"
-            height={Math.min(720, 72 + members.length * 48)}
+            height={Math.min(720, 72 + members.length * 42)}
             mobileCards={false}
             showCount={false}
           />
