@@ -8,6 +8,7 @@ import ClientDealsView from './ClientDealsView';
 import ClientSetPasswordPage from './ClientSetPasswordPage';
 import SpanaviLogo from '../common/SpanaviLogo';
 import { RecordingPlayerProvider } from '../common/RecordingPlayerProvider';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 // クライアントポータル: 社内SpanaviAppと同じ世界観に揃える。
 // - 背景: 薄グレー (社内と同じ)
@@ -38,6 +39,7 @@ export default function ClientPortalApp() {
   const [loading, setLoading] = useState(true);
   const [adminBackup, setAdminBackup] = useState(() => readAdminBackup());
   const [restoring, setRestoring] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     // backupがlocalStorageから消えたケース等を反映するため、定期的に再読込
@@ -199,11 +201,12 @@ export default function ClientPortalApp() {
         background: color.white,
         borderBottom: `1px solid ${color.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: `0 ${space[6]}px`,
+        padding: `0 ${isMobile ? space[3] : space[6]}px`,
+        gap: space[3],
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexShrink: 0 }}>
           <SpanaviLogo size={28} textSize={18} gap={9} uidSuffix="portal-hdr" />
-          <span style={{
+          {!isMobile && <span style={{
             fontSize: font.size.xs - 1,
             color: color.textLight,
             letterSpacing: font.letterSpacing.widest,
@@ -213,13 +216,15 @@ export default function ClientPortalApp() {
             marginLeft: space[1],
           }}>
             Client Portal
-          </span>
+          </span>}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: space[4] }}>
+        {/* スマホでは会社名が長いとログアウトが押し出されるので、会社名を省略表示にする */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? space[2] : space[4], minWidth: 0 }}>
           <span style={{
             fontSize: font.size.sm,
             color: color.textMid,
             fontWeight: font.weight.semibold,
+            minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{client.name}</span>
           <Button
             variant="secondary"
@@ -229,7 +234,7 @@ export default function ClientPortalApp() {
         </div>
       </header>
 
-      <main style={{ padding: space[4] }}>
+      <main style={{ padding: isMobile ? space[2] : space[4] }}>
         <ClientDealsView
           client={client}
           canEditDossier={!!adminBackup}

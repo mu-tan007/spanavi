@@ -51,12 +51,14 @@ export default function ClientDealsView({ client, canEditDossier = false, adminA
         description={`${client.name} の架電結果と獲得アポの詳細`}
       />
 
-      <div style={{
+      {/* タブは5つあるので、スマホでは横にスクロールさせる（折り返すと下線の位置が崩れる） */}
+      <div className="spa-scroll-x" style={{
         display: 'flex',
         padding: `0 ${space[5]}px`,
         borderBottom: `1px solid ${color.border}`,
         background: color.white,
         gap: 0,
+        overflowX: 'auto',
       }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
@@ -73,6 +75,7 @@ export default function ClientDealsView({ client, canEditDossier = false, adminA
                 marginBottom: -1,
                 cursor: 'pointer',
                 fontFamily: font.family.sans,
+                flexShrink: 0, whiteSpace: 'nowrap',
               }}
             >{tab.label}</button>
           );
