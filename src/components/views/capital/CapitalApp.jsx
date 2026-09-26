@@ -10,6 +10,7 @@ import NeedsPage from './pages/NeedsPage';
 import PartnersPage from './pages/PartnersPage';
 import DocumentsPage from './pages/DocumentsPage';
 import EngagementMembersView from '../EngagementMembersView';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,12 +38,14 @@ class CapitalErrorBoundary extends React.Component {
 }
 
 export default function CapitalApp({ isAdmin = false }) {
+  // 親 (main) の左右 padding を打ち消して全幅にする。スマホの padding は 12px
+  const isMobile = useIsMobile();
   return (
     <CapitalErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <CapitalRouterProvider initialPath="/dashboard">
           <CapitalNavBridge />
-          <div style={{ margin: -28, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
+          <div style={{ margin: isMobile ? -12 : -28, marginTop: 0, marginBottom: 0, minHeight: 'calc(100vh - 120px)' }}>
             <Routes>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/deals" element={<DealsPage />} />
