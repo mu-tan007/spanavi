@@ -218,7 +218,7 @@ export default function DealsPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
           }}
         >
-          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 400, boxShadow: '0 8px 40px rgba(0,0,0,0.15)' }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 400, maxWidth: 'calc(100vw - 24px)', boxShadow: '0 8px 40px rgba(0,0,0,0.15)' }}>
             <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 20 }}>案件を追加</h2>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>

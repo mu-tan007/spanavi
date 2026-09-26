@@ -43,7 +43,7 @@ export default function TsrIndustryModal({ onClose }) {
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: alpha('#000000', 0.55), zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        style={{ background: color.white, borderRadius: radius.md, width: 700, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
+        style={{ background: color.white, borderRadius: radius.md, width: 700, maxWidth: 'calc(100vw - 24px)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
         {/* ヘッダー */}
         <div style={{ padding: `${space[3]}px ${space[6]}px`, background: color.navy, borderRadius: `${radius.md}px ${radius.md}px 0 0`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>

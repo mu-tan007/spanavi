@@ -257,7 +257,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
       {/* タイプ追加モーダル */}
       {addTypeForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: color.white, borderRadius: radius.lg, width: 420, padding: space[6], boxShadow: shadow.lg }}>
+          <div style={{ background: color.white, borderRadius: radius.lg, width: 420, maxWidth: 'calc(100vw - 24px)', padding: space[6], boxShadow: shadow.lg }}>
             <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[4] }}>新規タイプ追加</div>
             <div style={{ display: 'grid', gap: 10 }}>
               <Input type="text" size="sm" label="タイプID（英大文字1〜3文字）" maxLength={3} placeholder="例: O" value={addTypeForm.type_id} onChange={e => setAddTypeForm(p => ({ ...p, type_id: e.target.value }))} />
@@ -280,7 +280,7 @@ export default function RewardMasterView({ rewardMaster, setRewardMaster }) {
       {/* タイプ編集モーダル */}
       {editTypeForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: color.white, borderRadius: radius.lg, width: 420, padding: space[6], boxShadow: shadow.lg }}>
+          <div style={{ background: color.white, borderRadius: radius.lg, width: 420, maxWidth: 'calc(100vw - 24px)', padding: space[6], boxShadow: shadow.lg }}>
             <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 4 }}>タイプ編集 — {editTypeForm.type_id}</div>
             <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[4] }}>※ タイプIDは変更できません</div>
             <div style={{ display: 'grid', gap: 10 }}>

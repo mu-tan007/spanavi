@@ -39,7 +39,7 @@ export default function CRMLeadRecallModal({ company, statusLabel, onSubmit, onC
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-        width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', overflow: 'hidden',
+        width: 420, maxWidth: 'calc(100vw - 24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', overflow: 'hidden',
       }}>
         <div style={{ padding: '12px 20px', background: '#B8860B', color: '#fff', fontWeight: 700, fontSize: 14 }}>
           {statusLabel || '再コール'} — 予定日時

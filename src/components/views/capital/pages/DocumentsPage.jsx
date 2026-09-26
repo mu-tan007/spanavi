@@ -330,7 +330,7 @@ export default function DocumentsPage() {
       {showUpload && (
         <div onClick={e => { if (e.target === e.currentTarget) setShowUpload(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 480 }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 480, maxWidth: 'calc(100vw - 24px)' }}>
             <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 20 }}>テンプレートを追加</h2>
             <form onSubmit={uploadTemplate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
@@ -378,7 +378,7 @@ export default function DocumentsPage() {
       {showGenerate && (
         <div onClick={e => { if (e.target === e.currentTarget) { setShowGenerate(null); setGeneratedContent('') } }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 700, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 700, maxWidth: 'calc(100vw - 24px)', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 4 }}>
               {showGenerate.name} — 資料生成
             </h2>

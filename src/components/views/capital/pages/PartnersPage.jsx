@@ -196,7 +196,7 @@ export default function PartnersPage() {
       {showModal && (
         <div onClick={e => { if (e.target === e.currentTarget) setModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 400 }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 400, maxWidth: 'calc(100vw - 24px)' }}>
             <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 20 }}>仲介会社・FAを追加</h2>
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
@@ -237,7 +237,7 @@ export default function PartnersPage() {
       {showContactModal && (
         <div onClick={e => { if (e.target === e.currentTarget) setContactModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 400 }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 400, maxWidth: 'calc(100vw - 24px)' }}>
             <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 6 }}>担当者を追加</h2>
             <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: 20 }}>{selected?.name}</p>
             <form onSubmit={handleContactSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

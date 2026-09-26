@@ -181,7 +181,7 @@ export default function NeedsPage() {
       {showModal && (
         <div onClick={e => { if (e.target === e.currentTarget) setModal(false) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 480, maxHeight: '80vh', overflowY: 'auto' }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 480, maxWidth: 'calc(100vw - 24px)', maxHeight: '80vh', overflowY: 'auto' }}>
             <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 20 }}>買収ニーズを追加</h2>
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
@@ -241,7 +241,7 @@ export default function NeedsPage() {
       {showBroadcast && (
         <div onClick={e => { if (e.target === e.currentTarget) setBroadcast(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,30,60,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 560 }}>
+          <div style={{ background: color.white, borderRadius: 12, padding: 28, width: 560, maxWidth: 'calc(100vw - 24px)' }}>
             <h2 style={{ fontSize: 16, fontWeight: font.weight.medium, color: color.navy, marginBottom: 4 }}>買収ニーズ一斉配信</h2>
             <p style={{ fontSize: font.size.sm, color: color.textMid, marginBottom: 16 }}>
               登録済み担当者 {contacts.length} 名に送信されます

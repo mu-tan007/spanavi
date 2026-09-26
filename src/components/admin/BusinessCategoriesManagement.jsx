@@ -456,7 +456,7 @@ function CategoryEditModal({ initial, products, cloneSourceOptions, onSave, onCa
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: color.white, borderRadius: radius.md, width: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: shadow.xl,
+        background: color.white, borderRadius: radius.md, width: 520, maxWidth: 'calc(100vw - 24px)', maxHeight: '90vh', overflowY: 'auto', boxShadow: shadow.xl,
       }}>
         <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
           {isNew ? '商材を作成' : '商材を編集'}
@@ -556,7 +556,7 @@ function EngagementEditModal({ initial, onSave, onCancel }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: color.white, borderRadius: radius.md, width: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: shadow.xl,
+        background: color.white, borderRadius: radius.md, width: 500, maxWidth: 'calc(100vw - 24px)', maxHeight: '90vh', overflowY: 'auto', boxShadow: shadow.xl,
       }}>
         <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
           {isNew ? '業務種別を作成' : '業務種別を編集'}

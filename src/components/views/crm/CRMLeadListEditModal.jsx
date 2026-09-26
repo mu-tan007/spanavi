@@ -49,7 +49,7 @@ export default function CRMLeadListEditModal({ list, onClose, onSaved }) {
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-        width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.3)', overflow: 'hidden',
+        width: 420, maxWidth: 'calc(100vw - 24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', overflow: 'hidden',
       }}>
         <div style={{ padding: '12px 20px', background: NAVY, color: '#fff', fontWeight: 600, fontSize: 14 }}>
           リスト情報を編集

@@ -17,7 +17,7 @@ export default function RewardDetailModal({ rewardId, rewardMap, onClose }) {
       <div
         style={{
           background: '#fff', border: '1px solid ' + GRAY_200, borderRadius: 4,
-          width: 440, boxShadow: '0 8px 32px rgba(0,0,0,0.3)', overflow: 'hidden',
+          width: 440, maxWidth: 'calc(100vw - 24px)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', overflow: 'hidden',
         }}
         onClick={e => e.stopPropagation()}
       >
