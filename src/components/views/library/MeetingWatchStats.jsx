@@ -66,6 +66,9 @@ export function useMeetingWatchData(refreshKey) {
   return { ...state, stats, attendedSet };
 }
 
+// 推定は同じ回を何度か開いた分を足すので、動画の長さを上限にする
+const watchedSec = (s, v) => Math.min(s?.totalSec || 0, v?.duration_sec || Infinity);
+
 const NOTE = '「何秒〜何秒」は2026年9月26日から記録しています。それより前（6月26日以降）の分は、Cloudflareの再生記録から推定した視聴分数です（区間なし・「推定」と表示）。6月25日以前の記録は残っていません。';
 
 // 一覧の上：人 × 回の視聴分数と、1本も見ていない人
@@ -74,7 +77,7 @@ export function MeetingWatchOverview({ meetings, data }) {
   const { loading, members, stats } = data;
   if (loading) return null;
 
-  const watchedCount = (m) => meetings.filter(v => stats[v.id]?.[m.user_id]?.totalSec > 0).length;
+  const watchedCount = (m) => meetings.filter(v => watchedSec(stats[v.id]?.[m.user_id], v) > 0).length;
   const never = members.filter(m => watchedCount(m) === 0);
 
   return (
@@ -121,7 +124,8 @@ export function MeetingWatchOverview({ meetings, data }) {
                   <td style={td}>{watchedCount(m)}</td>
                   {meetings.map(v => {
                     const s = stats[v.id]?.[m.user_id];
-                    const min = s?.totalSec ? Math.max(1, Math.round(s.totalSec / 60)) : 0;
+                    const sec = watchedSec(s, v);
+                    const min = sec ? Math.max(1, Math.round(sec / 60)) : 0;
                     return (
                       <td key={v.id} style={{ ...td, color: min ? color.navy : color.gray300, fontWeight: min ? font.weight.semibold : 'normal' }}
                         title={s?.coveredSec ? '区間の記録あり' : s?.estimatedSec ? '推定' : '未視聴'}>
@@ -166,7 +170,7 @@ export function MeetingWatchPanel({ meeting, data }) {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: space[2], flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: font.weight.bold, color: color.navy, fontSize: font.size.sm, minWidth: 88 }}>{m.name}</span>
                 <span style={{ fontSize: font.size.sm, color: color.textDark }}>
-                  {Math.max(1, Math.round(s.totalSec / 60))}分{!s.coveredSec && '（推定）'}
+                  {Math.max(1, Math.round(watchedSec(s, meeting) / 60))}分{!s.coveredSec && '（推定）'}
                   {s.coveredSec > 0 && dur ? ` ・ ${Math.min(100, Math.round(s.coveredSec / dur * 100))}%` : ''}
                 </span>
                 {attendedSet.has(`${meeting.id}:${m.id}`) && <Tag>出席</Tag>}
