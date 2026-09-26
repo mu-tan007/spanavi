@@ -4,6 +4,7 @@ import { getOrgId } from '../../lib/orgContext';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Card, Badge, DataTable } from '../ui';
 import { PAGE_REGISTRY, ENGAGEMENT_LABELS } from '../../constants/pageRegistry';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 // 一括権限管理: メンバーごとに「事業タブ内の閲覧可能ページ」をホワイトリスト方式で編集する。
 //
@@ -16,6 +17,7 @@ import { PAGE_REGISTRY, ENGAGEMENT_LABELS } from '../../constants/pageRegistry';
 // - 未設定メンバー（行が無い）は「現状見えているもの＝所属事業の全ページ」を pre-check で表示
 
 export default function PermissionSettings({ onToast }) {
+  const isMobile = useIsMobile();
   const orgId = getOrgId();
   const [members, setMembers] = useState([]);
   const [adminUserIds, setAdminUserIds] = useState(new Set()); // role='admin' なメンバーの user_id
@@ -301,9 +303,10 @@ export default function PermissionSettings({ onToast }) {
   ], [adminUserIds, permissionCounts, memberEngagementMap, engagementsByDb]);
 
   return (
-    <div style={{ display: 'flex', gap: space[5], minHeight: 600 }}>
+    // スマホでは一覧と詳細を縦に積む（左 460px 固定のままだと画面幅を越える）
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: space[5], minHeight: 600 }}>
       {/* 左: メンバー一覧 (DataTable) */}
-      <div style={{ width: 460, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: isMobile ? '100%' : 460, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ marginBottom: space[3] }}>
           <Input
             placeholder="メンバー検索"

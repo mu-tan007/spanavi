@@ -63,7 +63,8 @@ export default function PageHeader({
         {children}
       </div>
       {right && (
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: space[2] }}>
+        // ボタンが多いとスマホ幅を越えるので折り返す（PCでは1行に収まるので見た目は変わらない）
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: space[2], flexWrap: 'wrap', maxWidth: '100%' }}>
           {right}
         </div>
       )}
