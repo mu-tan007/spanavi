@@ -77,9 +77,10 @@ export function useMeetingWatchData(refreshKey) {
   const attendedSet = useMemo(() => new Set(state.attended.map(a => `${a.video_id}:${a.member_id}`)), [state.attended]);
   // 出欠を記録している回（第23回以降）。記録の無い回は欠席と言えない
   const recordedIds = useMemo(() => new Set(state.attended.map(a => a.video_id)), [state.attended]);
-  // 入社後に開かれた、出欠を記録している回で、出席していない
+  // 入社日より後に開かれた、出欠を記録している回で、出席していない
+  // （入社日当日の回は入社前として扱う。Zoomの出欠集計と同じ）
   const isAbsent = (v, m) => recordedIds.has(v.id) && !!m.start_date && !!v.meeting_date
-    && m.start_date <= v.meeting_date && !attendedSet.has(`${v.id}:${m.id}`);
+    && m.start_date < v.meeting_date && !attendedSet.has(`${v.id}:${m.id}`);
   return { ...state, stats, attendedSet, isAbsent };
 }
 
