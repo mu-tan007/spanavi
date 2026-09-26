@@ -127,8 +127,6 @@ async function processInBackground(
       console.log(`[analyze-roleplay] Truncated ${rawExt} (${audioBuffer.byteLength} bytes) to ${finalBuffer.byteLength} bytes`)
     }
 
-    const audioBlob = new Blob([finalBuffer], { type: contentType })
-
     // ── 5. OpenAI Whisper で文字起こし ─────────────────────────────────
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) {
@@ -138,31 +136,44 @@ async function processInBackground(
       return
     }
 
-    const formData = new FormData()
-    formData.append('file', audioBlob, `recording.${whisperExt}`)
-    formData.append('model', 'whisper-1')
-    formData.append('language', 'ja')
+    // 長い録音（約45分以上）は1回の Whisper が3分を超えて時間切れになるため、
+    // MP3 など途中で区切れる形式は約5MB（32kbps で約20分）ずつに分けて並行で文字起こしし、つなげる
+    const WHISPER_CHUNK = 5 * 1024 * 1024
+    const transcribe = async (buf: ArrayBuffer): Promise<string> => {
+      const formData = new FormData()
+      formData.append('file', new Blob([buf], { type: contentType }), `recording.${whisperExt}`)
+      formData.append('model', 'whisper-1')
+      formData.append('language', 'ja')
+      const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${openaiKey}` },
+        body: formData,
+        signal: AbortSignal.timeout(180_000), // 180秒でタイムアウト
+      })
+      if (!res.ok) throw new Error(`whisper ${res.status}: ${(await res.text()).slice(0, 300)}`)
+      return (await res.json()).text || ''
+    }
+    const chunks: ArrayBuffer[] = []
+    if (STREAM_FORMATS.has(whisperExt) && finalBuffer.byteLength > WHISPER_CHUNK) {
+      for (let off = 0; off < finalBuffer.byteLength; off += WHISPER_CHUNK) {
+        chunks.push(finalBuffer.slice(off, Math.min(off + WHISPER_CHUNK, finalBuffer.byteLength)))
+      }
+    } else {
+      chunks.push(finalBuffer)
+    }
 
-    console.log(`[analyze-roleplay] Sending to Whisper: ext=${whisperExt}, size=${finalBuffer.byteLength} bytes`)
+    console.log(`[analyze-roleplay] Sending to Whisper: ext=${whisperExt}, size=${finalBuffer.byteLength} bytes, chunks=${chunks.length}`)
 
-    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${openaiKey}` },
-      body: formData,
-      signal: AbortSignal.timeout(180_000), // 180秒でタイムアウト
-    })
-
-    if (!whisperRes.ok) {
-      const whisperErr = await whisperRes.text()
+    let transcript: string
+    try {
+      transcript = (await Promise.all(chunks.map(transcribe))).join('\n')
+    } catch (whisperErr) {
       console.error('[analyze-roleplay] Whisper error:', whisperErr)
       await supabase.from('roleplay_sessions')
-        .update({ ai_status: 'error', ai_feedback: { error: `文字起こしに失敗しました（Whisper API）` } })
+        .update({ ai_status: 'error', ai_feedback: { error: `文字起こしに失敗しました（Whisper API）`, detail: String((whisperErr as Error).message || whisperErr).slice(0, 300) } })
         .eq('id', session_id)
       return
     }
-
-    const whisperData = await whisperRes.json()
-    const transcript: string = whisperData.text || ''
 
     // ── 6. Claude でロープレ分析 ────────────────────────────────────────
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
