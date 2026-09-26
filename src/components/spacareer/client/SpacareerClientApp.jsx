@@ -4,6 +4,8 @@ import { color, space, font, radius } from '../../../constants/design';
 import { useAuth } from '../../../hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
 import SpacareerClientSidebar from './SpacareerClientSidebar';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import { alpha } from '../../../constants/design';
 
 // スパキャリ専用の代理ログインセッション退避キー。
 // 営業代行ポータルの `spanavi_admin_session_backup` とは別物。
@@ -45,6 +47,9 @@ import SpacareerCompanyDbView from './views/SpacareerCompanyDbView';
 export default function SpacareerClientApp() {
   const { session, profile, loading, signOut, isStudent } = useAuth();
   const [currentTab, setCurrentTab] = useState('mypage');
+  // スマホでは左メニュー(220px固定)を常時出さず、上部の ☰ から開くドロワーにする
+  const isMobile = useIsMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [hearingActive, setHearingActive] = useState(false); // キックオフヒアリングを表示するか
   const [socialStyleActive, setSocialStyleActive] = useState(false); // ソーシャルスタイル診断を表示するか
   const [companyDbActive, setCompanyDbActive] = useState(false); // 企業DB（直案件）を表示するか＝第4回完了で解禁
@@ -202,7 +207,7 @@ export default function SpacareerClientApp() {
           showKickoffHearing={false}
           showSocialStyle={false}
         />
-        <main style={{ flex: 1, marginLeft: 220, padding: space[6], color: color.textLight, fontSize: font.size.sm }}>
+        <main style={{ flex: 1, marginLeft: isMobile ? 0 : 220, padding: space[6], color: color.textLight, fontSize: font.size.sm }}>
           読み込み中...
         </main>
       </div>
@@ -211,19 +216,37 @@ export default function SpacareerClientApp() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: color.snow, fontFamily: font.family.sans }}>
-      <SpacareerClientSidebar
+      {isMobile && menuOpen && (
+        <div onClick={() => setMenuOpen(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 190, background: alpha(color.navyDeep, 0.5),
+        }} />
+      )}
+      {(!isMobile || menuOpen) && <SpacareerClientSidebar
         currentTab={currentTab}
-        setCurrentTab={guardedSetCurrentTab}
+        setCurrentTab={(id) => { setMenuOpen(false); guardedSetCurrentTab(id); }}
         branding={null}
         currentUser={currentUser}
         currentMemberAvatar={null}
-        onUserClick={() => guardedSetCurrentTab('mypage')}
+        onUserClick={() => { setMenuOpen(false); guardedSetCurrentTab('mypage'); }}
         onLogout={handleLogout}
         showKickoffHearing={hearingActive}
         showSocialStyle={socialStyleActive}
         showCompanyDb={companyDbActive}
-      />
-      <main style={{ flex: 1, marginLeft: 220, padding: 0 }}>
+      />}
+      <main style={{ flex: 1, marginLeft: isMobile ? 0 : 220, padding: 0, minWidth: 0 }}>
+        {isMobile && (
+          <div style={{
+            position: 'sticky', top: 0, zIndex: 30, height: 48,
+            display: 'flex', alignItems: 'center', gap: space[2], padding: `0 ${space[2]}px`,
+            background: color.white, borderBottom: `1px solid ${color.border}`,
+          }}>
+            <button onClick={() => setMenuOpen(true)} aria-label="メニュー" style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 6,
+              fontSize: font.size.lg, color: color.navy, lineHeight: 1, minWidth: 44, minHeight: 44,
+            }}>☰</button>
+            <span style={{ fontWeight: font.weight.semibold, color: color.navy, fontSize: font.size.md }}>スパキャリ</span>
+          </div>
+        )}
         {/* 代理ログイン中バナー（通常ログインでは表示されない） */}
         {adminBackup && (
           <div style={{
@@ -256,7 +279,7 @@ export default function SpacareerClientApp() {
             >{restoring ? '復帰中...' : '← 社内アカウントに戻る'}</button>
           </div>
         )}
-        <div style={{ padding: space[6] }}>
+        <div style={{ padding: isMobile ? space[3] : space[6] }}>
           {currentTab === 'social_style' && (
             <ClientSocialStyleView
               customerId={customerId}
