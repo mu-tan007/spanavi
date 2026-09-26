@@ -26,7 +26,7 @@ function mergeIntervals(list) {
   return out;
 }
 
-// 対象者：在籍中で入社日のある人。役員は除く
+// 対象者：営業代行（売り手ソーシング）に所属し、在籍中で入社日のある人。役員は除く
 const isTarget = (m) => m.is_active && m.start_date && !String(m.position || '').includes('取締役') && m.user_id;
 
 export function useMeetingWatchData(refreshKey) {
@@ -34,13 +34,17 @@ export function useMeetingWatchData(refreshKey) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [{ data: logs }, { data: ms }, { data: att }] = await Promise.all([
+      const [{ data: logs }, { data: ms }, { data: att }, { data: sourcing }] = await Promise.all([
         fetchWeeklyMeetingWatchLogs(),
         supabase.from('members').select('id, user_id, name, start_date, team, position, is_active')
           .eq('is_active', true).not('start_date', 'is', null).order('start_date'),
         supabase.from('weekly_meeting_viewers').select('video_id, member_id').eq('reason', 'attended'),
+        // スパキャリだけの人は対象にしない
+        supabase.from('member_engagements').select('member_id, engagements!inner(slug)').eq('engagements.slug', 'seller_sourcing'),
       ]);
-      if (alive) setState({ loading: false, logs: logs || [], members: (ms || []).filter(isTarget), attended: att || [] });
+      const sourcingIds = new Set((sourcing || []).map(r => r.member_id));
+      const members = (ms || []).filter(m => isTarget(m) && sourcingIds.has(m.id));
+      if (alive) setState({ loading: false, logs: logs || [], members, attended: att || [] });
     })();
     return () => { alive = false; };
   }, [refreshKey]);
