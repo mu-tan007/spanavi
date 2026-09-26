@@ -69,7 +69,7 @@ export function useMeetingWatchData(refreshKey) {
 // 推定は同じ回を何度か開いた分を足すので、動画の長さを上限にする
 const watchedSec = (s, v) => Math.min(s?.totalSec || 0, v?.duration_sec || Infinity);
 
-const NOTE = '「何秒〜何秒」は2026年9月26日から記録しています。それより前（6月26日以降）の分は、Cloudflareの再生記録から推定した視聴分数です（区間なし・「推定」と表示）。6月25日以前の記録は残っていません。';
+const NOTE = '「何秒〜何秒」は2026年9月26日から記録しています。それより前（6月30日以降）の分は、Cloudflareの再生記録とSpanaviのアクセス記録を突き合わせて推定した視聴分数です（区間なし・「推定」と表示）。6月29日以前は誰が見たかの記録が残っていません。';
 
 // 一覧の上：人 × 回の視聴分数と、1本も見ていない人
 export function MeetingWatchOverview({ meetings, data }) {
