@@ -5,6 +5,7 @@ import { useAuth } from '../../../../hooks/useAuth';
 import { supabase } from '../../../../lib/supabase';
 import { loadDraft, saveDraft, clearDraft } from '../../../../lib/spacareer/draftCache';
 import { saveWithAuthRetry } from '../../../../lib/spacareer/saveWithRetry';
+import { useIsMobile } from '../../../../hooks/useIsMobile';
 import ClientMonetizationDiagnosisView from './ClientMonetizationDiagnosisView';
 
 // 仕様書: tasks/spacareer-spec.md §6.2 事後課題
@@ -70,6 +71,7 @@ async function openHomeworkFile(f) {
 }
 
 export default function ClientHomeworkView() {
+  const isMobile = useIsMobile();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
@@ -578,8 +580,9 @@ export default function ClientHomeworkView() {
       </div>
 
       <div style={{
-        position: 'fixed', left: 220, right: 0, bottom: 0,
-        padding: `${space[3]}px ${space[6]}px`,
+        // スマホは左メニューが無いので左端から全幅で出す
+        position: 'fixed', left: isMobile ? 0 : 220, right: 0, bottom: 0, flexWrap: 'wrap',
+        padding: `${space[3]}px ${isMobile ? space[3] : space[6]}px`,
         background: color.white,
         borderTop: `1px solid ${color.border}`,
         boxShadow: shadow.md,

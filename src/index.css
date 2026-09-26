@@ -156,7 +156,8 @@ input::placeholder, textarea::placeholder {
      片側が数十pxまで潰れて中身が読めなくなるため。
      使い方: <div className="spa-2col" style={{ display:'grid', gridTemplateColumns:'320px 1fr' }}> */
   .spa-2col {
-    grid-template-columns: 1fr !important;
+    /* 1fr だと中身の最小幅（長いURL・折り返さない行）に引っぱられて列が画面より広がる */
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   /* KPIカードの列。4列固定のままだと1枚90px弱になり金額が折り返す */
