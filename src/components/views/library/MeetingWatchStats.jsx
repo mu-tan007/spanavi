@@ -74,7 +74,12 @@ export function useMeetingWatchData(refreshKey) {
   }, [state.logs]);
 
   const attendedSet = useMemo(() => new Set(state.attended.map(a => `${a.video_id}:${a.member_id}`)), [state.attended]);
-  return { ...state, stats, attendedSet };
+  // 出欠を記録している回（第23回以降）。記録の無い回は欠席と言えない
+  const recordedIds = useMemo(() => new Set(state.attended.map(a => a.video_id)), [state.attended]);
+  // 入社後に開かれた、出欠を記録している回で、出席していない
+  const isAbsent = (v, m) => recordedIds.has(v.id) && !!m.start_date && !!v.meeting_date
+    && m.start_date <= v.meeting_date && !attendedSet.has(`${v.id}:${m.id}`);
+  return { ...state, stats, attendedSet, isAbsent };
 }
 
 // 推定は同じ回を何度か開いた分を足すので、動画の長さを上限にする
@@ -85,7 +90,7 @@ const NOTE = '「何秒〜何秒」は2026年9月26日から記録していま�
 // 一覧の上：人 × 回の視聴分数と、1本も見ていない人
 export function MeetingWatchOverview({ meetings, data }) {
   const [open, setOpen] = useState(false);
-  const { loading, members, stats, attendedSet } = data;
+  const { loading, members, stats, attendedSet, isAbsent } = data;
   if (loading) return null;
 
   const watchedCount = (m) => meetings.filter(v => watchedSec(stats[v.id]?.[m.user_id], v) > 0).length;
@@ -130,10 +135,12 @@ export function MeetingWatchOverview({ meetings, data }) {
                 render: (r) => {
                   const c = r.cells[v.id];
                   const att = attendedSet.has(`${v.id}:${r.id}`);
-                  if (!c && !att) return <span style={{ color: color.gray300 }}>—</span>;
+                  const absent = isAbsent(v, r.member);
+                  if (!c && !att && !absent) return <span style={{ color: color.gray300 }}>—</span>;
                   return (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: space[1] }}>
                       {att && <Badge variant="info" size="sm">出席</Badge>}
+                      {absent && <Badge variant="danger" size="sm">欠席</Badge>}
                       {c && <span>{Math.max(1, Math.round(c.sec / 60))}分</span>}
                     </span>
                   );
@@ -148,14 +155,14 @@ export function MeetingWatchOverview({ meetings, data }) {
                 if (sec > 0) { cells[v.id] = { sec }; totalSec += sec; }
               }
               const attended = meetings.filter(v => attendedSet.has(`${v.id}:${m.id}`)).length;
-              return { id: m.id, name: m.name, count: Object.keys(cells).length, totalSec, attended, cells };
+              return { id: m.id, name: m.name, member: m, count: Object.keys(cells).length, totalSec, attended, cells };
             })}
             rowKey="id"
             height={Math.min(720, 72 + members.length * 42)}
             mobileCards={false}
             showCount={false}
           />
-          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1.5] }}>出席は第23回以降（Zoomの参加者記録から）。{NOTE}</div>
+          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1.5] }}>出席・欠席は第23回以降（Zoomの参加者記録から）。欠席は入社後に開かれた回だけに付けています。{NOTE}</div>
         </div>
       )}
     </div>
