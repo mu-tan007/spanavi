@@ -500,7 +500,7 @@ export default function ClientHomeworkView() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
+      <div className="spa-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
           {selectedHomework?.session_no === 1 && (
             <DiagnosisTaskCard done={diagnosisDone} onOpen={() => setDiagnosisOpen(true)} />

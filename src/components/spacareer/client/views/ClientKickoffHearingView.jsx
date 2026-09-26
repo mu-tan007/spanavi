@@ -394,7 +394,7 @@ export default function ClientKickoffHearingView() {
         </div>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: space[4], alignItems: 'flex-start' }}>
+      <div className="spa-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: space[4], alignItems: 'flex-start' }}>
         {/* 中央: セクションA〜J + BONUS */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
           {sections.map(sec => (

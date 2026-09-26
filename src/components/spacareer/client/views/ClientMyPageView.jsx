@@ -188,9 +188,9 @@ export default function ClientMyPageView() {
 
       <DrivingPhraseHero phrase={customer?.driving_phrase} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: space[5] }}>
+      <div className="spa-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: space[5] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[5] }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: space[4] }}>
+          <div className="spa-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: space[4] }}>
             <BasicInfoCard memberRow={memberRow} customer={customer} />
             <LearningProgressCard pct={learningPct} stats={videoStats} />
             <SessionProgressCard pct={sessionProgressPct} customer={customer} />
@@ -198,7 +198,7 @@ export default function ClientMyPageView() {
 
           <div>
             <SectionTitle>あなたの目標</SectionTitle>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: space[3], marginTop: space[3] }}>
+            <div className="spa-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: space[3], marginTop: space[3] }}>
               {goalCards.map((g, i) => (
                 <Card key={i} variant="subtle" padding="md">
                   <div style={{

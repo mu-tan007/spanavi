@@ -313,7 +313,7 @@ export default function ClientFeedbackView() {
         自分が得た学びをアウトプットとして記載することで、学習の定着率が上がります。ぜひAIを活用せず、ご自身の表現・言葉でご記載ください。
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
+      <div className="spa-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: space[4] }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: space[3] }}>
           <Card padding="md">
             <Label>このセッションへの満足度</Label>
