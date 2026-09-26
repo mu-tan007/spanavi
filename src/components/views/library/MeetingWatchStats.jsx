@@ -87,15 +87,12 @@ export function useMeetingWatchData(refreshKey) {
 // 推定は同じ回を何度か開いた分を足すので、動画の長さを上限にする
 const watchedSec = (s, v) => Math.min(s?.totalSec || 0, v?.duration_sec || Infinity);
 
-const NOTE = '「何秒〜何秒」は2026年9月26日から記録しています。それより前（6月30日以降）の分は、Cloudflareの再生記録とSpanaviのアクセス記録を突き合わせて推定した視聴分数です（区間なし）。6月29日以前は誰が見たかの記録が残っていません。';
-
 // 一覧の上：人 × 回の視聴分数と出欠（最初から開いておき、閉じることもできる）
 export function MeetingWatchOverview({ meetings, data }) {
   const [open, setOpen] = useState(true);
   const isMobile = useIsMobile();
   const { loading, members, stats, attendedSet, isAbsent } = data;
   if (loading) return null;
-
 
   return (
     <div style={{
@@ -156,7 +153,7 @@ export function MeetingWatchOverview({ meetings, data }) {
             mobileCards={false}
             showCount={false}
           />
-          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1.5] }}>出席・欠席は第23回以降（Zoomの参加者記録から）。欠席は入社後に開かれた回だけに付けています。{NOTE}</div>
+          <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[1.5] }}>出席・欠席は第23回以降（Zoomの参加者記録から）。欠席は入社後に開かれた回だけに付けています。</div>
         </div>
       )}
     </div>
@@ -223,7 +220,6 @@ export function MeetingWatchPanel({ meeting, data }) {
           ? <div style={{ fontSize: font.size.xs, color: color.textLight }}>いません</div>
           : <NameChips names={unwatched.map(m => attendedSet.has(`${meeting.id}:${m.id}`) ? `${m.name}（出席）` : m.name)} />}
       </div>
-      <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: space[2] }}>{NOTE}</div>
     </div>
   );
 }
@@ -256,7 +252,6 @@ function NameChips({ names, tone }) {
     </div>
   );
 }
-
 
 function shortTitle(t) {
   const m = String(t || '').match(/第\s*(\d+)\s*回/);
