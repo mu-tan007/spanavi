@@ -3624,6 +3624,8 @@ export async function uploadWeeklyMeetingVideo({ file, title, meetingDate, uploa
       filetype: file.type || 'video/mp4',
       fileSize: file.size,
       maxDurationSeconds: 7200,
+      // 新しい回は視聴制限つき（出席者と許可した人だけ）。動画IDだけでは再生できないようにする
+      requireSignedURLs: true,
     },
   });
   if (duErr || du?.error || !du?.uploadUrl || !du?.uid) {
@@ -3784,6 +3786,59 @@ export async function updateWeeklyMeetingVideo(id, patch) {
     .update(patch).eq('id', id).select().single();
   if (error) console.error('[DB] updateWeeklyMeetingVideo error:', error);
   return { data, error };
+}
+
+// ── 週次ミーティングの視聴権限（第34回以降） ──
+// 見られない回のID。画面で鍵を出すのに使う（実際の可否は再生時にサーバーで判定する）
+export async function fetchLockedWeeklyMeetingIds() {
+  const { data, error } = await supabase.rpc('my_locked_weekly_meetings');
+  if (error) console.error('[DB] my_locked_weekly_meetings error:', error);
+  return { data: new Set((data || []).map(r => (typeof r === 'string' ? r : r.my_locked_weekly_meetings))), error };
+}
+
+// 再生に使う ID（視聴制限のある回は署名付きトークン）を受け取る
+export async function fetchWeeklyMeetingPlaybackId(videoId) {
+  const { data, error } = await supabase.functions.invoke('cf-stream', { body: { mode: 'playback', videoId } });
+  if (error || data?.error) {
+    return { data: null, forbidden: !!data?.forbidden, error: error || new Error(data.error) };
+  }
+  return { data: data.id, forbidden: false, error: null };
+}
+
+export async function fetchWeeklyMeetingViewers(videoId) {
+  const { data, error } = await supabase
+    .from('weekly_meeting_viewers').select('member_id, reason').eq('video_id', videoId);
+  if (error) console.error('[DB] fetchWeeklyMeetingViewers error:', error);
+  return { data: data || [], error };
+}
+
+// 視聴者を丸ごと入れ替える。reasons: { [memberId]: 'attended' | 'granted' }
+export async function saveWeeklyMeetingViewers(videoId, reasons) {
+  const orgId = getOrgId();
+  const rows = Object.entries(reasons).map(([member_id, reason]) => ({ video_id: videoId, member_id, reason, org_id: orgId }));
+  const keep = rows.map(r => r.member_id);
+  let q = supabase.from('weekly_meeting_viewers').delete().eq('video_id', videoId);
+  if (keep.length) q = q.not('member_id', 'in', `(${keep.join(',')})`);
+  const { error: delErr } = await q;
+  if (delErr) { console.error('[DB] saveWeeklyMeetingViewers delete error:', delErr); return { error: delErr }; }
+  if (!rows.length) return { error: null };
+  const { error } = await supabase.from('weekly_meeting_viewers').upsert(rows, { onConflict: 'video_id,member_id' });
+  if (error) console.error('[DB] saveWeeklyMeetingViewers upsert error:', error);
+  return { error };
+}
+
+// 視聴制限の付け外し。Cloudflare 側の署名必須も揃える
+export async function setWeeklyMeetingRestricted(meeting, restricted) {
+  const { data, error } = await supabase
+    .from('weekly_meeting_videos').update({ access_restricted: restricted }).eq('id', meeting.id).select('id').single();
+  if (error || !data) return { error: error || new Error('0 rows updated') };
+  if (meeting.stream_uid) {
+    const { data: r, error: fnErr } = await supabase.functions.invoke('cf-stream', {
+      body: { mode: 'set_signed', uid: meeting.stream_uid, required: restricted },
+    });
+    if (fnErr || r?.error) return { error: fnErr || new Error(r.error) };
+  }
+  return { error: null };
 }
 
 export async function deleteWeeklyMeetingVideo(id, { streamUid = null, storagePath = null, documentPath = null } = {}) {

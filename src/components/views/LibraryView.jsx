@@ -8,7 +8,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Card, Badge } from '../ui';
+import { Button, Input, Card, Badge, Select } from '../ui';
 import InternRulesView from './InternRulesView';
 import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import PageHeader from '../common/PageHeader';
@@ -17,7 +17,10 @@ import {
   fetchRecordingBookmarks, deleteRecordingBookmark,
   fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo, updateWeeklyMeetingVideo,
   refreshWeeklyMeetingStatus, setWeeklyMeetingDocument, weeklyMeetingDocumentDownloadUrl,
+  fetchLockedWeeklyMeetingIds, fetchWeeklyMeetingPlaybackId,
+  fetchWeeklyMeetingViewers, saveWeeklyMeetingViewers, setWeeklyMeetingRestricted,
 } from '../../lib/supabaseWrite';
+import { supabase } from '../../lib/supabase';
 
 const CF_STREAM_SUBDOMAIN = import.meta.env.VITE_CF_STREAM_CUSTOMER_SUBDOMAIN || '';
 
@@ -71,6 +74,11 @@ export default function LibraryView({
   const [meetingPlayingId, setMeetingPlayingId] = useState(null);
   const [weeklyMeetings, setWeeklyMeetings] = useState([]);
   const [wmLoading, setWmLoading] = useState(true);
+  // 視聴制限（第34回以降）。見られない回のIDと、再生用ID（署名付きトークン）
+  const [lockedIds, setLockedIds] = useState(() => new Set());
+  const [playbackIds, setPlaybackIds] = useState({});
+  const [playbackErrors, setPlaybackErrors] = useState({});
+  const [viewerDialogMeeting, setViewerDialogMeeting] = useState(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -79,8 +87,9 @@ export default function LibraryView({
 
   const refreshMeetings = async () => {
     setWmLoading(true);
-    const { data } = await fetchWeeklyMeetingVideos();
+    const [{ data }, { data: locked }] = await Promise.all([fetchWeeklyMeetingVideos(), fetchLockedWeeklyMeetingIds()]);
     setWeeklyMeetings(data || []);
+    setLockedIds(locked);
     setWmLoading(false);
     (data || []).filter(m => m.stream_uid && !m.stream_ready).forEach(m => pollStreamStatus(m.id, m.stream_uid));
   };
@@ -97,6 +106,16 @@ export default function LibraryView({
       }
       await new Promise(r => setTimeout(r, 3000));
     }
+  };
+
+  const handlePlayMeeting = async (m) => {
+    if (meetingPlayingId === m.id) { setMeetingPlayingId(null); return; }
+    setMeetingPlayingId(m.id);
+    if (!m.access_restricted || lockedIds.has(m.id) || playbackIds[m.id]) return;
+    setPlaybackErrors(prev => ({ ...prev, [m.id]: null }));
+    const { data, forbidden } = await fetchWeeklyMeetingPlaybackId(m.id);
+    if (data) setPlaybackIds(prev => ({ ...prev, [m.id]: data }));
+    else setPlaybackErrors(prev => ({ ...prev, [m.id]: forbidden ? 'forbidden' : 'error' }));
   };
 
   const handleRemoveBookmark = async (id) => {
@@ -292,6 +311,8 @@ export default function LibraryView({
                     const isPlaying = meetingPlayingId === m.id;
                     const isEditing = editingMeetingId === m.id;
                     const isDocOpen = docViewingId === m.id && !!m.document_url;
+                    const isLocked = lockedIds.has(m.id) || playbackErrors[m.id] === 'forbidden';
+                    const streamId = m.access_restricted ? playbackIds[m.id] : m.stream_uid;
                     return (
                       <div key={m.id} style={{
                         borderTop: idx === 0 && !isAdmin ? 'none' : `1px solid ${color.borderLight}`,
@@ -342,6 +363,7 @@ export default function LibraryView({
                                   {m.uploaded_by_name ? ` ・ ${m.uploaded_by_name}` : ''}
                                   {m.size_bytes ? ` ・ ${Math.round(m.size_bytes / 1024 / 1024)}MB` : ''}
                                   {m.document_url ? ' ・ 資料あり' : ''}
+                                  {m.access_restricted ? ' ・ 出席者のみ' : ''}
                                 </div>
                               </>
                             )}
@@ -356,7 +378,7 @@ export default function LibraryView({
                               <Button
                                 size="sm"
                                 variant={isPlaying ? 'primary' : 'outline'}
-                                onClick={() => setMeetingPlayingId(isPlaying ? null : m.id)}
+                                onClick={() => handlePlayMeeting(m)}
                                 style={{ borderColor: color.navy, color: isPlaying ? color.white : color.navy, background: isPlaying ? color.navy : color.white }}
                               >
                                 {isPlaying ? '■ 停止' : '▶ 再生'}
@@ -378,6 +400,9 @@ export default function LibraryView({
                                     fontFamily: font.family.sans, textDecoration: 'none',
                                     display: 'inline-flex', alignItems: 'center',
                                   }}>↗ Drive</a>
+                              )}
+                              {isAdmin && m.access_restricted && (
+                                <Button size="sm" variant="outline" onClick={() => setViewerDialogMeeting(m)} title="この回を見られる人">視聴者</Button>
                               )}
                               {isAdmin && <Button size="sm" variant="outline" onClick={() => startEdit(m)} title="編集">✎ 編集</Button>}
                               {isAdmin && (
@@ -436,20 +461,28 @@ export default function LibraryView({
                         )}
                         {isPlaying && (
                           <div style={{ marginTop: space[2.5] }}>
-                            {m.stream_uid && CF_STREAM_SUBDOMAIN ? (
-                              m.stream_ready ? (
+                            {isLocked ? (
+                              <MeetingLockedNotice />
+                            ) : m.stream_uid && CF_STREAM_SUBDOMAIN ? (
+                              m.stream_ready ? (!streamId ? (
+                                <div style={{
+                                  width: '100%', height: 240, borderRadius: radius.md, background: color.navy,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: color.white, fontSize: font.size.sm, fontWeight: font.weight.bold,
+                                }}>{playbackErrors[m.id] === 'error' ? '再生の準備に失敗しました。もう一度お試しください' : '読み込み中…'}</div>
+                              ) : (
                                 <div style={{ maxWidth: 960, margin: '0 auto' }}>
                                   <div style={{
                                     position: 'relative', width: '100%', paddingTop: '56.25%',
                                     borderRadius: radius.md, overflow: 'hidden', background: '#000',
                                   }}>
                                     <iframe
-                                      src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${m.stream_uid}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${m.stream_uid}%2Fthumbnails%2Fthumbnail.jpg`}
+                                      src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${streamId}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${streamId}%2Fthumbnails%2Fthumbnail.jpg`}
                                       title={m.title} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen
                                       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
                                   </div>
                                 </div>
-                              ) : (
+                              )) : (
                                 <div style={{
                                   width: '100%', height: 240, borderRadius: radius.md,
                                   background: color.navy,
@@ -479,6 +512,14 @@ export default function LibraryView({
         </Card>
       )}
 
+      {viewerDialogMeeting && (
+        <MeetingViewersDialog
+          meeting={viewerDialogMeeting}
+          onClose={() => setViewerDialogMeeting(null)}
+          onSaved={() => { setViewerDialogMeeting(null); refreshMeetings(); }}
+        />
+      )}
+
       {docDialogMeeting && (
         <MeetingDocumentDialog
           meeting={docDialogMeeting}
@@ -492,6 +533,167 @@ export default function LibraryView({
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// 視聴制限のある回を、見る権限のない人が開いたときの案内
+// ────────────────────────────────────────────────────────────
+function MeetingLockedNotice() {
+  return (
+    <div style={{
+      width: '100%', borderRadius: radius.md, background: color.navy, color: color.white,
+      padding: `${space[6]}px ${space[4]}px`, textAlign: 'center',
+      display: 'flex', flexDirection: 'column', gap: space[2],
+    }}>
+      <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold }}>この回の録画は出席者だけが見られます</div>
+      <div style={{ fontSize: font.size.xs, color: color.goldLight, lineHeight: 1.7 }}>
+        やむを得ず欠席した場合は、篠宮に個別にLINEで<br />
+        「録画を見させてほしい」と連絡してください
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// 管理者用：この回を見られる人（出席・個別許可）を決める
+// その回より後に入社した人は、設定しなくても見られる
+// ────────────────────────────────────────────────────────────
+const VIEWER_OPTIONS = [
+  { value: '', label: '見られない' },
+  { value: 'attended', label: '出席' },
+  { value: 'granted', label: '個別に許可' },
+];
+
+function MeetingViewersDialog({ meeting, onClose, onSaved }) {
+  const [members, setMembers] = useState(null);
+  const [reasons, setReasons] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: ms, error: mErr }, { data: vs }] = await Promise.all([
+        supabase.from('members').select('id, name, start_date, team').eq('is_active', true)
+          .not('start_date', 'is', null).order('start_date'),
+        fetchWeeklyMeetingViewers(meeting.id),
+      ]);
+      if (mErr) setError('メンバーを読み込めませんでした');
+      setMembers(ms || []);
+      setReasons(Object.fromEntries(vs.map(v => [v.member_id, v.reason])));
+    })();
+  }, [meeting.id]);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !saving) onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, saving]);
+
+  const joinedAfter = (mb) => !!(meeting.meeting_date && mb.start_date > meeting.meeting_date);
+  const setReason = (id, v) => setReasons(prev => {
+    const next = { ...prev };
+    if (v) next[id] = v; else delete next[id];
+    return next;
+  });
+
+  const save = async () => {
+    setSaving(true); setError('');
+    const { error: err } = await saveWeeklyMeetingViewers(meeting.id, reasons);
+    setSaving(false);
+    if (err) { setError('保存できませんでした。管理者権限がない可能性があります。'); return; }
+    onSaved();
+  };
+
+  const makePublic = async () => {
+    if (!window.confirm('この回を全員が見られるようにします。よろしいですか？')) return;
+    setSaving(true); setError('');
+    const { error: err } = await setWeeklyMeetingRestricted(meeting, false);
+    setSaving(false);
+    if (err) { setError('変更できませんでした。'); return; }
+    onSaved();
+  };
+
+  const count = members ? members.filter(mb => reasons[mb.id] || joinedAfter(mb)).length : 0;
+
+  return (
+    <div
+      onClick={() => { if (!saving) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: alpha(color.navyDeep, 0.5),
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: space[4],
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+          background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl, overflow: 'hidden',
+        }}
+      >
+        <div style={{
+          background: color.navy, color: color.white,
+          padding: `${space[2.5]}px ${space[4]}px`,
+          fontSize: font.size.sm, fontWeight: font.weight.bold,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>視聴者 ・ {meeting.title}</div>
+
+        <div style={{
+          padding: `${space[2.5]}px ${space[4]}px`, fontSize: font.size.xs, color: color.textMid,
+          borderBottom: `1px solid ${color.borderLight}`,
+        }}>
+          見られる人 {count}名 ・ 管理者はいつでも見られます
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: `${space[1]}px ${space[4]}px` }}>
+          {!members ? (
+            <div style={{ padding: space[4], textAlign: 'center', color: color.textLight, fontSize: font.size.sm }}>読み込み中…</div>
+          ) : members.map(mb => (
+            <div key={mb.id} style={{
+              display: 'flex', alignItems: 'center', gap: space[3],
+              padding: `${space[1.5]}px 0`, borderBottom: `1px solid ${color.borderLight}`,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{mb.name}</div>
+                <div style={{ fontSize: font.size.xs - 1, color: color.textLight }}>
+                  {mb.start_date} 入社{mb.team ? ` ・ ${mb.team}チーム` : ''}
+                </div>
+              </div>
+              {joinedAfter(mb) ? (
+                <Badge variant="neutral">入社前の回</Badge>
+              ) : (
+                <Select
+                  size="sm"
+                  fullWidth={false}
+                  containerStyle={{ width: 140 }}
+                  value={reasons[mb.id] || ''}
+                  onChange={e => setReason(mb.id, e.target.value)}
+                  options={VIEWER_OPTIONS}
+                  disabled={saving}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div style={{ padding: `0 ${space[4]}px`, fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>
+            {error}
+          </div>
+        )}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: space[2],
+          padding: space[3], borderTop: `1px solid ${color.borderLight}`,
+        }}>
+          <Button size="sm" variant="ghost" onClick={makePublic} disabled={saving}>全員に公開する</Button>
+          <div style={{ flex: 1 }} />
+          <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>キャンセル</Button>
+          <Button size="sm" onClick={save} loading={saving} disabled={!members}>保存</Button>
+        </div>
+      </div>
     </div>
   );
 }
