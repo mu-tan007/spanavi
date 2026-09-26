@@ -3827,6 +3827,33 @@ export async function saveWeeklyMeetingViewers(videoId, reasons) {
   return { error };
 }
 
+// ── 週次ミーティングの視聴記録 ──
+// 組織内の全員の記録（視聴状況は全員に見せる）。件数は1区間1行なので数千行に収まる
+export async function fetchWeeklyMeetingWatchLogs() {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('weekly_meeting_watch_logs')
+      .select('id, video_id, user_id, source, start_sec, end_sec, watched_sec, started_at, ended_at')
+      .order('started_at').range(from, from + 999);
+    if (error) { console.error('[DB] fetchWeeklyMeetingWatchLogs error:', error); return { data: rows, error }; }
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return { data: rows, error: null };
+}
+
+// 見ている区間を1行で送る。同じ区間は id が同じなので end_sec が伸びていくだけ
+export async function saveWeeklyMeetingWatchSegment({ id, videoId, startSec, endSec, startedAt, device }) {
+  const { error } = await supabase.from('weekly_meeting_watch_logs').upsert({
+    id, video_id: videoId, source: 'player',
+    start_sec: startSec, end_sec: endSec, watched_sec: endSec - startSec,
+    started_at: startedAt, ended_at: new Date().toISOString(), device,
+  });
+  if (error) console.error('[DB] saveWeeklyMeetingWatchSegment error:', error);
+  return { error };
+}
+
 // 視聴制限の付け外し。Cloudflare 側の署名必須も揃える
 export async function setWeeklyMeetingRestricted(meeting, restricted) {
   const { data, error } = await supabase

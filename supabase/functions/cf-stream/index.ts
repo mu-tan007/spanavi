@@ -4,6 +4,7 @@
 //   force_cleanup_pending: pendingupload 状態の動画を全て削除 (時間制限なし)
 //   playback: 週次ミーティングの再生。視聴制限のある回は権限を確かめて署名付きトークンを返す
 //   set_signed: 動画の署名必須（requireSignedURLs）を切り替える（管理者のみ）
+//   analytics: Cloudflare の GraphQL Analytics を引く（管理者のみ）
 // Secrets required:
 //   CF_STREAM_ACCOUNT_ID
 //   CF_STREAM_API_TOKEN
@@ -184,6 +185,18 @@ Deno.serve(async (req: Request) => {
       const err = await setRequireSigned(uid, !!body.required);
       if (err) return json({ error: 'cf update failed', detail: err }, 200);
       return json({ ok: true });
+    }
+
+    if (mode === 'analytics') {
+      // Cloudflare の GraphQL Analytics をそのまま引く（管理者のみ・読み取りだけ）
+      const { data: isAdmin } = await userClientFor(req).rpc('is_org_admin');
+      if (!isAdmin) return json({ error: 'forbidden', forbidden: true }, 200);
+      const r = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${API_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: String(body.query || ''), variables: { accountTag: ACCOUNT_ID, ...(body.variables || {}) } }),
+      });
+      return json(await r.json().catch(() => ({ error: `status ${r.status}` })));
     }
 
     if (mode === 'list_stats') {

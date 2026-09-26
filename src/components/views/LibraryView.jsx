@@ -13,6 +13,8 @@ import InternRulesView from './InternRulesView';
 import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import PageHeader from '../common/PageHeader';
 import DailyReportPanel from './library/DailyReportPanel';
+import MeetingStreamPlayer from './library/MeetingStreamPlayer';
+import { MeetingWatchOverview, MeetingWatchPanel, useMeetingWatchData } from './library/MeetingWatchStats';
 import {
   fetchRecordingBookmarks, deleteRecordingBookmark,
   fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo, updateWeeklyMeetingVideo,
@@ -79,6 +81,15 @@ export default function LibraryView({
   const [playbackIds, setPlaybackIds] = useState({});
   const [playbackErrors, setPlaybackErrors] = useState({});
   const [viewerDialogMeeting, setViewerDialogMeeting] = useState(null);
+  // 視聴状況（全員に見せる）。開くたびに最新を読み直す
+  const [watchPanelId, setWatchPanelId] = useState(null);
+  const [watchRefreshKey, setWatchRefreshKey] = useState(0);
+  const watchData = useMeetingWatchData(watchRefreshKey);
+  const toggleWatchPanel = (m) => {
+    if (watchPanelId === m.id) { setWatchPanelId(null); return; }
+    setWatchPanelId(m.id);
+    setWatchRefreshKey(k => k + 1);
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -305,12 +316,14 @@ export default function LibraryView({
             {activeCardId === 'meetings' && (
               <>
                 {isAdmin && <MeetingUploader currentUser={currentUser} onUploaded={refreshMeetings} />}
+                {!wmLoading && weeklyMeetings.length > 0 && <MeetingWatchOverview meetings={weeklyMeetings} data={watchData} />}
                 {wmLoading ? <Empty>読み込み中…</Empty>
                   : weeklyMeetings.length === 0 ? <Empty>動画はまだアップロードされていません。</Empty>
                   : weeklyMeetings.map((m, idx) => {
                     const isPlaying = meetingPlayingId === m.id;
                     const isEditing = editingMeetingId === m.id;
                     const isDocOpen = docViewingId === m.id && !!m.document_url;
+                    const isWatchOpen = watchPanelId === m.id;
                     const isLocked = lockedIds.has(m.id) || playbackErrors[m.id] === 'forbidden';
                     const streamId = m.access_restricted ? playbackIds[m.id] : m.stream_uid;
                     return (
@@ -401,6 +414,13 @@ export default function LibraryView({
                                     display: 'inline-flex', alignItems: 'center',
                                   }}>↗ Drive</a>
                               )}
+                              <Button
+                                size="sm"
+                                variant={isWatchOpen ? 'primary' : 'outline'}
+                                onClick={() => toggleWatchPanel(m)}
+                                title="誰が何分見たか"
+                                style={isWatchOpen ? { borderColor: color.navy, color: color.white, background: color.navy } : undefined}
+                              >{isWatchOpen ? '■ 視聴状況' : '視聴状況'}</Button>
                               {isAdmin && m.access_restricted && (
                                 <Button size="sm" variant="outline" onClick={() => setViewerDialogMeeting(m)} title="この回を見られる人">視聴者</Button>
                               )}
@@ -417,6 +437,11 @@ export default function LibraryView({
                             </>
                           )}
                         </div>
+                        {isWatchOpen && (
+                          <div style={{ marginTop: space[2.5] }}>
+                            <MeetingWatchPanel meeting={m} data={watchData} />
+                          </div>
+                        )}
                         {isDocOpen && (
                           <div style={{ marginTop: space[2.5] }}>
                             <div style={{
@@ -476,10 +501,10 @@ export default function LibraryView({
                                     position: 'relative', width: '100%', paddingTop: '56.25%',
                                     borderRadius: radius.md, overflow: 'hidden', background: '#000',
                                   }}>
-                                    <iframe
-                                      src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${streamId}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${streamId}%2Fthumbnails%2Fthumbnail.jpg`}
-                                      title={m.title} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen
-                                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
+                                    <MeetingStreamPlayer
+                                      videoId={m.id}
+                                      title={m.title}
+                                      src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${streamId}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${streamId}%2Fthumbnails%2Fthumbnail.jpg`} />
                                   </div>
                                 </div>
                               )) : (
