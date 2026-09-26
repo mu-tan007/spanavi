@@ -102,7 +102,7 @@ export function MeetingWatchOverview({ meetings, data }) {
           対象 {members.length}人 ・ 1本も見ていない人 {never.length}人
         </div>
         <Button size="sm" variant={open ? 'primary' : 'outline'} onClick={() => setOpen(!open)} style={{ marginLeft: 'auto' }}>
-          {open ? '■ 一覧表を閉じる' : '人 × 回の一覧表'}
+          {open ? '■ 視聴データを閉じる' : '視聴データ'}
         </Button>
       </div>
 
