@@ -15,7 +15,7 @@ const corsHeaders = {
 // gift-scan と同じ。機械の取得は数えないし知らせない
 const BOT = /bot|crawler|spider|crawling|preview|slackbot|facebookexternalhit|twitterbot|whatsapp|line-?poker|discordbot|embedly|quora|pinterest|vkshare|skypeuripreview|google-?(read-?aloud|favicon)|bingpreview|curl|wget|python-requests|headless|lighthouse|monitor|uptime/i
 
-const CHANNEL_LABEL: Record<string, string> = { form: '問い合わせフォーム', email: 'メール' }
+const CHANNEL_LABEL: Record<string, string> = { form: '問い合わせフォーム', email: 'メール', sns: 'SNS' }
 const DOC_LABEL: Record<string, string> = { uri_sourcing: '売り手ソーシング代行 サービス紹介資料' }
 
 async function sha256(s: string) {

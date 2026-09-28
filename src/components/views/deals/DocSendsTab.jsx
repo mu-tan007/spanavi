@@ -7,7 +7,7 @@ import { supabase } from '../../../lib/supabase';
 // 数えるのは doc_send_stats ビュー1本。画面側で数えない。閲覧は機械の取得を除いた件数。
 // 設計: tasks/sekkei_form_eigyo_doc_tracking.md
 
-const CHANNEL_LABEL = { form: 'フォーム', email: 'メール' };
+const CHANNEL_LABEL = { form: 'フォーム', email: 'メール', sns: 'SNS' };
 
 const CALL_BADGE = {
   'アポ獲得': 'success',
@@ -139,8 +139,8 @@ export default function DocSendsTab({ client }) {
     {
       key: 'sent_to', label: '送付先', width: 90, align: 'center',
       render: (r) => (r.sent_to ? (
-        r.channel === 'form'
-          ? <a href={r.sent_to} target="_blank" rel="noopener noreferrer" style={{ color: color.navy, fontSize: font.size.xs }}>フォーム</a>
+        r.channel !== 'email'
+          ? <a href={r.sent_to} target="_blank" rel="noopener noreferrer" style={{ color: color.navy, fontSize: font.size.xs }}>{r.channel === 'sns' ? 'SNS' : 'フォーム'}</a>
           : <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.sent_to.split('\n')[0]}</span>
       ) : '—'),
     },

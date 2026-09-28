@@ -13,7 +13,7 @@ create table if not exists public.doc_sends (
   lead_item_id uuid not null references public.call_list_items(id) on delete cascade,
   company text not null,
   tel text,
-  channel text not null check (channel in ('form', 'email')),
+  channel text not null check (channel in ('form', 'email', 'sns')),
   sent_to text,
   doc_key text not null,
   sent_at timestamptz,
