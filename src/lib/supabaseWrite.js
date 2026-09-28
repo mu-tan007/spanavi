@@ -2507,6 +2507,21 @@ export async function fetchGiftLetterPath(itemId) {
   return { path: data?.letter_pdf_path || null, error }
 }
 
+// フォーム営業で送った資料リンクの閲覧（doc_send_stats）。架電画面の「資料閲覧済み」の目印に使う
+export async function fetchDocViewForItem(itemId) {
+  if (!itemId) return { view: null, error: null }
+  const { data, error } = await supabase
+    .from('doc_send_stats')
+    .select('first_view_at, view_count')
+    .eq('lead_item_id', itemId)
+    .not('first_view_at', 'is', null)
+    .order('first_view_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchDocViewForItem error:', error)
+  return { view: data || null, error }
+}
+
 export async function getGiftLetterSignedUrl(path, expiresIn = 600) {
   if (!path) return { url: null, error: new Error('no path') }
   const { data, error } = await supabase.storage

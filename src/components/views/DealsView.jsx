@@ -16,6 +16,7 @@ import AppointmentsTab from './deals/AppointmentsTab';
 import RejectionCandidatesTab from './deals/RejectionCandidatesTab';
 import BuyerMatchingNeedsTab from './deals/BuyerMatchingNeedsTab';
 import GiftDmTab from './deals/GiftDmTab';
+import DocSendsTab from './deals/DocSendsTab';
 
 const BASE_TABS = [
   { id: 'calls',     label: '架電結果' },
@@ -25,7 +26,8 @@ const BASE_TABS = [
 // 'needs'(ニーズヒアリング) は買い手マッチングのリストを持つクライアント選択時のみ表示。
 // useUrlState の allowed には常に含めておく(URL直叩き/リロード対応)。
 // 'giftdm'(dorayaki AI) はギフト同梱DMの送付先を持つクライアント選択時のみ表示。
-const TAB_IDS = [...BASE_TABS.map(t => t.id), 'needs', 'giftdm'];
+// 'docsend'(フォーム営業) は資料リンクの送付先(doc_sends)を持つクライアント選択時のみ表示。
+const TAB_IDS = [...BASE_TABS.map(t => t.id), 'docsend', 'needs', 'giftdm'];
 
 export default function DealsView({ isAdmin = false, currentUser = '' }) {
   const { currentEngagement } = useEngagements();
@@ -87,21 +89,41 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
     return () => { cancelled = true; };
   }, [selectedClientId]);
 
+  // 資料リンクの送付先を持つクライアントだけ「フォーム営業」タブを出す(データ駆動)
+  const [hasDocSends, setHasDocSends] = useState(null);   // null = 判定前
+  useEffect(() => {
+    if (!selectedClientId) { setHasDocSends(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('doc_sends').select('id').eq('client_id', selectedClientId).limit(1);
+        if (!cancelled) setHasDocSends((data || []).length > 0);
+      } catch (e) {
+        console.warn('[DealsView] doc sends check failed:', e);
+        if (!cancelled) setHasDocSends(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedClientId]);
+
   // 表示するタブ(needs は買い手マッチング契約クライアント選択時のみ追加)
   const TABS = useMemo(
     () => [
       ...BASE_TABS,
+      ...(hasDocSends === true ? [{ id: 'docsend', label: 'フォーム営業' }] : []),
       ...(hasMatchingList ? [{ id: 'needs', label: 'ニーズヒアリング' }] : []),
       ...(hasGiftDm === true ? [{ id: 'giftdm', label: 'dorayaki AI' }] : []),
     ],
-    [hasMatchingList, hasGiftDm]
+    [hasMatchingList, hasGiftDm, hasDocSends]
   );
 
   // needs タブを開いたままタブが消える状況(別クライアント選択等)では架電結果へ戻す
   useEffect(() => {
     if (activeTab === 'needs' && !hasMatchingList) setActiveTab('calls');
     if (activeTab === 'giftdm' && hasGiftDm === false) setActiveTab('calls');
-  }, [activeTab, hasMatchingList, hasGiftDm, setActiveTab]);
+    if (activeTab === 'docsend' && hasDocSends === false) setActiveTab('calls');
+  }, [activeTab, hasMatchingList, hasGiftDm, hasDocSends, setActiveTab]);
 
   // クライアントが扱う engagement 一覧 (appointments ベース)
   const orgId = getOrgId();
@@ -292,6 +314,9 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
             client={selectedClient}
             filterEngagementId={selectedClient && clientEngagements.length >= 2 ? effectiveSubEngagementId : null}
           />
+        )}
+        {activeTab === 'docsend' && selectedClient && (
+          <DocSendsTab client={{ id: selectedClient.id, name: selectedClient.name }} />
         )}
         {activeTab === 'needs' && selectedClient && (
           <BuyerMatchingNeedsTab

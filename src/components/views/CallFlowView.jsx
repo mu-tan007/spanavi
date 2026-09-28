@@ -13,7 +13,7 @@ import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { getEffectiveCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
-import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, fetchDocViewForItem, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -439,6 +439,23 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     });
     return () => { cancelled = true; };
   }, [selectedItemId]);
+  // フォーム営業の資料リンクが開かれた企業に「資料閲覧済み」を出す（doc_send_stats.lead_item_id で引き当て）
+  const [docViews, setDocViews] = useState({}); // { [itemId]: { first_view_at, view_count } | null }（未取得は undefined）
+  const docView = selectedItemId ? docViews[selectedItemId] : undefined;
+  useEffect(() => {
+    if (!selectedItemId || docViews[selectedItemId] !== undefined) return;
+    let cancelled = false;
+    fetchDocViewForItem(selectedItemId).then(({ view, error }) => {
+      if (cancelled || error) return;
+      setDocViews(prev => ({ ...prev, [selectedItemId]: view }));
+    });
+    return () => { cancelled = true; };
+  }, [selectedItemId]);
+  const docViewBadge = docView ? (
+    <Badge variant="success" dot>
+      {`資料閲覧済み ${formatJST(docView.first_view_at)}${docView.view_count > 1 ? `・計${docView.view_count}回` : ''}`}
+    </Badge>
+  ) : null;
   useEffect(() => {
     // 手紙タブは集中モードだけ。リスト表示の下部パネルには無いので戻す
     if (scriptTab === 'letter' && (letterPath === null || listMode)) setScriptTab('script');
@@ -1632,6 +1649,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               {/* 企業名 */}
               <div style={{ fontSize: 17, fontWeight: 800, color: C.navy, marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid ' + C.borderLight }}>
                 {selectedRow.company}
+                {docViewBadge ? <div style={{ marginTop: space[1.5] }}>{docViewBadge}</div> : null}
               </div>
 
               {/* 基本情報 */}
@@ -2559,7 +2577,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 return (
                   <div style={{ padding: space[5], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: space[3] }}>
-                      <div style={{ fontSize: font.size.xl + 2, fontWeight: font.weight.bold, color: color.navyDeep, flex: 1, lineHeight: 1.3 }}>{selectedRow.company}</div>
+                      <div style={{ fontSize: font.size.xl + 2, fontWeight: font.weight.bold, color: color.navyDeep, flex: 1, lineHeight: 1.3 }}>{selectedRow.company}{docViewBadge ? <div style={{ marginTop: space[1] }}>{docViewBadge}</div> : null}</div>
                       <Button variant="outline" size="sm" onClick={() => setProfileTarget({ itemId: selectedRow.id })}>企業カルテ</Button>
                       <span style={{ fontSize: font.size.xs, padding: '1px 6px', borderRadius: radius.sm, fontWeight: font.weight.semibold, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
                         {lastResult}

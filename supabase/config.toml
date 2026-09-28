@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.notify-gift-scan]
 verify_jwt = false
+
+[functions.doc-view]
+verify_jwt = false
