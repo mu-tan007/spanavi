@@ -123,11 +123,11 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             // 報告書の添削は「トランスクリプトのどこが報告書に足りないか」の
-            // 文脈判断が要るため Sonnet 5 を使う。短い受付録音でも誤添削しにくい。
-            model: 'claude-sonnet-5',
-            // Sonnet 5 は thinking 未指定だと adaptive(思考ON)になり、
-            // 思考トークンが max_tokens を食って添削文が途中で切れる。明示的に切る。
-            thinking: { type: 'disabled' },
+            // 文脈判断が要るため Sonnet 5.5 を使う。短い受付録音でも誤添削しにくい。
+            model: 'claude-sonnet-5-5',
+            // Sonnet 5.5 は thinking 未指定で adaptive(思考ON)、disabled は非対応。
+            // 道具を使わない間は思考しない between_tools にして、出力の途切れを防ぐ。
+            thinking: { type: 'between_tools' },
             // 報告書は実測平均729文字。1024だと余裕がないので倍に取る。
             max_tokens: 2048,
             messages: [{ role: 'user', content: prompt }],

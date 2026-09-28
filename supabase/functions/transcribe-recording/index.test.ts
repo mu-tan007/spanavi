@@ -63,7 +63,7 @@ describe('real transcribe-recording handler with fixture transports', () => {
     expect([...new Uint8Array(mocks.r2PutFromBuffer.mock.calls[0][1])]).toEqual([...audio])
     expect(mocks.r2PutFromBuffer.mock.calls[0][2]).toBe('audio/mp4')
     const sent = await aiRequests()
-    expect(sent).toMatchObject({ audio: [...audio], filename: 'recording.mp4', filetype: 'audio/mp4', whisperModel: 'whisper-1', language: 'ja', claude: { body: { model: 'claude-haiku-4-5-20251001', max_tokens: 2560 } } })
+    expect(sent).toMatchObject({ audio: [...audio], filename: 'recording.mp4', filetype: 'audio/mp4', whisperModel: 'whisper-1', language: 'ja', claude: { body: { model: 'claude-sonnet-5-5', thinking: { type: 'between_tools' }, max_tokens: 2560 } } })
     expect(sent.claude.body.messages[0].content).toContain(transcript)
     expect(await result.json()).toMatchObject({ transcript, personality: '丁寧', keyman_ma_intent: 'wait', publicRecordingUrl: 'https://recordings.example.jp/rec/saved-fixture' })
   })

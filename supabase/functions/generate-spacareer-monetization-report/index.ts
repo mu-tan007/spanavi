@@ -17,7 +17,7 @@ const corsHeaders = {
 }
 
 // 診断完了は稀少・高価値イベントのため、指示追従と品質を優先して sonnet を使用。
-const MODEL = 'claude-sonnet-5'
+const MODEL = 'claude-sonnet-5-5'
 const MAX_TOKENS = 2048
 
 function json(body: unknown, status = 200) {
@@ -104,8 +104,9 @@ ${alternates.map((c: any) => `- ${c.domainLabel} × ${c.industryLabel}（スコ�
       },
       body: JSON.stringify({
         model: MODEL,
-        // Sonnet 5 は thinking 未指定で adaptive(思考ON)。出力が途切れるので切る。
-        thinking: { type: 'disabled' },
+        // Sonnet 5.5 は thinking 未指定で adaptive(思考ON)、disabled は非対応。
+        // 道具を使わない間は思考しない between_tools にして、出力の途切れを防ぐ。
+        thinking: { type: 'between_tools' },
         max_tokens: MAX_TOKENS,
         messages: [{ role: 'user', content: prompt }],
       }),

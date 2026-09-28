@@ -2,7 +2,7 @@
 // analyze-kickoff-hearing
 // ----------------------------------------------------------------
 // 第1回前70問キックオフヒアリングのAI抽出パイプライン (§8.7)。
-// Claude Haiku 4.5 で2種類のプロンプトを並列実行し、結果を
+// Claude Sonnet 5.5 で2種類のプロンプトを並列実行し、結果を
 // spacareer_kickoff_hearing_ai_extractions に保存する。
 //
 // 入力:
@@ -34,12 +34,12 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-const MODEL = 'claude-haiku-4-5-20251001'
+const MODEL = 'claude-sonnet-5-5'
 const PROMPT_VERSION = 'v1'
 
-// Haiku 4.5 価格: $1/M input, $5/M output
-const PRICE_IN = 1.0
-const PRICE_OUT = 5.0
+// Sonnet 5.5 価格: $2/M input, $10/M output
+const PRICE_IN = 2.0
+const PRICE_OUT = 10.0
 
 // ============================================================
 // プロンプト構築
@@ -143,6 +143,9 @@ async function callClaude(
     },
     body: JSON.stringify({
       model: MODEL,
+      // Sonnet 5.5 は thinking 未指定で adaptive(思考ON)、disabled は非対応。
+      // 道具を使わない間は思考しない between_tools にして、出力の途切れを防ぐ。
+      thinking: { type: 'between_tools' },
       max_tokens: 3072,
       messages: [{ role: 'user', content: systemPlusUserPrompt }],
     }),

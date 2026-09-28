@@ -437,11 +437,11 @@ async function callClaude(opts: {
   let res: Response
   try {
     const body: Record<string, unknown> = {
-      // Sonnet 4.6 → Sonnet 5。HP本文の読み込みと Web 検索を跨いだ構造化に効く世代。
-      model: 'claude-sonnet-5',
-      // thinking 未指定だと adaptive(思考ON)になり、思考トークンが max_tokens を
-      // 食って JSON が途切れる。ドシエは JSON 必須なので明示的に切る。
-      thinking: { type: 'disabled' },
+      // Sonnet 4.6 → Sonnet 5 → Sonnet 5.5。HP本文の読み込みと Web 検索を跨いだ構造化に効く世代。
+      model: 'claude-sonnet-5-5',
+      // Sonnet 5.5 は thinking 未指定で adaptive(思考ON)、disabled は非対応。
+      // 道具を使わない間は思考しない between_tools にして、出力の途切れを防ぐ。
+      thinking: { type: 'between_tools' },
       max_tokens: opts.maxTokens,
       messages: [{ role: 'user', content: opts.prompt }],
     }

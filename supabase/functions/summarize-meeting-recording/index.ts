@@ -58,7 +58,7 @@ async function processInBackground(meetingId: string, recordingUrl: string) {
     const transcript: string = (whisperJson.text || "").trim();
     if (!transcript) throw new Error("文字起こしが空でした");
 
-    // 4. Claude (Haiku 4.5) で要約 (概要 + Next Action)
+    // 4. Claude (Sonnet 5.5) で要約 (概要 + Next Action)
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY が設定されていません");
     const prompt = `以下はM&Aソーシングパートナーズ株式会社 (篠宮) と先方クライアントの面談の文字起こしです。
 2項目「概要」と「Next Action」を抽出してください。
@@ -82,7 +82,10 @@ ${transcript.slice(0, 30000)}`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-5-5",
+        // Sonnet 5.5 は thinking 未指定で adaptive(思考ON)、disabled は非対応。
+        // 道具を使わない間は思考しない between_tools にして、出力の途切れを防ぐ。
+        thinking: { type: "between_tools" },
         max_tokens: 1500,
         messages: [{ role: "user", content: prompt }],
       }),

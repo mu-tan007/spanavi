@@ -149,10 +149,10 @@ Deno.serve(async (req) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        // Sonnet 5 は thinking 未指定で adaptive(思考ON)。思考トークンが
-        // max_tokens を食って JSON が途切れるため明示的に切る。
-        thinking: { type: 'disabled' },
+        model: 'claude-sonnet-5-5',
+        // Sonnet 5.5 は thinking 未指定で adaptive(思考ON)、disabled は非対応。
+        // 道具を使わない間は思考しない between_tools にして、出力の途切れを防ぐ。
+        thinking: { type: 'between_tools' },
         max_tokens: 4000,
         system: [
           {
