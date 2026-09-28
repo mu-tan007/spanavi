@@ -1937,7 +1937,7 @@ export async function fetchAllRecallRecords() {
       const chunk = itemIds.slice(i, i + CHUNK)
       const { data: items, error: itemsErr } = await supabase
         .from('call_list_items')
-        .select('id, company, phone, representative, address, call_status')
+        .select('id, company, phone, representative, address, call_status, is_excluded')
         .in('id', chunk)
       if (itemsErr) { console.error('[DB] fetchAllRecallRecords items chunk error:', itemsErr); continue }
       ;(items || []).forEach(i => { itemMap[i.id] = i })
@@ -1972,6 +1972,8 @@ export async function fetchAllRecallRecords() {
   const statusFresh = listAlive.filter(r => {
     const item = itemMap[r.item_id]
     if (!item) return true
+    // 除外された企業（ギフトDM受取拒否など）は再コール予定が残っていても出さない
+    if (item.is_excluded === true) return false
     return RECALL_LATEST_STATUSES.has(item.call_status)
   })
 
