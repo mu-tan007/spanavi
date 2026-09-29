@@ -33,4 +33,22 @@ describe('MultiCalendarPanel', () => {
     const renderer = render([hayashi]);
     expect(shownCalendar(renderer)).toBe('t.funayama@univis.co.jp');
   });
+
+  it('担当者のカレンダーには本人のリストのアポだけを重ねる（担当者を引けないアポは全員に出す）', () => {
+    const kawamotoAppo = { meetDate: '2026-10-09', meetTime: '10:00', contactIds: ['kawamoto'] };
+    const hayashiAppo = { meetDate: '2026-10-08', meetTime: '10:00', contactIds: ['hayashi'] };
+    const unknownAppo = { meetDate: '2026-10-07', meetTime: '10:00', contactIds: [] };
+    const appos = [kawamotoAppo, hayashiAppo, unknownAppo];
+    const shownAppos = renderer => renderer.root.findByType(ClientCalendarPanel).props.existingAppointments;
+
+    let single;
+    act(() => { single = create(<MultiCalendarPanel contacts={[hayashi]} fallbackClient={client} existingAppointments={appos} />); });
+    expect(shownAppos(single)).toEqual([hayashiAppo, unknownAppo]);
+
+    let multi;
+    act(() => { multi = create(<MultiCalendarPanel contacts={[funayama, hayashi]} fallbackClient={client} existingAppointments={appos} />); });
+    expect(shownAppos(multi)).toEqual([unknownAppo]);
+    act(() => { multi.root.findAllByType('button').find(b => b.children.includes('林')).props.onClick(); });
+    expect(shownAppos(multi)).toEqual([hayashiAppo, unknownAppo]);
+  });
 });

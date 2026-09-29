@@ -26,7 +26,7 @@ import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
 import ScriptBody from '../common/ScriptBody';
 import ScriptTreeGuide from '../common/ScriptTreeGuide';
-import { resolveListContacts, resolveListClient } from '../../utils/listContacts';
+import { resolveListContacts, resolveListClient, tagAppointmentContacts } from '../../utils/listContacts';
 import { initialAppoStatus } from '../../utils/appoStatus';
 import { useAccessControl } from '../../hooks/useAccessControl';
 
@@ -195,7 +195,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -2069,7 +2069,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     }}
                     compact
                     onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
-                    existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
+                    existingAppointments={tagAppointmentContacts((appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime), [list, ...callListData], contacts)}
                     staticNoteLines={extractCalendarCautionLines(list.cautions)}
                     onUpdateCalendarLines={async (newLines) => {
                       if (!list?._supaId) return;
@@ -3085,7 +3085,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       });
                     }}
                     onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
-                    existingAppointments={(appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime)}
+                    existingAppointments={tagAppointmentContacts((appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime), [list, ...callListData], contacts)}
                     staticNoteLines={extractCalendarCautionLines(list.cautions)}
                     onUpdateCalendarLines={async (newLines) => {
                       if (!list?._supaId) return;

@@ -21,6 +21,8 @@ export default function MultiCalendarPanel({
   const [activeTab, setActiveTab] = useState(0);
   // 「架電画面のカレンダータブに表示」を外した担当者はタブを出さない
   contacts = (contacts || []).filter(ct => ct.showInCallCalendar !== false);
+  // 担当者のカレンダーには本人のアポだけを重ねる。担当者を引けないアポ（contactIds が空）は全員に出す
+  const appointmentsOf = (ct) => existingAppointments.filter(a => !a.contactIds?.length || a.contactIds.includes(ct.id));
 
   // 担当者が0人: クライアントレベルのカレンダーにフォールバック
   if (!contacts || contacts.length === 0) {
@@ -52,7 +54,7 @@ export default function MultiCalendarPanel({
         schedulingLabel2={ct.schedulingLabel2 || ''}
         compact={compact}
         onSelectSlot={onSelectSlot}
-        existingAppointments={existingAppointments}
+        existingAppointments={appointmentsOf(ct)}
         staticNoteLines={staticNoteLines}
         onUpdateCalendarLines={onUpdateCalendarLines}
         appointmentCalendar={showRegisteredAppointments && fallbackClient?._supaId && (
@@ -112,7 +114,7 @@ export default function MultiCalendarPanel({
         schedulingLabel2={activeCt.schedulingLabel2 || ''}
         compact={compact}
         onSelectSlot={onSelectSlot}
-        existingAppointments={existingAppointments}
+        existingAppointments={appointmentsOf(activeCt)}
         staticNoteLines={staticNoteLines}
         onUpdateCalendarLines={onUpdateCalendarLines}
         appointmentCalendar={showRegisteredAppointments && fallbackClient?._supaId && (

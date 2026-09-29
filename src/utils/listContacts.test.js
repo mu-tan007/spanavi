@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findClientByName, resolveClient, resolveListClient } from './listContacts';
+import { findClientByName, resolveClient, resolveListClient, tagAppointmentContacts } from './listContacts';
 
 // 株式会社SECURITY BRIDGE が clients に2件登録されている状態を再現する。
 // 実務データ（担当者・架電リスト・報酬設定）は「支援中」の方だけが持っている。
@@ -52,5 +52,18 @@ describe('resolveListClient', () => {
   it('架電リストは list.client_id を優先する', () => {
     const list = { client_id: 'real', company: '株式会社SECURITY BRIDGE' };
     expect(resolveListClient(list, CLIENTS)._supaId).toBe('real');
+  });
+});
+
+describe('tagAppointmentContacts', () => {
+  const contacts = [{ id: 'kawamoto', name: '川元 徳馬' }, { id: 'hayashi', name: '林 泰之' }];
+  const lists = [
+    { _supaId: 'list9', contactIds: ['kawamoto'], manager: '川元 徳馬' },
+    { _supaId: 'list10', contactIds: [], manager: '林' },
+  ];
+
+  it('アポを取ったリストの担当者を付け、リストを引けないアポは空にする', () => {
+    const tagged = tagAppointmentContacts([{ list_id: 'list9' }, { list_id: 'list10' }, { list_id: 'gone' }, {}], lists, contacts);
+    expect(tagged.map(a => a.contactIds)).toEqual([['kawamoto'], ['hayashi'], [], []]);
   });
 });

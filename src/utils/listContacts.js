@@ -70,3 +70,14 @@ export function resolveListContacts(list, contacts) {
 
   return out;
 }
+
+// アポに「そのアポを取ったリストの担当者」を付ける。
+// 同じ会社でも担当者ごとに別のリストを持つので、担当者のカレンダーには本人のリストのアポだけを重ねる
+// （ユニヴィス様で川元様のアポが林様のカレンダーにも出ていた）。担当者を引けないアポは contactIds を空にし、表示側で全員に出す。
+export function tagAppointmentContacts(appointments, callLists, contacts) {
+  const listById = new Map((callLists || []).map(l => [l._supaId, l]));
+  return (appointments || []).map(a => {
+    const list = listById.get(a.list_id);
+    return { ...a, contactIds: list ? resolveListContacts(list, contacts).map(ct => ct.id) : [] };
+  });
+}
