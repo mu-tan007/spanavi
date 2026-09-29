@@ -304,13 +304,13 @@ const buildPreCheckReport = (appo, contactName, resultType) => {
   const companyName = appo.company || '';
 
   if (resultType === 'リスケ') {
-    return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いておりました${companyName}様との面談ですが、先方のご都合によりリスケジュールとなりました。\n\n改めて日程が確定次第、ご連絡いたします。\n\nMASP 篠宮`;
+    return `${greeting}様\n\nお世話になっております。\nSpartiaの篠宮でございます。\n\n${dateTime} よりご予定を頂いておりました${companyName}様との面談ですが、先方のご都合によりリスケジュールとなりました。\n\n改めて日程が確定次第、ご連絡いたします。\n\nSpartia 篠宮`;
   }
   if (resultType === 'キャンセル') {
-    return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いておりました${companyName}様との面談ですが、先方のご都合によりキャンセルとなりました。\n\n何卒ご了承くださいますようお願い申し上げます。\n\nMASP 篠宮`;
+    return `${greeting}様\n\nお世話になっております。\nSpartiaの篠宮でございます。\n\n${dateTime} よりご予定を頂いておりました${companyName}様との面談ですが、先方のご都合によりキャンセルとなりました。\n\n何卒ご了承くださいますようお願い申し上げます。\n\nSpartia 篠宮`;
   }
   // 確認完了
-  return `${greeting}様\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\n${dateTime} よりご予定を頂いております、${companyName}様への事前確認が無事に完了いたしました。\n\n当日はご対応のほど、よろしくお願い申し上げます。\n\nMASP 篠宮`;
+  return `${greeting}様\n\nお世話になっております。\nSpartiaの篠宮でございます。\n\n${dateTime} よりご予定を頂いております、${companyName}様への事前確認が無事に完了いたしました。\n\n当日はご対応のほど、よろしくお願い申し上げます。\n\nSpartia 篠宮`;
 };
 
 // 事前確認状態 → Badge variant
@@ -718,7 +718,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
                             const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
                             const toEmail = contacts[0]?.email || cl?.clientEmail || '';
                             if (!toEmail) { setReportError('メールアドレスが未設定です'); setReportStep('compose'); return; }
-                            ({ error } = await invokeSendEmail({ to: toEmail, subject: '【事前確認完了のご報告】M&Aソーシングパートナーズ', body: reportBody }));
+                            ({ error } = await invokeSendEmail({ to: toEmail, subject: '【事前確認完了のご報告】Spartia', body: reportBody }));
                           }
                           if (error) { setReportError(error); setReportStep('compose'); return; }
                           setReportStep('sent');

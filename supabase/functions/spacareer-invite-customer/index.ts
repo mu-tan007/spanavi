@@ -83,7 +83,7 @@ function buildInviteEmail(params: { name: string; email: string; password: strin
     `\n` +
     `─────────────────────\n` +
     `スパキャリ事務局\n` +
-    `M&Aソーシングパートナーズ株式会社\n` +
+    `Spartia株式会社\n` +
     `─────────────────────\n`
   return { subject, body }
 }

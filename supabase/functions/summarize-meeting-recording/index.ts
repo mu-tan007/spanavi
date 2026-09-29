@@ -60,12 +60,12 @@ async function processInBackground(meetingId: string, recordingUrl: string) {
 
     // 4. Claude (Sonnet 5.5) で要約 (概要 + Next Action)
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY が設定されていません");
-    const prompt = `以下はM&Aソーシングパートナーズ株式会社 (篠宮) と先方クライアントの面談の文字起こしです。
+    const prompt = `以下はSpartia株式会社 (篠宮) と先方クライアントの面談の文字起こしです。
 2項目「概要」と「Next Action」を抽出してください。
 
 【出力ルール】
 - 「概要」: 面談で話された内容を3-5行程度で簡潔にまとめる。誰が何を言ったかではなく「何が話されたか」を中心に
-- 「Next Action」: 篠宮 (M&Aソーシングパートナーズ) 側がやるべき次のアクションを箇条書きで列挙
+- 「Next Action」: 篠宮 (Spartia) 側がやるべき次のアクションを箇条書きで列挙
 - 出力は JSON 形式のみ (前置き・後書き・コードブロック禁止)
 - body 内の改行は \\n で表現
 

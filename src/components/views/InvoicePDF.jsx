@@ -86,7 +86,7 @@ export default function InvoicePDF({
         {/* 右: 発行元 */}
         <div style={{ width: 260, fontSize: 11, color: '#333', lineHeight: 1.7, textAlign: 'left' }}>
           <div style={{ fontSize: 13, fontWeight: font.weight.bold, color: '#111', marginBottom: 6 }}>
-            M&Aソーシングパートナーズ株式会社
+            Spartia株式会社
           </div>
           <div>〒106-0031</div>
           <div>東京都港区西麻布4-12-13</div>

@@ -68,7 +68,7 @@ export default function MemberInvoicePDF({
             color: '#111', borderBottom: '2px solid #111',
             paddingBottom: 4, display: 'inline-block',
           }}>
-            M&Aソーシングパートナーズ株式会社 様
+            Spartia株式会社 様
           </div>
           <div style={{ fontSize: 11, color: '#333', marginTop: 12, lineHeight: 1.8 }}>
             <div>件名：業務委託料_{month}分</div>

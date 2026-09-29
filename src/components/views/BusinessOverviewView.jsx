@@ -1223,7 +1223,7 @@ function fileToBase64(file) {
 const SIG_DEFAULT = `
 
 -----------------------------------------------
-M&Aソーシングパートナーズ株式会社
+Spartia株式会社
 代表取締役　篠宮　拓武
 Mail: shinomiya@ma-sp.co
 Tel:   080-4134-4038
@@ -1232,10 +1232,10 @@ X: https://x.com/masp_007?s=21
 -----------------------------------------------`;
 const SIG_RALLY = `
 
-MASP 篠宮`;
+Spartia 篠宮`;
 const SIG_OPTIONS = [
   { key: 'default', label: 'フル署名 (初回・正式)', text: SIG_DEFAULT },
-  { key: 'rally',   label: '簡易 (MASP 篠宮)',     text: SIG_RALLY },
+  { key: 'rally',   label: '簡易 (Spartia 篠宮)',     text: SIG_RALLY },
   { key: 'none',    label: '署名なし',              text: '' },
 ];
 

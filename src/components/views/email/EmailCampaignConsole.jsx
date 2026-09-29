@@ -52,7 +52,7 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
   // ----- 設定 -----
   const [name, setName] = useState(campaign.name || '');
   const [subject, setSubject] = useState(campaign.subject || '');
-  const [fromName, setFromName] = useState(campaign.from_name || 'M&Aソーシングパートナーズ株式会社');
+  const [fromName, setFromName] = useState(campaign.from_name || 'Spartia株式会社');
   const [replyTo, setReplyTo] = useState(campaign.reply_to ?? 'shinomiya@ma-sp.co');
 
   // ----- 送付先 -----
@@ -120,7 +120,7 @@ export default function EmailCampaignConsole({ campaign, orgId, onClose }) {
   const settingsPatch = useCallback(() => ({
     name: name.trim() || subject.trim(),
     subject: subject.trim(),
-    from_name: fromName.trim() || 'M&Aソーシングパートナーズ株式会社',
+    from_name: fromName.trim() || 'Spartia株式会社',
     reply_to: replyTo.trim() || null,
     segment_definition: segmentDefinition,
   }), [name, subject, fromName, replyTo, segmentDefinition]);

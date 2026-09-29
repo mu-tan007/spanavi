@@ -34,7 +34,7 @@ export default function BulkEmailModal({ clients = [], contactsByClient = {}, cu
       '各位',
       '',
       'いつも大変お世話になっております。',
-      `M&Aソーシングパートナーズ ${currentUser || ''} です。`,
+      `Spartia ${currentUser || ''} です。`,
       '',
       '',
       '',

@@ -176,7 +176,7 @@ const EMAIL_TEMPLATES = {
     bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
 
 お世話になっております。
-M&A ソーシングパートナーズの篠宮です。
+Spartiaの篠宮です。
 
 ${company}様との面談日程について、改めてご相談させてください。
 ご都合のよい候補日をいくつかご提示いただけますと幸いです。
@@ -188,7 +188,7 @@ ${company}様との面談日程について、改めてご相談させてくだ�
     bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
 
 お世話になっております。
-M&A ソーシングパートナーズの篠宮です。
+Spartiaの篠宮です。
 
 ${company}様のサービス開始に向けたキックオフミーティングの日程について
 ご相談させてください。
@@ -200,7 +200,7 @@ ${company}様のサービス開始に向けたキックオフミーティング�
     bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
 
 いつもお世話になっております。
-M&A ソーシングパートナーズの篠宮です。
+Spartiaの篠宮です。
 
 ${company}様への今月の架電状況・アポ進捗についてご共有させてください。
 詳細は別途資料にてお送りいたします。
@@ -212,7 +212,7 @@ ${company}様への今月の架電状況・アポ進捗についてご共有さ�
     bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
 
 ご無沙汰しております。
-M&A ソーシングパートナーズの篠宮です。
+Spartiaの篠宮です。
 
 ${company}様の近況をお伺いさせてください。
 あらためてお力になれることがあればぜひご相談ください。
@@ -224,7 +224,7 @@ ${company}様の近況をお伺いさせてください。
     bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
 
 お世話になっております。
-M&A ソーシングパートナーズの篠宮です。
+Spartiaの篠宮です。
 
 ${company}様のサービス再開について、改めてご相談させてください。
 ご都合のよろしいお時間をいただけますと幸いです。
@@ -236,7 +236,7 @@ ${company}様のサービス再開について、改めてご相談させてく�
     bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
 
 ご無沙汰しております。
-M&A ソーシングパートナーズの篠宮です。
+Spartiaの篠宮です。
 
 サービス再開のお声がけにあがりました。
 ${company}様の現状をお伺いできればと存じます。

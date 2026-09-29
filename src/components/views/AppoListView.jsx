@@ -68,9 +68,9 @@ const contactHonorific = (fullName) => {
 
 // 請求書送付メールの既定文面（単発送信・一斉送信で共通）
 // greeting は宛名行そのもの（担当者が分かれば「佐藤様」、分からなければ「〇〇株式会社 様」）
-const buildInvoiceMailSubject = (monthLabel) => `【業務委託料_${monthLabel}分】M&Aソーシングパートナーズ`;
+const buildInvoiceMailSubject = (monthLabel) => `【業務委託料_${monthLabel}分】Spartia`;
 const buildInvoiceMailBody = (greeting, monthLabel) =>
-  `${greeting}\n\nお世話になっております。\nM&Aソーシングパートナーズの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nMASP 篠宮`;
+  `${greeting}\n\nお世話になっております。\nSpartiaの篠宮でございます。\n\nこのたび、${monthLabel}分の請求書を添付にてお送り申し上げます。\n記載日までに、下記口座へお振込みいただけますと幸甚に存じます。\n\n― 振込先口座 ―\n GMOあおぞらネット銀行　法人営業部（101）\n 普通預金　2370528\n M&Aソーシングパートナーズ株式会社\n\n今後とも、貴社にとって有益となるアポイントの取得に尽力してまいりますので、変わらぬご高配を賜れますようお願い申し上げます。\n何卒よろしくお願い申し上げます。\n\nSpartia 篠宮`;
 
 export function MemberSuggestInput({ value, onChange, members = [], style, placeholder = '名前を入力して絞り込み' }) {
   const [suggs, setSuggs] = React.useState([]);
@@ -169,7 +169,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       setEmailBody(
         `${mentionLine}${clientLabel} 様\n\n` +
         `お世話になっております。\n` +
-        `M&Aソーシングパートナーズの篠宮でございます。\n\n` +
+        `Spartiaの篠宮でございます。\n\n` +
         `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +
         `---\n` +
         `${report}\n` +
@@ -184,8 +184,8 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       // クライアント別の件名デフォルト（ブティックス株式会社のみ独自フォーマット）
       const targetCompany = appo.company || '';
       const subject = (cl?.company === 'ブティックス株式会社')
-        ? `【アウトバウンド外注】【M＆Aソーシングパートナーズ】アポ取得のお知らせ ${targetCompany}`
-        : '【アポイント取得のご報告】M&Aソーシングパートナーズ 篠宮';
+        ? `【アウトバウンド外注】【Spartia】アポ取得のお知らせ ${targetCompany}`
+        : '【アポイント取得のご報告】Spartia 篠宮';
       setEmailSubject(subject);
       const contacts = cl?._supaId ? (contactsByClient[cl._supaId] || []) : [];
       const matchedContact = selectedOpt ? contacts.find(ct => ct.email === selectedOpt.email) : null;
@@ -193,14 +193,14 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       setEmailBody(
         `${greeting} 様\n\n` +
         `お世話になっております。\n` +
-        `M&Aソーシングパートナーズの篠宮でございます。\n\n` +
+        `Spartiaの篠宮でございます。\n\n` +
         `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +
         `---\n` +
         `${report}\n` +
         `---\n\n` +
         `以上でございます。\n` +
         `ご確認のほど、よろしくお願いいたします。\n\n` +
-        `MASP 篠宮`
+        `Spartia 篠宮`
       );
       setEmailCcList([]);
       setEmailCcExtra('');

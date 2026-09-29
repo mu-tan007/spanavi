@@ -56,7 +56,7 @@ function renderPage(title: string, message: string, isError = false): Response {
     <div class="icon">${icon}</div>
     <h1>${title}</h1>
     <p>${message}</p>
-    <p class="footer">M&Aソーシングパートナーズ株式会社</p>
+    <p class="footer">Spartia株式会社</p>
   </div>
 </body>
 </html>`
