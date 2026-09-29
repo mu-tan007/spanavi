@@ -51,4 +51,33 @@ describe('MultiCalendarPanel', () => {
     act(() => { multi.root.findAllByType('button').find(b => b.children.includes('林')).props.onClick(); });
     expect(shownAppos(multi)).toEqual([hayashiAppo, unknownAppo]);
   });
+
+  it('全員で訪問する会社は「全員」タブを最初に出し、全員のカレンダーとアポを重ねる', () => {
+    const openClient = { _supaId: 'open', googleCalendarId: '', calendarAllContacts: true };
+    const kitamura = { id: 'kitamura', name: '北村 仁之介', googleCalendarId: 'https://outlook.office365.com/kitamura.ics' };
+    const sato = { id: 'sato', name: '佐藤 洋平', googleCalendarId: 'https://outlook.office365.com/sato.ics' };
+    const kitaAppo = { meetDate: '2026-10-05', meetTime: '13:00', contactIds: ['kitamura'] };
+    const satoAppo = { meetDate: '2026-10-06', meetTime: '10:00', contactIds: ['sato'] };
+    let r;
+    act(() => { r = create(<MultiCalendarPanel contacts={[sato, kitamura]} fallbackClient={openClient} existingAppointments={[kitaAppo, satoAppo]} />); });
+    const panel = () => r.root.findByType(ClientCalendarPanel).props;
+    expect(r.root.findAllByType('button').map(b => b.children.join(''))).toEqual(['全員', '佐藤', '北村']);
+    expect(panel().clientCalendarId).toBe('https://outlook.office365.com/sato.ics,https://outlook.office365.com/kitamura.ics');
+    expect(panel().existingAppointments).toEqual([kitaAppo, satoAppo]);
+
+    act(() => { r.root.findAllByType('button').find(b => b.children.includes('佐藤')).props.onClick(); });
+    expect(panel().clientCalendarId).toBe('https://outlook.office365.com/sato.ics');
+    expect(panel().existingAppointments).toEqual([satoAppo]);
+  });
+
+  it('全員タブで未登録の担当者がいれば、空きに含まれていないと明示する', () => {
+    const r = create(<MultiCalendarPanel contacts={[funayama, hayashi]} fallbackClient={{ ...client, calendarAllContacts: true }} />);
+    expect(r.root.findByType(ClientCalendarPanel).props.clientCalendarId).toBe('t.funayama@univis.co.jp');
+    expect(JSON.stringify(r.toJSON())).toContain('林様のカレンダー未登録（全員の空きに含まれていません）');
+  });
+
+  it('設定がオフの会社には「全員」タブを出さない', () => {
+    const r = render([funayama, hayashi]);
+    expect(r.root.findAllByType('button').map(b => b.children.join(''))).toEqual(['舟山', '林']);
+  });
 });

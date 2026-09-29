@@ -289,6 +289,19 @@ export default function ClientFormModal({
             </div>
 
             <div>
+              <label style={labelStyle}>訪問する担当者</label>
+              <Select
+                size="sm"
+                value={form.calendarAllContacts ? 'on' : 'off'}
+                onChange={e => u('calendarAllContacts', e.target.value === 'on')}
+                options={[
+                  { value: 'off', label: '担当者ごと（カレンダーは1人ずつ）' },
+                  { value: 'on', label: '全員で訪問（全員の予定を重ねて表示）' },
+                ]}
+              />
+            </div>
+
+            <div>
               <label style={labelStyle}>カレンダー</label>
               <Select
                 size="sm"

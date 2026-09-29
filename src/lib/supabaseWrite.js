@@ -272,6 +272,8 @@ export async function updateClient(supaId, data) {
       auto_exclude_low_rejection: data.autoExcludeLowRejection === undefined ? undefined : data.autoExcludeLowRejection,
       // アポ取得時に事前確認を行わず、最初から「事前確認済」で登録するか
       skip_pre_check: data.skipPreCheck === undefined ? undefined : data.skipPreCheck,
+      // 担当者全員で訪問するか（架電画面のカレンダーに全員の予定を重ねたタブを出す）
+      calendar_all_contacts: data.calendarAllContacts === undefined ? undefined : data.calendarAllContacts,
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)

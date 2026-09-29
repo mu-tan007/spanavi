@@ -65,14 +65,24 @@ export default function MultiCalendarPanel({
   }
 
   // 複数担当者: タブ切替
-  const activeCt = contacts[activeTab] || contacts[0];
   const surname = (name) => (name || '').split(/\s+/)[0] || name;
+  // 担当者全員で訪問する会社（オープン様など）は、全員の予定を重ねた「全員」タブを最初に置く。
+  // 1人ずつのタブだけだと、別の担当者の予定が入っている時間を空きと読んでアポを入れてしまう。
+  const allTab = fallbackClient?.calendarAllContacts ? [{
+    id: '__all__',
+    name: '全員',
+    isAll: true,
+    googleCalendarId: [...new Set(contacts.flatMap(ct => String(ct.googleCalendarId || '').split(',').map(s => s.trim()).filter(Boolean)))].join(','),
+    missing: contacts.filter(ct => !ct.googleCalendarId).map(ct => surname(ct.name)),
+  }] : [];
+  const tabs = [...allTab, ...contacts];
+  const activeCt = tabs[activeTab] || tabs[0];
 
   return (
     <div style={{ fontFamily: font.family.sans }}>
       {/* タブ */}
       <div style={{ display: 'flex', gap: 0, borderBottom: `2px solid ${color.border}`, marginBottom: 6 }}>
-        {contacts.map((ct, i) => (
+        {tabs.map((ct, i) => (
           <button
             key={ct.id}
             onClick={() => setActiveTab(i)}
@@ -99,7 +109,12 @@ export default function MultiCalendarPanel({
       {/* 本人のカレンダーが未登録の担当者に、会社単位のカレンダー（＝別の担当者のもの）を
           代わりに出すと、その人の空きだと誤解してアポを入れてしまう（ユニヴィス林様のタブに
           舟山様の予定が出ていた）。複数担当者の会社では代わりに出さず、未登録と明示する。 */}
-      {!activeCt.googleCalendarId && (
+      {activeCt.isAll && activeCt.missing.length > 0 && (
+        <div style={{ margin: `0 0 ${space[1.5]}px`, padding: `${space[1.5]}px ${space[2.5]}px`, background: alpha(color.warn, 0.12), border: `1px solid ${alpha(color.warn, 0.5)}`, borderRadius: radius.md, fontSize: font.size.xs, color: color.textMid }}>
+          {`${activeCt.missing.map(n => `${n}様`).join('・')}のカレンダー未登録（全員の空きに含まれていません）`}
+        </div>
+      )}
+      {!activeCt.isAll && !activeCt.googleCalendarId && (
         <div style={{ margin: `0 0 ${space[1.5]}px`, padding: `${space[1.5]}px ${space[2.5]}px`, background: alpha(color.warn, 0.12), border: `1px solid ${alpha(color.warn, 0.5)}`, borderRadius: radius.md, fontSize: font.size.xs, color: color.textMid }}>
           {`${surname(activeCt.name)}様のカレンダー未登録（空き時間の表示なし）`}
         </div>
@@ -114,10 +129,10 @@ export default function MultiCalendarPanel({
         schedulingLabel2={activeCt.schedulingLabel2 || ''}
         compact={compact}
         onSelectSlot={onSelectSlot}
-        existingAppointments={appointmentsOf(activeCt)}
+        existingAppointments={activeCt.isAll ? existingAppointments : appointmentsOf(activeCt)}
         staticNoteLines={staticNoteLines}
         onUpdateCalendarLines={onUpdateCalendarLines}
-        appointmentCalendar={showRegisteredAppointments && fallbackClient?._supaId && (
+        appointmentCalendar={showRegisteredAppointments && fallbackClient?._supaId && !activeCt.isAll && (
           <AppointmentCalendarPanel key={activeCt.id} clientId={fallbackClient._supaId} contact={activeCt} />
         )}
       />
