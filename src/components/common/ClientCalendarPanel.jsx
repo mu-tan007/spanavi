@@ -261,7 +261,9 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
 
                 const past = isPast(slot.startISO);
                 const cBusy = isBusyIn(clientBusy, slot.startISO, slot.endISO);
-                const appo = existingAppointments.find(a => a.meetDate === d.dateStr && a.meetTime === slot.startLabel);
+                // 13:15 のような15分刻みのアポも、その時刻を含む30分枠に出す
+                const slotEndLabel = slot.endISO.slice(11, 16);
+                const appo = existingAppointments.find(a => a.meetDate === d.dateStr && a.meetTime >= slot.startLabel && a.meetTime < slotEndLabel);
 
                 let bg = color.white;
                 let cursor = 'pointer';

@@ -20,6 +20,7 @@ import { getOrgId } from '../../lib/orgContext';
 import { supabase } from '../../lib/supabase';
 import { resolveActiveRewardType, fetchPastDoneCount } from '../../lib/rewardResolver';
 import { resolveListClient } from '../../utils/listContacts';
+import { MEET_TIME_OPTIONS } from '../../utils/meetTimeOptions';
 
 /**
  * テンプレ駆動アポ取得報告モーダル。
@@ -903,15 +904,10 @@ function renderInputByType(field, value, onChange) {
     outline: 'none', background: color.white, color: color.textDark,
     boxSizing: 'border-box',
   };
-  // 特殊フィールド: appoTime (面談時間) は 9:00〜20:00 30分刻みのプルダウン
+  // 特殊フィールド: appoTime (面談時間) は 9:00〜20:00 15分刻みのプルダウン
   // 旧 AppoReportModal の時刻 select UI を移植
   if (field.key === 'appoTime') {
-    const timeOpts = Array.from({ length: 23 }, (_, i) => {
-      const total = 540 + i * 30; // 9:00 から
-      const h = Math.floor(total / 60);
-      const m = total % 60;
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    });
+    const timeOpts = MEET_TIME_OPTIONS;
     return (
       <select value={value || ''} onChange={e => onChange(e.target.value)} style={baseStyle}>
         <option value="">— 選択 —</option>

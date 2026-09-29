@@ -14,6 +14,7 @@ import TemplateDrivenAppoReportModal from './TemplateDrivenAppoReportModal';
 import { resolveApplicableTemplates } from '../../lib/templateRenderer';
 import { formatDateWithWeekday } from '../../lib/dateUtils';
 import { resolveListClient } from '../../utils/listContacts';
+import { MEET_TIME_OPTIONS } from '../../utils/meetTimeOptions';
 
 export default function AppoReportModal(props) {
   const { row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '', contactsByClient = {} } = props;
@@ -404,15 +405,7 @@ HP：${form.hp}
 
               // 面談日：日付と時間プルダウンを1ラベル・横並びで表示
               if (f.key === 'appoDate') {
-                const meetTimeOptions = Array.from({ length: 23 }, (_, i) => {
-                  const total = 540 + i * 30; // 9:00〜20:00（30分刻み）
-                  const h = Math.floor(total / 60);
-                  const m = total % 60;
-                  return {
-                    label: `${h}:${String(m).padStart(2, '0')}`,
-                    value: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
-                  };
-                });
+                const meetTimeOptions = MEET_TIME_OPTIONS.map(v => ({ label: v.replace(/^0/, ''), value: v }));
                 return (
                   <div key="appoDate">
                     <label style={lStyle}>面談日</label>
