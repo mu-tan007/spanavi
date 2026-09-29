@@ -12,7 +12,9 @@ vi.mock('../../lib/supabaseWrite', () => ({
   updateCallRecordRecordingUrl: vi.fn(), updateAppoReportRecordingUrl: vi.fn(), invokeGetZoomRecording: vi.fn(),
   closeOpenCallSessionsForList: vi.fn(async () => null), deleteCallRecord: vi.fn(), invokeGenerateCompanyInfo: vi.fn(),
   insertAppointment: vi.fn(), updateClientContact: vi.fn(), completeRecallsForItem: vi.fn(),
-  getCompanyOverviewPdfSignedUrl: vi.fn(), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
+  getCompanyOverviewPdfSignedUrl: vi.fn(), getScriptPdfSignedUrl: vi.fn(async () => ({ url: null })),
+  fetchGiftLetterPath: vi.fn(async () => ({ path: null, error: null })), getGiftLetterSignedUrl: vi.fn(async () => ({ url: null })),
+  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
   deleteCallRecordsByListId: vi.fn(), deleteCallListItemsByListId: vi.fn(), updateCallListCount: vi.fn(), insertCallListItems: vi.fn(),
 }));
 vi.mock('../../lib/zoomPhoneStore', () => ({ zoomPhone: {} }));

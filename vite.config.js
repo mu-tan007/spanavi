@@ -111,4 +111,13 @@ export default defineConfig(({ command }) => ({
   esbuild: {
     drop: command === 'build' ? ['console', 'debugger'] : [],
   },
+  // テストは常にダミーの接続先で動かす。CI には .env が無く supabase.js の createClient が
+  // 「supabaseUrl is required」で落ちていた。手元でも本物の .env を読まないので、
+  // テストが本番の Supabase に触れることもない（呼ぶ関数は各テストでモックする）。
+  test: {
+    env: {
+      VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
+      VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+    },
+  },
 }))
