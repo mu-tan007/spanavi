@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import ClientCalendarPanel from './ClientCalendarPanel';
 import AppointmentCalendarPanel from './AppointmentCalendarPanel';
-import { color, radius, font, alpha } from '../../constants/design';
+import { color, space, radius, font, alpha } from '../../constants/design';
 
 /**
  * 複数担当者のカレンダーをタブ切替で表示するラッパー
@@ -94,9 +94,18 @@ export default function MultiCalendarPanel({
         ))}
       </div>
 
+      {/* 本人のカレンダーが未登録の担当者に、会社単位のカレンダー（＝別の担当者のもの）を
+          代わりに出すと、その人の空きだと誤解してアポを入れてしまう（ユニヴィス林様のタブに
+          舟山様の予定が出ていた）。複数担当者の会社では代わりに出さず、未登録と明示する。 */}
+      {!activeCt.googleCalendarId && (
+        <div style={{ margin: `0 0 ${space[1.5]}px`, padding: `${space[1.5]}px ${space[2.5]}px`, background: alpha(color.warn, 0.12), border: `1px solid ${alpha(color.warn, 0.5)}`, borderRadius: radius.md, fontSize: font.size.xs, color: color.textMid }}>
+          {`${surname(activeCt.name)}様のカレンダー未登録（空き時間の表示なし）`}
+        </div>
+      )}
+
       {/* アクティブタブのカレンダー */}
       <ClientCalendarPanel
-        clientCalendarId={activeCt.googleCalendarId || fallbackClient?.googleCalendarId || ''}
+        clientCalendarId={activeCt.googleCalendarId || ''}
         schedulingUrl={activeCt.schedulingUrl || fallbackClient?.schedulingUrl || ''}
         schedulingUrl2={activeCt.schedulingUrl2 || ''}
         schedulingLabel={activeCt.schedulingLabel || ''}
