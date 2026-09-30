@@ -41,7 +41,7 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
     }
     setZoomResult(data);
     await refresh?.();
-    setTimeout(() => setZoomResult(null), 5000);
+    setTimeout(() => setZoomResult(null), 10000);
   };
 
   // filter が空のときは localGroups (DnD 中) を優先、そうでなければ teamGroups
@@ -185,7 +185,12 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
           }}>
             {zoomResult.error
               ? `連携に失敗しました: ${zoomResult.error}`
-              : `Zoom Phone 連携完了 (更新: ${(zoomResult.updated || []).length}件)`}
+              : (zoomResult.updated || []).length > 0
+                ? `Zoom Phone 連携完了：新たに連携 ${zoomResult.updated.join('・')}（連携済み ${(zoomResult.skipped || []).length}名）`
+                : `全員連携済みです（${(zoomResult.skipped || []).length}名・変更なし）`}
+            {!zoomResult.error && (zoomResult.unmatched || []).length > 0 && (
+              ` ／ Spanaviに見つからないZoomユーザー: ${zoomResult.unmatched.map(u => u.name || u.email).join('・')}`
+            )}
           </div>
         )}
       </PageHeader>

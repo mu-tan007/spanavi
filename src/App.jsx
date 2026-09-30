@@ -11,7 +11,7 @@ import DesignPreview from './components/views/DesignPreview'
 import GiftLanding from './components/gift/GiftLanding'
 import SampleLanding from './components/gift/SampleLanding'
 import DocLanding from './components/gift/DocLanding'
-import { isPasswordSetupFlow, isAuthCallbackError } from './lib/supabase'
+import { supabase, isPasswordSetupFlow, isAuthCallbackError } from './lib/supabase'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
@@ -48,22 +48,78 @@ function AuthCallbackLoader() {
 }
 
 // 招待/再設定リンクの期限切れ・使用済み着地の案内。
+// 管理者に再送を頼まなくて済むよう、本人がメールアドレスを入れて
+// パスワード設定メール（recovery）をその場で受け取り直せるようにする。
+// recovery リンクは既存の isRecoveryFlow → ResetPasswordPage に着地する。
+// 未登録のアドレスでも同じ表示にし、登録の有無は漏らさない。
 function ExpiredLinkNotice() {
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState('idle') // idle | sending | sent | error
+  const [error, setError] = useState('')
+
+  const handleResend = async (e) => {
+    e.preventDefault()
+    const addr = email.trim()
+    if (!addr) { setError('メールアドレスを入力してください'); setStatus('error'); return }
+    setStatus('sending')
+    setError('')
+    const { error: err } = await supabase.auth.resetPasswordForEmail(addr)
+    if (err) {
+      setError(/rate limit|security purposes/i.test(err.message)
+        ? '送信が続いています。1分ほど待ってからもう一度お試しください'
+        : '送信できませんでした。時間をおいてもう一度お試しください')
+      setStatus('error')
+      return
+    }
+    setStatus('sent')
+  }
+
+  const shell = {
+    minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)',
+    fontFamily: "'Noto Sans JP', sans-serif", padding: 20,
+  }
+  const lead = { color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 1.8, marginBottom: 20 }
+  const btn = { padding: '10px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }
+
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)',
-      fontFamily: "'Noto Sans JP', sans-serif", padding: 20,
-    }}>
-      <div style={{ textAlign: 'center', maxWidth: 380 }}>
+    <div style={shell}>
+      <div style={{ textAlign: 'center', width: '100%', maxWidth: 380 }}>
         <p style={{ color: '#fff', fontSize: 15, fontWeight: 600, marginBottom: 10 }}>リンクの有効期限が切れています</p>
-        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 1.8, marginBottom: 24 }}>
-          招待 / パスワード再設定リンクは無効か、すでに使用済みです。<br />
-          管理者にメールの再送を依頼してください。
-        </p>
-        <button onClick={() => { window.location.href = '/login' }} style={{ padding: '8px 20px', borderRadius: 6, background: '#0176D3', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: "'Noto Sans JP', sans-serif" }}>
-          ログイン画面へ
-        </button>
+        {status === 'sent' ? (
+          <>
+            <p style={lead}>
+              パスワード設定メールを送りました。<br />
+              届いたメールのリンクを開いて、パスワードを設定してください。<br />
+              届かないときは迷惑メールフォルダもご確認ください。
+            </p>
+            <button onClick={() => { window.location.href = '/login' }} style={btn}>ログイン画面へ</button>
+          </>
+        ) : (
+          <form onSubmit={handleResend}>
+            <p style={lead}>
+              招待されたメールアドレスを入力すると、<br />
+              パスワード設定メールをすぐに送り直します。
+            </p>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="example@gmail.com"
+              autoComplete="email"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.95)', fontSize: 14, marginBottom: 12, fontFamily: "'Noto Sans JP', sans-serif" }}
+            />
+            {status === 'error' && (
+              <p style={{ color: '#FCA5A5', fontSize: 12, marginBottom: 12 }}>{error}</p>
+            )}
+            <button type="submit" disabled={status === 'sending'} style={{ ...btn, width: '100%', opacity: status === 'sending' ? 0.6 : 1 }}>
+              {status === 'sending' ? '送信中…' : 'パスワード設定メールを受け取る'}
+            </button>
+            <button type="button" onClick={() => { window.location.href = '/login' }} style={{ marginTop: 16, background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Noto Sans JP', sans-serif" }}>
+              ログイン画面へ
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )
