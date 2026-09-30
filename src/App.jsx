@@ -90,7 +90,7 @@ function ExpiredLinkNotice() {
           <>
             <p style={lead}>
               パスワード設定メールを送りました。<br />
-              届いたメールのリンクを開いて、パスワードを設定してください。<br />
+              届いたメールのリンクからパスワードを設定してください。<br />
               届かないときは迷惑メールフォルダもご確認ください。
             </p>
             <button onClick={() => { window.location.href = '/login' }} style={btn}>ログイン画面へ</button>
