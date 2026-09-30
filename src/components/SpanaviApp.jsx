@@ -34,6 +34,7 @@ import SpacareerHomeworkView from './spacareer/admin/homework/SpacareerHomeworkV
 import SpacareerTemplatesView from './spacareer/admin/templates/SpacareerTemplatesView';
 import SpacareerRevenueView from './spacareer/admin/revenue/SpacareerRevenueView';
 import CrowdworksScoutView from './spacareer/admin/crowdworks/CrowdworksScoutView';
+import SpacareerSalesFunnelView from './spacareer/admin/sales/SpacareerSalesFunnelView';
 import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
 import CapitalApp from './views/capital/CapitalApp';
@@ -409,7 +410,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","crowdworks_scout","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -446,7 +447,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
     const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin','admin_settings'];
-    const CAREER_TABS = ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','crowdworks_scout','mypage','admin_settings'];
+    const CAREER_TABS = ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout','mypage','admin_settings'];
     if (engSlug === 'seller_sourcing') {
       if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
     } else if (engSlug === 'spartia_career') {
@@ -757,7 +758,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         return null;
       }
       if (engSlug === 'spartia_career') {
-        return ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','crowdworks_scout'].find(k => canViewPage('spartia_career', k));
+        return ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout'].find(k => canViewPage('spartia_career', k));
       }
       return null;
     })();
@@ -818,7 +819,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         flatTabs.push('mypage');
         cycle(flatTabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_career') {
-        const tabs = ['customers','recruiting','sessions','trainer_schedule','homework','social_style','ai_courses','templates','session_records','trainer_rewards','analytics','revenue','crowdworks_scout','mypage'];
+        const tabs = ['customers','recruiting','sessions','trainer_schedule','homework','social_style','ai_courses','templates','session_records','trainer_rewards','analytics','revenue','sales_funnel','crowdworks_scout','mypage'];
         if (isAdmin) tabs.push('admin_settings');
         cycle(tabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_capital') {
@@ -1364,8 +1365,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_career' && currentTab === 'homework' && <SpacareerHomeworkView />}
         {engSlug === 'spartia_career' && currentTab === 'templates' && <SpacareerTemplatesView />}
         {engSlug === 'spartia_career' && currentTab === 'revenue' && <SpacareerRevenueView isAdmin={isAdmin} />}
+        {engSlug === 'spartia_career' && currentTab === 'sales_funnel' && <SpacareerSalesFunnelView isAdmin={isAdmin} />}
         {engSlug === 'spartia_career' && currentTab === 'crowdworks_scout' && <CrowdworksScoutView isAdmin={isAdmin} />}
-        {engSlug === 'spartia_career' && currentTab !== 'admin_settings' && !['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','crowdworks_scout','mypage'].includes(currentTab) && (
+        {engSlug === 'spartia_career' && currentTab !== 'admin_settings' && !['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout','mypage'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は実装中です" />
         )}
         {engSlug === 'spartia_capital' && currentTab !== 'admin_settings' && <CapitalApp isAdmin={isAdmin} />}
