@@ -51,6 +51,12 @@ export function slackUrl(v: string | null): string | null {
 /** 「2026/09/30 17:00:00」「2026-10-01」を JST として ISO に。読めなければ null */
 export function jstIso(v: string | null): string | null {
   if (!v) return null
+  // 旧ワークフローの英語表記「May 25th, 2026 at 9:00 AM UTC」
+  const en = v.match(/^([A-Z][a-z]+ \d{1,2})(?:st|nd|rd|th)?, (\d{4}) at (\d{1,2}:\d{2} [AP]M) UTC$/)
+  if (en) {
+    const t = Date.parse(`${en[1]}, ${en[2]} ${en[3]} UTC`)
+    return Number.isNaN(t) ? null : new Date(t).toISOString()
+  }
   const m = v.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/)
   if (!m) return null
   const p = (s: string | undefined, d = '00') => (s ?? d).padStart(2, '0')
