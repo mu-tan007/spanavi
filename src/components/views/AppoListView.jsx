@@ -865,42 +865,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       // 支払期限: 対象月を基準にpaySiteから算出（翌月末をデフォルト）
       const paymentDeadline = calcPaymentDeadline(client.paySite, invoiceMonth);
 
-      // コンポーネント描画 → html2canvas → jsPDF
-      const { default: InvoicePDF } = await import('./InvoicePDF');
-      const ReactDOM = await import('react-dom/client');
-      const container = document.createElement('div');
-      container.style.position = 'fixed';
-      container.style.left = '-9999px';
-      container.style.top = '0';
-      document.body.appendChild(container);
-      const root = ReactDOM.createRoot(container);
-      root.render(
-        <InvoicePDF
-          clientName={invoiceClient}
-          month={monthLabel}
-          items={items}
-          subtotal={subtotal}
-          tax={tax}
-          total={total}
-          taxType={taxType}
-          invoiceNumber={invoiceNumber}
-          issueDate={issueDate}
-          paymentDeadline={paymentDeadline}
-        />
-      );
-
-      await new Promise(resolve => setTimeout(resolve, 600));
-
-      const { default: html2canvas } = await import('html2canvas');
-      const { jsPDF } = await import('jspdf');
-      const el = document.getElementById('invoice-pdf-page');
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+      // コンポーネント描画 → html2canvas → jsPDF（明細が多ければ複数ページ）
+      const { renderInvoicePdf } = await import('./InvoicePDF');
+      const pdf = await renderInvoicePdf({
+        clientName: invoiceClient, month: monthLabel, items, subtotal, tax, total, taxType,
+        invoiceNumber, issueDate, paymentDeadline,
+      });
       pdf.save(`業務委託料_${monthLabel}分_${invoiceClient} 御中.pdf`);
 
-      root.unmount();
-      document.body.removeChild(container);
       setInvoiceModal(false);
     } catch (e) {
       console.error('[handleInvoiceExport]', e);
@@ -954,34 +926,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const invoiceNumber = `${issueDateForNumber}-${String((clientIdx >= 0 ? clientIdx : 0) + 1).padStart(3, '0')}`;
     const paymentDeadline = calcPaymentDeadline(client.paySite, month);
 
-    const { default: InvoicePDF } = await import('./InvoicePDF');
-    const ReactDOM = await import('react-dom/client');
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    document.body.appendChild(container);
-    const root = ReactDOM.createRoot(container);
-    root.render(
-      <InvoicePDF clientName={clientName} month={monthLabel} items={items}
-        subtotal={subtotal} tax={tax} total={total} taxType={taxType}
-        invoiceNumber={invoiceNumber} issueDate={issueDate} paymentDeadline={paymentDeadline} />
-    );
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    const { default: html2canvas } = await import('html2canvas');
-    const { jsPDF } = await import('jspdf');
-    const el = document.getElementById('invoice-pdf-page');
-    const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+    const { renderInvoicePdf } = await import('./InvoicePDF');
+    const pdf = await renderInvoicePdf({
+      clientName, month: monthLabel, items, subtotal, tax, total, taxType,
+      invoiceNumber, issueDate, paymentDeadline,
+    });
 
     // Base64取得
     const pdfBase64 = pdf.output('datauristring').split(',')[1];
     const filename = `業務委託料_${monthLabel}分_${clientName} 御中.pdf`;
 
-    root.unmount();
-    document.body.removeChild(container);
     return { pdfBase64, filename, monthLabel };
   };
 
