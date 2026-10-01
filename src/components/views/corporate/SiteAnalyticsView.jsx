@@ -23,6 +23,15 @@ const PERIODS = [
   { value: '365', label: '直近365日' },
 ];
 
+// GA4 の流入元（既定チャネルグループ）の日本語名
+const CHANNEL_JA = {
+  'Organic Search': '自然検索', 'Direct': '直接', 'Organic Social': 'SNS', 'Referral': '他サイトのリンク',
+  'Unassigned': '不明', 'Cross-network': '広告（複数の面）', 'AI Assistant': 'AIアシスタント',
+  'Paid Search': '検索広告', 'Paid Social': 'SNS広告', 'Display': 'ディスプレイ広告', 'Email': 'メール',
+  'Organic Video': '動画', 'Paid Video': '動画広告', 'Organic Shopping': 'ショッピング', 'Paid Shopping': 'ショッピング広告',
+  'Affiliates': 'アフィリエイト', 'SMS': 'SMS', 'Audio': '音声広告', 'Mobile Push Notifications': 'プッシュ通知', 'Paid Other': 'その他の広告',
+};
+
 const num = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString());
 const pct = (v) => (v === null || v === undefined ? '—' : `${(Number(v) * 100).toFixed(1)}%`);
 const pos = (v) => (v === null || v === undefined ? '—' : Number(v).toFixed(1));
@@ -290,7 +299,7 @@ export default function SiteAnalyticsView() {
               fillWidth height="auto" showCount={false} loading={loading} rows={breakdown.channel} rowKey="key"
               emptyMessage="まだ数字がありません"
               columns={[
-                { key: 'key', label: '流入元', width: 180, align: 'left' },
+                { key: 'key', label: '流入元', width: 180, align: 'left', render: r => CHANNEL_JA[r.key] || r.key },
                 { key: 'sessions', label: 'セッション', width: 80, align: 'right', render: r => num(r.sessions) },
                 { key: 'users', label: '訪問者', width: 70, align: 'right', render: r => num(r.users) },
               ]}
