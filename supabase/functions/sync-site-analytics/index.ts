@@ -9,10 +9,17 @@
 //   ?days=480 で過去分をまとめて取り込む（Search Console は最大16ヶ月）。
 //   ?diag=1 で取得結果の件数だけ返す（書き込みなし）。
 //
+// Google の認証:
+//   組織ポリシーでサービスアカウントの鍵が作れないため、むー様の Google アカウントで
+//   読み取りだけ許可した更新トークンを google_oauth_tokens（name='site_analytics'）に持つ。
+//   OAuth クライアントは他の関数と同じ Spanavi（GOOGLE_CLIENT_SECRET）。
+//   許可のやり直し: google_oauth_tokens.pending_state に値を入れ、許可画面に state として渡し、
+//   戻ってきた code を ?oauth_code=...&state=...&redirect_uri=... で渡すとトークンを保存する。
+//
 // 必要環境変数:
-//   GOOGLE_SA_KEY      サービスアカウントの鍵JSON（Search Console と GA4 に閲覧権限を付与済み）
-//   GA4_PROPERTY_ID    GA4 のプロパティID（数字）
-//   GSC_SITE_URL       既定 'sc-domain:ma-sp.co'
+//   GOOGLE_CLIENT_SECRET  Spanavi の OAuth クライアントのシークレット（既存）
+//   GA4_PROPERTY_ID       GA4 のプロパティID（数字）
+//   GSC_SITE_URL          既定 'sc-domain:ma-sp.co'
 // ============================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -35,44 +42,43 @@ function json(body: unknown, status = 200) {
   })
 }
 
-// ── Google サービスアカウントのアクセストークン ─────────────
-function b64url(input: ArrayBuffer | string): string {
-  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : new Uint8Array(input)
-  let s = ''
-  for (const b of bytes) s += String.fromCharCode(b)
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
+// ── Google のアクセストークン（更新トークンから） ──────────────
+const GOOGLE_CLIENT_ID = '570031099308-ni4qokds1jc1m5s0p080t6g2gb3vu8md.apps.googleusercontent.com'
+const TOKEN_NAME = 'site_analytics'
 
-async function getAccessToken(): Promise<string> {
-  const raw = Deno.env.get('GOOGLE_SA_KEY')
-  if (!raw) throw new Error('GOOGLE_SA_KEY が未設定')
-  const key = JSON.parse(raw)
-  const now = Math.floor(Date.now() / 1000)
-  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-  const claim = b64url(JSON.stringify({
-    iss: key.client_email,
-    scope: 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-  }))
-  const pem = String(key.private_key).replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')
-  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0))
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'],
-  )
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(`${header}.${claim}`))
+async function googleToken(params: Record<string, string>) {
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+  if (!clientSecret) throw new Error('GOOGLE_CLIENT_SECRET が未設定')
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: `${header}.${claim}.${b64url(sig)}`,
-    }),
+    body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: clientSecret, ...params }),
   })
-  const data = await res.json()
-  if (!data.access_token) throw new Error(`トークン取得失敗: ${JSON.stringify(data)}`)
-  return data.access_token
+  return await res.json()
+}
+
+async function getAccessToken(): Promise<string> {
+  const { data, error } = await supabase.from('google_oauth_tokens')
+    .select('refresh_token').eq('name', TOKEN_NAME).maybeSingle()
+  if (error) throw new Error(`トークン読込失敗: ${error.message}`)
+  if (!data?.refresh_token) throw new Error('Google の許可がまだです（google_oauth_tokens にトークンなし）')
+  const t = await googleToken({ grant_type: 'refresh_token', refresh_token: data.refresh_token })
+  if (!t.access_token) throw new Error(`トークン取得失敗: ${JSON.stringify(t)}`)
+  return t.access_token
+}
+
+// 許可画面から戻った code を更新トークンに換えて保存する
+async function saveOAuthCode(code: string, state: string, redirectUri: string) {
+  const { data } = await supabase.from('google_oauth_tokens')
+    .select('pending_state').eq('name', TOKEN_NAME).maybeSingle()
+  if (!data?.pending_state || data.pending_state !== state) throw new Error('state が一致しません')
+  const t = await googleToken({ grant_type: 'authorization_code', code, redirect_uri: redirectUri })
+  if (!t.refresh_token) throw new Error(`更新トークンが返りません: ${JSON.stringify(t)}`)
+  const { error } = await supabase.from('google_oauth_tokens').update({
+    refresh_token: t.refresh_token, scopes: t.scope ?? null, pending_state: null, updated_at: new Date().toISOString(),
+  }).eq('name', TOKEN_NAME)
+  if (error) throw new Error(`トークン保存失敗: ${error.message}`)
+  return t.scope
 }
 
 // ── Search Console ──────────────────────────────────────────
@@ -160,6 +166,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
     const url = new URL(req.url)
+    const oauthCode = url.searchParams.get('oauth_code')
+    if (oauthCode) {
+      const scope = await saveOAuthCode(oauthCode, url.searchParams.get('state') ?? '', url.searchParams.get('redirect_uri') ?? '')
+      return json({ ok: true, saved: true, scope })
+    }
     const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 10, 1), 490)
     const diag = url.searchParams.get('diag') === '1'
     const siteUrl = Deno.env.get('GSC_SITE_URL') || 'sc-domain:ma-sp.co'
