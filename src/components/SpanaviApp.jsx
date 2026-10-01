@@ -37,6 +37,8 @@ import CrowdworksScoutView from './spacareer/admin/crowdworks/CrowdworksScoutVie
 import SpacareerSalesFunnelView from './spacareer/admin/sales/SpacareerSalesFunnelView';
 import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
+import CorporateSidebar, { CORPORATE_SECTIONS, CORPORATE_TABS } from './common/sidebars/CorporateSidebar';
+import SiteAnalyticsView from './views/corporate/SiteAnalyticsView';
 import CapitalApp from './views/capital/CapitalApp';
 import { capitalNavigate, getCapitalPathname } from './views/capital/lib/capitalNav';
 import RecallModal from './views/RecallModal';
@@ -410,7 +412,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const isManagerRole = !isAdmin && (currentMemberDetail?.role === 'チームリーダー' || currentMemberDetail?.role === '営業統括');
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","admin_settings"];
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -452,6 +454,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
     } else if (engSlug === 'spartia_career') {
       if (!CAREER_TABS.includes(currentTab)) setCurrentTab('customers');
+    } else if (engSlug === 'corporate') {
+      if (![...CORPORATE_TABS, 'mypage', 'admin_settings'].includes(currentTab)) setCurrentTab(CORPORATE_TABS[0]);
     }
   }, [engSlug, engLoading, currentTab]);
 
@@ -741,7 +745,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   useEffect(() => {
     if (engLoading || accessLoading) return;
     if (!engSlug) return;
-    if (engSlug === 'spartia_capital') return;
+    if (engSlug === 'spartia_capital' || engSlug === 'corporate') return;
     if (currentTab === 'mypage') return;
     if (currentTab === 'admin_settings' || currentTab === 'manager_admin' || currentTab === 'overview') return;
     if (canViewPage(engSlug, currentTab)) return;
@@ -870,6 +874,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             // そのまま出すと営業代行のメニューが並んでしまうため、事業ごとに出し分ける。
             ...(engSlug === 'spartia_career'
               ? visibleSpacareerSections(canViewPage)
+              : engSlug === 'corporate'
+              ? CORPORATE_SECTIONS
               : navGroups.map(g => ({
                   label: g.label,
                   items: g.children ? g.children : [{ id: g.id, label: g.label }],
@@ -1025,6 +1031,17 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             onUserClick={_onUserClick}
             onLogout={_onLogout}
             isAdmin={isAdmin}
+          />
+        );
+        if (engSlug === 'corporate') return (
+          <CorporateSidebar
+            currentTab={currentTab}
+            setCurrentTab={setCurrentTab}
+            branding={branding}
+            currentUser={displayUserName}
+            currentMemberAvatar={_avatar}
+            onUserClick={_onUserClick}
+            onLogout={_onLogout}
           />
         );
         if (engSlug === 'spartia_capital') return (
@@ -1371,12 +1388,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は実装中です" />
         )}
         {engSlug === 'spartia_capital' && currentTab !== 'admin_settings' && <CapitalApp isAdmin={isAdmin} />}
-        {engSlug !== 'seller_sourcing' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && currentTab !== 'admin_settings' && (
+        {engSlug === 'corporate' && isAdmin && currentTab === 'site_analytics' && <SiteAnalyticsView />}
+        {engSlug !== 'seller_sourcing' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && engSlug !== 'corporate' && currentTab !== 'admin_settings' && (
           <EngagementPlaceholder engagement={currentEngagement} />
         )}
         {/* --- Seller Sourcing views (既存) / スパキャリ の mypage --- */}
         {(engSlug === 'seller_sourcing'
-          || (engSlug === 'spartia_career' && currentTab === 'mypage')) && (<>
+          || ((engSlug === 'spartia_career' || engSlug === 'corporate') && currentTab === 'mypage')) && (<>
         {currentTab === "live" && <LiveStatusView now={now} callListData={callListData} members={members} isAdmin={isAdmin} isTeamLeader={!isAdmin && currentMemberDetail?.role === 'チームリーダー'} orgId={orgId} />}
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} allLists={enrichedLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} contactsByClient={contactsByClient} setCallFlowScreen={setCallFlowScreen} onOpenIndustryRules={() => setCurrentTab('rules')} rewardMaster={rewardMaster} clientEngagementRewards={supabaseData?.clientEngagementRewards || []} />}

@@ -8,7 +8,12 @@ const STORAGE_KEY = 'spanavi_current_engagement_slug';
 // engagements テーブルには商材×ステージの全組合せ (IFAリード獲得 等) が active で
 // 存在するが、それらは EngagementPlaceholder にフォールバックするだけのため、
 // localStorage に古い slug が残っていてもプレースホルダーに戻らないようにする。
-const IMPLEMENTED_ENG_SLUGS = ['seller_sourcing', 'spartia_career'];
+const IMPLEMENTED_ENG_SLUGS = ['seller_sourcing', 'spartia_career', 'corporate'];
+
+// 「全社」タブ（管理者のみ）。DB の engagements / products には置かない仮想の事業。
+// DB に入れると CRM・案件などの事業の選択肢に混ざるため、ここで別に持つ。
+export const CORPORATE_PRODUCT = { id: 'corporate', name: '全社', slug: 'corporate', display_order: 0 };
+export const CORPORATE_ENGAGEMENT = { id: 'corporate', name: '全社', slug: 'corporate', status: 'active', product_id: 'corporate', virtual: true };
 
 const EngagementContext = createContext(null);
 
@@ -52,7 +57,8 @@ export function EngagementProvider({ children }) {
           setDbEngagements(engRes.data);
           const saved = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch { return null; } })();
           const all = engRes.data;
-          const initial = all.find(e => e.slug === saved && IMPLEMENTED_ENG_SLUGS.includes(e.slug))
+          const initial = (saved === 'corporate' ? CORPORATE_ENGAGEMENT : null)
+            || all.find(e => e.slug === saved && IMPLEMENTED_ENG_SLUGS.includes(e.slug))
             || all.find(e => e.slug === 'seller_sourcing')
             || all[0];
           setCurrentSlug(initial?.slug || null);
@@ -84,7 +90,7 @@ export function EngagementProvider({ children }) {
   const products = useMemo(() => dbProducts, [dbProducts]);
   const categories = useMemo(() => dbCategories, [dbCategories]);
   const currentEngagement = useMemo(
-    () => engagements.find(e => e.slug === currentSlug) || null,
+    () => (currentSlug === 'corporate' ? CORPORATE_ENGAGEMENT : engagements.find(e => e.slug === currentSlug)) || null,
     [engagements, currentSlug]
   );
   // 現在の engagement が属する product
@@ -99,7 +105,7 @@ export function EngagementProvider({ children }) {
   );
 
   const switchEngagement = (slug) => {
-    const eng = engagements.find(e => e.slug === slug);
+    const eng = slug === 'corporate' ? CORPORATE_ENGAGEMENT : engagements.find(e => e.slug === slug);
     if (!eng) return;
     setCurrentSlug(slug);
     try { localStorage.setItem(STORAGE_KEY, slug); } catch { /* ignore */ }

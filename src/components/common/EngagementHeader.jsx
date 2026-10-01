@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow } from '../../constants/design';
 import { Button } from '../ui';
-import { useEngagements } from '../../hooks/useEngagements';
+import { useEngagements, CORPORATE_PRODUCT } from '../../hooks/useEngagements';
 import { useAccessControl } from '../../hooks/useAccessControl';
 
 // product slug 単位で「サイドバーが切り替わる対象」と「準備中」を判定する。
 // product → 代表 engagement に切替する（業務種別単位ではなく事業単位でナビゲーション）。
-const SWITCHABLE_PRODUCT_SLUGS = new Set(['sales_agency', 'spartia_career_biz', 'spartia_capital_biz']);
-const READY_PRODUCT_SLUGS      = new Set(['sales_agency', 'spartia_career_biz', 'spartia_capital_biz']);
+const SWITCHABLE_PRODUCT_SLUGS = new Set(['corporate', 'sales_agency', 'spartia_career_biz', 'spartia_capital_biz']);
+const READY_PRODUCT_SLUGS      = new Set(['corporate', 'sales_agency', 'spartia_career_biz', 'spartia_capital_biz']);
 
 // product slug → 配下の代表 engagement slug
 const PRODUCT_TO_PRIMARY_ENG_SLUG = {
+  corporate:              'corporate',
   sales_agency:           'seller_sourcing',
   spartia_career_biz:     'spartia_career',
   spartia_recruitment_biz:'spartia_recruitment',
@@ -30,7 +31,8 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange,
 
   // 全 products を、表示順で並べる
   // 各 product の表示可否は配下の代表 engagement に対する canViewEngagement で判定
-  const items = (products || []).map(p => ({
+  // 「全社」は DB に無い仮想の事業。表示順 0 で営業代行の左に置き、閲覧は管理者のみ（canViewEngagement）。
+  const items = [CORPORATE_PRODUCT, ...(products || [])].map(p => ({
     kind: 'product', id: p.id, slug: p.slug, name: p.name, display_order: p.display_order || 0,
   })).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
@@ -43,6 +45,7 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange,
 
   // 現在選択中の item を判定（product は配下の代表engagement）
   const currentItemId = (() => {
+    if (currentEngagement?.slug === 'corporate') return CORPORATE_PRODUCT.id;
     const p = (products || []).find(p => p.id === currentEngagement?.product_id);
     return p?.id || null;
   })();
