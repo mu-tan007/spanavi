@@ -3,7 +3,8 @@ import { color, space, font } from '../../../constants/design';
 import { Card, Badge, Button, DataTable } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 
-// 「フォーム営業」タブ。問い合わせフォーム・メールで送った資料リンク（/d/:token）の閲覧を出す。
+// 「フォーム営業」タブ。問い合わせフォーム・メールで送った資料リンク（/d/:token）と
+// ホームページのリンク（ma-sp.co/?t=:token）の閲覧を出す。
 // 数えるのは doc_send_stats ビュー1本。画面側で数えない。閲覧は機械の取得を除いた件数。
 // 設計: tasks/sekkei_form_eigyo_doc_tracking.md
 
@@ -19,6 +20,7 @@ const CALL_BADGE = {
 };
 
 const PUBLIC_BASE = 'https://spanavi.jp/d/';
+const SITE_BASE = 'https://ma-sp.co/?t=';
 
 function fmtDateTime(iso) {
   if (!iso) return '';
@@ -27,8 +29,13 @@ function fmtDateTime(iso) {
   });
 }
 
-// 閲覧のあとにまだ電話していない（＝今すぐかける先）
-const needsCall = (r) => r.first_view_at && (!r.call_called_at || r.call_called_at < r.first_view_at);
+// 最初の反応（資料の閲覧かホームページの閲覧の早いほう）
+const firstTouch = (r) => [r.first_view_at, r.first_site_at].filter(Boolean).sort()[0] || null;
+// 反応のあとにまだ電話していない（＝今すぐかける先）
+const needsCall = (r) => {
+  const t = firstTouch(r);
+  return t && (!r.call_called_at || r.call_called_at < t);
+};
 
 function Tile({ label, value, sub }) {
   return (
@@ -80,29 +87,31 @@ export default function DocSendsTab({ client }) {
   const stats = useMemo(() => {
     const sent = rows.filter(r => r.sent_at).length;
     const viewed = rows.filter(r => r.first_view_at).length;
+    const site = rows.filter(r => r.first_site_at).length;
     const waiting = rows.filter(needsCall).length;
-    const appo = rows.filter(r => r.first_view_at && r.call_status === 'アポ獲得').length;
+    const appo = rows.filter(r => firstTouch(r) && r.call_status === 'アポ獲得').length;
     const pct = (v, n) => (n ? `${Math.round((v / n) * 1000) / 10}%` : '—');
-    return { n: rows.length, sent, viewed, waiting, appo, pct };
+    return { n: rows.length, sent, viewed, site, waiting, appo, pct };
   }, [rows]);
 
   // 閲覧後に未架電の会社 → 閲覧のあった会社（新しい順）→ 残りは社名順
   const sorted = useMemo(() => {
-    const list = onlyViewed ? rows.filter(r => r.first_view_at) : rows;
-    const rank = (r) => (needsCall(r) ? 0 : r.first_view_at ? 1 : 2);
+    const list = onlyViewed ? rows.filter(firstTouch) : rows;
+    const rank = (r) => (needsCall(r) ? 0 : firstTouch(r) ? 1 : 2);
     return [...list].sort((a, b) => {
       const d = rank(a) - rank(b);
       if (d) return d;
-      if (a.first_view_at && b.first_view_at) return b.first_view_at.localeCompare(a.first_view_at);
+      if (firstTouch(a) && firstTouch(b)) return firstTouch(b).localeCompare(firstTouch(a));
       return (a.company || '').localeCompare(b.company || '', 'ja');
     });
   }, [rows, onlyViewed]);
 
-  const copyUrl = async (r) => {
+  // kind: 'doc'（資料）/ 'site'（ホームページ）
+  const copyUrl = async (r, kind) => {
     try {
-      await navigator.clipboard.writeText(PUBLIC_BASE + r.token);
-      setCopiedId(r.id);
-      setTimeout(() => setCopiedId(c => (c === r.id ? null : c)), 1500);
+      await navigator.clipboard.writeText((kind === 'site' ? SITE_BASE : PUBLIC_BASE) + r.token);
+      setCopiedId(`${r.id}:${kind}`);
+      setTimeout(() => setCopiedId(c => (c === `${r.id}:${kind}` ? null : c)), 1500);
     } catch (e) {
       console.error('[DocSendsTab] copy failed:', e);
     }
@@ -127,7 +136,7 @@ export default function DocSendsTab({ client }) {
     {
       key: 'company', label: '会社名', width: 280, align: 'left', mobilePrimary: true,
       render: (r) => (
-        <span style={{ fontWeight: r.first_view_at ? font.weight.semibold : font.weight.normal }}>
+        <span style={{ fontWeight: firstTouch(r) ? font.weight.semibold : font.weight.normal }}>
           {r.company}
         </span>
       ),
@@ -145,11 +154,16 @@ export default function DocSendsTab({ client }) {
       ) : '—'),
     },
     {
-      key: 'token', label: 'リンク', width: 96, align: 'center',
+      key: 'token', label: 'リンク', width: 170, align: 'center',
       render: (r) => (
-        <Button variant="outline" size="sm" onClick={() => copyUrl(r)}>
-          {copiedId === r.id ? 'コピー済み' : 'コピー'}
-        </Button>
+        <span style={{ display: 'inline-flex', gap: space[1] }}>
+          <Button variant="outline" size="sm" onClick={() => copyUrl(r, 'doc')} title={PUBLIC_BASE + r.token}>
+            {copiedId === `${r.id}:doc` ? 'コピー済み' : '資料'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => copyUrl(r, 'site')} title={SITE_BASE + r.token}>
+            {copiedId === `${r.id}:site` ? 'コピー済み' : 'HP'}
+          </Button>
+        </span>
       ),
     },
     {
@@ -167,13 +181,22 @@ export default function DocSendsTab({ client }) {
       ),
     },
     {
-      key: 'first_view_at', label: '閲覧', width: 170, align: 'right',
+      key: 'first_view_at', label: '資料閲覧', width: 170, align: 'right',
       render: (r) => (r.first_view_at ? (
         <span>
           {fmtDateTime(r.first_view_at)}
           {r.view_count > 1 ? (
             <span style={{ color: color.textLight }}>{`　計${r.view_count}回`}</span>
           ) : null}
+        </span>
+      ) : '—'),
+    },
+    {
+      key: 'first_site_at', label: 'HP閲覧', width: 170, align: 'right',
+      render: (r) => (r.first_site_at ? (
+        <span title={(r.site_paths || []).join('\n')}>
+          {fmtDateTime(r.first_site_at)}
+          <span style={{ color: color.textLight }}>{`　${r.site_page_views}ページ`}</span>
         </span>
       ) : '—'),
     },
@@ -208,6 +231,7 @@ export default function DocSendsTab({ client }) {
         <Tile label="リンク発行" value={stats.n} />
         <Tile label="送付済み" value={stats.sent} sub={stats.pct(stats.sent, stats.n)} />
         <Tile label="資料の閲覧" value={stats.viewed} sub={stats.sent ? `送付の ${stats.pct(stats.viewed, stats.sent)}` : null} />
+        <Tile label="HPの閲覧" value={stats.site} sub={stats.sent ? `送付の ${stats.pct(stats.site, stats.sent)}` : null} />
         <Tile label="閲覧後に未架電" value={stats.waiting} sub={stats.waiting ? '上から順に架電' : null} />
         <Tile label="閲覧からのアポ" value={stats.appo} />
       </div>

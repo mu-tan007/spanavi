@@ -2516,10 +2516,10 @@ export async function fetchDocViewForItem(itemId) {
   if (!itemId) return { view: null, error: null }
   const { data, error } = await supabase
     .from('doc_send_stats')
-    .select('first_view_at, view_count')
+    .select('first_view_at, view_count, first_site_at, site_page_views, site_paths')
     .eq('lead_item_id', itemId)
-    .not('first_view_at', 'is', null)
-    .order('first_view_at', { ascending: true })
+    .or('first_view_at.not.is.null,first_site_at.not.is.null')
+    .order('first_view_at', { ascending: true, nullsFirst: false })
     .limit(1)
     .maybeSingle()
   if (error) console.error('[DB] fetchDocViewForItem error:', error)

@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.doc-view]
 verify_jwt = false
+
+[functions.site-visit]
+verify_jwt = false

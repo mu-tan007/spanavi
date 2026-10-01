@@ -439,7 +439,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     });
     return () => { cancelled = true; };
   }, [selectedItemId]);
-  // フォーム営業の資料リンクが開かれた企業に「資料閲覧済み」を出す（doc_send_stats.lead_item_id で引き当て）
+  // フォーム営業の資料リンク・ホームページのリンクが開かれた企業に「資料閲覧済み」「HP閲覧済み」を出す（doc_send_stats.lead_item_id で引き当て）
   const [docViews, setDocViews] = useState({}); // { [itemId]: { first_view_at, view_count } | null }（未取得は undefined）
   const docView = selectedItemId ? docViews[selectedItemId] : undefined;
   useEffect(() => {
@@ -451,11 +451,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     });
     return () => { cancelled = true; };
   }, [selectedItemId]);
-  const docViewBadge = docView ? (
-    <Badge variant="success" dot>
-      {`資料閲覧済み ${formatJST(docView.first_view_at)}${docView.view_count > 1 ? `・計${docView.view_count}回` : ''}`}
-    </Badge>
-  ) : null;
+  const docViewBadge = docView ? (<span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: space[1.5] }}>
+    {docView.first_view_at && (
+      <Badge variant="success" dot>
+        {`資料閲覧済み ${formatJST(docView.first_view_at)}${docView.view_count > 1 ? `・計${docView.view_count}回` : ''}`}
+      </Badge>
+    )}
+    {docView.first_site_at && (
+      <Badge variant="success" dot title={(docView.site_paths || []).join('\n')}>
+        {`HP閲覧済み ${formatJST(docView.first_site_at)}・${docView.site_page_views}ページ`}
+      </Badge>
+    )}
+  </span>) : null;
   useEffect(() => {
     // 手紙タブは集中モードだけ。リスト表示の下部パネルには無いので戻す
     if (scriptTab === 'letter' && (letterPath === null || listMode)) setScriptTab('script');
