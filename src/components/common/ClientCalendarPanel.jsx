@@ -43,6 +43,23 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
     });
   }, [weekOffset]);
 
+  // 表示中の週の祝日（日付 → 祝日名）。祝日データは大きいので必要になってから読み込む
+  const [holidays, setHolidays] = useState({});
+  useEffect(() => {
+    let alive = true;
+    import('@holiday-jp/holiday_jp').then(({ default: holidayJp }) => {
+      if (!alive) return;
+      const [y, m, d] = days[0].dateStr.split('-').map(Number);
+      const map = {};
+      holidayJp.between(new Date(y, m - 1, d), new Date(y, m - 1, d + 6)).forEach(h => {
+        const hd = new Date(h.date);
+        map[`${hd.getFullYear()}-${String(hd.getMonth() + 1).padStart(2, '0')}-${String(hd.getDate()).padStart(2, '0')}`] = h.name;
+      });
+      setHolidays(map);
+    }).catch(e => console.error('[ClientCalendarPanel] holiday load error:', e));
+    return () => { alive = false; };
+  }, [days]);
+
   // freeBusy 取得
   const fetchBusy = async () => {
     setLoading(true);
@@ -240,11 +257,15 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
         <div style={{ display: 'grid', gridTemplateColumns: `40px repeat(7, 1fr)`, fontSize: 10, border: `1px solid ${color.gray200}`, borderRadius: radius.md, overflow: 'hidden' }}>
           {/* ヘッダー行 */}
           <div style={{ background: NAVY, color: color.white, padding: '4px 2px', textAlign: 'center', fontWeight: font.weight.semibold }}></div>
-          {days.map(d => (
-            <div key={d.dateStr} style={{ background: NAVY, color: d.isWeekend ? '#FCA5A5' : color.white, padding: '4px 2px', textAlign: 'center', fontWeight: font.weight.semibold }}>
-              {d.label}<br /><span style={{ fontSize: 9, opacity: 0.8 }}>{d.dayLabel}</span>
-            </div>
-          ))}
+          {days.map(d => {
+            const holiday = holidays[d.dateStr];
+            return (
+              <div key={d.dateStr} title={holiday || undefined} style={{ background: NAVY, color: d.isWeekend || holiday ? '#FCA5A5' : color.white, padding: '4px 2px', textAlign: 'center', fontWeight: font.weight.semibold, minWidth: 0 }}>
+                {d.label}<br /><span style={{ fontSize: 9, opacity: 0.8 }}>{holiday ? `${d.dayLabel}・祝` : d.dayLabel}</span>
+                {holiday && <div style={{ fontSize: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{holiday}</div>}
+              </div>
+            );
+          })}
 
           {/* 時間スロット行 */}
           {getSlots(days[0]?.dateStr || '').map((refSlot, si) => (
@@ -289,7 +310,7 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
                     }}
                     onMouseEnter={e => { if (canSelect) e.currentTarget.style.background = '#D0D8E8'; }}
                     onMouseLeave={e => { if (canSelect) e.currentTarget.style.background = FREE_COLOR; }}
-                    title={appo ? `アポ: ${appo.isOnline ? 'オンライン' : appo.meetLocation || ''}` : past ? '過去' : cBusy ? '予定あり' : `${d.label} ${slot.startLabel} - 空き`}
+                    title={appo ? `アポ: ${appo.isOnline ? 'オンライン' : appo.meetLocation || ''}` : past ? '過去' : cBusy ? '予定あり' : `${d.label} ${slot.startLabel} - 空き${holidays[d.dateStr] ? `（祝日：${holidays[d.dateStr]}）` : ''}`}
                   >
                     {appo && (
                       <>
