@@ -1,0 +1,193 @@
+﻿#Requires AutoHotkey v2.0
+#SingleInstance Force
+Persistent
+
+; Zoom の画面よけ（架電画面用）
+; -----------------------------------------------------------------------------
+; 発信（zoomphonecall://）のたびに Zoom の通話画面が前に出て、架電画面（ブラウザ）に重なる。
+; Zoom にはこれを止める設定が無い（2026-10-02 調査）。
+; そこで、発信の直後に出てきた Zoom の画面を最小化（タスクバーにしまう）し、ブラウザを前に戻す。
+; どのモニターにも出さない（2026-10-02）。
+;
+; ⚠️ 対象は「ブラウザで操作した直後（6秒以内）に前に出た Zoom の画面」だけ。
+;    着信の知らせ（Toast・Notification の画面）は、発信の直後でもしまわない（電話を取り逃がさないため）。
+; ⚠️ 一度しまった通話の画面は、つながったときなどに再び前に出ても、閉じるまでしまい続ける。
+; ⚠️ 人が自分で Zoom の画面をクリックしたとき（切る・ミュート・保留）は動かさない。
+;    タスクバーの Zoom を押すか Alt+Tab で開けば、その通話の画面はしまわなくなる。
+; ⚠️ Ctrl + Alt + Z で一時停止・再開。止めたいときはタスクトレイの H アイコンを右クリック → Exit。
+; ⚠️ 何をしたかは同じフォルダの zoom-window-guard.log に1行ずつ残す（効かないときの手がかり）。
+; ⚠️ 版（guardVersion）は配布ファイルの名前と起動時の記録に使う。中身を変えたら上げる。
+;    文字コードは UTF-8（BOM付き）。日本語の文字を、どのPCでも同じに読ませるため（AutoHotkey 公式の推奨）。
+
+global guardVersion := "1.0.2"
+global paused := false
+global lastClick := 0          ; 最後にマウスを押した時刻
+global lastBrowserInput := 0   ; ブラウザが前のときに最後に操作した時刻
+global lastBrowser := 0
+global lastSwitch := 0         ; 最後に Alt+Tab で画面を切り替えた時刻
+global altTabbing := false
+global managed := Map()        ; しまった Zoom の画面（hwnd → true）
+global released := Map()       ; 人が開いた Zoom の画面（以後しまわない）
+global logFile := A_ScriptDir "\zoom-window-guard.log"
+global browsers := Map("chrome.exe", 1, "msedge.exe", 1, "firefox.exe", 1, "brave.exe", 1, "phalanx.exe", 1)   ; phalanx.exe は PC版のPhalanx
+
+A_IconTip := "Zoomの画面よけ（Ctrl+Alt+Zで一時停止）"
+TrayTip "Zoomの画面よけ", "動いています。Ctrl+Alt+Z で一時停止できます。", 1
+
+~LButton:: {
+    global lastClick := A_TickCount
+    NoteBrowserInput()
+}
+~RButton:: {
+    global lastClick := A_TickCount
+}
+~Enter:: NoteBrowserInput()
+~Space:: NoteBrowserInput()
+~F1:: NoteBrowserInput()
+~F2:: NoteBrowserInput()
+~F3:: NoteBrowserInput()
+~F4:: NoteBrowserInput()
+~F5:: NoteBrowserInput()
+~F6:: NoteBrowserInput()
+~F7:: NoteBrowserInput()
+~F8:: NoteBrowserInput()
+~^Right:: NoteBrowserInput()
+~^Left:: NoteBrowserInput()
+~*Tab:: {
+    global altTabbing
+    if GetKeyState("Alt")
+        altTabbing := true
+}
+~*LAlt Up::
+~*RAlt Up:: {
+    global altTabbing, lastSwitch
+    if altTabbing
+        lastSwitch := A_TickCount
+    altTabbing := false
+}
+
+^!z:: {
+    global paused := !paused
+    TrayTip "Zoomの画面よけ", paused ? "一時停止しました。Ctrl+Alt+Z で再開します。" : "再開しました。", 1
+    Log(paused ? "一時停止" : "再開")
+}
+
+NoteBrowserInput() {
+    global lastBrowserInput, browsers
+    try {
+        proc := StrLower(WinGetProcessName("A"))
+        if browsers.Has(proc)
+            lastBrowserInput := A_TickCount
+    }
+}
+
+; 前面の切り替わり（EVENT_SYSTEM_FOREGROUND）、窓の表示（EVENT_OBJECT_SHOW）、窓の破棄（EVENT_OBJECT_DESTROY）を受け取る。
+global winEventCb := CallbackCreate(OnWinEvent, "F", 7)
+DllCall("SetWinEventHook", "UInt", 0x0003, "UInt", 0x0003, "Ptr", 0, "Ptr", winEventCb, "UInt", 0, "UInt", 0, "UInt", 0x0002, "Ptr")
+DllCall("SetWinEventHook", "UInt", 0x8001, "UInt", 0x8002, "Ptr", 0, "Ptr", winEventCb, "UInt", 0, "UInt", 0, "UInt", 0x0002, "Ptr")
+Log("起動 版 " guardVersion "（モニター " MonitorGetCount() " 枚・最小化の方式）")
+
+OnWinEvent(hHook, event, hwnd, idObject, idChild, thread, time) {
+    if (idObject != 0 || idChild != 0 || !hwnd)
+        return
+    if (event = 0x8001) {   ; 破棄：覚えていた画面を忘れる
+        global managed, released
+        if managed.Has(hwnd)
+            managed.Delete(hwnd)
+        if released.Has(hwnd)
+            released.Delete(hwnd)
+        return
+    }
+    fn := Handle.Bind(hwnd, event)
+    SetTimer fn, -60
+}
+
+Handle(hwnd, event) {
+    global paused, lastClick, lastSwitch, lastBrowser, lastBrowserInput, browsers, managed, released
+    try {
+        if !WinExist("ahk_id " hwnd)
+            return
+        proc := StrLower(WinGetProcessName("ahk_id " hwnd))
+    } catch {
+        return
+    }
+    if browsers.Has(proc) {
+        if (event = 0x0003)
+            lastBrowser := hwnd
+        return
+    }
+    if (proc != "zoom.exe" || paused)
+        return
+    try {
+        WinGetPos &x, &y, &w, &h, "ahk_id " hwnd
+        cls := WinGetClass("ahk_id " hwnd)
+        title := WinGetTitle("ahk_id " hwnd)
+        minmax := WinGetMinMax("ahk_id " hwnd)
+    } catch {
+        return
+    }
+    if (minmax = -1 || w < 160 || h < 100)
+        return
+    if !DllCall("IsWindowVisible", "Ptr", hwnd)
+        return
+    ; ⚠️ ミーティング・ウェビナーの画面はしまわない（ブラウザの招待リンクから入った直後に消えると困る）。
+    if RegExMatch(title, "i)ミーティング|ウェビナー|Meeting|Webinar") || InStr(cls, "Conf") {
+        Log("ミーティングの画面（そのまま） class=" cls " title=" title)
+        return
+    }
+    ; ⚠️ 着信の知らせはしまわない（ブラウザで操作した直後に着信が重なっても）。
+    if RegExMatch(cls, "i)Toast|Notification") {
+        if managed.Has(hwnd)
+            managed.Delete(hwnd)
+        Log("知らせの画面（そのまま） class=" cls " title=" title)
+        return
+    }
+    ; 人がクリックか Alt+Tab で Zoom を開いたときは、その画面をしまわない（以後も）。
+    if (event = 0x0003 && ((A_TickCount - lastClick < 500 && !BrowserIsUnderMouse()) || A_TickCount - lastSwitch < 800)) {
+        released[hwnd] := true
+        if managed.Has(hwnd)
+            managed.Delete(hwnd)
+        Log("人が開いた（以後しまわない） class=" cls " title=" title)
+        return
+    }
+    if released.Has(hwnd)
+        return
+    ; 発信の直後（ブラウザで操作してから6秒以内）に出た画面か、すでにしまった画面だけを対象にする。
+    isDial := (A_TickCount - lastBrowserInput < 6000)
+    if !(isDial || managed.Has(hwnd)) {
+        Log("対象外（発信の直後ではない） class=" cls " title=" title " size=" w "x" h)
+        return
+    }
+    managed[hwnd] := true
+    try WinMinimize "ahk_id " hwnd
+    Log("しまった class=" cls " title=" title " size=" w "x" h (isDial ? "（発信の直後）" : "（再表示）"))
+    browser := lastBrowser
+    if !(browser && WinExist("ahk_id " browser)) {
+        browser := 0
+        for exe in ["phalanx.exe", "chrome.exe", "msedge.exe", "firefox.exe", "brave.exe"] {
+            if (id := WinExist("ahk_exe " exe)) {
+                browser := id
+                break
+            }
+        }
+    }
+    if browser {
+        try WinActivate "ahk_id " browser
+    }
+}
+
+; クリックの位置がブラウザの上なら、それは発信ボタンを押したクリック（Zoom を開いた操作ではない）。
+BrowserIsUnderMouse() {
+    global browsers
+    try {
+        MouseGetPos , , &id
+        return browsers.Has(StrLower(WinGetProcessName("ahk_id " id)))
+    } catch {
+        return false
+    }
+}
+
+Log(msg) {
+    global logFile
+    try FileAppend FormatTime(, "yyyy-MM-dd HH:mm:ss") " " msg "`n", logFile, "UTF-8"
+}

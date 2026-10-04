@@ -1,0 +1,74 @@
+import { useState } from 'react';
+import { color, font, radius } from '../../constants/design';
+import { Button } from '../ui';
+
+// マイページ「連携 / 通知設定」の1行：Zoomの画面よけ（Windows）
+// -----------------------------------------------------------------------------
+// 発信（zoomphonecall://）のたびに Zoom の通話画面が架電画面に重なる。Zoom の設定では止められない
+// （2026-10-02 Zoomサポートにも確認中）ので、発信の直後に出た画面を最小化する AutoHotkey の設定ファイルを配る。
+// 中身は Phalanx のヘルプ「Zoomの画面よけ」と同じ（dorayaki-portal の tools/zoom-window-guard）。
+// むー様 2026-10-04「インターン生も毎回 Zoom の画面が立ち上がるのは嫌だと言っている」。
+//
+// ⚠️ 配布ファイルは名前に版を入れ、中身を変えたら版を上げて新しい名前で置く（古いキャッシュを掴ませない）。
+//    改行を変換させない（.gitattributes の -text）。文字コードは UTF-8（BOM付き）。
+// ⚠️ Windows だけ。Mac では動かない。
+const GUARD_FILE = '/downloads/zoom-window-guard-1.0.2.ahk';
+
+const STEPS = [
+  ['AutoHotkey v2（無料）を、公式サイトから入れます。', 'https://www.autohotkey.com/'],
+  ['下のボタンで、設定ファイルをダウンロードします。'],
+  ['設定ファイルを、ドキュメントなど消さない場所に移します。'],
+  ['ダブルクリックして、右下に「動いています」と出れば完了です。'],
+  ['PCの起動のたびに動かすには、Windows+R で shell:startup を開き、設定ファイルのショートカットを置きます。'],
+];
+
+// 保存名は版を外した zoom-window-guard.ahk（記録の名前 zoom-window-guard.log とそろえる）。
+function download() {
+  const a = document.createElement('a');
+  a.href = GUARD_FILE;
+  a.download = 'zoom-window-guard.ahk';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+export default function ZoomWindowGuardRow() {
+  const [open, setOpen] = useState(false);
+  const small = { fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.7 };
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>Zoomの画面よけ（Windows）</div>
+          <div style={{ ...small, marginTop: 2 }}>発信のたびに出るZoomの通話画面を、自動でしまう</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+            {open ? '入れ方を閉じる' : '入れ方'}
+          </Button>
+          <Button size="sm" onClick={download}>設定ファイルをダウンロード</Button>
+        </div>
+      </div>
+      {open && (
+        <div style={{ marginTop: 10, padding: '10px 14px', background: color.offWhite, borderRadius: radius.lg }}>
+          <ol style={{ margin: 0, paddingLeft: 18, fontSize: font.size.xs, color: color.textDark, lineHeight: 1.8 }}>
+            {STEPS.map(([text, href]) => (
+              <li key={text}>
+                {text}
+                {href && <> <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: color.navy }}>www.autohotkey.com</a></>}
+              </li>
+            ))}
+          </ol>
+          <div style={{ ...small, marginTop: 8 }}>
+            管理者の権限が無いPCでは、AutoHotkey の「Install mode」で「Current user」を選びます。<br />
+            電話をかけた直後に出た画面だけをしまいます。<br />
+            着信の知らせとミーティングの画面はしまいません。<br />
+            Zoomの画面を自分で開けば、その通話の画面はしまわなくなります。<br />
+            Ctrl+Alt+Z で一時停止と再開ができます。<br />
+            Macでは動きません。
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

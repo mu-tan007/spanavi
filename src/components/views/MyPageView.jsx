@@ -12,6 +12,7 @@ import {
 } from '../../lib/supabaseWrite';
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed, resetPushSubscription } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
+import ZoomWindowGuardRow from './ZoomWindowGuardRow';
 import { calcRankAndRate, getNextRankInfo } from '../../utils/calculations';
 import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/money';
 
@@ -611,6 +612,10 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
               {pushTestResult}
             </div>
           )}
+
+          <div style={{ height: 1, background: color.borderLight }} />
+
+          <ZoomWindowGuardRow />
         </div>
       </InfoCard>
 
