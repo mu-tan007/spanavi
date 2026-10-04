@@ -19,7 +19,7 @@ import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/mone
 const fmtYen = (v) => '¥' + Math.round(v || 0).toLocaleString();
 
 // 組織共通の個人プロフィール画面。事業を跨いで同じ内容が表示される。
-export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch, appoData = [], onOpenPayroll = null, engSlug = null }) {
+export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch, appoData = [], onOpenPayroll = null, engSlug = null, openZoomGuide = false }) {
   const isMobile = useIsMobile();
   // 営業代行(seller_sourcing)タブで開いた時だけ売上・ランク・報酬を表示する。
   // MASP（自社）/スパキャリタブでは営業代行固有の数字を出さない。
@@ -615,7 +615,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
 
           <div style={{ height: 1, background: color.borderLight }} />
 
-          <ZoomWindowGuardRow />
+          <ZoomWindowGuardRow openOnMount={openZoomGuide} />
         </div>
       </InfoCard>
 

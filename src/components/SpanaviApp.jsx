@@ -47,6 +47,7 @@ import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
 import ScriptView from './views/ScriptView';
 import MyPageView from './views/MyPageView';
+import ZoomGuardNotice from './views/ZoomGuardNotice';
 import { subscribeToPush } from '../lib/pushNotification';
 import SourcingDashboardView from './views/SourcingDashboardView';
 import CRMView from './views/CRMView';
@@ -434,6 +435,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     });
   }, [supabaseData?.callLists, switchEngagement]);
   const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","admin_settings"];
+  // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
+  const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
     try {
       const saved = localStorage.getItem("masp_v2_currentTab");
@@ -459,6 +462,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   useEffect(() => {
     try { localStorage.setItem("masp_v2_currentTab", currentTab); } catch(e) {}
   }, [currentTab]);
+  // 案内から開いた入れ方は1回きり。マイページを離れたら戻す（次にマイページを開いたときは閉じたまま）。
+  useEffect(() => { if (currentTab !== 'mypage') setZoomGuideRequested(false); }, [currentTab]);
   // engagement 切替時のデフォルト遷移
   // engagement の async ロードが終わるまでは fire しない（リロード時の誤遷移防止）
   const _prevEngSlugRef = useRef(null);
@@ -876,6 +881,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   return (
     <div style={{ minHeight: "100vh", background: '#F3F2F2', color: color.textDark, fontFamily: font.family.sans }}>
       <link href={FONT_URL} rel="stylesheet" />
+      <ZoomGuardNotice userId={userId} onOpenGuide={() => { setZoomGuideRequested(true); setCurrentTab('mypage'); }} />
       <style>{String.raw`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         ::-webkit-scrollbar { width: 5px; }
@@ -1444,6 +1450,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             onDataRefetch={onDataRefetch}
             appoData={appoData}
             engSlug={engSlug}
+            openZoomGuide={zoomGuideRequested}
             onOpenPayroll={engagements.some(e => e.slug === 'seller_sourcing')
               ? () => { switchEngagement('seller_sourcing'); setCurrentTab('payroll'); }
               : null}

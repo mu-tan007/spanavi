@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { color, font, radius } from '../../constants/design';
 import { Button } from '../ui';
 
@@ -32,11 +32,16 @@ function download() {
   a.remove();
 }
 
-export default function ZoomWindowGuardRow() {
-  const [open, setOpen] = useState(false);
+// openOnMount … 起動時の案内（ZoomGuardNotice）の「設定方法を見る」から来たとき。入れ方を開いて、この行まで送る。
+export default function ZoomWindowGuardRow({ openOnMount = false }) {
+  const [open, setOpen] = useState(openOnMount);
+  const rowRef = useRef(null);
+  useEffect(() => {
+    if (openOnMount) rowRef.current?.scrollIntoView?.({ block: 'center' });
+  }, [openOnMount]);
   const small = { fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.7 };
   return (
-    <div>
+    <div ref={rowRef}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>Zoomの画面よけ（Windows）</div>
