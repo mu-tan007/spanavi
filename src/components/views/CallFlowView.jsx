@@ -250,6 +250,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       return np;
     }, { replace: true });
   };
+  // 閉じたら（別リストへの切り替えも含む）検索語・表示の切り替え・ページをURLから消す。
+  // 残すと次に開いた別リストが「全件」「2ページ目」などで始まってしまう（2026-10-04）。
+  // ハードリロードではアンマウントが走らないので、架電中の再読み込みでは条件が保たれる
+  useEffect(() => () => {
+    setSearchParamsRaw(prev => {
+      const np = new URLSearchParams(prev);
+      ['mode', 'flow_q', 'flow_page'].forEach(k => np.delete(k));
+      return np;
+    }, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const setFilterModeAndResetPage = (mode) => {
     setSearchParamsRaw(prev => {
       const np = new URLSearchParams(prev);
