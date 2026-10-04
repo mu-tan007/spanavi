@@ -69,3 +69,11 @@
 - 待ち：Gmail の下書き作成の許可（gmail.modify）。google_oauth_tokens name='gmail_precheck'・pending_state 設定済み。
   許可後、localhost:3456 の戻りURLの code を { mode:'oauth', code, state, redirect_uri:'http://localhost:3456' } で関数に渡す
 - 注意：アプリの一時保存（Service Worker）のため、新しい版は各自の画面で1回開き直した後に出る
+
+## 通し試験（2026-10-04 17:30）
+- Gmail の許可（gmail.modify）を保存済み。google_oauth_tokens name='gmail_precheck'
+- 太陽精工様のアポで試験の記録（確認完了・メモ付き・録音なし）を2回。Slack の返信先は試験の間だけむー様のDMに変更→戻し済み
+- 1回目：宛名が「舟山様」（宛先は川元様）・引用が文字貼り → 直した（d97b4b16）
+- 2回目：宛名「川元様」・宛先 川元様／Cc 舟山様・件名 Re:・引用は元のHTMLを入れ子・Slack 返信 posted
+- 試験の下書き2通は削除、試験の記録も削除。DMの試験投稿2件は残っている
+- 未確認：録音が実際に付くか（実際の事前確認の電話で確かめる）・#事前確認 スレッドへの返信（明朝5時のボット投稿以降）
