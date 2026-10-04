@@ -36,8 +36,11 @@ function download() {
 export default function ZoomWindowGuardRow({ openOnMount = false }) {
   const [open, setOpen] = useState(openOnMount);
   const rowRef = useRef(null);
+  // ⚠️ すでにマイページを開いているときに案内から来ても開く（作り直されないので、初期値だけでは開かない）。
   useEffect(() => {
-    if (openOnMount) rowRef.current?.scrollIntoView?.({ block: 'center' });
+    if (!openOnMount) return;
+    setOpen(true);
+    rowRef.current?.scrollIntoView?.({ block: 'center' });
   }, [openOnMount]);
   const small = { fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.7 };
   return (

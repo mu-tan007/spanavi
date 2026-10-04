@@ -22,6 +22,14 @@ describe('マイページ：Zoomの画面よけ', () => {
     expect(buttonByText(r.root, '入れ方を閉じる')).toBeTruthy();
   });
 
+  it('マイページを開いたまま案内から来ても、入れ方が開く', () => {
+    let r;
+    act(() => { r = create(<ZoomWindowGuardRow />); });
+    expect(r.root.findAll((n) => n.type === 'ol')).toHaveLength(0);
+    act(() => { r.update(<ZoomWindowGuardRow openOnMount />); });
+    expect(r.root.findAll((n) => n.type === 'ol')).toHaveLength(1);
+  });
+
   it('配布ファイルが置いてあり、UTF-8（BOM付き）・LF のまま・名前の版と中身の版が一致する', () => {
     const src = fs.readFileSync(new URL('./ZoomWindowGuardRow.jsx', import.meta.url), 'utf8');
     const file = /const GUARD_FILE = '\/downloads\/(zoom-window-guard-(\d+\.\d+\.\d+)\.ahk)'/.exec(src);
