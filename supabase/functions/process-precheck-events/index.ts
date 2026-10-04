@@ -625,7 +625,7 @@ async function stepSlack(sb: SupabaseClient, ev: EventRow): Promise<void> {
   })
   const data = await res.json().catch(() => ({}))
   await sb.from('precheck_events').update(
-    data.ok ? { slack_status: 'posted', slack_ts: data.ts } : { slack_status: 'failed' },
+    data.ok ? { slack_status: 'posted', slack_ts: data.ts, slack_post_channel: data.channel || null } : { slack_status: 'failed' },
   ).eq('id', ev.id)
   if (!data.ok) console.error('[process-precheck-events] Slack error:', data.error)
 }

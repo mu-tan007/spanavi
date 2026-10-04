@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     if (botToken && ev.slack_ts) {
       const { data: ch } = await sb.from('org_settings').select('setting_value')
         .eq('org_id', ev.org_id).eq('setting_key', 'slack_channel_precheck').maybeSingle()
-      const channel = ch?.setting_value as string | undefined
+      const channel = (ev.slack_post_channel as string | null) || (ch?.setting_value as string | undefined)
       if (channel) {
         const hist = await fetch(`https://slack.com/api/chat.update`, {
           method: 'POST',

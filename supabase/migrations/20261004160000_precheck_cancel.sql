@@ -7,3 +7,6 @@ alter table public.precheck_events add column if not exists cancelled_at timesta
 alter table public.precheck_events add column if not exists cancelled_by text;
 -- 記録した時点のアポの状態（取り消したときに戻すため）
 alter table public.precheck_events add column if not exists prev_appo jsonb;
+
+-- #事前確認 に返信した実際のチャンネル（Slack が返したID）。取り消し時の書き換えに使う
+alter table public.precheck_events add column if not exists slack_post_channel text;
