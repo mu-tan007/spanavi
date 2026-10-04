@@ -264,6 +264,31 @@ async function generateDraftText(input: Record<string, string>): Promise<string>
   return text
 }
 
+/** 返信の宛先。最後のメールが自分のものなら同じ相手へ、相手からのものならその差出人へ */
+// deno-lint-ignore no-explicit-any
+function replyTarget(last: any): { to: string; lastFrom: string; fromMe: boolean } {
+  const lastFrom = header(last, 'From')
+  const fromMe = isMe(lastFrom)
+  return { to: fromMe ? header(last, 'To') : lastFrom, lastFrom, fromMe }
+}
+
+/** 「"川元 徳馬" <t.kawamoto@...>」から表示名を取り出す */
+function displayName(addr: string): string {
+  const m = addr.match(/^\s*"?([^"<]+?)"?\s*</)
+  return m ? m[1].trim() : ''
+}
+
+// deno-lint-ignore no-explicit-any
+function htmlBody(part: any): string {
+  if (!part) return ''
+  if (part.mimeType === 'text/html' && part.body?.data) return b64urlDecode(part.body.data)
+  for (const p of part.parts || []) {
+    const t = htmlBody(p)
+    if (t) return t
+  }
+  return ''
+}
+
 /** Gmail の返信と同じ形（引用つき）で下書きを作る */
 async function createReplyDraft(token: string, threadId: string, body: string): Promise<{ draftId: string; to: string }> {
   const th = await gmail(token, `threads/${threadId}?format=full`)
@@ -271,9 +296,7 @@ async function createReplyDraft(token: string, threadId: string, body: string): 
   const last = msgs[msgs.length - 1]
   if (!last) throw new Error('スレッドが空でした')
 
-  const lastFrom = header(last, 'From')
-  const fromMe = isMe(lastFrom)
-  const to = fromMe ? header(last, 'To') : lastFrom
+  const { to, lastFrom, fromMe } = replyTarget(last)
   const cc = [...addresses(header(last, fromMe ? 'Cc' : 'To')), ...(fromMe ? [] : addresses(header(last, 'Cc')))]
     .filter(a => !isMe(a) && !to.includes(a))
   const subjectRaw = header(msgs[0], 'Subject') || header(last, 'Subject')
@@ -286,7 +309,12 @@ async function createReplyDraft(token: string, threadId: string, body: string): 
   const quoteHead = `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日(${DAY_NAMES[d.getUTCDay()]}) ${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, '0')} ${lastFrom}:`
   const quoted = plainBody(last.payload).replace(/\r\n/g, '\n').trimEnd()
   const plain = `${body}\n\n${quoteHead}\n\n${quoted.split('\n').map(l => '> ' + l).join('\n')}\n`
-  const html = `<div dir="ltr">${escapeHtml(body).replace(/\n/g, '<br>')}</div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">${escapeHtml(quoteHead)}<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">${escapeHtml(quoted).replace(/\n/g, '<br>')}</blockquote></div>`
+  // 引用は元のメールのHTMLをそのまま入れ子にする（Gmail の返信と同じ見た目。HTMLが無ければ本文の文字を使う）
+  const lastHtml = htmlBody(last.payload)
+  const quotedHtml = lastHtml
+    ? lastHtml.replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '')
+    : escapeHtml(quoted).replace(/\n/g, '<br>')
+  const html = `<div dir="ltr">${escapeHtml(body).replace(/\n/g, '<br>')}</div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">${escapeHtml(quoteHead)}<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">${quotedHtml}</blockquote></div>`
 
   const boundary = `b_${crypto.randomUUID()}`
   const lines = [
@@ -344,7 +372,10 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
     threadId = await findReportThread(token, sb, appo)
     if (threadId) {
       const th = await gmail(token, `threads/${threadId}?format=full`)
-      firstBody = plainBody(th.messages?.[0]?.payload)
+      const msgs = th.messages || []
+      // 宛名は「この下書きを送る相手」に合わせる（スレッドの途中で担当者が変わることがある）
+      const toName = displayName((replyTarget(msgs[msgs.length - 1]).to || '').split(',')[0])
+      firstBody = toName ? `${toName} 様` : plainBody(msgs[0]?.payload)
     }
   }
 
@@ -416,7 +447,8 @@ async function stepSlack(sb: SupabaseClient, ev: EventRow): Promise<void> {
   lines.push(`・録音：${ev.recording_url ? `<${ev.recording_url}|再生>` : 'なし'}`)
   lines.push(`・入力：${ev.caller_name || ''}（${jpDateTime(ev.called_at)}）`)
   if (ev.draft_status === 'created' && ev.gmail_thread_id) {
-    lines.push(`・顧客への報告：Gmailに返信の下書きを作りました → <https://mail.google.com/mail/u/${FROM_EMAIL}/#all/${ev.gmail_thread_id}|開く>`)
+    // 下書きを直接開くURL（#all?compose=thread-f:…）は Gmail が新規作成に置き換えてしまうため、スレッドを開く
+    lines.push(`・顧客への報告：アポ取得報告のスレッドにGmailの返信下書きを作りました → <https://mail.google.com/mail/u/${FROM_EMAIL}/#all/${ev.gmail_thread_id}|スレッドを開く>`)
   } else if (ev.draft_status === 'ready') {
     lines.push(`・顧客への報告：${ev.draft_channel === 'slack' ? 'Slack' : 'Chatwork'}用の文面を用意しました → <${SPANAVI_URL}/?tab=precheck|Spanaviの事前確認で送信>`)
   } else if (ev.draft_status === 'failed') {
