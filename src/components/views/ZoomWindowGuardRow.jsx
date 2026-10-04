@@ -12,14 +12,13 @@ import { Button } from '../ui';
 // ⚠️ 配布ファイルは名前に版を入れ、中身を変えたら版を上げて新しい名前で置く（古いキャッシュを掴ませない）。
 //    改行を変換させない（.gitattributes の -text）。文字コードは UTF-8（BOM付き）。
 // ⚠️ Windows だけ。Mac では動かない。
-const GUARD_FILE = '/downloads/zoom-window-guard-1.0.2.ahk';
+const GUARD_FILE = '/downloads/zoom-window-guard-1.1.0.ahk';
 
 const STEPS = [
   ['AutoHotkey v2（無料）を、公式サイトから入れます。', 'https://www.autohotkey.com/'],
   ['下のボタンで、設定ファイルをダウンロードします。'],
-  ['設定ファイルを、ドキュメントなど消さない場所に移します。'],
-  ['ダブルクリックして、右下に「動いています」と出れば完了です。'],
-  ['PCの起動のたびに動かすには、Windows+R で shell:startup を開き、設定ファイルのショートカットを置きます。'],
+  ['ダウンロードした設定ファイルを、ダブルクリックします。'],
+  ['右下に「入れ終わりました」と出れば完了です。PCを起動するたびに、自動で動きます。'],
 ];
 
 // 保存名は版を外した zoom-window-guard.ahk（記録の名前 zoom-window-guard.log とそろえる）。
@@ -73,6 +72,8 @@ export default function ZoomWindowGuardRow({ openOnMount = false }) {
             着信の知らせとミーティングの画面はしまいません。<br />
             Zoomの画面を自分で開けば、その通話の画面はしまわなくなります。<br />
             Ctrl+Alt+Z で一時停止と再開ができます。<br />
+            ダウンロードしたファイルは、消して構いません。<br />
+            前の手順で入れた方も、新しい設定ファイルをダブルクリックすれば入れ替わります。<br />
             Macでは動きません。
           </div>
         </div>

@@ -16,7 +16,7 @@ describe('マイページ：Zoomの画面よけ', () => {
     act(() => { buttonByText(r.root, '入れ方').props.onClick(); });
     const body = text(r.toJSON());
     expect(body).toContain('AutoHotkey v2（無料）');
-    expect(body).toContain('shell:startup');
+    expect(body).toContain('入れ終わりました');
     expect(body).toContain('着信の知らせとミーティングの画面はしまいません。');
     expect(body).toContain('Macでは動きません。');
     expect(buttonByText(r.root, '入れ方を閉じる')).toBeTruthy();
