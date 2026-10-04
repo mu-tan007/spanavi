@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { color, space, radius, font } from '../../constants/design';
 import { Button, Input, Badge } from '../ui';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
-import { fetchPrecheckAppointmentByItem, fetchPrecheckEvents, insertPrecheckEvent, updatePreCheckResult } from '../../lib/supabaseWrite';
+import { fetchPrecheckAppointmentByItem, fetchPrecheckEvents, insertPrecheckEvent, updatePreCheckResult, invokeCancelPrecheckEvent } from '../../lib/supabaseWrite';
 
 /**
  * 架電ページの「事前確認」欄。アポ獲得済みの企業にだけ出る。
@@ -14,6 +14,10 @@ import { fetchPrecheckAppointmentByItem, fetchPrecheckEvents, insertPrecheckEven
  * 企業の状態は変えない。アポの状態は 確認完了→事前確認済 ／ リスケ→リスケ中 ／ キャンセル→キャンセル に変える
  * （事前確認タブの記録画面と同じ対応。どちらも売上の累計には入らない状態なので、累計の付け替えは起きない）。
  * 不在・不通はアポの状態を変えない。
+ *
+ * 取り消し：記録した本人（管理者も可）が、篠宮が報告を送る前なら1件ずつ取り消せる。
+ * 下書きの削除と Slack の印は cancel-precheck-event、アポの状態を記録前に戻すのはここ（通常の保存と同じ道）。
+ * 同じアポの他の記録（1回目・2回目の不在など）はそのまま残る。
  */
 const RESULTS = [
   { label: '確認完了', hint: '例：社長様に直接確認。当日はオンラインで、リンクは携帯にも送ってほしいとのこと' },
@@ -43,6 +47,7 @@ const draftLabel = (ev) => {
   if (ev.draft_status === 'ready') return '報告の文面を用意済み（事前確認タブで送信）';
   if (ev.draft_status === 'sent') return '顧客へ報告済み';
   if (ev.draft_status === 'failed') return '報告の下書きを作れませんでした';
+  if (ev.draft_status === 'cancelled') return '報告の下書きは取り消しで削除済み';
   return '';
 };
 
@@ -57,6 +62,9 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   const [error, setError] = useState('');
   const [savedMsg, setSavedMsg] = useState('');
   const [playingId, setPlayingId] = useState(null);
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [cancelingId, setCancelingId] = useState(null);
+  const [cancelMsg, setCancelMsg] = useState('');
 
   const load = useCallback(async () => {
     const { data } = await fetchPrecheckAppointmentByItem(itemId);
@@ -70,7 +78,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   }, [load]);
 
   // 録音・Slack・下書きは毎分の後処理で埋まるので、処理待ちがある間だけ読み直す
-  const hasPending = events.some(e => e.recording_status === 'pending' || e.slack_status === 'pending' || e.draft_status === 'pending');
+  const hasPending = events.some(e => !e.cancelled_at && (e.recording_status === 'pending' || e.slack_status === 'pending' || e.draft_status === 'pending'));
   useEffect(() => {
     if (!hasPending || !appo) return;
     const t = setInterval(async () => setEvents(await fetchPrecheckEvents(appo.id)), 20000);
@@ -91,6 +99,10 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
         appointmentId: appo.id, itemId, result, memo,
         recallAt: NEEDS_RECALL.has(result) && recallAt ? new Date(recallAt).toISOString() : null,
         calledPhone: dialedPhone, callerName: currentUser, callerZoomUserId: member?.zoomUserId || null,
+        prevAppo: {
+          status: appo.status, pre_check_status: appo.pre_check_status || null, pre_check_memo: appo.pre_check_memo || null,
+          rescheduled_at: appo.rescheduled_at || null, cancel_reason: appo.cancel_reason || null,
+        },
       });
       if (insErr) throw insErr;
 
@@ -120,6 +132,36 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   };
 
   const current = RESULTS.find(r => r.label === result);
+
+  const normName = (s) => String(s || '').replace(/[\s　]/g, '');
+  const canCancel = (ev) => !ev.cancelled_at && ev.draft_status !== 'sent' && normName(ev.caller_name) === normName(currentUser);
+
+  const cancelEvent = async (ev) => {
+    setCancelingId(ev.id); setCancelMsg('');
+    try {
+      const { data, error: cErr } = await invokeCancelPrecheckEvent(ev.id);
+      if (cErr) throw new Error(cErr);
+      if (data?.restore) {
+        const r = data.restore;
+        const updErr = await updatePreCheckResult(appo.id, {
+          preCheckStatus: r.pre_check_status, preCheckMemo: r.pre_check_memo, status: r.status,
+          rescheduledAt: r.rescheduled_at, cancelReason: r.cancel_reason,
+        });
+        if (updErr) throw updErr;
+        setAppoData?.(prev => prev.map(a => a._supaId === appo.id ? {
+          ...a, status: r.status, preCheckStatus: r.pre_check_status || '', preCheckMemo: r.pre_check_memo || '',
+          rescheduledAt: r.rescheduled_at ? String(r.rescheduled_at).slice(0, 16) : '', cancelReason: r.cancel_reason || '',
+        } : a));
+      }
+      setCancelMsg(`「${ev.result}」の記録を取り消しました。${data?.restore ? `アポは「${data.restore.status}」に戻りました。` : ''}正しい結果を記録し直してください。`);
+      setConfirmCancelId(null);
+      await load();
+    } catch (e) {
+      setCancelMsg('取り消せませんでした：' + (e?.message || '不明なエラー'));
+    } finally {
+      setCancelingId(null);
+    }
+  };
 
   return (
     <div style={{ padding: space[4], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}`, borderLeft: `3px solid ${color.gold}` }}>
@@ -174,6 +216,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
       )}
       {error && <div style={{ color: color.danger, fontSize: font.size.xs, marginTop: space[1.5] }}>{error}</div>}
       {savedMsg && <div style={{ color: color.success, fontSize: font.size.xs, marginTop: space[1.5] }}>{savedMsg}</div>}
+      {cancelMsg && <div style={{ color: cancelMsg.startsWith('取り消せません') ? color.danger : color.success, fontSize: font.size.xs, marginTop: space[1.5] }}>{cancelMsg}</div>}
 
       {events.length > 0 && (
         <div style={{ marginTop: space[3], borderTop: `1px solid ${color.borderLight}`, paddingTop: space[2] }}>
@@ -182,8 +225,9 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
             <div key={ev.id} style={{ padding: `${space[1.5]}px 0`, borderBottom: `1px solid ${color.borderLight}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: space[2], fontSize: font.size.xs }}>
                 <span style={{ fontFamily: font.family.mono, color: color.textMid }}>{fmt(ev.called_at)}</span>
-                <Badge variant={resultVariant(ev.result)} size="sm">{ev.result}</Badge>
-                <span style={{ color: color.textMid }}>{ev.caller_name}</span>
+                <Badge variant={ev.cancelled_at ? 'neutral' : resultVariant(ev.result)} size="sm">{ev.result}</Badge>
+                {ev.cancelled_at && <Badge variant="neutral" size="sm">取り消し済み</Badge>}
+                <span style={{ color: color.textMid, textDecoration: ev.cancelled_at ? 'line-through' : 'none' }}>{ev.caller_name}</span>
                 <span style={{ marginLeft: 'auto' }}>
                   {ev.recording_status === 'pending' && <span style={{ color: color.textLight }}>録音を取得中</span>}
                   {ev.recording_status === 'none' && <span style={{ color: color.textLight }}>録音なし</span>}
@@ -197,6 +241,20 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
               {ev.memo && <div style={{ fontSize: font.size.xs, color: color.textDark, marginTop: 2, whiteSpace: 'pre-wrap' }}>{ev.memo}</div>}
               {ev.recall_at && <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: 2 }}>かけ直し：{fmt(ev.recall_at)}</div>}
               {draftLabel(ev) && <div style={{ fontSize: font.size.xs, color: ev.draft_status === 'failed' ? color.danger : color.textMid, marginTop: 2 }}>{draftLabel(ev)}{ev.draft_status === 'failed' && ev.draft_error ? `（${ev.draft_error}）` : ''}</div>}
+              {canCancel(ev) && (
+                confirmCancelId === ev.id ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginTop: space[1], fontSize: font.size.xs, color: color.danger, flexWrap: 'wrap' }}>
+                    <span>この記録を取り消しますか？下書きも消え、アポの状態も記録の前に戻ります。</span>
+                    <Button size="sm" variant="danger" loading={cancelingId === ev.id} onClick={() => cancelEvent(ev)}>取り消す</Button>
+                    <Button size="sm" variant="outline" disabled={cancelingId === ev.id} onClick={() => setConfirmCancelId(null)}>やめる</Button>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: space[1] }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setConfirmCancelId(ev.id); setCancelMsg(''); }}>この記録を取り消す</Button>
+                  </div>
+                )
+              )}
+              {ev.cancelled_at && ev.cancelled_by && <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: 2 }}>{ev.cancelled_by}さんが取り消し（{fmt(ev.cancelled_at)}）</div>}
               {playingId === ev.id && ev.recording_url && <InlineAudioPlayer url={ev.recording_url} onClose={() => setPlayingId(null)} />}
             </div>
           ))}

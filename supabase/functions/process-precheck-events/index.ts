@@ -94,7 +94,7 @@ async function stepRecording(sb: SupabaseClient, ev: EventRow): Promise<void> {
   //      同じアポの1つ前の事前確認 ／ アポの登録時刻 ／ その企業の最後の架電記録（アポ獲得など）
   //    アポ取得の通話は、登録・架電記録より前に始まっているので必ず外れる。
   const { data: prev } = await sb.from('precheck_events')
-    .select('called_at').eq('appointment_id', ev.appointment_id).lt('called_at', ev.called_at)
+    .select('called_at').eq('appointment_id', ev.appointment_id).is('cancelled_at', null).lt('called_at', ev.called_at)
     .order('called_at', { ascending: false }).limit(1).maybeSingle()
   const { data: appo } = await sb.from('appointments').select('created_at, phone, item_id').eq('id', ev.appointment_id).maybeSingle()
   const { data: lastCall } = appo?.item_id
@@ -525,7 +525,7 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
 
   // これまでの事前確認の電話（未完了の経緯、前日に未完了を連絡済みかの判断に使う）
   const { data: history } = await sb.from('precheck_events')
-    .select('result, memo, called_at').eq('appointment_id', appo.id).neq('id', ev.id)
+    .select('result, memo, called_at').eq('appointment_id', appo.id).neq('id', ev.id).is('cancelled_at', null)
     .lt('called_at', ev.called_at).order('called_at')
   const calls = (history || []).filter(h => h.result !== '未完了')
   const toldUnfinished = (history || []).some(h => h.result === '未完了')
@@ -561,6 +561,9 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
     Object.assign(ev, { draft_status: 'failed', draft_channel: 'email', draft_text: text, draft_error: 'アポ取得報告のメールが見つかりませんでした' })
     return
   }
+  // 文面を作っている間に取り消されていたら、下書きは作らない
+  const { data: still } = await sb.from('precheck_events').select('cancelled_at').eq('id', ev.id).maybeSingle()
+  if (still?.cancelled_at) return
   const { draftId } = await createReplyDraft(token, threadId, text)
   await sb.from('precheck_events').update({
     draft_status: 'created', draft_channel: 'email', draft_text: text, draft_error: null,
@@ -661,6 +664,7 @@ Deno.serve(async (req) => {
   const { data: events, error } = await sb.from('precheck_events')
     .select('*')
     .gte('created_at', since)
+    .is('cancelled_at', null) // 取り消した記録は処理しない
     .or('recording_status.eq.pending,draft_status.eq.pending,slack_status.eq.pending')
     .order('created_at')
     .limit(20)

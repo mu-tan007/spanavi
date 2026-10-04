@@ -5545,7 +5545,8 @@ export async function fetchPrecheckAppointmentByItem(itemId) {
     .from('appointments')
     .select('id, company_name, client_id, meeting_date, meeting_time, status, pre_check_status, pre_check_memo, rescheduled_at, cancel_reason, getter_name, created_at')
     .eq('item_id', itemId)
-    .in('status', ['アポ取得', '事前確認済', 'リスケ中'])
+    // キャンセルも含める（事前確認でキャンセルを記録したあとも、取り消しができるように）
+    .in('status', ['アポ取得', '事前確認済', 'リスケ中', 'キャンセル'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -5567,14 +5568,14 @@ export async function fetchAppointmentLink(appointmentId) {
 export async function fetchPrecheckEvents(appointmentId) {
   const { data, error } = await supabase
     .from('precheck_events')
-    .select('id, result, memo, recall_at, caller_name, called_at, recording_status, recording_url, slack_status, draft_status, draft_channel, draft_error, gmail_thread_id')
+    .select('id, result, memo, recall_at, caller_name, called_at, recording_status, recording_url, slack_status, draft_status, draft_channel, draft_error, gmail_thread_id, cancelled_at, cancelled_by')
     .eq('appointment_id', appointmentId)
     .order('called_at', { ascending: false })
   if (error) console.error('[DB] fetchPrecheckEvents error:', error)
   return data || []
 }
 
-export async function insertPrecheckEvent({ appointmentId, itemId, result, memo, recallAt, calledPhone, callerName, callerZoomUserId }) {
+export async function insertPrecheckEvent({ appointmentId, itemId, result, memo, recallAt, calledPhone, callerName, callerZoomUserId, prevAppo }) {
   const { data, error } = await supabase
     .from('precheck_events')
     .insert({
@@ -5588,6 +5589,8 @@ export async function insertPrecheckEvent({ appointmentId, itemId, result, memo,
       caller_name: callerName || null,
       caller_zoom_user_id: callerZoomUserId || null,
       draft_status: PRECHECK_DRAFT_RESULTS.has(result) ? 'pending' : 'none',
+      // 取り消したときに戻すため、記録した時点のアポの状態を控える
+      prev_appo: prevAppo || null,
     })
     .select('id')
     .single()
@@ -5620,6 +5623,17 @@ export async function markPrecheckDraftDone(eventId, status) {
 /** 事前確認の報告を Slack のアポ取得報告のスレッドへ、むー様の名前で送る（管理者のみ） */
 export async function invokeSendPrecheckSlack(eventId, text) {
   const { data, error } = await supabase.functions.invoke('send-precheck-slack', { body: { event_id: eventId, text } })
+  if (error) {
+    let msg = error.message
+    try { msg = (await error.context?.json())?.error || msg } catch { /* ignore */ }
+    return { error: msg }
+  }
+  return { data, error: data?.error || null }
+}
+
+/** 事前確認の記録を取り消す（記録した本人か管理者。篠宮が報告を送る前だけ）。戻すべきアポの状態を返す */
+export async function invokeCancelPrecheckEvent(eventId) {
+  const { data, error } = await supabase.functions.invoke('cancel-precheck-event', { body: { event_id: eventId } })
   if (error) {
     let msg = error.message
     try { msg = (await error.context?.json())?.error || msg } catch { /* ignore */ }
