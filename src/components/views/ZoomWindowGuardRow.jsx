@@ -12,7 +12,7 @@ import { Button } from '../ui';
 // ⚠️ 配布ファイルは名前に版を入れ、中身を変えたら版を上げて新しい名前で置く（古いキャッシュを掴ませない）。
 //    改行を変換させない（.gitattributes の -text）。文字コードは UTF-8（BOM付き）。
 // ⚠️ Windows だけ。Mac では動かない。
-const GUARD_FILE = '/downloads/zoom-window-guard-1.1.3.ahk';
+const GUARD_FILE = '/downloads/zoom-window-guard-1.1.4.ahk';
 
 const STEPS = [
   ['AutoHotkey v2（無料）を、公式サイトから入れます。', 'https://www.autohotkey.com/'],
