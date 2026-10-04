@@ -5480,7 +5480,7 @@ export async function fetchMemberPayrollAdjustmentTotals(payMonth) {
   return { data: totals, error: null }
 }
 
-// ─── 事前確認（集中モードの「事前確認」ボタン） ─────────────────────────
+// ─── 事前確認（架電ページの「事前確認」ボタン） ─────────────────────────
 // 1回の電話ごとに precheck_events へ1行。録音・#事前確認 スレッドへの返信・
 // 顧客への報告の下書きは process-precheck-events（毎分）が後から埋める。
 

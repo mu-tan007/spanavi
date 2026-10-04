@@ -491,7 +491,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     )}
   </span>) : null;
   useEffect(() => {
-    // 手紙タブは集中モードだけ。リスト表示の下部パネルには無いので戻す
+    // 手紙タブは架電ページだけ。一覧ページの下部パネルには無いので戻す
     if (scriptTab === 'letter' && (letterPath === null || listMode)) setScriptTab('script');
   }, [scriptTab, letterPath, listMode]);
   // 署名URLは10分で切れるので、タブを開くたび・企業が変わるたびに取り直す
@@ -2209,7 +2209,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     </div>
   ); } // OLD_UI_END
 
-  // ── NEW UI: フルスクリーン・1企業集中モード ──────────────────────────
+  // ── NEW UI: 架電ページ（フルスクリーン・1企業ずつ） ──────────────────────────
   // ref を毎レンダーで最新化（keydownハンドラーが参照する）
   cfvKbRef.current = { sel: selectedRow, sorted, currentIdx, appoM: appoModal, recallM: recallModal, helpOpen: showShortcutHelp, handleResult };
 
@@ -2231,13 +2231,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       {/* ── ヘッダーバー（height:48px） ── */}
       <div style={{ height: 48, background: color.navyDeep, display: 'flex', alignItems: 'center', padding: `0 ${space[4] - 2}px`, gap: space[2] + 2, flexShrink: 0, borderBottom: `1px solid ${alpha('#FFFFFF', 0.08)}` }}>
 
-        {/* 左: リストに戻る（集中モード時のみ表示） */}
+        {/* 左: 一覧ページに戻る（架電ページのときだけ表示） */}
         {!listMode && (
           <button onClick={() => setListMode(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: radius.lg, flexShrink: 0,
               border: `1px solid ${alpha('#FFFFFF', 0.25)}`, cursor: 'pointer', fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
               background: alpha('#FFFFFF', 0.07), color: color.white }}>
-            {isMobile ? '◀' : '◀ リストに戻る'}
+            {isMobile ? '◀' : '◀ 一覧ページに戻る'}
           </button>
         )}
 
@@ -2325,7 +2325,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         <div style={{ width: listMode ? '100%' : isMobile ? '100%' : '50%', overflow: 'auto', padding: isMobile ? 10 : 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {listMode ? (
-            /* ────────────── リスト表示モード ────────────── */
+            /* ────────────── 一覧ページ ────────────── */
             <div style={{ background: color.white, borderRadius: radius.md, overflow: 'hidden', border: `1px solid ${color.gray200}` }}>
               {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color.gray200}`, display: 'flex', gap: 6, alignItems: 'center', background: color.offWhite, flexWrap: 'wrap' }}>

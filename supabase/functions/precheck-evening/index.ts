@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         const leader = m?.team ? leaderByTeam[m.team] : null
         const mentions = [at(m?.slack, a.getter_name || ''), leader && leader !== m?.slack ? `<@${leader}>` : ''].filter(Boolean).join(' ')
         const meet = formatDateJP(new Date(a.meeting_date.slice(0, 10) + 'T00:00:00Z')) + (a.meeting_time ? ` ${a.meeting_time}〜` : '')
-        lines.push(`・${a.company_name} ／ 面談 ${meet} ／ ${mentions} ／ <${SPANAVI_URL}/?precheck=${a.id}|集中モードで開く>`)
+        lines.push(`・${a.company_name} ／ 面談 ${meet} ／ ${mentions} ／ <${SPANAVI_URL}/?precheck=${a.id}|架電ページで開く>`)
       }
       const res = await fetch('https://slack.com/api/chat.postMessage', {
         method: 'POST',

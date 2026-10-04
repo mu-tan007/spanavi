@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
         sections.push(`【事前確認】${day.jp}（${day.label}）`)
         for (const a of grouped[day.date]) {
           const clientName = clientMap[a.client_id] || 'クライアント不明'
-          sections.push(`・${a.company_name} / アポ取得者：${getterLabel(a.getter_name)} / クライアント：${clientName} / <${SPANAVI_URL}/?precheck=${a.id}|集中モードで開く>`)
+          sections.push(`・${a.company_name} / アポ取得者：${getterLabel(a.getter_name)} / クライアント：${clientName} / <${SPANAVI_URL}/?precheck=${a.id}|架電ページで開く>`)
           if (a.notes && (a.notes as string).trim()) {
             sections.push(`　備考：${(a.notes as string).trim()}`)
           }

@@ -5,7 +5,7 @@ import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import { fetchPrecheckAppointmentByItem, fetchPrecheckEvents, insertPrecheckEvent, updatePreCheckResult } from '../../lib/supabaseWrite';
 
 /**
- * 集中モードの「事前確認」欄。アポ獲得済みの企業にだけ出る。
+ * 架電ページの「事前確認」欄。アポ獲得済みの企業にだけ出る。
  *
  * 通常の結果ボタンは企業の状態（アポ獲得）を書き換えてしまい、アポ獲得を押すと
  * アポ登録画面が開いて二重登録になる。そのため事前確認の電話は結果を残す場所がなく、

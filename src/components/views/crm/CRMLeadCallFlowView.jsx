@@ -88,7 +88,7 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
         fontFamily: font.family.sans,
       }}>
         <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[1], textAlign: 'center' }}>
-          集中モードはPCでご利用ください
+          架電ページはPCでご利用ください
         </div>
         <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[5], textAlign: 'center', lineHeight: font.lineHeight.relaxed }}>
           1社フォーカスのレイアウトとオートコール機能を<br />
@@ -614,7 +614,7 @@ export default function CRMLeadCallFlowView({ list, companies, records, currentU
                 color: color.white, fontSize: font.size.xs, cursor: 'pointer', fontFamily: font.family.sans,
                 whiteSpace: 'nowrap',
               }}
-            >◀ リストに戻る</button>
+            >◀ 一覧ページに戻る</button>
           )}
           {/* 前へ/次へナビゲーション (Lists CallFlowView 集中ページと同等) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: space[1] }}>
