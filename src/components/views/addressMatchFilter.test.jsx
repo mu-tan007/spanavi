@@ -271,3 +271,17 @@ describe('フォーム送信済で絞る', () => {
     expect(companies()).toHaveLength(4);
   });
 });
+
+describe('ボタンの数字は押したときに出る社数と揃える', () => {
+  it('架電可能では除外の企業を数えず、全件では数える', async () => {
+    fetchCallFlowData.mockResolvedValue({ data: { items: rows.map(r => r.id === 'b' ? { ...r, is_excluded: true } : r), records: [] } });
+    fetchViewedDocSends.mockResolvedValue({ rows: [
+      { lead_item_id: 'b', first_view_at: '2026-10-01T00:00:00Z' },
+      { lead_item_id: 'd', first_view_at: '2026-10-02T00:00:00Z' },
+    ], error: null });
+    await mountFlow();
+    expect(button('リンク開封済 1')).toBeTruthy();
+    await act(async () => { button('全件').props.onClick(); });
+    expect(button('リンク開封済 2')).toBeTruthy();
+  });
+});

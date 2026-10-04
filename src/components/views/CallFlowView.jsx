@@ -917,8 +917,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     : viewedOnly
       ? [...filtered].sort((a, b) => (viewedAt.get(b.id) || 0) - (viewedAt.get(a.id) || 0))
       : filtered;
-  const viewedCount = useMemo(() => items.reduce((n, i) => n + (viewedAt.has(i.id) ? 1 : 0), 0), [items, viewedAt]);
-  const sentInListCount = useMemo(() => items.reduce((n, i) => n + (sentSet.has(i.id) ? 1 : 0), 0), [items, sentSet]);
+  // ボタンの数字は、押したときに出る社数と揃える（架電可能＝除外・アポ獲得済みを数えない／全件＝すべて／架電不可＝除外だけ）
+  const inCurrentMode = (id) => filterMode === 'callable' ? !isExcludedItem(id) : filterMode === 'excluded' ? isExcludedItem(id) : true;
+  const viewedCount = items.reduce((n, i) => n + (viewedAt.has(i.id) && inCurrentMode(i.id) ? 1 : 0), 0);
+  const sentInListCount = items.reduce((n, i) => n + (sentSet.has(i.id) && inCurrentMode(i.id) ? 1 : 0), 0);
   // 「フォーム送信済」「リンク開封済」のボタン。0件のあいだは押せない表示（選択中なら解除だけはできる）
   const docSendFilterButton = (label, n, active, onClick, hint) => (
     <button key={label} onClick={onClick} disabled={n === 0 && !active} title={n > 0 ? hint : `まだ${label}の企業はありません`}
