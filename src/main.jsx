@@ -7,6 +7,10 @@ import { AccessControlProvider } from './hooks/useAccessControl'
 import ErrorBoundary from './components/ErrorBoundary'
 import { handleChunkLoadError } from './utils/chunkReload'
 import './index.css'
+import { stashPrecheckLink } from './utils/precheckLink'
+
+// 通知のリンク（?precheck=）はログインや画面の移動で消えるので、描画より前に控える
+stashPrecheckLink()
 
 // === dynamic import 失敗の自動リロード ===
 // 新しい版がデプロイされた後、古いタブが消えた chunk を取りに行って 404 になる

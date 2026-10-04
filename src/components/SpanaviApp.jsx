@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { takePrecheckLink } from "../utils/precheckLink";
 import React from "react";
 import { C } from '../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../constants/design';
@@ -413,25 +414,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // コンボボックス用の名前リスト（文字列配列）
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
   // #事前確認 の通知に付けたリンク（?precheck=<アポID>・?tab=precheck）から開いたとき。
-  // 架電リストが読み込めた後に1回だけ処理し、URLからは消す（再読み込みで同じ画面に戻らないように）
+  // リンクは起動時に main.jsx が控えている（utils/precheckLink）。架電リストが読み込めた後に1回だけ処理する
   const precheckLinkHandledRef = useRef(false);
   useEffect(() => {
     if (precheckLinkHandledRef.current || !supabaseData?.callLists?.length) return;
-    let appoId = null;
-    let tab = null;
-    try {
-      const url = new URL(window.location.href);
-      appoId = url.searchParams.get('precheck');
-      tab = url.searchParams.get('tab');
-      if (!appoId && tab !== 'precheck') return;
-      url.searchParams.delete('precheck');
-      url.searchParams.delete('tab');
-      window.history.replaceState({}, '', url.toString());
-    } catch { return; }
     precheckLinkHandledRef.current = true;
+    const link = takePrecheckLink();
+    if (!link) return;
     try { switchEngagement('seller_sourcing'); } catch { /* ignore */ }
-    if (!appoId) { setCurrentTab('precheck'); return; }
-    fetchAppointmentLink(appoId).then(a => {
+    if (!link.appoId) { setCurrentTab('precheck'); return; }
+    fetchAppointmentLink(link.appoId).then(a => {
       if (!a?.item_id) return;
       const list = supabaseData.callLists.find(l => l._supaId === a.list_id) || { _supaId: a.list_id || null, id: null, company: '' };
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
