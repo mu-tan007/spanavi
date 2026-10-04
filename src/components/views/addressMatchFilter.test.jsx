@@ -14,7 +14,7 @@ vi.mock('../../lib/supabaseWrite', () => ({
   insertAppointment: vi.fn(), updateClientContact: vi.fn(), completeRecallsForItem: vi.fn(),
   getCompanyOverviewPdfSignedUrl: vi.fn(), getScriptPdfSignedUrl: vi.fn(async () => ({ url: null })),
   fetchGiftLetterPath: vi.fn(async () => ({ path: null, error: null })), getGiftLetterSignedUrl: vi.fn(async () => ({ url: null })),
-  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), fetchViewedDocSends: vi.fn(async () => ({ rows: [], error: null })), fetchViewedCountsByList: vi.fn(async () => ({ counts: {}, sent: {}, error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
+  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), fetchViewedDocSends: vi.fn(async () => ({ rows: [], error: null })), fetchViewedCountsByList: vi.fn(async () => ({ counts: {}, sent: {}, issued: {}, error: null })), fetchSentDocSends: vi.fn(async () => ({ rows: [], error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
   deleteCallRecordsByListId: vi.fn(), deleteCallListItemsByListId: vi.fn(), updateCallListCount: vi.fn(), insertCallListItems: vi.fn(),
 }));
 vi.mock('../../lib/zoomPhoneStore', () => ({ zoomPhone: {} }));
@@ -223,16 +223,16 @@ describe('資料・HPの閲覧済みで絞り込む', () => {
     ], error: null });
     await mountFlow();
     expect(companies()).toHaveLength(4);
-    await act(async () => { button('閲覧済み 2').props.onClick(); });
+    await act(async () => { button('リンク開封済 2').props.onClick(); });
     expect(companies()).toEqual(['一致低売上企業', '不一致企業']);
-    await act(async () => { button('閲覧済み 2').props.onClick(); });
+    await act(async () => { button('リンク開封済 2').props.onClick(); });
     expect(companies()).toHaveLength(4);
   });
 
   it('このリストに開いた企業が無ければボタンを出さない', async () => {
     fetchViewedDocSends.mockResolvedValue({ rows: [{ lead_item_id: 'other-list-item', first_view_at: '2026-10-04T00:00:00Z' }], error: null });
     await mountFlow();
-    expect(renderer.root.findAllByType('button').some(n => String(n.children).startsWith('閲覧済み'))).toBe(false);
+    expect(renderer.root.findAllByType('button').some(n => String(n.children).startsWith('リンク開封済'))).toBe(false);
   });
 });
 
@@ -249,11 +249,25 @@ describe('リスト詳細・リスト一覧から「閲覧済みだけ」で開�
 describe('送ったことのあるリストでは0件でも「閲覧済み 0」を出す', () => {
   it('開いた企業が0件でもボタンを出し、押せない', async () => {
     const { fetchViewedCountsByList } = await import('../../lib/supabaseWrite');
-    fetchViewedCountsByList.mockResolvedValue({ counts: {}, sent: { 'address-test': 3 }, error: null });
+    fetchViewedCountsByList.mockResolvedValue({ counts: {}, sent: {}, issued: { 'address-test': 3 }, error: null });
     fetchViewedDocSends.mockResolvedValue({ rows: [], error: null });
     await mountFlow();
-    const b = button('閲覧済み 0');
+    const b = button('リンク開封済 0');
+    expect(button('フォーム送信済 0')).toBeTruthy();
     expect(b).toBeTruthy();
     expect(b.props.disabled).toBe(true);
+  });
+});
+
+describe('フォーム送信済で絞る', () => {
+  it('実際に送った企業だけを出す', async () => {
+    const { fetchSentDocSends, fetchViewedCountsByList } = await import('../../lib/supabaseWrite');
+    fetchViewedCountsByList.mockResolvedValue({ counts: {}, sent: {}, issued: { 'address-test': 2 }, error: null });
+    fetchSentDocSends.mockResolvedValue({ rows: [{ lead_item_id: 'a' }, { lead_item_id: 'd' }], error: null });
+    fetchViewedDocSends.mockResolvedValue({ rows: [], error: null });
+    await mountFlow({ initialSentOnly: true });
+    expect([...companies()].sort()).toEqual(['一致企業', '一致低売上企業'].sort());
+    await act(async () => { button('フォーム送信済 2').props.onClick(); });
+    expect(companies()).toHaveLength(4);
   });
 });

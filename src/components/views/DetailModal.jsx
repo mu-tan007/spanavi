@@ -55,13 +55,17 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [availablePrefs, setAvailablePrefs] = useState([]);
   const [addressMatchCounts, setAddressMatchCounts] = useState(null);
   const [selectedStatuses, setSelectedStatuses] = useState([]); // 空配列=全ステータス
-  // 「閲覧済みだけ」：フォーム営業の資料かHPを開いた企業だけで架電画面を開く
+  // 「フォーム送信済」「リンク開封済」：フォーム営業で送った企業／そのうちリンクを開いた企業だけで架電画面を開く
+  const [sentOnly, setSentOnly] = useState(false);
   const [viewedOnly, setViewedOnly] = useState(false);
-  const [viewedCount, setViewedCount] = useState(0);
-  const [sentCount, setSentCount] = useState(0);
+  const [docSendCounts, setDocSendCounts] = useState({ issued: 0, sent: 0, viewed: 0 });
   useEffect(() => {
     let cancelled = false;
-    fetchViewedCountsByList().then(({ counts, sent }) => { if (cancelled) return; setViewedCount(counts[list._supaId] || 0); setSentCount(sent[list._supaId] || 0); });
+    fetchViewedCountsByList().then(({ counts, sent, issued }) => {
+      if (cancelled) return;
+      const id = list._supaId;
+      setDocSendCounts({ issued: issued?.[id] || 0, sent: sent?.[id] || 0, viewed: counts?.[id] || 0 });
+    });
     return () => { cancelled = true; };
   }, [list._supaId]);
   const [addressMatchFilter, setAddressMatchFilter] = useState('');
@@ -285,7 +289,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             disabled={!flowStartNo || !flowEndNo}
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null, viewedOnly });
+              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null, viewedOnly, sentOnly });
             }}
           >検索</Button>
           <Button
@@ -294,7 +298,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             title="ナンバーを入力せず、リスト全件を一覧で開く"
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null, viewedOnly });
+              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null, viewedOnly, sentOnly });
             }}
           >全件</Button>
           {itemCount !== null && (
@@ -339,21 +343,25 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                   >{label}</button>
                 );
               })}
-              {sentCount > 0 && (
+              {docSendCounts.issued > 0 && [
+                ['フォーム送信済', docSendCounts.sent, sentOnly, () => setSentOnly(v => !v), 'フォーム営業（フォーム・メール）で資料リンクを送った企業だけで開きます'],
+                ['リンク開封済', docSendCounts.viewed, viewedOnly, () => setViewedOnly(v => !v), '資料かHPのリンクを開いた企業だけで開きます（開いた日時の新しい順）'],
+              ].map(([label, n, active, onClick, hint], k) => (
                 <button
-                  disabled={viewedCount === 0}
-                  onClick={() => setViewedOnly(v => !v)}
-                  title={viewedCount > 0 ? 'フォーム営業で送った資料かHPを開いた企業だけで開きます（開いた日時の新しい順）' : 'フォーム営業で送った企業のうち、まだ資料やHPを開いた企業はありません'}
+                  key={label}
+                  disabled={n === 0 && !active}
+                  onClick={onClick}
+                  title={n > 0 ? hint : `まだ${label}の企業はありません`}
                   style={{
-                    padding: '3px 9px', borderRadius: radius.md, cursor: viewedCount > 0 ? 'pointer' : 'default', marginLeft: space[1],
+                    padding: '3px 9px', borderRadius: radius.md, cursor: n > 0 || active ? 'pointer' : 'default', marginLeft: k === 0 ? space[1] : 0,
                     fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
-                    background: viewedOnly ? color.success : color.white,
-                    color: viewedOnly ? color.white : (viewedCount > 0 ? color.success : color.textLight),
-                    border: `1px solid ${viewedCount > 0 ? color.success : color.border}`,
+                    background: active ? color.success : color.white,
+                    color: active ? color.white : (n > 0 ? color.success : color.textLight),
+                    border: `1px solid ${n > 0 || active ? color.success : color.border}`,
                     transition: 'all 0.12s',
                   }}
-                >{`閲覧済みだけ ${viewedCount}`}</button>
-              )}
+                >{`${label} ${n}`}</button>
+              ))}
             </div>
           );
         })()}

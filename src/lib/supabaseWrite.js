@@ -2539,36 +2539,56 @@ export async function fetchViewedDocSends() {
   return { rows: data || [], error }
 }
 
-// リスト一覧・リスト詳細の「閲覧済み N」用。
-//   sent   … { [call_lists.id]: フォーム営業で資料リンクを送った企業数 }（0件でもボタンを出すかの判定）
-//   counts … { [call_lists.id]: そのうち資料かHPを開いた企業数 }
+// フォーム営業で実際に送った企業（sent_at あり）。架電画面の「フォーム送信済」用
+export async function fetchSentDocSends() {
+  const rows = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('doc_send_stats')
+      .select('lead_item_id, sent_at')
+      .not('lead_item_id', 'is', null)
+      .not('sent_at', 'is', null)
+      .range(from, from + 999)
+    if (error) { console.error('[DB] fetchSentDocSends error:', error); return { rows, error } }
+    rows.push(...(data || []))
+    if (!data || data.length < 1000) break
+  }
+  return { rows, error: null }
+}
+
+// リスト一覧・リスト詳細の「フォーム送信済 / リンク開封済」用。いずれも { [call_lists.id]: 企業数 }
+//   issued … 資料リンクを発行した企業（送信前を含む）。1件でもあればボタンを出す
+//   sent   … そのうち実際に送った企業（sent_at あり）
+//   counts … そのうち資料かHPを開いた企業
 export async function fetchViewedCountsByList() {
   const rows = []
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from('doc_send_stats')
-      .select('lead_item_id, first_view_at, first_site_at')
+      .select('lead_item_id, sent_at, first_view_at, first_site_at')
       .not('lead_item_id', 'is', null)
       .range(from, from + 999)
-    if (error) { console.error('[DB] fetchViewedCountsByList error:', error); return { counts: {}, sent: {}, error } }
+    if (error) { console.error('[DB] fetchViewedCountsByList error:', error); return { counts: {}, sent: {}, issued: {}, error } }
     rows.push(...(data || []))
     if (!data || data.length < 1000) break
   }
   const viewed = new Set(rows.filter(r => r.first_view_at || r.first_site_at).map(r => r.lead_item_id))
+  const sentSet = new Set(rows.filter(r => r.sent_at).map(r => r.lead_item_id))
   const ids = [...new Set(rows.map(r => r.lead_item_id))]
-  const counts = {}, sent = {}
+  const counts = {}, sent = {}, issued = {}
   for (let i = 0; i < ids.length; i += 150) {
     const { data, error: e } = await supabase
       .from('call_list_items')
       .select('id, list_id')
       .in('id', ids.slice(i, i + 150))
-    if (e) { console.error('[DB] fetchViewedCountsByList error:', e); return { counts, sent, error: e } }
+    if (e) { console.error('[DB] fetchViewedCountsByList error:', e); return { counts, sent, issued, error: e } }
     for (const it of data || []) {
-      sent[it.list_id] = (sent[it.list_id] || 0) + 1
+      issued[it.list_id] = (issued[it.list_id] || 0) + 1
+      if (sentSet.has(it.id)) sent[it.list_id] = (sent[it.list_id] || 0) + 1
       if (viewed.has(it.id)) counts[it.list_id] = (counts[it.list_id] || 0) + 1
     }
   }
-  return { counts, sent, error: null }
+  return { counts, sent, issued, error: null }
 }
 
 export async function getGiftLetterSignedUrl(path, expiresIn = 600) {

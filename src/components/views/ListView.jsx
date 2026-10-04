@@ -506,10 +506,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   };
   const [formData, setFormData] = useState(emptyForm);
   // フォーム営業の資料かHPを開いた企業の数（リストごと）。押すとその企業だけで架電画面を開く
-  const [viewedCounts, setViewedCounts] = useState({ counts: {}, sent: {} });
+  const [viewedCounts, setViewedCounts] = useState({ counts: {}, issued: {} });
   useEffect(() => {
     let cancelled = false;
-    fetchViewedCountsByList().then(({ counts, sent }) => { if (!cancelled) setViewedCounts({ counts, sent }); });
+    fetchViewedCountsByList().then(({ counts, issued }) => { if (!cancelled) setViewedCounts({ counts: counts || {}, issued: issued || {} }); });
     return () => { cancelled = true; };
   }, []);
   const [showRec, setShowRec] = useState(true);
@@ -1369,15 +1369,15 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                       </span>
                       <span style={{ color: color.textMid, minWidth: 0, display: 'flex', alignItems: 'center', gap: space[1.5], justifyContent: lvCols[3]?.align === 'right' ? 'flex-end' : lvCols[3]?.align === 'center' ? 'center' : 'flex-start' }}>
                         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.industry}</span>
-                        {viewedCounts.sent[list._supaId] > 0 && setCallFlowScreen && (() => {
+                        {viewedCounts.issued[list._supaId] > 0 && setCallFlowScreen && (() => {
                           const n = viewedCounts.counts[list._supaId] || 0;
                           return (
                             <button
                               disabled={n === 0}
                               onClick={e => { e.stopPropagation(); if (n > 0) setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: null, defaultListMode: true, viewedOnly: true }); }}
-                              title={n > 0 ? 'フォーム営業で送った資料かHPを開いた企業だけで架電画面を開きます' : 'フォーム営業で送った企業のうち、まだ資料やHPを開いた企業はありません'}
+                              title={n > 0 ? 'フォーム営業で送った資料かHPを開いた企業だけで架電画面を開きます' : 'まだリンク開封済の企業はありません'}
                               style={{ flexShrink: 0, padding: '1px 7px', borderRadius: radius.md, cursor: n > 0 ? 'pointer' : 'default', fontSize: font.size.xs - 2, fontWeight: font.weight.semibold, fontFamily: font.family.sans, whiteSpace: 'nowrap', background: color.white, color: n > 0 ? color.success : color.textLight, border: `1px solid ${n > 0 ? color.success : color.border}` }}
-                            >{`閲覧済み ${n}`}</button>
+                            >{`リンク開封済 ${n}`}</button>
                           );
                         })()}
                       </span>

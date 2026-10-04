@@ -14,7 +14,7 @@ import { getEffectiveCompanyAddressMatch, normalizeAddressMatchFilter } from '..
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
 import PrecheckPanel from './PrecheckPanel';
-import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, fetchDocViewForItem, fetchViewedDocSends, fetchViewedCountsByList, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, fetchDocViewForItem, fetchViewedDocSends, fetchViewedCountsByList, fetchSentDocSends, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -196,7 +196,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false, initialViewedOnly = false, onViewedOnlyChange = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false, initialViewedOnly = false, onViewedOnlyChange = null, initialSentOnly = false, onSentOnlyChange = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -452,15 +452,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     });
     return () => { cancelled = true; };
   }, [selectedItemId]);
-  // 「閲覧済み」絞り込み：資料かHPを開いた企業だけを、開いた日時の新しい順に出す
+  // 「フォーム送信済」「リンク開封済」の絞り込み。
+  //   フォーム送信済 … フォーム営業（フォーム・メール）で実際に資料リンクを送った企業だけ
+  //   リンク開封済   … そのうち資料かHPのリンクを開いた企業だけを、開いた日時の新しい順に出す
   // URLに持たない：持つと閉じた後も残り、次に開いた別リストまで知らないうちに絞られる。
   // 開くたびに初期値（リスト詳細・リスト一覧からの指定）から始め、変更は親に伝えて復元用に保存する
   const [viewedOnly, setViewedOnly] = useState(!!initialViewedOnly);
   const [viewedAt, setViewedAt] = useState(() => new Map()); // itemId → 最後に開いた日時（ms）
-  const [sentCount, setSentCount] = useState(0); // このリストでフォーム営業の資料リンクを送った企業数（0件でもボタンを出すかの判定）
+  const [sentOnly, setSentOnly] = useState(!!initialSentOnly);
+  const [sentSet, setSentSet] = useState(() => new Set()); // 実際に送った itemId
+  const [issuedCount, setIssuedCount] = useState(0); // このリストで資料リンクを発行した企業数（0件でもボタンを出すかの判定）
   useEffect(() => {
     let cancelled = false;
-    fetchViewedCountsByList().then(({ sent }) => { if (!cancelled) setSentCount(sent?.[list._supaId] || 0); });
+    fetchViewedCountsByList().then(({ issued }) => { if (!cancelled) setIssuedCount(issued?.[list._supaId] || 0); });
+    fetchSentDocSends().then(({ rows, error }) => { if (!cancelled && !error) setSentSet(new Set(rows.map(r => r.lead_item_id))); });
     return () => { cancelled = true; };
   }, [list._supaId]);
   useEffect(() => {
@@ -482,6 +487,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setViewedOnly(next);
     setPage(0);
     onViewedOnlyChange?.(next);
+  };
+  const toggleSentOnly = () => {
+    const next = !sentOnly;
+    setSentOnly(next);
+    setPage(0);
+    onSentOnlyChange?.(next);
   };
   const docViewBadge = docView ? (<span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: space[1.5] }}>
     {docView.first_view_at && (
@@ -857,8 +868,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       if (!matchSearch) return false;
       if (addressMatchFilter && addressMatchByItem.get(item.id) !== addressMatchFilter) return false;
       if (viewedOnly && !viewedAt.has(item.id)) return false;
-      // 閲覧済みに絞ったときは、再コール待ちでも今すぐ当てたいので隠さない（除外だけ落とす）
-      if (filterMode === 'callable') { if (viewedOnly ? isExcludedItem(item.id) : isHiddenFromCallable(item.id)) return false; }
+      if (sentOnly && !sentSet.has(item.id)) return false;
+      // フォーム送信済・リンク開封済に絞ったときは、再コール待ちでも今すぐ当てたいので隠さない（除外だけ落とす）
+      if (filterMode === 'callable') { if (viewedOnly || sentOnly ? isExcludedItem(item.id) : isHiddenFromCallable(item.id)) return false; }
       else if (filterMode === 'excluded') { if (!isExcludedItem(item.id)) return false; }
       if (revenueMin !== '') {
         if (item.revenue == null || Number(item.revenue) < Number(revenueMin)) return false;
@@ -906,6 +918,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       ? [...filtered].sort((a, b) => (viewedAt.get(b.id) || 0) - (viewedAt.get(a.id) || 0))
       : filtered;
   const viewedCount = useMemo(() => items.reduce((n, i) => n + (viewedAt.has(i.id) ? 1 : 0), 0), [items, viewedAt]);
+  const sentInListCount = useMemo(() => items.reduce((n, i) => n + (sentSet.has(i.id) ? 1 : 0), 0), [items, sentSet]);
+  // 「フォーム送信済」「リンク開封済」のボタン。0件のあいだは押せない表示（選択中なら解除だけはできる）
+  const docSendFilterButton = (label, n, active, onClick, hint) => (
+    <button key={label} onClick={onClick} disabled={n === 0 && !active} title={n > 0 ? hint : `まだ${label}の企業はありません`}
+      style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, fontFamily: font.family.sans, whiteSpace: 'nowrap',
+        background: active ? color.success : 'transparent',
+        color: active ? color.white : (n > 0 ? color.success : color.textLight),
+        border: `1px solid ${n > 0 || active ? color.success : color.border}`, cursor: n > 0 || active ? 'pointer' : 'default' }}>
+      {`${label} ${n}`}
+    </button>
+  );
 
   const handleSort = (col) => {
     setSortState(prev => {
@@ -2338,15 +2361,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     {label}
                   </button>
                 ))}
-                {(sentCount > 0 || viewedCount > 0) && (
-                  <button onClick={toggleViewedOnly} disabled={viewedCount === 0 && !viewedOnly} title={viewedCount > 0 ? '資料かHPを開いた企業だけを、開いた日時の新しい順に出します' : 'フォーム営業で送った企業のうち、まだ資料やHPを開いた企業はありません'}
-                    style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, fontFamily: font.family.sans, whiteSpace: 'nowrap',
-                      background: viewedOnly ? color.success : 'transparent',
-                      color: viewedOnly ? color.white : (viewedCount > 0 ? color.success : color.textLight),
-                      border: `1px solid ${viewedCount > 0 || viewedOnly ? color.success : color.border}`, cursor: viewedCount > 0 || viewedOnly ? 'pointer' : 'default' }}>
-                    {`閲覧済み ${viewedCount}`}
-                  </button>
-                )}
+                {(issuedCount > 0 || viewedCount > 0 || sentInListCount > 0) && (<>
+                  {docSendFilterButton('フォーム送信済', sentInListCount, sentOnly, toggleSentOnly, 'フォーム営業（フォーム・メール）で資料リンクを送った企業だけを出します')}
+                  {docSendFilterButton('リンク開封済', viewedCount, viewedOnly, toggleViewedOnly, '資料かHPのリンクを開いた企業だけを、開いた日時の新しい順に出します')}
+                </>)}
                 {/* ステータスフィルタ（複数選択対応） */}
                 <span style={{ color: color.gray300, fontSize: font.size.xs - 1 }}>|</span>
                 {['全ステータス', '未架電', ...callStatuses.map(s => s.label)].map(st => {

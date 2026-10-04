@@ -329,6 +329,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           callCountMax: callFlowScreen.callCountMax ?? null,
           addressMatchFilter: callFlowScreen.addressMatchFilter ?? '',
           viewedOnly: !!callFlowScreen.viewedOnly,
+          sentOnly: !!callFlowScreen.sentOnly,
         }));
       } else if (callFlowRestoredRef.current) {
         // 復元処理が完了した後のみ削除（初回レンダリングで誤って削除しない）
@@ -367,7 +368,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             // restoreQueue が setCallFlowScreen を呼ぶので callFlowScreen 単独復元は不要
             restoreQueue(savedQueue.items, savedQueue.idx || 0);
           } else if (savedData) {
-            const { listSupaId, startNo, endNo, defaultItemId, defaultListMode, statusFilter, revenueMin, revenueMax, prefFilter, prefMode, callCountMin, callCountMax, addressMatchFilter, viewedOnly } = savedData;
+            const { listSupaId, startNo, endNo, defaultItemId, defaultListMode, statusFilter, revenueMin, revenueMax, prefFilter, prefMode, callCountMin, callCountMax, addressMatchFilter, viewedOnly, sentOnly } = savedData;
             const list = supabaseData.callLists.find(l => l._supaId === listSupaId);
             if (list) setCallFlowScreen({
               list,
@@ -385,6 +386,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
               callCountMax: callCountMax ?? null,
               addressMatchFilter: addressMatchFilter ?? '',
               viewedOnly: !!viewedOnly,
+              sentOnly: !!sentOnly,
             });
           }
         } catch(e) {}
@@ -1485,7 +1487,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       {callFlowScreen && (
         <>
           <div style={{ display: callFlowMinimized ? 'none' : 'contents' }}>
-            <CallFlowView key={callFlowScreen.defaultItemId || callFlowScreen.list?._supaId || 'cf'} list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => { setCallFlowMinimized(false); setCallFlowScreen(null); }} onMinimize={isMobile ? undefined : () => setCallFlowMinimized(true)} isMinimized={callFlowMinimized} summaryRef={callFlowSummaryRef} closeRef={callFlowCloseRef} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} initialRevenueMin={callFlowScreen.revenueMin ?? null} initialRevenueMax={callFlowScreen.revenueMax ?? null} initialPrefFilter={callFlowScreen.prefFilter ?? null} initialPrefMode={callFlowScreen.prefMode ?? 'include'} initialCallCountMin={callFlowScreen.callCountMin ?? null} initialCallCountMax={callFlowScreen.callCountMax ?? null} initialAddressMatchFilter={callFlowScreen.addressMatchFilter ?? ''} onAddressMatchFilterChange={value => setCallFlowScreen(prev => prev ? { ...prev, addressMatchFilter: value } : prev)} initialViewedOnly={!!callFlowScreen.viewedOnly} onViewedOnlyChange={value => setCallFlowScreen(prev => prev ? { ...prev, viewedOnly: value } : prev)} appoData={appoData} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} setCallListData={setCallListData} callListData={callListData} singleItemMode={callFlowScreen.singleItemMode ?? false} autoDialOnLoad={callFlowScreen.autoDialOnLoad ?? false} onResultSubmit={callFlowScreen.onResultSubmit ?? null} onQueuePrev={callFlowScreen.onQueuePrev ?? null} onQueueNext={callFlowScreen.onQueueNext ?? null} queuePos={callFlowScreen.queuePos ?? null} initialRecordingUrl={callFlowScreen.initialRecordingUrl ?? ''} autoOpenAppoModal={callFlowScreen.autoOpenAppoModal ?? false} initialDialedPhone={callFlowScreen.initialDialedPhone ?? ''} />
+            <CallFlowView key={callFlowScreen.defaultItemId || callFlowScreen.list?._supaId || 'cf'} list={callFlowScreen.list} startNo={callFlowScreen.startNo} endNo={callFlowScreen.endNo} statusFilter={callFlowScreen.statusFilter ?? null} onClose={() => { setCallFlowMinimized(false); setCallFlowScreen(null); }} onMinimize={isMobile ? undefined : () => setCallFlowMinimized(true)} isMinimized={callFlowMinimized} summaryRef={callFlowSummaryRef} closeRef={callFlowCloseRef} setAppoData={isAdmin ? setAppoData : null} members={members} currentUser={currentUser} defaultItemId={callFlowScreen.defaultItemId ?? null} defaultListMode={callFlowScreen.defaultListMode ?? null} clientData={clientData} rewardMaster={rewardMaster} initialRevenueMin={callFlowScreen.revenueMin ?? null} initialRevenueMax={callFlowScreen.revenueMax ?? null} initialPrefFilter={callFlowScreen.prefFilter ?? null} initialPrefMode={callFlowScreen.prefMode ?? 'include'} initialCallCountMin={callFlowScreen.callCountMin ?? null} initialCallCountMax={callFlowScreen.callCountMax ?? null} initialAddressMatchFilter={callFlowScreen.addressMatchFilter ?? ''} onAddressMatchFilterChange={value => setCallFlowScreen(prev => prev ? { ...prev, addressMatchFilter: value } : prev)} initialViewedOnly={!!callFlowScreen.viewedOnly} onViewedOnlyChange={value => setCallFlowScreen(prev => prev ? { ...prev, viewedOnly: value } : prev)} initialSentOnly={!!callFlowScreen.sentOnly} onSentOnlyChange={value => setCallFlowScreen(prev => prev ? { ...prev, sentOnly: value } : prev)} appoData={appoData} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} setCallListData={setCallListData} callListData={callListData} singleItemMode={callFlowScreen.singleItemMode ?? false} autoDialOnLoad={callFlowScreen.autoDialOnLoad ?? false} onResultSubmit={callFlowScreen.onResultSubmit ?? null} onQueuePrev={callFlowScreen.onQueuePrev ?? null} onQueueNext={callFlowScreen.onQueueNext ?? null} queuePos={callFlowScreen.queuePos ?? null} initialRecordingUrl={callFlowScreen.initialRecordingUrl ?? ''} autoOpenAppoModal={callFlowScreen.autoOpenAppoModal ?? false} initialDialedPhone={callFlowScreen.initialDialedPhone ?? ''} />
           </div>
           {callFlowMinimized && (
             <PiPWidget
