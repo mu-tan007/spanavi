@@ -14,7 +14,7 @@ vi.mock('../../lib/supabaseWrite', () => ({
   insertAppointment: vi.fn(), updateClientContact: vi.fn(), completeRecallsForItem: vi.fn(),
   getCompanyOverviewPdfSignedUrl: vi.fn(), getScriptPdfSignedUrl: vi.fn(async () => ({ url: null })),
   fetchGiftLetterPath: vi.fn(async () => ({ path: null, error: null })), getGiftLetterSignedUrl: vi.fn(async () => ({ url: null })),
-  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), fetchViewedDocSends: vi.fn(async () => ({ rows: [], error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
+  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), fetchViewedDocSends: vi.fn(async () => ({ rows: [], error: null })), fetchViewedCountsByList: vi.fn(async () => ({ counts: {}, error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
   deleteCallRecordsByListId: vi.fn(), deleteCallListItemsByListId: vi.fn(), updateCallListCount: vi.fn(), insertCallListItems: vi.fn(),
 }));
 vi.mock('../../lib/zoomPhoneStore', () => ({ zoomPhone: {} }));
@@ -233,5 +233,15 @@ describe('資料・HPの閲覧済みで絞り込む', () => {
     fetchViewedDocSends.mockResolvedValue({ rows: [{ lead_item_id: 'other-list-item', first_view_at: '2026-10-04T00:00:00Z' }], error: null });
     await mountFlow();
     expect(renderer.root.findAllByType('button').some(n => String(n.children).startsWith('閲覧済み'))).toBe(false);
+  });
+});
+
+describe('リスト詳細・リスト一覧から「閲覧済みだけ」で開く', () => {
+  it('initialViewedOnly で開くと最初から閲覧済みだけを出す', async () => {
+    fetchViewedDocSends.mockResolvedValue({ rows: [
+      { lead_item_id: 'c', first_view_at: '2026-10-02T00:00:00Z' },
+    ], error: null });
+    await mountFlow({ initialViewedOnly: true });
+    expect(companies()).toEqual(['住所なし企業']);
   });
 });

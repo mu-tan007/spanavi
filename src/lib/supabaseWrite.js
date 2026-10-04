@@ -2539,6 +2539,23 @@ export async function fetchViewedDocSends() {
   return { rows: data || [], error }
 }
 
+// リスト一覧・リスト詳細の「閲覧済み N」用。{ [call_lists.id]: 資料かHPを開いた企業数 }
+export async function fetchViewedCountsByList() {
+  const { rows, error } = await fetchViewedDocSends()
+  if (error) return { counts: {}, error }
+  const ids = [...new Set(rows.map(r => r.lead_item_id))]
+  const counts = {}
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data, error: e } = await supabase
+      .from('call_list_items')
+      .select('id, list_id')
+      .in('id', ids.slice(i, i + 150))
+    if (e) { console.error('[DB] fetchViewedCountsByList error:', e); return { counts, error: e } }
+    for (const it of data || []) counts[it.list_id] = (counts[it.list_id] || 0) + 1
+  }
+  return { counts, error: null }
+}
+
 export async function getGiftLetterSignedUrl(path, expiresIn = 600) {
   if (!path) return { url: null, error: new Error('no path') }
   const { data, error } = await supabase.storage

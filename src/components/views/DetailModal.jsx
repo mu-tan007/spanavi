@@ -5,7 +5,7 @@ import { Button, Input, Select } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useCallStatuses } from '../../hooks/useCallStatuses';
 import { getIndustryCategory } from '../../utils/industry';
-import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListFilterSummary } from '../../lib/supabaseWrite';
+import { deleteCallRecordsByListId, deleteCallListItemsByListId, updateCallListCount, fetchCallListFilterSummary, fetchViewedCountsByList } from '../../lib/supabaseWrite';
 import { Badge } from '../common/Badge';
 import { ScorePill } from '../common/ScorePill';
 import CallHistoryPanel from './CallHistoryPanel';
@@ -55,6 +55,14 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const [availablePrefs, setAvailablePrefs] = useState([]);
   const [addressMatchCounts, setAddressMatchCounts] = useState(null);
   const [selectedStatuses, setSelectedStatuses] = useState([]); // 空配列=全ステータス
+  // 「閲覧済みだけ」：フォーム営業の資料かHPを開いた企業だけで架電画面を開く
+  const [viewedOnly, setViewedOnly] = useState(false);
+  const [viewedCount, setViewedCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    fetchViewedCountsByList().then(({ counts }) => { if (!cancelled) setViewedCount(counts[list._supaId] || 0); });
+    return () => { cancelled = true; };
+  }, [list._supaId]);
   const [addressMatchFilter, setAddressMatchFilter] = useState('');
   const [revenueMin, setRevenueMin] = useState('');
   const [revenueMax, setRevenueMax] = useState('');
@@ -276,7 +284,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             disabled={!flowStartNo || !flowEndNo}
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
+              setCallFlowScreen({ list, startNo: flowStartNo ? parseInt(flowStartNo) : null, endNo: flowEndNo ? parseInt(flowEndNo) : null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null, viewedOnly });
             }}
           >検索</Button>
           <Button
@@ -285,7 +293,7 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
             title="ナンバーを入力せず、リスト全件を一覧で開く"
             onClick={() => {
               const sf = selectedStatuses.length > 0 ? selectedStatuses : null;
-              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null });
+              setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: sf, addressMatchFilter, revenueMin: revenueMin || null, revenueMax: revenueMax || null, prefFilter: prefFilters.length > 0 ? prefFilters : null, prefMode, callCountMin: callCountMin !== '' ? callCountMin : null, callCountMax: callCountMax !== '' ? callCountMax : null, viewedOnly });
             }}
           >全件</Button>
           {itemCount !== null && (
@@ -330,6 +338,20 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                   >{label}</button>
                 );
               })}
+              {viewedCount > 0 && (
+                <button
+                  onClick={() => setViewedOnly(v => !v)}
+                  title="フォーム営業で送った資料かHPを開いた企業だけで開きます（開いた日時の新しい順）"
+                  style={{
+                    padding: '3px 9px', borderRadius: radius.md, cursor: 'pointer', marginLeft: space[1],
+                    fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
+                    background: viewedOnly ? color.success : color.white,
+                    color: viewedOnly ? color.white : color.success,
+                    border: `1px solid ${color.success}`,
+                    transition: 'all 0.12s',
+                  }}
+                >{`閲覧済みだけ ${viewedCount}`}</button>
+              )}
             </div>
           );
         })()}

@@ -196,7 +196,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false, initialViewedOnly = false, onViewedOnlyChange = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -453,7 +453,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     return () => { cancelled = true; };
   }, [selectedItemId]);
   // 「閲覧済み」絞り込み：資料かHPを開いた企業だけを、開いた日時の新しい順に出す
-  const [viewedOnly] = useUrlState('viewed', '');
+  // URLに持たない：持つと閉じた後も残り、次に開いた別リストまで知らないうちに絞られる。
+  // 開くたびに初期値（リスト詳細・リスト一覧からの指定）から始め、変更は親に伝えて復元用に保存する
+  const [viewedOnly, setViewedOnly] = useState(!!initialViewedOnly);
   const [viewedAt, setViewedAt] = useState(() => new Map()); // itemId → 最後に開いた日時（ms）
   useEffect(() => {
     let cancelled = false;
@@ -469,14 +471,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     });
     return () => { cancelled = true; };
   }, [list._supaId]);
-  // ページ0へのリセットと同じ1回の書き込みにまとめる（useUrlState の連続呼び出しは競合する）
   const toggleViewedOnly = () => {
-    setSearchParamsRaw(prev => {
-      const np = new URLSearchParams(prev);
-      if (np.get('viewed')) np.delete('viewed'); else np.set('viewed', '1');
-      np.delete('flow_page');
-      return np;
-    }, { replace: true });
+    const next = !viewedOnly;
+    setViewedOnly(next);
+    setPage(0);
+    onViewedOnlyChange?.(next);
   };
   const docViewBadge = docView ? (<span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: space[1.5] }}>
     {docView.first_view_at && (
@@ -1597,17 +1596,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 {label}
               </button>
             ))}
-            {viewedCount > 0 && (
-              <button onClick={toggleViewedOnly} title="資料かHPを開いた企業だけを、開いた日時の新しい順に出します"
-                style={{ padding: '4px 8px', borderRadius: 4, fontSize: 9, fontWeight: 600, cursor: 'pointer',
-                  fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
-                  background: viewedOnly ? color.success : 'transparent',
-                  color: viewedOnly ? C.white : color.success,
-                  border: '1px solid ' + color.success,
-                }}>
-                {`閲覧済み ${viewedCount}`}
-              </button>
-            )}
           </div>
           <div style={{ flex: 1, overflow: 'auto' }}>
             {loading ? (

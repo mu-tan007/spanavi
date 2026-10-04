@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
-import { updateCallList, insertCallList, archiveCallList, restoreCallList, uploadCompanyOverviewPdf, deleteCompanyOverviewPdfObject, updateCallListCompanyOverviewPdfs, getCompanyOverviewPdfSignedUrl, invokeLookupCompanyHomepage } from '../../lib/supabaseWrite';
+import { updateCallList, insertCallList, archiveCallList, restoreCallList, uploadCompanyOverviewPdf, deleteCompanyOverviewPdfObject, updateCallListCompanyOverviewPdfs, getCompanyOverviewPdfSignedUrl, invokeLookupCompanyHomepage, fetchViewedCountsByList } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
 import { applyTaxIfPretax, hasListUnitPrice } from '../../utils/money';
 import { useEngagements } from '../../hooks/useEngagements';
@@ -505,6 +505,13 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     return norm(v) === "" || norm(v) === norm(CAUTIONS_TEMPLATE);
   };
   const [formData, setFormData] = useState(emptyForm);
+  // フォーム営業の資料かHPを開いた企業の数（リストごと）。押すとその企業だけで架電画面を開く
+  const [viewedCounts, setViewedCounts] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    fetchViewedCountsByList().then(({ counts }) => { if (!cancelled) setViewedCounts(counts); });
+    return () => { cancelled = true; };
+  }, []);
   const [showRec, setShowRec] = useState(true);
   // 'sourcing' = 通常ソーシング, 'prospecting' = クライアント開拓, 'archived' = アーカイブ, 'all' = 全て
   // displayFilter: engagement slug ('seller_sourcing' / 'matching' / 'client_acquisition' / 'client_acquisition_saas' 等) | 'archived' | 'all'
@@ -1360,7 +1367,16 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                           return <TypeBadge color={tone} small>{typeName}</TypeBadge>;
                         })()}
                       </span>
-                      <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[3]?.align || 'left' }}>{list.industry}</span>
+                      <span style={{ color: color.textMid, minWidth: 0, display: 'flex', alignItems: 'center', gap: space[1.5], justifyContent: lvCols[3]?.align === 'right' ? 'flex-end' : lvCols[3]?.align === 'center' ? 'center' : 'flex-start' }}>
+                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.industry}</span>
+                        {viewedCounts[list._supaId] > 0 && setCallFlowScreen && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: null, defaultListMode: true, viewedOnly: true }); }}
+                            title="フォーム営業で送った資料かHPを開いた企業だけで架電画面を開きます"
+                            style={{ flexShrink: 0, padding: '1px 7px', borderRadius: radius.md, cursor: 'pointer', fontSize: font.size.xs - 2, fontWeight: font.weight.semibold, fontFamily: font.family.sans, whiteSpace: 'nowrap', background: color.white, color: color.success, border: `1px solid ${color.success}` }}
+                          >{`閲覧済み ${viewedCounts[list._supaId]}`}</button>
+                        )}
+                      </span>
                       <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, textAlign: lvCols[4]?.align || 'right' }}>{list.count.toLocaleString()}</span>
                       <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[5]?.align || 'center' }}>{shortManagerName(list)}</span>
                       <span style={{ textAlign: lvCols[6]?.align || 'right', display: 'block' }}>
