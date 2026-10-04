@@ -24,7 +24,18 @@ const GOOGLE_CLIENT_ID = '570031099308-ni4qokds1jc1m5s0p080t6g2gb3vu8md.apps.goo
 const FROM_EMAIL = 'shinomiya@ma-sp.co'
 const FROM_NAME = '篠宮拓武'
 const SPANAVI_URL = 'https://spanavi.jp'
-const DRAFT_RESULTS = new Set(['確認完了', 'リスケ', 'キャンセル'])
+const DRAFT_RESULTS = new Set(['確認完了', 'リスケ', 'キャンセル', '未完了'])
+
+// 「ご訪問が難しいようでしたら」の一文を入れる条件（2026-10-04 むー様決定）：
+// 対面で、午後（12時以降）に、1都3県の外へ訪問する面談
+const KANTO_4 = ['東京都', '神奈川県', '埼玉県', '千葉県']
+function needsVisitNote(appo: { is_online: boolean | null; meeting_time: string | null; meeting_location: string | null }): boolean {
+  if (appo.is_online) return false
+  const hour = Number((appo.meeting_time || '').split(':')[0])
+  if (!Number.isFinite(hour) || hour < 12) return false
+  const pref = (appo.meeting_location || '').match(/(北海道|東京都|(?:京都|大阪)府|[^\s　〒0-9０-９-]{2,3}県)/)?.[1]
+  return !!pref && !KANTO_4.includes(pref)
+}
 const RECORDING_WAIT_MS = 12 * 60 * 1000
 const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -262,6 +273,8 @@ const STYLE_PROMPT = `あなたはSpartia株式会社 篠宮の代筆です。M&
 - 面談が近い（直前の）変更なら、締めは「直前のご変更となり誠に恐れ入りますが、何卒よろしくお願い申し上げます。」
 - 録音リンクが渡されたら、本文の最後の段落の前に「事前確認時の通話録音を共有いたします。」と書き、次の行にURLをそのまま置く。
 - インターンのメモにある事実だけを使い、無いことは書かない。細かすぎる事情（オンラインも不可、など）は省いてよい。インターンの名前・「当社」・絵文字は使わない。自社は「弊社」、こちらに不手際があってお詫びする文脈だけ「弊方」。日時は「10月12日（月）11時」の形。
+- 未完了（1営業日前の夜になっても確認が取れていない）：「{社名}様の事前確認につきまして、{これまでの電話の経緯（例：昨日・本日とお電話しているものの社長様に繋がらず）}、確認が完了いたしておりません。」→「大変恐れ入りますが、{面談日（曜日）}の当日朝に再度ご連絡を差し上げる運びでございます。確認が完了いたしましたら、速やかにご一報差し上げます。」→「ご訪問の一文」が「入れる」なら「なお、ご訪問が難しいようでしたら、お申し付けくださいませ。」→「直前まで確認が完了せず、誠に申し訳ございません。」。経緯は渡された電話の記録の事実だけで書く（記録が無ければ「お電話しているものの」の部分は「先方様と連絡が取れず」程度にとどめる）。
+- 前日に「未完了」の連絡をした後の確認完了・リスケ・キャンセルは、冒頭を「本件、」で始め、確認完了なら「お待たせしてしまい、誠に申し訳ございませんでした。」を1文添える。
 - 文は短く、です・ます調の丁寧語で。`
 
 async function generateDraftText(input: Record<string, string>): Promise<string> {
@@ -375,7 +388,7 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
   if (ev.recording_status === 'pending') return // 録音リンクを入れるため待つ
 
   const { data: appo } = await sb.from('appointments')
-    .select('id, company_name, meeting_date, meeting_time, client_id, created_at, report_gmail_thread_id')
+    .select('id, company_name, meeting_date, meeting_time, client_id, created_at, report_gmail_thread_id, is_online, meeting_location')
     .eq('id', ev.appointment_id).maybeSingle()
   if (!appo) throw new Error('アポが見つかりません')
   const { data: client } = await sb.from('clients')
@@ -399,14 +412,24 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
     }
   }
 
+  // これまでの事前確認の電話（未完了の経緯、前日に未完了を連絡済みかの判断に使う）
+  const { data: history } = await sb.from('precheck_events')
+    .select('result, memo, called_at').eq('appointment_id', appo.id).neq('id', ev.id)
+    .lt('called_at', ev.called_at).order('called_at')
+  const calls = (history || []).filter(h => h.result !== '未完了')
+  const toldUnfinished = (history || []).some(h => h.result === '未完了')
+
   const text = await generateDraftText({
     '結果': ev.result,
     '宛名の姓': surnameFrom(firstBody, client?.contact_person || null) || '（不明。「ご担当者」とする）',
     'アポ先の社名': appo.company_name || '',
     '面談日時': meetingLabel(appo.meeting_date, appo.meeting_time),
-    '事前確認の日時': jpDateTime(ev.called_at),
-    'インターンのメモ': ev.memo || '（なし）',
-    '録音リンク': shareRec ? ev.recording_url! : '',
+    '事前確認の日時': ev.result === '未完了' ? '' : jpDateTime(ev.called_at),
+    'インターンのメモ': ev.result === '未完了' ? '' : (ev.memo || '（なし）'),
+    'これまでの電話の記録': calls.map(h => `${jpDateTime(h.called_at)} ${h.result}${h.memo ? '（' + h.memo + '）' : ''}`).join(' ／ ') || (ev.result === '未完了' ? '（記録なし）' : ''),
+    '前日に未完了を連絡済み': toldUnfinished ? 'はい' : '',
+    'ご訪問の一文': ev.result === '未完了' ? (needsVisitNote(appo) ? '入れる' : '入れない') : '',
+    '録音リンク': shareRec && ev.result !== '未完了' ? ev.recording_url! : '',
   })
 
   if (channel !== 'email') {
