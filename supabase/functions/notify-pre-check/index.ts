@@ -98,6 +98,16 @@ Deno.serve(async (req) => {
         for (const c of (clients || [])) clientMap[c.id] = c.name
       }
 
+      // アポ取得者へのメンション（members.slack_user_id）。IDが無い人は名前のまま
+      const getterNames = [...new Set(appos.map(a => a.getter_name).filter(Boolean))]
+      const slackIdByName: Record<string, string> = {}
+      if (getterNames.length > 0) {
+        const { data: ms } = await supabase.from('members').select('name, slack_user_id')
+          .eq('org_id', orgId).in('name', getterNames)
+        for (const m of (ms || [])) if (m.slack_user_id) slackIdByName[m.name as string] = m.slack_user_id as string
+      }
+      const getterLabel = (name: string | null) => (name && slackIdByName[name]) ? `<@${slackIdByName[name]}>` : (name || '')
+
       // 日付ごとにグループ化
       const grouped: Record<string, typeof appos> = {}
       for (const a of appos) {
@@ -112,7 +122,7 @@ Deno.serve(async (req) => {
         sections.push(`【事前確認】${day.jp}（${day.label}）`)
         for (const a of grouped[day.date]) {
           const clientName = clientMap[a.client_id] || 'クライアント不明'
-          sections.push(`・${a.company_name} / アポ取得者：${a.getter_name} / クライアント：${clientName} / <${SPANAVI_URL}/?precheck=${a.id}|集中モードで開く>`)
+          sections.push(`・${a.company_name} / アポ取得者：${getterLabel(a.getter_name)} / クライアント：${clientName} / <${SPANAVI_URL}/?precheck=${a.id}|集中モードで開く>`)
           if (a.notes && (a.notes as string).trim()) {
             sections.push(`　備考：${(a.notes as string).trim()}`)
           }

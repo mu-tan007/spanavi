@@ -71,30 +71,50 @@ async function getZoomToken(): Promise<string> {
 async function stepRecording(sb: SupabaseClient, ev: EventRow): Promise<void> {
   if (ev.recording_status !== 'pending') return
   const age = Date.now() - new Date(ev.called_at).getTime()
-  if (!ev.caller_zoom_user_id || !ev.called_phone) {
+  if (!ev.caller_zoom_user_id) {
     await sb.from('precheck_events').update({ recording_status: 'none' }).eq('id', ev.id)
     ev.recording_status = 'none'
     return
   }
 
-  // 前の電話（同じアポの1つ前の事前確認、なければアポ登録時刻）より後の録音だけを拾う。
-  // アポ取得の通話の録音を掴まないため。
+  // ⚠️ アポ取得の通話の録音を事前確認の録音として渡さないための下限。
+  //    次のうち一番遅い時刻より「後に始まった」録音だけを拾う：
+  //      同じアポの1つ前の事前確認 ／ アポの登録時刻 ／ その企業の最後の架電記録（アポ獲得など）
+  //    アポ取得の通話は、登録・架電記録より前に始まっているので必ず外れる。
   const { data: prev } = await sb.from('precheck_events')
     .select('called_at').eq('appointment_id', ev.appointment_id).lt('called_at', ev.called_at)
     .order('called_at', { ascending: false }).limit(1).maybeSingle()
-  const { data: appo } = await sb.from('appointments').select('created_at').eq('id', ev.appointment_id).maybeSingle()
-  const prevCalledAt = prev?.called_at || appo?.created_at || null
+  const { data: appo } = await sb.from('appointments').select('created_at, phone, item_id').eq('id', ev.appointment_id).maybeSingle()
+  const { data: lastCall } = appo?.item_id
+    ? await sb.from('call_records').select('called_at').eq('item_id', appo.item_id).lt('called_at', ev.called_at)
+      .order('called_at', { ascending: false }).limit(1).maybeSingle()
+    : { data: null }
+  const { data: item } = appo?.item_id
+    ? await sb.from('call_list_items').select('phone').eq('id', appo.item_id).maybeSingle()
+    : { data: null }
+  const lowerBound = [prev?.called_at, appo?.created_at, lastCall?.called_at]
+    .filter(Boolean).map(t => new Date(t as string).getTime()).reduce((a, b) => Math.max(a, b), 0)
+  const prevCalledAt = lowerBound ? new Date(lowerBound).toISOString() : null
 
-  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/get-zoom-recording`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
-    body: JSON.stringify({
-      zoom_user_id: ev.caller_zoom_user_id, callee_phone: ev.called_phone,
-      called_at: ev.called_at, prev_called_at: prevCalledAt,
-    }),
-  })
-  const found = res.ok ? await res.json().catch(() => null) : null
-  const zoomUrl: string | null = found?.recording_url || null
+  // 掛けた番号が分からない・社長の携帯に掛けた等にそなえ、その企業の番号を順に当たる
+  const phones = [...new Set([ev.called_phone, appo?.phone, item?.phone]
+    .map(p => String(p || '').replace(/[^\d]/g, '')).filter(p => p.length >= 9))]
+
+  let zoomUrl: string | null = null
+  for (const phone of phones) {
+    const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/get-zoom-recording`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+      body: JSON.stringify({
+        zoom_user_id: ev.caller_zoom_user_id, callee_phone: phone,
+        called_at: ev.called_at, prev_called_at: prevCalledAt,
+      }),
+    })
+    const found = res.ok ? await res.json().catch(() => null) : null
+    // 録音検索側でも下限で絞っているが、開始時刻をここでもう一度確かめる（二重の歯止め）
+    const startedAt = found?.date_time ? new Date(found.date_time).getTime() : 0
+    if (found?.recording_url && startedAt > lowerBound) { zoomUrl = found.recording_url; break }
+  }
 
   if (!zoomUrl) {
     const giveUp = age > RECORDING_WAIT_MS

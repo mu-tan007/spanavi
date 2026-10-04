@@ -11,8 +11,9 @@ import { fetchPrecheckAppointmentByItem, fetchPrecheckEvents, insertPrecheckEven
  * アポ登録画面が開いて二重登録になる。そのため事前確認の電話は結果を残す場所がなく、
  * 録音も履歴に残っていなかった。ここで押した結果は precheck_events に入り、
  * 録音・#事前確認 スレッドへの返信・顧客への報告の下書きは後から自動で付く。
- * 企業の状態は変えない。確認完了だけアポを「事前確認済」にする
- * （リスケ・キャンセルの確定はむー様が判断するため、アポの状態には触らない）。
+ * 企業の状態は変えない。アポの状態は 確認完了→事前確認済 ／ リスケ→リスケ中 ／ キャンセル→キャンセル に変える
+ * （事前確認タブの記録画面と同じ対応。どちらも売上の累計には入らない状態なので、累計の付け替えは起きない）。
+ * 不在・不通はアポの状態を変えない。
  */
 const RESULTS = [
   { label: '確認完了', hint: '例：社長様に直接確認。当日はオンラインで、リンクは携帯にも送ってほしいとのこと' },
@@ -22,6 +23,7 @@ const RESULTS = [
   { label: '不通', hint: '例：呼び出し音のみで応答なし' },
 ];
 const NEEDS_RECALL = new Set(['不在', '不通']);
+const NEXT_STATUS = { '確認完了': '事前確認済', 'リスケ': 'リスケ中', 'キャンセル': 'キャンセル' };
 const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
 
 const fmt = (iso) => {
@@ -50,6 +52,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   const [result, setResult] = useState('');
   const [memo, setMemo] = useState('');
   const [recallAt, setRecallAt] = useState('');
+  const [rescheduledAt, setRescheduledAt] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [savedMsg, setSavedMsg] = useState('');
@@ -62,7 +65,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   }, [itemId]);
 
   useEffect(() => {
-    setResult(''); setMemo(''); setRecallAt(''); setError(''); setSavedMsg('');
+    setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt(''); setError(''); setSavedMsg('');
     load();
   }, [load]);
 
@@ -91,17 +94,23 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
       });
       if (insErr) throw insErr;
 
-      if (result === '確認完了') {
+      const nextStatus = NEXT_STATUS[result];
+      if (nextStatus) {
         const memoText = [appo.pre_check_memo, memo.trim()].filter(Boolean).join('\n');
+        const nextRescheduledAt = result === 'リスケ' ? (rescheduledAt || null) : appo.rescheduled_at;
+        const nextCancelReason = result === 'キャンセル' ? memo.trim() : appo.cancel_reason;
         const updErr = await updatePreCheckResult(appo.id, {
-          preCheckStatus: '確認完了', preCheckMemo: memoText, status: '事前確認済',
-          rescheduledAt: appo.rescheduled_at, cancelReason: appo.cancel_reason,
+          preCheckStatus: result, preCheckMemo: memoText, status: nextStatus,
+          rescheduledAt: nextRescheduledAt, cancelReason: nextCancelReason,
         });
         if (updErr) throw updErr;
-        setAppoData?.(prev => prev.map(a => a._supaId === appo.id ? { ...a, status: '事前確認済', preCheckStatus: '確認完了', preCheckMemo: memoText } : a));
+        setAppoData?.(prev => prev.map(a => a._supaId === appo.id ? {
+          ...a, status: nextStatus, preCheckStatus: result, preCheckMemo: memoText,
+          rescheduledAt: nextRescheduledAt ? String(nextRescheduledAt).slice(0, 16) : '', cancelReason: nextCancelReason || '',
+        } : a));
       }
       setSavedMsg(`「${result}」を記録しました。録音とSlackへの返信は1〜3分ほどで自動で付きます。`);
-      setResult(''); setMemo(''); setRecallAt('');
+      setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt('');
       await load();
     } catch (e) {
       setError('保存に失敗しました：' + (e?.message || '不明なエラー'));
@@ -148,9 +157,14 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
               <Input label="かけ直す時刻" type="datetime-local" size="sm" value={recallAt} onChange={e => setRecallAt(e.target.value)} />
             </div>
           )}
+          {result === 'リスケ' && (
+            <div style={{ marginBottom: space[2] }}>
+              <Input label="新しい面談日時（決まっていれば）" type="datetime-local" size="sm" value={rescheduledAt} onChange={e => setRescheduledAt(e.target.value)} />
+            </div>
+          )}
           {['リスケ', 'キャンセル'].includes(result) && (
             <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[2] }}>
-              アポの状態は変えません。リスケ・キャンセルの確定と顧客への報告はむー様が行います。
+              アポは「{NEXT_STATUS[result]}」になります。日を改めればお会いできそうなら、キャンセルではなくリスケを選んでください。顧客への報告はむー様が行います。
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
