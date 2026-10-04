@@ -47,6 +47,7 @@ interface EventRow {
   recording_status: string; recording_attempts: number; recording_url: string | null
   slack_status: string; draft_status: string; draft_channel: string | null; draft_text: string | null
   draft_error: string | null; gmail_thread_id: string | null; gmail_draft_id: string | null
+  recording_added: string | null; slack_ts: string | null; slack_post_channel: string | null
   auto_registered_channel?: string  // この回に共有チャンネルを自動で登録した（#事前確認 への返信で知らせる）
 }
 
@@ -326,7 +327,7 @@ function htmlBody(part: any): string {
 }
 
 /** Gmail の返信と同じ形（引用つき）で下書きを作る */
-async function createReplyDraft(token: string, threadId: string, body: string): Promise<{ draftId: string; to: string }> {
+async function buildReplyRaw(token: string, threadId: string, body: string): Promise<{ raw: string; to: string }> {
   const th = await gmail(token, `threads/${threadId}?format=full`)
   const msgs = th.messages || []
   const last = msgs[msgs.length - 1]
@@ -374,9 +375,67 @@ async function createReplyDraft(token: string, threadId: string, body: string): 
     wrap76(btoa(unescape(encodeURIComponent(html)))),
     `--${boundary}--`,
   ]
-  const raw = b64urlEncode(lines.join('\r\n'))
+  return { raw: b64urlEncode(lines.join('\r\n')), to }
+}
+
+async function createReplyDraft(token: string, threadId: string, body: string): Promise<{ draftId: string; to: string }> {
+  const { raw, to } = await buildReplyRaw(token, threadId, body)
   const draft = await gmail(token, 'drafts', { method: 'POST', body: JSON.stringify({ message: { raw, threadId } }) })
   return { draftId: draft.id, to }
+}
+
+/** 本文に録音の一文を差し込む（締めの段落の前）。Slack形式は空行なしなので行で数える */
+function insertRecording(text: string, url: string, slackFormat: boolean): string {
+  if (text.includes(url)) return text
+  const add = ['事前確認時の通話録音を共有いたします。', url]
+  if (slackFormat) {
+    const lines = text.split('\n')
+    let i = lines.findIndex(l => /よろしくお願い|ご対応のほど/.test(l))
+    if (i < 0) i = lines.length
+    lines.splice(i, 0, ...add)
+    return lines.join('\n')
+  }
+  const paras = text.split(/\n{2,}/)
+  let i = paras.findIndex(p => /当日はご対応|よろしくお願い|恐れ入りますが、何卒/.test(p))
+  if (i < 0) i = Math.max(paras.length - 1, 0)
+  paras.splice(i, 0, add.join('\n'))
+  return paras.join('\n\n')
+}
+
+/**
+ * 録音が下書きの後に見つかったとき、下書きがまだ残っていれば録音の一文を書き足す。
+ * Gmail はその時点の下書きの本文（篠宮が直していればそれも）に差し込む。送信済み・削除済みなら何もしない。
+ */
+async function addRecordingToDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
+  if (ev.recording_added !== 'pending') return
+  if (ev.recording_status === 'pending') return
+  const done = async (v: string) => { await sb.from('precheck_events').update({ recording_added: v }).eq('id', ev.id); ev.recording_added = v }
+  if (ev.recording_status !== 'found' || !ev.recording_url) return done('skip')
+
+  if (ev.draft_status === 'ready' && ev.draft_text) {
+    const text = insertRecording(ev.draft_text, ev.recording_url, ev.draft_channel === 'slack')
+    await sb.from('precheck_events').update({ draft_text: text }).eq('id', ev.id).eq('draft_status', 'ready')
+    ev.draft_text = text
+    return done('done')
+  }
+  if (ev.draft_status !== 'created' || !ev.gmail_draft_id || !ev.gmail_thread_id) return done('skip')
+
+  const token = await getGoogleToken()
+  const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/drafts/${ev.gmail_draft_id}?format=full`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 404) return done('skip') // 篠宮が送信済み、または削除済み
+  const draft = await res.json()
+  const current = plainBody(draft.message?.payload).replace(/\r\n/g, '\n')
+  // 引用の見出し（2026年9月30日(水) 18:28 名前 <addr>:）より上が本文
+  const m = current.match(/\n+\d{4}年\d{1,2}月\d{1,2}日\(.\) \d{1,2}:\d{2} .*:\s*\n/)
+  const body = (m ? current.slice(0, m.index) : (ev.draft_text || current)).trimEnd()
+  const nextBody = insertRecording(body, ev.recording_url, false)
+  const { raw } = await buildReplyRaw(token, ev.gmail_thread_id, nextBody)
+  await gmail(token, `drafts/${ev.gmail_draft_id}`, { method: 'PUT', body: JSON.stringify({ id: ev.gmail_draft_id, message: { raw, threadId: ev.gmail_thread_id } }) })
+  await sb.from('precheck_events').update({ draft_text: nextBody }).eq('id', ev.id)
+  ev.draft_text = nextBody
+  return done('done')
 }
 
 /**
@@ -452,7 +511,7 @@ function surnameFrom(text: string, fallback: string | null): string {
 
 async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
   if (ev.draft_status !== 'pending') return
-  if (ev.recording_status === 'pending') return // 録音リンクを入れるため待つ
+  // 録音は待たない（2026-10-04 篠宮）。見つかったら addRecordingToDraft が後から書き足す
 
   const { data: appo } = await sb.from('appointments')
     .select('id, company_name, meeting_date, meeting_time, client_id, created_at, report_gmail_thread_id, is_online, meeting_location')
@@ -467,6 +526,9 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
     : client?.contact_method === 'Chatwork' ? 'chatwork' : 'email'
   let autoRegistered = ''
   const shareRec = !!client?.precheck_share_recording && !!ev.recording_url
+  // 録音リンクを付ける報告か。付けるのに録音がまだ無ければ、見つかった時点で書き足す（pending）
+  const wantsRec = !!client?.precheck_share_recording && ['確認完了', 'リスケ', 'キャンセル'].includes(ev.result)
+  const recAdded = !wantsRec ? 'skip' : shareRec ? 'done' : (ev.recording_status === 'pending' ? 'pending' : 'skip')
 
   let token = ''
   let threadId: string | null = null
@@ -546,11 +608,11 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
 
   if (channel !== 'email') {
     await sb.from('precheck_events').update({
-      draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: slackError || null,
+      draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: slackError || null, recording_added: recAdded,
       slack_reply_channel: slackReply?.channel || null, slack_reply_ts: slackReply?.ts || null,
       slack_reply_mentions: slackReply?.mentions || null,
     }).eq('id', ev.id)
-    Object.assign(ev, { draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: slackError || null, auto_registered_channel: autoRegistered || undefined })
+    Object.assign(ev, { draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: slackError || null, auto_registered_channel: autoRegistered || undefined, recording_added: recAdded })
     return
   }
   if (!threadId) {
@@ -566,10 +628,10 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
   if (still?.cancelled_at) return
   const { draftId } = await createReplyDraft(token, threadId, text)
   await sb.from('precheck_events').update({
-    draft_status: 'created', draft_channel: 'email', draft_text: text, draft_error: null,
+    draft_status: 'created', draft_channel: 'email', draft_text: text, draft_error: null, recording_added: recAdded,
     gmail_thread_id: threadId, gmail_draft_id: draftId,
   }).eq('id', ev.id)
-  Object.assign(ev, { draft_status: 'created', draft_channel: 'email', draft_text: text, gmail_thread_id: threadId, gmail_draft_id: draftId })
+  Object.assign(ev, { draft_status: 'created', draft_channel: 'email', draft_text: text, gmail_thread_id: threadId, gmail_draft_id: draftId , recording_added: recAdded })
 }
 
 /* ===================== 3. #事前確認 スレッド ===================== */
@@ -579,19 +641,9 @@ async function orgSetting(sb: SupabaseClient, orgId: string, key: string): Promi
   return (data?.setting_value as string) || ''
 }
 
-async function stepSlack(sb: SupabaseClient, ev: EventRow): Promise<void> {
-  if (ev.slack_status !== 'pending') return
-  if (ev.recording_status === 'pending') return
-  if (ev.draft_status === 'pending') return
-
-  const token = Deno.env.get('SLACK_BOT_TOKEN')?.trim()
-  const channel = await orgSetting(sb, ev.org_id, 'slack_channel_precheck')
-  if (!token || !channel) {
-    await sb.from('precheck_events').update({ slack_status: 'failed' }).eq('id', ev.id)
-    return
-  }
+/** #事前確認 への返信の本文と返信先（朝の通知のスレッド） */
+async function composeSlack(sb: SupabaseClient, ev: EventRow, channel: string): Promise<{ text: string; threadTs: string | null }> {
   const mention = await orgSetting(sb, ev.org_id, 'slack_precheck_mention_user')
-
   const { data: appo } = await sb.from('appointments').select('company_name, client_id').eq('id', ev.appointment_id).maybeSingle()
   const { data: client } = appo?.client_id
     ? await sb.from('clients').select('name').eq('id', appo.client_id).maybeSingle()
@@ -606,28 +658,61 @@ async function stepSlack(sb: SupabaseClient, ev: EventRow): Promise<void> {
   lines.push(`・事前確認：${ev.result}`)
   if (ev.memo) lines.push(`・メモ：${ev.memo}`)
   if (ev.recall_at) lines.push(`・かけ直し：${jpDateTime(ev.recall_at)}`)
-  lines.push(`・録音：${ev.recording_url ? `<${ev.recording_url}|再生>` : 'なし'}`)
+  lines.push(`・録音：${ev.recording_url ? `<${ev.recording_url}|再生>` : ev.recording_status === 'pending' ? '取得中（見つかり次第ここに付きます）' : 'なし'}`)
   lines.push(`・入力：${ev.caller_name || ''}（${jpDateTime(ev.called_at)}）`)
+  const recNote = ev.recording_added === 'pending' ? '（録音は見つかり次第、下書きに書き足します）'
+    : ev.recording_added === 'done' && ev.recording_url ? '（録音リンク入り）' : ''
   if (ev.draft_status === 'created' && ev.gmail_thread_id) {
     // 下書きを直接開くURL（#all?compose=thread-f:…）は Gmail が新規作成に置き換えてしまうため、スレッドを開く
-    lines.push(`・顧客への報告：アポ取得報告のスレッドにGmailの返信下書きを作りました → <https://mail.google.com/mail/u/${FROM_EMAIL}/#all/${ev.gmail_thread_id}|スレッドを開く>`)
+    lines.push(`・顧客への報告：アポ取得報告のスレッドにGmailの返信下書きを作りました${recNote} → <https://mail.google.com/mail/u/${FROM_EMAIL}/#all/${ev.gmail_thread_id}|スレッドを開く>`)
   } else if (ev.draft_status === 'ready') {
-    lines.push(`・顧客への報告：${ev.draft_channel === 'slack' ? 'Slack' : 'Chatwork'}用の文面を用意しました → <${SPANAVI_URL}/?tab=precheck|Spanaviの事前確認で送信>`)
+    lines.push(`・顧客への報告：${ev.draft_channel === 'slack' ? 'Slack' : 'Chatwork'}用の文面を用意しました${recNote} → <${SPANAVI_URL}/?tab=precheck|Spanaviの事前確認で送信>`)
     if (ev.auto_registered_channel) lines.push(`・このクライアントの共有チャンネル <#${ev.auto_registered_channel}> を新しく登録しました（メールが見つからず、Slackのアポ取得報告が見つかったため）`)
   } else if (ev.draft_status === 'failed') {
     lines.push(`・顧客への報告：下書きを作れませんでした（${ev.draft_error || '原因不明'}）`)
   }
+  return { text: lines.join('\n'), threadTs: post?.ts || null }
+}
 
+async function stepSlack(sb: SupabaseClient, ev: EventRow): Promise<void> {
+  if (ev.slack_status !== 'pending') return
+  // 録音は待たない。下書きの結果だけは載せたいので、下書きの処理が済むまで待つ
+  if (ev.draft_status === 'pending') return
+
+  const token = Deno.env.get('SLACK_BOT_TOKEN')?.trim()
+  const channel = await orgSetting(sb, ev.org_id, 'slack_channel_precheck')
+  if (!token || !channel) {
+    await sb.from('precheck_events').update({ slack_status: 'failed' }).eq('id', ev.id)
+    return
+  }
+  const { text, threadTs } = await composeSlack(sb, ev, channel)
   const res = await fetch('https://slack.com/api/chat.postMessage', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ channel, text: lines.join('\n'), ...(post?.ts ? { thread_ts: post.ts } : {}), unfurl_links: false }),
+    body: JSON.stringify({ channel, text, ...(threadTs ? { thread_ts: threadTs } : {}), unfurl_links: false }),
   })
   const data = await res.json().catch(() => ({}))
   await sb.from('precheck_events').update(
     data.ok ? { slack_status: 'posted', slack_ts: data.ts, slack_post_channel: data.channel || null } : { slack_status: 'failed' },
   ).eq('id', ev.id)
-  if (!data.ok) console.error('[process-precheck-events] Slack error:', data.error)
+  if (data.ok) Object.assign(ev, { slack_status: 'posted', slack_ts: data.ts, slack_post_channel: data.channel || null })
+  else console.error('[process-precheck-events] Slack error:', data.error)
+}
+
+/** 返信したあとに録音が見つかった（または見つからないと決まった）ら、返信を書き換える */
+async function updateSlackAfterRecording(sb: SupabaseClient, ev: EventRow): Promise<void> {
+  if (ev.slack_status !== 'posted' || !ev.slack_ts || !ev.slack_post_channel) return
+  const token = Deno.env.get('SLACK_BOT_TOKEN')?.trim()
+  const channel = await orgSetting(sb, ev.org_id, 'slack_channel_precheck')
+  if (!token || !channel) return
+  const { text } = await composeSlack(sb, ev, channel)
+  const res = await fetch('https://slack.com/api/chat.update', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({ channel: ev.slack_post_channel, ts: ev.slack_ts, text }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!data.ok) console.error('[process-precheck-events] Slack update error:', data.error)
 }
 
 /* ===================== 本体 ===================== */
@@ -665,7 +750,7 @@ Deno.serve(async (req) => {
     .select('*')
     .gte('created_at', since)
     .is('cancelled_at', null) // 取り消した記録は処理しない
-    .or('recording_status.eq.pending,draft_status.eq.pending,slack_status.eq.pending')
+    .or('recording_status.eq.pending,draft_status.eq.pending,slack_status.eq.pending,recording_added.eq.pending')
     .order('created_at')
     .limit(20)
   if (error) return json({ error: error.message }, 500)
@@ -673,6 +758,7 @@ Deno.serve(async (req) => {
   const results: Array<{ id: string; ok: boolean; error?: string }> = []
   for (const ev of (events || []) as EventRow[]) {
     try {
+      const recBefore = ev.recording_status
       try {
         await stepRecording(sb, ev)
       } catch (e) {
@@ -691,6 +777,12 @@ Deno.serve(async (req) => {
         Object.assign(ev, { draft_status: 'failed', draft_error: msg })
       }
       await stepSlack(sb, ev)
+      // 録音が決まった（見つかった／見つからないと決まった）ら、下書きに書き足し、#事前確認 の返信も書き換える
+      const recordingSettled = ev.recording_status !== 'pending'
+      if (recordingSettled && ev.recording_added === 'pending') {
+        try { await addRecordingToDraft(sb, ev) } catch (e) { console.error('[process-precheck-events] add recording', ev.id, e) }
+      }
+      if (recBefore === 'pending' && recordingSettled) await updateSlackAfterRecording(sb, ev)
       results.push({ id: ev.id, ok: true })
     } catch (e) {
       console.error('[process-precheck-events]', ev.id, e)
