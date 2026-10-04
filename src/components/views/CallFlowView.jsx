@@ -13,7 +13,7 @@ import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { getEffectiveCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
-import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, fetchDocViewForItem, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, fetchDocViewForItem, fetchViewedDocSends, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -451,6 +451,32 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     });
     return () => { cancelled = true; };
   }, [selectedItemId]);
+  // 「閲覧済み」絞り込み：資料かHPを開いた企業だけを、開いた日時の新しい順に出す
+  const [viewedOnly] = useUrlState('viewed', '');
+  const [viewedAt, setViewedAt] = useState(() => new Map()); // itemId → 最後に開いた日時（ms）
+  useEffect(() => {
+    let cancelled = false;
+    fetchViewedDocSends().then(({ rows, error }) => {
+      if (cancelled || error) return;
+      const m = new Map();
+      for (const r of rows) {
+        const t = Math.max(...[r.last_view_at, r.first_view_at, r.last_site_at, r.first_site_at]
+          .filter(Boolean).map(v => new Date(v).getTime()));
+        if (!m.has(r.lead_item_id) || m.get(r.lead_item_id) < t) m.set(r.lead_item_id, t);
+      }
+      setViewedAt(m);
+    });
+    return () => { cancelled = true; };
+  }, [list._supaId]);
+  // ページ0へのリセットと同じ1回の書き込みにまとめる（useUrlState の連続呼び出しは競合する）
+  const toggleViewedOnly = () => {
+    setSearchParamsRaw(prev => {
+      const np = new URLSearchParams(prev);
+      if (np.get('viewed')) np.delete('viewed'); else np.set('viewed', '1');
+      np.delete('flow_page');
+      return np;
+    }, { replace: true });
+  };
   const docViewBadge = docView ? (<span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: space[1.5] }}>
     {docView.first_view_at && (
       <Badge variant="success" dot>
@@ -824,7 +850,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       const matchSearch = !search || item.company?.includes(search) || item.representative?.includes(search) || item.phone?.includes(search);
       if (!matchSearch) return false;
       if (addressMatchFilter && addressMatchByItem.get(item.id) !== addressMatchFilter) return false;
-      if (filterMode === 'callable') { if (isHiddenFromCallable(item.id)) return false; }
+      if (viewedOnly && !viewedAt.has(item.id)) return false;
+      // 閲覧済みに絞ったときは、再コール待ちでも今すぐ当てたいので隠さない（除外だけ落とす）
+      if (filterMode === 'callable') { if (viewedOnly ? isExcludedItem(item.id) : isHiddenFromCallable(item.id)) return false; }
       else if (filterMode === 'excluded') { if (!isExcludedItem(item.id)) return false; }
       if (revenueMin !== '') {
         if (item.revenue == null || Number(item.revenue) < Number(revenueMin)) return false;
@@ -868,7 +896,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           : String(av).localeCompare(String(bv), 'ja');
         return sortState.direction === 'desc' ? -cmp : cmp;
       })
-    : filtered;
+    : viewedOnly
+      ? [...filtered].sort((a, b) => (viewedAt.get(b.id) || 0) - (viewedAt.get(a.id) || 0))
+      : filtered;
+  const viewedCount = useMemo(() => items.reduce((n, i) => n + (viewedAt.has(i.id) ? 1 : 0), 0), [items, viewedAt]);
 
   const handleSort = (col) => {
     setSortState(prev => {
@@ -1565,6 +1596,17 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 {label}
               </button>
             ))}
+            {viewedCount > 0 && (
+              <button onClick={toggleViewedOnly} title="資料かHPを開いた企業だけを、開いた日時の新しい順に出します"
+                style={{ padding: '4px 8px', borderRadius: 4, fontSize: 9, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'Noto Sans JP'", whiteSpace: 'nowrap',
+                  background: viewedOnly ? color.success : 'transparent',
+                  color: viewedOnly ? C.white : color.success,
+                  border: '1px solid ' + color.success,
+                }}>
+                {`閲覧済み ${viewedCount}`}
+              </button>
+            )}
           </div>
           <div style={{ flex: 1, overflow: 'auto' }}>
             {loading ? (
@@ -2298,6 +2340,15 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     {label}
                   </button>
                 ))}
+                {viewedCount > 0 && (
+                  <button onClick={toggleViewedOnly} title="資料かHPを開いた企業だけを、開いた日時の新しい順に出します"
+                    style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',
+                      background: viewedOnly ? color.success : 'transparent',
+                      color: viewedOnly ? color.white : color.success,
+                      border: `1px solid ${color.success}` }}>
+                    {`閲覧済み ${viewedCount}`}
+                  </button>
+                )}
                 {/* ステータスフィルタ（複数選択対応） */}
                 <span style={{ color: color.gray300, fontSize: font.size.xs - 1 }}>|</span>
                 {['全ステータス', '未架電', ...callStatuses.map(s => s.label)].map(st => {

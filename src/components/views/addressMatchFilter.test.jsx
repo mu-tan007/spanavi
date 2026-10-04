@@ -14,7 +14,7 @@ vi.mock('../../lib/supabaseWrite', () => ({
   insertAppointment: vi.fn(), updateClientContact: vi.fn(), completeRecallsForItem: vi.fn(),
   getCompanyOverviewPdfSignedUrl: vi.fn(), getScriptPdfSignedUrl: vi.fn(async () => ({ url: null })),
   fetchGiftLetterPath: vi.fn(async () => ({ path: null, error: null })), getGiftLetterSignedUrl: vi.fn(async () => ({ url: null })),
-  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
+  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), fetchViewedDocSends: vi.fn(async () => ({ rows: [], error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
   deleteCallRecordsByListId: vi.fn(), deleteCallListItemsByListId: vi.fn(), updateCallListCount: vi.fn(), insertCallListItems: vi.fn(),
 }));
 vi.mock('../../lib/zoomPhoneStore', () => ({ zoomPhone: {} }));
@@ -36,7 +36,7 @@ vi.mock('../common/ScriptTreeGuide', () => ({ default: () => null }));
 
 import DetailModal from './DetailModal';
 import CallFlowView from './CallFlowView';
-import { fetchCallListItems, fetchCallFlowData, fetchCallListFilterSummary, fetchSetting, insertCallSession } from '../../lib/supabaseWrite';
+import { fetchCallListItems, fetchCallFlowData, fetchCallListFilterSummary, fetchSetting, insertCallSession, fetchViewedDocSends } from '../../lib/supabaseWrite';
 import { getCompanyAddressMatch } from '../../utils/companyAddressMatch';
 import { dialPhone } from '../../utils/phone';
 
@@ -211,5 +211,27 @@ describe('住所照合条件を詳細モーダルから架電対象まで維持'
     expect(companies()).toEqual(['不一致企業']);
     expect(JSON.stringify(renderer.toJSON())).not.toContain('一致（0件）');
     expect(JSON.stringify(renderer.toJSON())).not.toContain('比較できる住所データがありません');
+  });
+});
+
+describe('資料・HPの閲覧済みで絞り込む', () => {
+  it('開いた企業だけを、開いた日時の新しい順に出し、もう一度押すと戻す', async () => {
+    fetchViewedDocSends.mockResolvedValue({ rows: [
+      { lead_item_id: 'b', first_view_at: '2026-10-01T00:00:00Z', last_view_at: '2026-10-01T00:00:00Z' },
+      { lead_item_id: 'd', first_site_at: '2026-10-03T00:00:00Z', last_site_at: '2026-10-03T00:00:00Z' },
+      { lead_item_id: 'other-list-item', first_view_at: '2026-10-04T00:00:00Z' },
+    ], error: null });
+    await mountFlow();
+    expect(companies()).toHaveLength(4);
+    await act(async () => { button('閲覧済み 2').props.onClick(); });
+    expect(companies()).toEqual(['一致低売上企業', '不一致企業']);
+    await act(async () => { button('閲覧済み 2').props.onClick(); });
+    expect(companies()).toHaveLength(4);
+  });
+
+  it('このリストに開いた企業が無ければボタンを出さない', async () => {
+    fetchViewedDocSends.mockResolvedValue({ rows: [{ lead_item_id: 'other-list-item', first_view_at: '2026-10-04T00:00:00Z' }], error: null });
+    await mountFlow();
+    expect(renderer.root.findAllByType('button').some(n => String(n.children).startsWith('閲覧済み'))).toBe(false);
   });
 });

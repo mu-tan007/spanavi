@@ -2526,6 +2526,17 @@ export async function fetchDocViewForItem(itemId) {
   return { view: data || null, error }
 }
 
+// 架電画面の「閲覧済み」絞り込み用。資料かHPが一度でも開かれた送付先を全部返す（件数は送付先の数どまり）
+export async function fetchViewedDocSends() {
+  const { data, error } = await supabase
+    .from('doc_send_stats')
+    .select('lead_item_id, first_view_at, last_view_at, first_site_at, last_site_at')
+    .not('lead_item_id', 'is', null)
+    .or('first_view_at.not.is.null,first_site_at.not.is.null')
+  if (error) console.error('[DB] fetchViewedDocSends error:', error)
+  return { rows: data || [], error }
+}
+
 export async function getGiftLetterSignedUrl(path, expiresIn = 600) {
   if (!path) return { url: null, error: new Error('no path') }
   const { data, error } = await supabase.storage
