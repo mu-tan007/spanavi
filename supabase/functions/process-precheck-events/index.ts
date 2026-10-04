@@ -252,7 +252,8 @@ async function findReportThread(token: string, sb: SupabaseClient, appo: { id: s
   if (!core) return null
   const after = new Date(new Date(appo.created_at).getTime() - 2 * 86400 * 1000)
   const afterStr = `${after.getUTCFullYear()}/${after.getUTCMonth() + 1}/${after.getUTCDate()}`
-  const q = `in:sent subject:アポイント取得のご報告 "${core}" after:${afterStr}`
+  // 件名はクライアントによって違う（多くは【アポイント取得のご報告】、ブティックス様は「…アポ取得のお知らせ」）
+  const q = `in:sent (subject:アポイント取得 OR subject:アポ取得) "${core}" after:${afterStr}`
   const list = await gmail(token, `threads?maxResults=5&q=${encodeURIComponent(q)}`)
   const norm = (s: string) => s.replace(/[\s　]/g, '')
   for (const t of list.threads || []) {
@@ -499,8 +500,15 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
       const th = await gmail(token, `threads/${threadId}?format=full`)
       const msgs = th.messages || []
       // 宛名は「この下書きを送る相手」に合わせる（スレッドの途中で担当者が変わることがある）
-      const toName = displayName((replyTarget(msgs[msgs.length - 1]).to || '').split(',')[0])
-      firstBody = toName ? `${toName} 様` : plainBody(msgs[0]?.payload)
+      // 共用アドレス（info-btix-ma など）は表示名が人名でないので使わない。
+      // そのときは相手の本文の名乗り（「ブティックスの佐藤でございます」）→ 最初の報告の宛名、の順で取る
+      const last = msgs[msgs.length - 1]
+      const target = replyTarget(last)
+      const rawName = displayName((target.to || '').split(',')[0])
+      const toName = /[一-龯ぁ-んァ-ヶ]/.test(rawName) ? rawName : ''
+      const selfIntro = target.fromMe ? '' :
+        (plainBody(last?.payload).match(/の([一-龯]{1,4})(?:と申します|でございます|です)/)?.[1] || '')
+      firstBody = toName ? `${toName} 様` : selfIntro ? `${selfIntro} 様` : plainBody(msgs[0]?.payload)
     } else {
       // メールが見つからない ＝ 共有チャンネルの登録漏れかもしれない。Slack 全体を探し、見つかれば登録する
       const precheckChannel = await orgSetting(sb, ev.org_id, 'slack_channel_precheck')
