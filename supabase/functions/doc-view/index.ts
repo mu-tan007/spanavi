@@ -16,7 +16,10 @@ const corsHeaders = {
 const BOT = /bot|crawler|spider|crawling|preview|slackbot|facebookexternalhit|twitterbot|whatsapp|line-?poker|discordbot|embedly|quora|pinterest|vkshare|skypeuripreview|google-?(read-?aloud|favicon)|bingpreview|curl|wget|python-requests|headless|lighthouse|monitor|uptime/i
 
 const CHANNEL_LABEL: Record<string, string> = { form: '問い合わせフォーム', email: 'メール', sns: 'SNS' }
-const DOC_LABEL: Record<string, string> = { uri_sourcing: '売り手ソーシング代行 サービス紹介資料' }
+const DOC_LABEL: Record<string, string> = {
+  uri_sourcing: '売り手ソーシング代行 サービス紹介資料',
+  ifa_lead: 'IFA向け富裕層リード獲得代行 サービス紹介資料',
+}
 
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
@@ -30,7 +33,11 @@ const jst = (d: Date) =>
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  const done = () => new Response(null, { status: 204, headers: corsHeaders })
+  // 返事に資料の種類（doc_key）を載せる。中継ページはこれで開くPDFを決める
+  let docKey: string | null = null
+  const done = () => new Response(JSON.stringify({ doc_key: docKey }), {
+    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
 
   try {
     const body = await req.json().catch(() => ({}))
@@ -48,6 +55,7 @@ Deno.serve(async (req) => {
       .eq('token', token)
       .maybeSingle()
     if (!send) return done()
+    docKey = send.doc_key
 
     const ua = req.headers.get('user-agent') ?? ''
     const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim()
@@ -65,75 +73,80 @@ Deno.serve(async (req) => {
     })
     if (isBot) return done()
 
-    // 初回だけ知らせる。取れた1回だけが送る権利を持つ
-    const now = new Date()
-    const { data: claimed } = await supabase
-      .from('doc_sends')
-      .update({ view_notified_at: now.toISOString() })
-      .eq('id', send.id)
-      .is('view_notified_at', null)
-      .select('id')
-    if (!claimed?.length) return done()
+    // 通知は裏で回し、資料を開く人を待たせない
+    const notify = async () => {
+      // 初回だけ知らせる。取れた1回だけが送る権利を持つ
+      const now = new Date()
+      const { data: claimed } = await supabase
+        .from('doc_sends')
+        .update({ view_notified_at: now.toISOString() })
+        .eq('id', send.id)
+        .is('view_notified_at', null)
+        .select('id')
+      if (!claimed?.length) return
 
-    const release = () =>
-      supabase.from('doc_sends').update({ view_notified_at: null }).eq('id', send.id)
+      const release = () =>
+        supabase.from('doc_sends').update({ view_notified_at: null }).eq('id', send.id)
 
-    const { data: setting } = await supabase
-      .from('org_settings')
-      .select('setting_value')
-      .eq('org_id', send.org_id)
-      .eq('setting_key', 'slack_webhook_contact')
-      .maybeSingle()
-    const webhookUrl = String(setting?.setting_value ?? '').trim()
-    if (!webhookUrl.startsWith('http')) {
-      console.error('[doc-view] org_settings.slack_webhook_contact が未設定')
-      await release()
-      return done()
+      const { data: setting } = await supabase
+        .from('org_settings')
+        .select('setting_value')
+        .eq('org_id', send.org_id)
+        .eq('setting_key', 'slack_webhook_contact')
+        .maybeSingle()
+      const webhookUrl = String(setting?.setting_value ?? '').trim()
+      if (!webhookUrl.startsWith('http')) {
+        console.error('[doc-view] org_settings.slack_webhook_contact が未設定')
+        await release()
+        return
+      }
+
+      // 最新の架電結果を添える（電話する人がそのまま動けるように）
+      const { data: rec } = await supabase
+        .from('call_records')
+        .select('status, called_at')
+        .eq('item_id', send.lead_item_id)
+        .order('called_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const since = send.sent_at
+        ? `送付から${Math.max(0, Math.floor(
+            (now.getTime() - new Date(send.sent_at).getTime()) / 86_400_000))}日目`
+        : ''
+      const fields = [
+        ['会社名', send.company],
+        ['電話', send.tel],
+        ['送付経路', [CHANNEL_LABEL[send.channel] ?? send.channel, since].filter(Boolean).join('・')],
+        ['閲覧', jst(now)],
+        ['最新の架電結果', rec?.status ?? '未架電'],
+      ].filter(([, v]) => v)
+
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `資料が閲覧されました：${send.company}（${send.tel ?? ''}）`,
+          blocks: [
+            { type: 'header', text: { type: 'plain_text', text: '資料が閲覧されました', emoji: false } },
+            { type: 'section', fields: fields.map(([k, v]) => ({ type: 'mrkdwn', text: `*${k}*\n${v}` })) },
+            {
+              type: 'context',
+              elements: [{
+                type: 'mrkdwn',
+                text: `フォーム営業（${DOC_LABEL[send.doc_key] ?? send.doc_key}）。この会社へのお電話をお願いします。`,
+              }],
+            },
+          ],
+        }),
+      })
+      if (!res.ok) {
+        console.error('[doc-view] slack', res.status, await res.text())
+        await release()
+      }
     }
-
-    // 最新の架電結果を添える（電話する人がそのまま動けるように）
-    const { data: rec } = await supabase
-      .from('call_records')
-      .select('status, called_at')
-      .eq('item_id', send.lead_item_id)
-      .order('called_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    const since = send.sent_at
-      ? `送付から${Math.max(0, Math.floor(
-          (now.getTime() - new Date(send.sent_at).getTime()) / 86_400_000))}日目`
-      : ''
-    const fields = [
-      ['会社名', send.company],
-      ['電話', send.tel],
-      ['送付経路', [CHANNEL_LABEL[send.channel] ?? send.channel, since].filter(Boolean).join('・')],
-      ['閲覧', jst(now)],
-      ['最新の架電結果', rec?.status ?? '未架電'],
-    ].filter(([, v]) => v)
-
-    const res = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: `資料が閲覧されました：${send.company}（${send.tel ?? ''}）`,
-        blocks: [
-          { type: 'header', text: { type: 'plain_text', text: '資料が閲覧されました', emoji: false } },
-          { type: 'section', fields: fields.map(([k, v]) => ({ type: 'mrkdwn', text: `*${k}*\n${v}` })) },
-          {
-            type: 'context',
-            elements: [{
-              type: 'mrkdwn',
-              text: `フォーム営業（${DOC_LABEL[send.doc_key] ?? send.doc_key}）。この会社へのお電話をお願いします。`,
-            }],
-          },
-        ],
-      }),
-    })
-    if (!res.ok) {
-      console.error('[doc-view] slack', res.status, await res.text())
-      await release()
-    }
+    // @ts-ignore EdgeRuntime は Supabase の実行環境にある
+    EdgeRuntime.waitUntil(notify().catch((e) => console.error('[doc-view] notify', e)))
     return done()
   } catch (e) {
     console.error('[doc-view]', e)
