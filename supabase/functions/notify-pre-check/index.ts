@@ -1,39 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { loadJpHolidays, listDaysThroughBusinessDay } from '../_shared/jpBusinessDays.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
-
-/** date を n 営業日進める（土日スキップ） */
-function addBusinessDays(date: Date, n: number): Date {
-  const result = new Date(date)
-  let added = 0
-  while (added < n) {
-    result.setDate(result.getDate() + 1)
-    const dow = result.getDay()
-    if (dow !== 0 && dow !== 6) added++
-  }
-  return result
-}
-
-/** Date → 'YYYY-MM-DD' */
-function toDateStr(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-/** Date → '2026/03/05（水）' */
-function formatDateJP(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const w = DAY_NAMES[date.getDay()]
-  return `${y}/${m}/${d}（${w}）`
 }
 
 Deno.serve(async (req) => {
@@ -47,18 +17,23 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // JST 現在時刻
-    const nowUtc = new Date()
-    const jstNow = new Date(nowUtc.getTime() + 9 * 60 * 60 * 1000)
-    const jstDateStr = jstNow.toISOString().slice(0, 10) // 'YYYY-MM-DD'
-    // Date オブジェクトはローカル時刻を使わず UTC ベースで構築
-    const todayJST = new Date(jstDateStr + 'T00:00:00Z')
+    // dry_run: Slack へ送らず本文だけ返す（確認用）。today で基準日を差し替えられる（dry_run 時のみ）
+    let dryRun = false
+    let todayOverride = ''
+    try {
+      const body = await req.json()
+      dryRun = body?.dry_run === true
+      if (dryRun && /^\d{4}-\d{2}-\d{2}$/.test(body?.today || '')) todayOverride = body.today
+    } catch { /* cron は空ボディ */ }
 
-    // 当日・1営業日後・2営業日後
-    const day0 = todayJST
-    const day1 = addBusinessDays(todayJST, 1)
-    const day2 = addBusinessDays(todayJST, 2)
-    const targetDates = [toDateStr(day0), toDateStr(day1), toDateStr(day2)]
+    // JST の今日（UTC 0時の Date として扱う）
+    const jstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)
+    const todayJST = new Date((todayOverride || jstNow.toISOString().slice(0, 10)) + 'T00:00:00Z')
+
+    // 当日〜2営業日後までの全日付（間の土日・祝日も含める。以前は平日の日付だけで休日の面談が漏れていた）
+    const holidays = await loadJpHolidays()
+    const targetDays = listDaysThroughBusinessDay(todayJST, 2, holidays)
+    const targetDates = targetDays.map(d => d.date)
 
     // 通知対象 org = org_settings.slack_webhook_precheck に有効URLが設定されている org のみ
     const { data: webhookRows, error: webhookErr } = await supabase
@@ -81,6 +56,7 @@ Deno.serve(async (req) => {
     }
 
     const summary: Array<{ org_id: string; appoCount: number; sent: boolean }> = []
+    const previews: Array<{ org_id: string; text: string }> = []
 
     for (const { org_id: orgId, url: webhookUrl } of orgWebhooks) {
       // 当該 org のアポのみ取得（status='アポ取得' / 対象日範囲）
@@ -90,7 +66,7 @@ Deno.serve(async (req) => {
         .eq('org_id', orgId)
         .eq('status', 'アポ取得')
         .gte('meeting_date', `${targetDates[0]}T00:00:00+00:00`)
-        .lte('meeting_date', `${targetDates[2]}T23:59:59+00:00`)
+        .lte('meeting_date', `${targetDates[targetDates.length - 1]}T23:59:59+00:00`)
         .order('meeting_date')
         .order('company_name')
       if (apposError) {
@@ -128,17 +104,11 @@ Deno.serve(async (req) => {
         grouped[dateKey].push(a)
       }
 
-      const dayLabels: Record<string, string> = {
-        [toDateStr(day0)]: `【事前確認】${formatDateJP(day0)}（当日）`,
-        [toDateStr(day1)]: `【事前確認】${formatDateJP(day1)}（1営業日後）`,
-        [toDateStr(day2)]: `【事前確認】${formatDateJP(day2)}（2営業日後）`,
-      }
-
       const sections: string[] = []
-      for (const dateStr of targetDates) {
-        if (!grouped[dateStr]) continue
-        sections.push(dayLabels[dateStr])
-        for (const a of grouped[dateStr]) {
+      for (const day of targetDays) {
+        if (!grouped[day.date]) continue
+        sections.push(`【事前確認】${day.jp}（${day.label}）`)
+        for (const a of grouped[day.date]) {
           const clientName = clientMap[a.client_id] || 'クライアント不明'
           sections.push(`・${a.company_name} / アポ取得者：${a.getter_name} / クライアント：${clientName}`)
           if (a.notes && (a.notes as string).trim()) {
@@ -149,6 +119,11 @@ Deno.serve(async (req) => {
       }
 
       const text = sections.join('\n').trimEnd()
+      if (dryRun) {
+        previews.push({ org_id: orgId, text })
+        summary.push({ org_id: orgId, appoCount: appos.length, sent: false })
+        continue
+      }
       const slackRes = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,7 +140,7 @@ Deno.serve(async (req) => {
 
     console.log('[notify-pre-check] 送信完了 | 対象日:', targetDates, '| summary:', summary)
     return new Response(
-      JSON.stringify({ ok: true, targetDates, summary }),
+      JSON.stringify(dryRun ? { ok: true, dryRun, targetDates, summary, previews } : { ok: true, targetDates, summary }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
