@@ -289,6 +289,19 @@ export default function ClientFormModal({
             </div>
 
             <div>
+              <label style={labelStyle}>事前確認の報告に録音を付ける</label>
+              <Select
+                size="sm"
+                value={form.precheckShareRecording ? 'on' : 'off'}
+                onChange={e => u('precheckShareRecording', e.target.value === 'on')}
+                options={[
+                  { value: 'off', label: '付けない' },
+                  { value: 'on', label: '付ける（事前確認の通話録音のリンク）' },
+                ]}
+              />
+            </div>
+
+            <div>
               <label style={labelStyle}>訪問する担当者</label>
               <Select
                 size="sm"

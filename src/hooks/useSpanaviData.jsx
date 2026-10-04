@@ -240,6 +240,7 @@ export function useSpanaviData(authOrgId) {
         isFavorite: c.is_favorite === true,
         autoExcludeLowRejection: c.auto_exclude_low_rejection === true,
         skipPreCheck: c.skip_pre_check === true,
+        precheckShareRecording: c.precheck_share_recording === true,
         calendarAllContacts: c.calendar_all_contacts === true,
         address: c.address || '',
         representativeName: c.representative_name || '',

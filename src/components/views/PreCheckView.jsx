@@ -9,6 +9,7 @@ import { calcRankAndRate } from '../../utils/calculations';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
+import PrecheckDraftsCard from './PrecheckDraftsCard';
 
 export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
   const PRE_CHECK_OPTIONS = ['確認完了', '確認中', 'リスケ', 'キャンセル'];
@@ -321,7 +322,7 @@ const preCheckBadgeVariant = (pcs) => {
   return 'neutral';
 };
 
-export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {}, members = [], setMembers = null, onDataRefetch = null }) {
+export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {}, members = [], setMembers = null, onDataRefetch = null, isAdmin = false }) {
   const isMobile = useIsMobile();
   const [selectedAppo, setSelectedAppo] = useState(null);
   const [reportAppo, setReportAppo] = useState(null);
@@ -463,6 +464,8 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
         description="アポ前のヒアリング管理"
         style={{ marginBottom: 24 }}
       />
+
+      <PrecheckDraftsCard clientData={clientData} isAdmin={isAdmin} />
 
       {/* サマリー */}
       <Card padding="md" style={{ marginBottom: 16 }}>

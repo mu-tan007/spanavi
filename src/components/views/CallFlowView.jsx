@@ -13,6 +13,7 @@ import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
 import { getEffectiveCompanyAddressMatch, normalizeAddressMatchFilter } from '../../utils/companyAddressMatch';
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
+import PrecheckPanel from './PrecheckPanel';
 import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, fetchDocViewForItem, fetchViewedDocSends, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
@@ -2738,6 +2739,19 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   >発信</Button>
                 </div>
               </div>
+
+              {/* 事前確認（アポ獲得済みの企業だけ）。結果ボタンでは状態が書き換わるため別に記録する */}
+              {selectedRow.call_status === 'アポ獲得' && (
+                <PrecheckPanel
+                  itemId={selectedRow.id}
+                  clientName={list?.company || ''}
+                  currentUser={currentUser}
+                  members={members}
+                  dialedPhone={lastDialedPhone || selectedRow.phone}
+                  onBeforeSave={() => zoomPhone.hangUp()}
+                  setAppoData={setAppoData}
+                />
+              )}
 
               {/* ③ 結果入力エリア */}
               {(() => {

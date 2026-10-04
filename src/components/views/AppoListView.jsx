@@ -250,6 +250,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     setSendError('');
 
     let error;
+    let sentThreadId = null;
     if (isSlack) {
       if (!cl?.slackWebhookUrl) { setSendError('Slack Webhook URLが未設定です。CRMで設定してください。'); setEmailStep('compose'); return; }
       ({ error } = await invokeSendAppoReport({ channel: 'slack', text: emailBody, webhook_url: cl.slackWebhookUrl }));
@@ -266,7 +267,10 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
         ...emailCcList.filter(e => e && e !== emailTo),
         ...String(emailCcExtra).split(/[\s,;]+/).map(s => s.trim()).filter(Boolean),
       ])).join(', ');
-      ({ error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: ccJoined || undefined, attachments: emailAttachments.length > 0 ? emailAttachments : undefined }));
+      let sent;
+      ({ data: sent, error } = await invokeSendEmail({ to: emailTo, subject: emailSubject, body: emailBody, cc: ccJoined || undefined, attachments: emailAttachments.length > 0 ? emailAttachments : undefined }));
+      // 事前確認の報告を同じスレッドへの返信の下書きにするため、スレッドを控える
+      sentThreadId = sent?.threadId || null;
     }
 
     if (error) {
@@ -274,7 +278,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       setEmailStep('compose');
       return;
     }
-    if (appo._supaId) await updateEmailStatus(appo._supaId, 'sent');
+    if (appo._supaId) await updateEmailStatus(appo._supaId, 'sent', sentThreadId ? { report_gmail_thread_id: sentThreadId } : {});
     onStatusUpdate?.('sent');
     setEmailStep('sent');
   };

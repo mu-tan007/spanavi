@@ -272,6 +272,8 @@ export async function updateClient(supaId, data) {
       auto_exclude_low_rejection: data.autoExcludeLowRejection === undefined ? undefined : data.autoExcludeLowRejection,
       // アポ取得時に事前確認を行わず、最初から「事前確認済」で登録するか
       skip_pre_check: data.skipPreCheck === undefined ? undefined : data.skipPreCheck,
+      // 事前確認の報告の下書きに、事前確認の通話録音のリンクを入れるか
+      precheck_share_recording: data.precheckShareRecording === undefined ? undefined : data.precheckShareRecording,
       // 担当者全員で訪問するか（架電画面のカレンダーに全員の予定を重ねたタブを出す）
       calendar_all_contacts: data.calendarAllContacts === undefined ? undefined : data.calendarAllContacts,
     })
@@ -5476,4 +5478,89 @@ export async function fetchMemberPayrollAdjustmentTotals(payMonth) {
     totals[r.member_id] = (totals[r.member_id] || 0) + (parseInt(r.amount) || 0)
   })
   return { data: totals, error: null }
+}
+
+// ─── 事前確認（集中モードの「事前確認」ボタン） ─────────────────────────
+// 1回の電話ごとに precheck_events へ1行。録音・#事前確認 スレッドへの返信・
+// 顧客への報告の下書きは process-precheck-events（毎分）が後から埋める。
+
+const PRECHECK_DRAFT_RESULTS = new Set(['確認完了', 'リスケ', 'キャンセル'])
+
+/** 企業（call_list_items）に紐づく、事前確認の対象のアポ（最新1件） */
+export async function fetchPrecheckAppointmentByItem(itemId) {
+  if (!itemId) return { data: null, error: null }
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, company_name, client_id, meeting_date, meeting_time, status, pre_check_status, pre_check_memo, rescheduled_at, cancel_reason, getter_name, created_at')
+    .eq('item_id', itemId)
+    .in('status', ['アポ取得', '事前確認済', 'リスケ中'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchPrecheckAppointmentByItem error:', error)
+  return { data, error }
+}
+
+/** 通知のリンク（?precheck=<アポID>）から企業を開くための最小情報 */
+export async function fetchAppointmentLink(appointmentId) {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, item_id, list_id')
+    .eq('id', appointmentId)
+    .maybeSingle()
+  if (error) console.error('[DB] fetchAppointmentLink error:', error)
+  return data
+}
+
+export async function fetchPrecheckEvents(appointmentId) {
+  const { data, error } = await supabase
+    .from('precheck_events')
+    .select('id, result, memo, recall_at, caller_name, called_at, recording_status, recording_url, slack_status, draft_status, draft_channel, draft_error, gmail_thread_id')
+    .eq('appointment_id', appointmentId)
+    .order('called_at', { ascending: false })
+  if (error) console.error('[DB] fetchPrecheckEvents error:', error)
+  return data || []
+}
+
+export async function insertPrecheckEvent({ appointmentId, itemId, result, memo, recallAt, calledPhone, callerName, callerZoomUserId }) {
+  const { data, error } = await supabase
+    .from('precheck_events')
+    .insert({
+      org_id: getOrgId(),
+      appointment_id: appointmentId,
+      item_id: itemId || null,
+      result,
+      memo: memo?.trim() || null,
+      recall_at: recallAt || null,
+      called_phone: calledPhone ? String(calledPhone).replace(/[^\d]/g, '') : null,
+      caller_name: callerName || null,
+      caller_zoom_user_id: callerZoomUserId || null,
+      draft_status: PRECHECK_DRAFT_RESULTS.has(result) ? 'pending' : 'none',
+    })
+    .select('id')
+    .single()
+  if (error) console.error('[DB] insertPrecheckEvent error:', error)
+  return { data, error }
+}
+
+/** Slack・Chatwork の顧客向けに用意した報告の文面（むー様が送る前のもの） */
+export async function fetchReadyPrecheckDrafts() {
+  const { data, error } = await supabase
+    .from('precheck_events')
+    .select('id, result, memo, called_at, caller_name, draft_status, draft_channel, draft_text, draft_error, appointment:appointments!inner(id, company_name, client_id, meeting_date, meeting_time)')
+    .in('draft_status', ['ready', 'failed'])
+    .not('draft_text', 'is', null)
+    .order('called_at', { ascending: false })
+    .limit(50)
+  if (error) console.error('[DB] fetchReadyPrecheckDrafts error:', error)
+  return data || []
+}
+
+export async function markPrecheckDraftDone(eventId, status) {
+  const { error } = await supabase
+    .from('precheck_events')
+    .update({ draft_status: status, ...(status === 'sent' ? { draft_sent_at: new Date().toISOString() } : {}) })
+    .eq('id', eventId)
+  if (error) console.error('[DB] markPrecheckDraftDone error:', error)
+  return error
 }

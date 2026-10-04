@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { loadJpHolidays, listDaysThroughBusinessDay } from '../_shared/jpBusinessDays.ts'
 
+const SPANAVI_URL = 'https://spanavi.jp'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -62,7 +64,7 @@ Deno.serve(async (req) => {
       // 当該 org のアポのみ取得（status='アポ取得' / 対象日範囲）
       const { data: rawOrg, error: apposError } = await supabase
         .from('appointments')
-        .select('company_name, getter_name, meeting_date, client_id, notes')
+        .select('id, company_name, getter_name, meeting_date, client_id, notes')
         .eq('org_id', orgId)
         .eq('status', 'アポ取得')
         .gte('meeting_date', `${targetDates[0]}T00:00:00+00:00`)
@@ -110,7 +112,7 @@ Deno.serve(async (req) => {
         sections.push(`【事前確認】${day.jp}（${day.label}）`)
         for (const a of grouped[day.date]) {
           const clientName = clientMap[a.client_id] || 'クライアント不明'
-          sections.push(`・${a.company_name} / アポ取得者：${a.getter_name} / クライアント：${clientName}`)
+          sections.push(`・${a.company_name} / アポ取得者：${a.getter_name} / クライアント：${clientName} / <${SPANAVI_URL}/?precheck=${a.id}|集中モードで開く>`)
           if (a.notes && (a.notes as string).trim()) {
             sections.push(`　備考：${(a.notes as string).trim()}`)
           }
@@ -124,16 +126,43 @@ Deno.serve(async (req) => {
         summary.push({ org_id: orgId, appoCount: appos.length, sent: false })
         continue
       }
-      const slackRes = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      })
-      if (!slackRes.ok) {
-        const body = await slackRes.text()
-        console.error(`[notify-pre-check] org ${orgId} Slack error:`, slackRes.status, body)
-        summary.push({ org_id: orgId, appoCount: appos.length, sent: false })
-        continue
+      // ボットで投稿できる組織はボットで出す。投稿の識別番号（ts）と載せたアポを控え、
+      // 事前確認ボタンの結果をこの投稿のスレッドに返信できるようにする。
+      // ボットの設定が無い組織・ボットが失敗したときは、従来どおり Webhook で出す
+      const botToken = Deno.env.get('SLACK_BOT_TOKEN')?.trim()
+      const { data: chRow } = await supabase.from('org_settings').select('setting_value')
+        .eq('org_id', orgId).eq('setting_key', 'slack_channel_precheck').maybeSingle()
+      const channelId = (chRow?.setting_value as string | null) || ''
+      let posted = false
+      if (botToken && channelId) {
+        const botRes = await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${botToken}`, 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ channel: channelId, text, unfurl_links: false }),
+        })
+        const bot = await botRes.json().catch(() => ({}))
+        if (bot.ok) {
+          posted = true
+          const { error: tsErr } = await supabase.from('precheck_slack_posts').insert({
+            org_id: orgId, channel_id: channelId, ts: bot.ts, appointment_ids: appos.map(a => a.id),
+          })
+          if (tsErr) console.warn(`[notify-pre-check] org ${orgId} ts save warn:`, tsErr.message)
+        } else {
+          console.error(`[notify-pre-check] org ${orgId} Slack bot error:`, bot.error, '→ Webhookで送ります')
+        }
+      }
+      if (!posted) {
+        const slackRes = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        })
+        if (!slackRes.ok) {
+          const body = await slackRes.text()
+          console.error(`[notify-pre-check] org ${orgId} Slack error:`, slackRes.status, body)
+          summary.push({ org_id: orgId, appoCount: appos.length, sent: false })
+          continue
+        }
       }
       summary.push({ org_id: orgId, appoCount: appos.length, sent: true })
     }
