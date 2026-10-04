@@ -2320,7 +2320,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
           {listMode ? (
             /* ────────────── 一覧ページ ────────────── */
-            <div style={{ background: color.white, borderRadius: radius.md, overflow: 'hidden', border: `1px solid ${color.gray200}` }}>
+            // 縦に伸ばして残りの高さに収める（表だけがスクロールし、ページ送りは常に下に見える）。
+            // 表の高さを calc(100vh - 180px) と決め打ちにしていた頃は、絞り込みの欄が折り返して
+            // 高くなるとページ送りが画面の外に押し出されていた（2026-10-04）
+            <div style={{ background: color.white, borderRadius: radius.md, overflow: 'hidden', border: `1px solid ${color.gray200}`, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               {/* 検索バー + 架電開始ボタン */}
               <div style={{ padding: `${space[2]}px ${space[3]}px`, borderBottom: `1px solid ${color.gray200}`, display: 'flex', gap: 6, alignItems: 'center', background: color.offWhite, flexWrap: 'wrap' }}>
                 {/* IME対応のため共通Inputを使用（生inputだとURL書き戻しで日本語変換が壊れる） */}
@@ -2512,7 +2515,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 {loadProgress.loaded.toLocaleString()} / {loadProgress.total?.toLocaleString() ?? '—'}件を読み込み済み。残りの企業を取得しています。
               </div>}
               {/* テーブル */}
-              <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 180px)' }}>
+              <div style={{ overflow: 'auto', flex: 1, minHeight: 0 }}>
                 {loading && !loadProgress ? (
                   <div style={{ textAlign: 'center', padding: '60px 0', color: color.textMid, fontSize: font.size.base }}>読み込み中...</div>
                 ) : loadError ? (
@@ -2599,7 +2602,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               </div>
               {/* ページネーション */}
               {totalPages > 1 && (
-                <div style={{ padding: `${space[2]}px ${space[3]}px`, borderTop: `1px solid ${color.gray200}`, background: color.white, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: `${space[2]}px ${space[3]}px`, borderTop: `1px solid ${color.gray200}`, background: color.white, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                   <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
                     style={{ padding: '4px 12px', borderRadius: radius.md, border: page === 0 ? `1px solid ${color.gray200}` : `1px solid ${color.navyDeep}`, background: page === 0 ? color.offWhite : color.white, cursor: page === 0 ? 'default' : 'pointer', fontSize: font.size.xs, color: page === 0 ? color.gray400 : color.navyDeep, fontFamily: font.family.sans }}>← 前</button>
                   <span style={{ fontSize: font.size.xs, color: color.gray500 }}>{page + 1} / {totalPages}（{sorted.length}件）</span>
