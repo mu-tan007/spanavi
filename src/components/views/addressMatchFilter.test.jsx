@@ -1,7 +1,7 @@
 import React from 'react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { act, create } from 'react-test-renderer';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 
 vi.mock('../../lib/supabaseWrite', () => ({
   fetchCallListItems: vi.fn(), fetchCallFlowData: vi.fn(), fetchCallListFilterSummary: vi.fn(),
@@ -283,5 +283,17 @@ describe('ボタンの数字は押したときに出る社数と揃える', () =
     expect(button('リンク開封済 1')).toBeTruthy();
     await act(async () => { button('全件').props.onClick(); });
     expect(button('リンク開封済 2')).toBeTruthy();
+  });
+});
+
+describe('架電画面を閉じたらURLの条件を消す', () => {
+  it('全件・検索語・ページを閉じたときに消し、ほかの条件は残す', async () => {
+    let seen = '';
+    const Probe = () => { seen = useLocation().search; return null; };
+    const Host = ({ open }) => (<>{open && <CallFlowView list={list} onClose={vi.fn()} />}<Probe /></>);
+    await act(async () => { renderer = create(<MemoryRouter initialEntries={['/?mode=all&flow_q=abc&flow_page=2&other=1']}><Host open /></MemoryRouter>); });
+    expect(seen).toContain('mode=all');
+    await act(async () => { renderer.update(<MemoryRouter initialEntries={['/?mode=all&flow_q=abc&flow_page=2&other=1']}><Host open={false} /></MemoryRouter>); });
+    expect(seen).toBe('?other=1');
   });
 });
