@@ -275,6 +275,7 @@ const STYLE_PROMPT = `あなたはSpartia株式会社 篠宮の代筆です。M&
 - インターンのメモにある事実だけを使い、無いことは書かない。細かすぎる事情（オンラインも不可、など）は省いてよい。インターンの名前・「当社」・絵文字は使わない。自社は「弊社」、こちらに不手際があってお詫びする文脈だけ「弊方」。日時は「10月12日（月）11時」の形。
 - 未完了（1営業日前の夜になっても確認が取れていない）：「{社名}様の事前確認につきまして、{これまでの電話の経緯（例：昨日・本日とお電話しているものの社長様に繋がらず）}、確認が完了いたしておりません。」→「大変恐れ入りますが、{面談日（曜日）}の当日朝に再度ご連絡を差し上げる運びでございます。確認が完了いたしましたら、速やかにご一報差し上げます。」→「ご訪問の一文」が「入れる」なら「なお、ご訪問が難しいようでしたら、お申し付けくださいませ。」→「直前まで確認が完了せず、誠に申し訳ございません。」。経緯は渡された電話の記録の事実だけで書く（記録が無ければ「お電話しているものの」の部分は「先方様と連絡が取れず」程度にとどめる）。
 - 前日に「未完了」の連絡をした後の確認完了・リスケ・キャンセルは、冒頭を「本件、」で始め、確認完了なら「お待たせしてしまい、誠に申し訳ございませんでした。」を1文添える。
+- 「Slack形式」が「はい」なら Slack のスレッドへの返信として書く：宛名の行（{姓}様）と署名（Spartia 篠宮）は書かない（宛先へのメンションは送信時に先頭へ付く）。「お世話になっております。」から始め、段落の間に空行を入れず、全体を3〜5行にまとめる。
 - 文は短く、です・ます調の丁寧語で。`
 
 async function generateDraftText(input: Record<string, string>): Promise<string> {
@@ -376,6 +377,37 @@ async function createReplyDraft(token: string, threadId: string, body: string): 
   return { draftId: draft.id, to }
 }
 
+/**
+ * Slack の共有チャンネルから、むー様が出したアポ取得報告の投稿を社名で探す。
+ * むー様の Slack の許可（SLACK_USER_TOKEN・search:read）で検索する。ボットには検索の権限が無い。
+ * 返すのは返信先（チャンネルと投稿の ts）と、その投稿の先頭にあるメンション（先方の担当者）。
+ */
+async function findSlackReportThread(channels: string[], companyName: string): Promise<{ channel: string; ts: string; mentions: string } | null> {
+  const token = Deno.env.get('SLACK_USER_TOKEN')?.trim()
+  if (!token) throw new Error('Slackの許可（むー様の名前で検索・投稿）がまだです')
+  const core = coreCompanyName(companyName)
+  if (!core) return null
+  const norm = (s: string) => s.replace(/[\s　]/g, '')
+  for (const ch of channels) {
+    const q = `"${core}" in:<#${ch}>`
+    const res = await fetch(`https://slack.com/api/search.messages?${new URLSearchParams({ query: q, sort: 'timestamp', sort_dir: 'asc', count: '20' })}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!data.ok) throw new Error(`Slackの検索に失敗しました（${data.error || res.status}）`)
+    // deno-lint-ignore no-explicit-any
+    const hit = (data.messages?.matches || []).find((m: any) =>
+      /アポ取得報告|アポイントを取得/.test(m.text || '') && norm(m.text || '').includes(norm(core)))
+    if (!hit) continue
+    // 返信の中に見つかった場合は、その親の投稿に返信する
+    const threadTs = (hit.permalink || '').match(/thread_ts=([\d.]+)/)?.[1] || hit.ts
+    const mentions = ((hit.text || '').match(/^(\s*<@[A-Z0-9]+(?:\|[^>]*)?>\s*)+/)?.[0] || '')
+      .match(/<@[A-Z0-9]+/g)?.map((m: string) => m + '>').join(' ') || ''
+    return { channel: hit.channel?.id || ch, ts: threadTs, mentions }
+  }
+  return null
+}
+
 /** 宛名の姓。アポ取得報告の1行目「川元 徳馬 様」から取る。取れなければ顧客の担当者名 */
 function surnameFrom(text: string, fallback: string | null): string {
   const m = text.match(/^\s*([^\s　\n]+)[\s　]*[^\n]*?様/)
@@ -392,14 +424,27 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
     .eq('id', ev.appointment_id).maybeSingle()
   if (!appo) throw new Error('アポが見つかりません')
   const { data: client } = await sb.from('clients')
-    .select('name, contact_method, contact_person, precheck_share_recording')
+    .select('name, contact_method, contact_person, precheck_share_recording, slack_channel_ids')
     .eq('id', appo.client_id).maybeSingle()
-  const channel = client?.contact_method === 'Slack' ? 'slack' : client?.contact_method === 'Chatwork' ? 'chatwork' : 'email'
+  // 共有チャンネルが登録されているクライアントは、Slack のアポ取得報告のスレッドへ返信する
+  const slackChannels: string[] = client?.slack_channel_ids || []
+  const channel = slackChannels.length > 0 || client?.contact_method === 'Slack' ? 'slack'
+    : client?.contact_method === 'Chatwork' ? 'chatwork' : 'email'
   const shareRec = !!client?.precheck_share_recording && !!ev.recording_url
 
   let token = ''
   let threadId: string | null = null
   let firstBody = ''
+  let slackReply: { channel: string; ts: string; mentions: string } | null = null
+  let slackError = ''
+  if (channel === 'slack' && slackChannels.length > 0) {
+    try {
+      slackReply = await findSlackReportThread(slackChannels, appo.company_name || '')
+      if (!slackReply) slackError = 'Slackでアポ取得報告の投稿が見つかりませんでした'
+    } catch (e) {
+      slackError = (e as Error).message
+    }
+  }
   if (channel === 'email') {
     token = await getGoogleToken()
     threadId = await findReportThread(token, sb, appo)
@@ -430,11 +475,16 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
     '前日に未完了を連絡済み': toldUnfinished ? 'はい' : '',
     'ご訪問の一文': ev.result === '未完了' ? (needsVisitNote(appo) ? '入れる' : '入れない') : '',
     '録音リンク': shareRec && ev.result !== '未完了' ? ev.recording_url! : '',
+    'Slack形式': channel === 'slack' ? 'はい' : '',
   })
 
   if (channel !== 'email') {
-    await sb.from('precheck_events').update({ draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: null }).eq('id', ev.id)
-    Object.assign(ev, { draft_status: 'ready', draft_channel: channel, draft_text: text })
+    await sb.from('precheck_events').update({
+      draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: slackError || null,
+      slack_reply_channel: slackReply?.channel || null, slack_reply_ts: slackReply?.ts || null,
+      slack_reply_mentions: slackReply?.mentions || null,
+    }).eq('id', ev.id)
+    Object.assign(ev, { draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: slackError || null })
     return
   }
   if (!threadId) {

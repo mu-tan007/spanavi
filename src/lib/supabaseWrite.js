@@ -5547,7 +5547,7 @@ export async function insertPrecheckEvent({ appointmentId, itemId, result, memo,
 export async function fetchReadyPrecheckDrafts() {
   const { data, error } = await supabase
     .from('precheck_events')
-    .select('id, result, memo, called_at, caller_name, draft_status, draft_channel, draft_text, draft_error, appointment:appointments!inner(id, company_name, client_id, meeting_date, meeting_time)')
+    .select('id, result, memo, called_at, caller_name, draft_status, draft_channel, draft_text, draft_error, slack_reply_channel, slack_reply_ts, slack_reply_mentions, appointment:appointments!inner(id, company_name, client_id, meeting_date, meeting_time)')
     .in('draft_status', ['ready', 'failed'])
     .not('draft_text', 'is', null)
     .order('called_at', { ascending: false })
@@ -5563,4 +5563,15 @@ export async function markPrecheckDraftDone(eventId, status) {
     .eq('id', eventId)
   if (error) console.error('[DB] markPrecheckDraftDone error:', error)
   return error
+}
+
+/** 事前確認の報告を Slack のアポ取得報告のスレッドへ、むー様の名前で送る（管理者のみ） */
+export async function invokeSendPrecheckSlack(eventId, text) {
+  const { data, error } = await supabase.functions.invoke('send-precheck-slack', { body: { event_id: eventId, text } })
+  if (error) {
+    let msg = error.message
+    try { msg = (await error.context?.json())?.error || msg } catch { /* ignore */ }
+    return { error: msg }
+  }
+  return { data, error: data?.error || null }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { color, space, radius, font } from '../../constants/design';
 import { Button, Card, Badge } from '../ui';
-import { fetchReadyPrecheckDrafts, markPrecheckDraftDone, invokeSendAppoReport } from '../../lib/supabaseWrite';
+import { fetchReadyPrecheckDrafts, markPrecheckDraftDone, invokeSendAppoReport, invokeSendPrecheckSlack } from '../../lib/supabaseWrite';
 
 /**
  * 事前確認の報告の文面（Slack・Chatwork で連絡する顧客の分と、Gmail の下書きを作れなかった分）。
@@ -28,8 +28,14 @@ export default function PrecheckDraftsCard({ clientData = [], isAdmin = false })
     setBusy(row.id); setErrors(e => ({ ...e, [row.id]: '' }));
     try {
       let error = null;
-      if (row.draft_channel === 'slack') {
-        if (!cl?.slackWebhookUrl) throw new Error('Slack Webhook URLが未設定です');
+      if (row.draft_channel === 'slack' && row.slack_reply_ts) {
+        // アポ取得報告のスレッドへ、むー様の名前で返信する（宛先へのメンションは送信時に先頭へ付く）
+        const { error: sendErr } = await invokeSendPrecheckSlack(row.id, texts[row.id]);
+        if (sendErr) throw new Error(sendErr);
+        await load();
+        return;
+      } else if (row.draft_channel === 'slack') {
+        if (!cl?.slackWebhookUrl) throw new Error('返信先のスレッドが見つからず、Slack Webhook URLも未設定です');
         ({ error } = await invokeSendAppoReport({ channel: 'slack', text: texts[row.id], webhook_url: cl.slackWebhookUrl }));
       } else if (row.draft_channel === 'chatwork') {
         if (!cl?.chatworkRoomId) throw new Error('Chatwork ルームIDが未設定です');
@@ -59,13 +65,16 @@ export default function PrecheckDraftsCard({ clientData = [], isAdmin = false })
       {drafts.map(row => {
         const cl = clientData.find(c => c._supaId === row.appointment?.client_id);
         const channelLabel = row.draft_channel === 'slack' ? 'Slack' : row.draft_channel === 'chatwork' ? 'Chatwork' : 'メール';
+        const destLabel = row.draft_channel === 'slack' && row.slack_reply_ts
+          ? `Slack（アポ取得報告のスレッドにむー様の名前で返信${row.slack_reply_mentions ? '・メンション付き' : ''}）`
+          : channelLabel;
         return (
           <div key={row.id} style={{ padding: `${space[3]}px 0`, borderTop: `1px solid ${color.borderLight}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[1.5], fontSize: font.size.sm }}>
               <span style={{ fontWeight: font.weight.bold, color: color.navy }}>{row.appointment?.company_name}</span>
               <span style={{ color: color.textMid, fontSize: font.size.xs }}>{cl?.company || ''}</span>
               <Badge size="sm" variant={row.result === '確認完了' ? 'success' : row.result === 'キャンセル' ? 'danger' : 'warn'}>{row.result}</Badge>
-              <span style={{ marginLeft: 'auto', fontSize: font.size.xs, color: color.textMid }}>送信先：{channelLabel}</span>
+              <span style={{ marginLeft: 'auto', fontSize: font.size.xs, color: color.textMid }}>送信先：{destLabel}</span>
             </div>
             {row.memo && <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[1.5] }}>メモ（{row.caller_name}）：{row.memo}</div>}
             {row.draft_status === 'failed' && row.draft_error && (
