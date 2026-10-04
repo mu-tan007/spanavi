@@ -61,3 +61,11 @@
 
 ## 確認待ち
 - この流れで進めてよいか（むー様）。
+
+## 実装の状況（2026-10-04 夕方）
+- 本番済み：2ca67f22・0361d4ad（画面・関数・表・毎分の自動実行 process-precheck-events）
+- 画面で確認済み：通知のリンク → 太陽精工様の集中モード → 事前確認の欄（記録は押していない）
+- 未確認：記録→録音→Slackスレッド返信→Gmail下書き の通し試験
+- 待ち：Gmail の下書き作成の許可（gmail.modify）。google_oauth_tokens name='gmail_precheck'・pending_state 設定済み。
+  許可後、localhost:3456 の戻りURLの code を { mode:'oauth', code, state, redirect_uri:'http://localhost:3456' } で関数に渡す
+- 注意：アプリの一時保存（Service Worker）のため、新しい版は各自の画面で1回開き直した後に出る
