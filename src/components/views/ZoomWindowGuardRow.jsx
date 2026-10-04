@@ -51,10 +51,10 @@ export default function ZoomWindowGuardRow() {
       </div>
       {open && (
         <div style={{ marginTop: 10, padding: '10px 14px', background: color.offWhite, borderRadius: radius.lg }}>
-          <ol style={{ margin: 0, paddingLeft: 18, fontSize: font.size.xs, color: color.textDark, lineHeight: 1.8 }}>
-            {STEPS.map(([text, href]) => (
+          <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none', fontSize: font.size.xs, color: color.textDark, lineHeight: 1.8 }}>
+            {STEPS.map(([text, href], i) => (
               <li key={text}>
-                {text}
+                {i + 1}. {text}
                 {href && <> <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: color.navy }}>www.autohotkey.com</a></>}
               </li>
             ))}
