@@ -14,7 +14,7 @@ vi.mock('../../lib/supabaseWrite', () => ({
   insertAppointment: vi.fn(), updateClientContact: vi.fn(), completeRecallsForItem: vi.fn(),
   getCompanyOverviewPdfSignedUrl: vi.fn(), getScriptPdfSignedUrl: vi.fn(async () => ({ url: null })),
   fetchGiftLetterPath: vi.fn(async () => ({ path: null, error: null })), getGiftLetterSignedUrl: vi.fn(async () => ({ url: null })),
-  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), fetchViewedDocSends: vi.fn(async () => ({ rows: [], error: null })), fetchViewedCountsByList: vi.fn(async () => ({ counts: {}, error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
+  fetchDocViewForItem: vi.fn(async () => ({ view: null, error: null })), fetchViewedDocSends: vi.fn(async () => ({ rows: [], error: null })), fetchViewedCountsByList: vi.fn(async () => ({ counts: {}, sent: {}, error: null })), updateCallListCautions: vi.fn(), insertBuyerNeedsHearing: vi.fn(),
   deleteCallRecordsByListId: vi.fn(), deleteCallListItemsByListId: vi.fn(), updateCallListCount: vi.fn(), insertCallListItems: vi.fn(),
 }));
 vi.mock('../../lib/zoomPhoneStore', () => ({ zoomPhone: {} }));
@@ -243,5 +243,17 @@ describe('リスト詳細・リスト一覧から「閲覧済みだけ」で開�
     ], error: null });
     await mountFlow({ initialViewedOnly: true });
     expect(companies()).toEqual(['住所なし企業']);
+  });
+});
+
+describe('送ったことのあるリストでは0件でも「閲覧済み 0」を出す', () => {
+  it('開いた企業が0件でもボタンを出し、押せない', async () => {
+    const { fetchViewedCountsByList } = await import('../../lib/supabaseWrite');
+    fetchViewedCountsByList.mockResolvedValue({ counts: {}, sent: { 'address-test': 3 }, error: null });
+    fetchViewedDocSends.mockResolvedValue({ rows: [], error: null });
+    await mountFlow();
+    const b = button('閲覧済み 0');
+    expect(b).toBeTruthy();
+    expect(b.props.disabled).toBe(true);
   });
 });

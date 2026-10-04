@@ -58,9 +58,10 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   // 「閲覧済みだけ」：フォーム営業の資料かHPを開いた企業だけで架電画面を開く
   const [viewedOnly, setViewedOnly] = useState(false);
   const [viewedCount, setViewedCount] = useState(0);
+  const [sentCount, setSentCount] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    fetchViewedCountsByList().then(({ counts }) => { if (!cancelled) setViewedCount(counts[list._supaId] || 0); });
+    fetchViewedCountsByList().then(({ counts, sent }) => { if (cancelled) return; setViewedCount(counts[list._supaId] || 0); setSentCount(sent[list._supaId] || 0); });
     return () => { cancelled = true; };
   }, [list._supaId]);
   const [addressMatchFilter, setAddressMatchFilter] = useState('');
@@ -338,16 +339,17 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
                   >{label}</button>
                 );
               })}
-              {viewedCount > 0 && (
+              {sentCount > 0 && (
                 <button
+                  disabled={viewedCount === 0}
                   onClick={() => setViewedOnly(v => !v)}
-                  title="フォーム営業で送った資料かHPを開いた企業だけで開きます（開いた日時の新しい順）"
+                  title={viewedCount > 0 ? 'フォーム営業で送った資料かHPを開いた企業だけで開きます（開いた日時の新しい順）' : 'フォーム営業で送った企業のうち、まだ資料やHPを開いた企業はありません'}
                   style={{
-                    padding: '3px 9px', borderRadius: radius.md, cursor: 'pointer', marginLeft: space[1],
+                    padding: '3px 9px', borderRadius: radius.md, cursor: viewedCount > 0 ? 'pointer' : 'default', marginLeft: space[1],
                     fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
                     background: viewedOnly ? color.success : color.white,
-                    color: viewedOnly ? color.white : color.success,
-                    border: `1px solid ${color.success}`,
+                    color: viewedOnly ? color.white : (viewedCount > 0 ? color.success : color.textLight),
+                    border: `1px solid ${viewedCount > 0 ? color.success : color.border}`,
                     transition: 'all 0.12s',
                   }}
                 >{`閲覧済みだけ ${viewedCount}`}</button>

@@ -14,7 +14,7 @@ import { getEffectiveCompanyAddressMatch, normalizeAddressMatchFilter } from '..
 import CompanyAddressMatchFilter, { CompanyAddressMatchSummary } from '../common/CompanyAddressMatchFilter';
 import { fetchCallListFilterSummary } from '../../lib/supabaseWrite';
 import PrecheckPanel from './PrecheckPanel';
-import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, fetchDocViewForItem, fetchViewedDocSends, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
+import { fetchCallFlowData, fetchCallListItemById, fetchCallRecordsByItem, insertCallRecord, findRecentApoCallRecord, updateCallRecordFields, updateCallListItem, unlinkIncomingCallsByCallerNumber, insertCallSession, updateCallSession, updateCallRecordRecordingUrl, updateAppoReportRecordingUrl, invokeGetZoomRecording, closeOpenCallSessionsForList, deleteCallRecord, invokeGenerateCompanyInfo, fetchSetting, insertAppointment, updateClientContact, completeRecallsForItem, getCompanyOverviewPdfSignedUrl, getScriptPdfSignedUrl, fetchGiftLetterPath, getGiftLetterSignedUrl, fetchDocViewForItem, fetchViewedDocSends, fetchViewedCountsByList, updateCallListCautions, insertBuyerNeedsHearing } from '../../lib/supabaseWrite';
 import { getOrgId } from '../../lib/orgContext';
 import { formatJST } from '../../utils/dateUtils';
 import RecallModal from './RecallModal';
@@ -457,6 +457,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // 開くたびに初期値（リスト詳細・リスト一覧からの指定）から始め、変更は親に伝えて復元用に保存する
   const [viewedOnly, setViewedOnly] = useState(!!initialViewedOnly);
   const [viewedAt, setViewedAt] = useState(() => new Map()); // itemId → 最後に開いた日時（ms）
+  const [sentCount, setSentCount] = useState(0); // このリストでフォーム営業の資料リンクを送った企業数（0件でもボタンを出すかの判定）
+  useEffect(() => {
+    let cancelled = false;
+    fetchViewedCountsByList().then(({ sent }) => { if (!cancelled) setSentCount(sent?.[list._supaId] || 0); });
+    return () => { cancelled = true; };
+  }, [list._supaId]);
   useEffect(() => {
     let cancelled = false;
     fetchViewedDocSends().then(({ rows, error }) => {
@@ -2329,12 +2335,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     {label}
                   </button>
                 ))}
-                {viewedCount > 0 && (
-                  <button onClick={toggleViewedOnly} title="資料かHPを開いた企業だけを、開いた日時の新しい順に出します"
-                    style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',
+                {(sentCount > 0 || viewedCount > 0) && (
+                  <button onClick={toggleViewedOnly} disabled={viewedCount === 0 && !viewedOnly} title={viewedCount > 0 ? '資料かHPを開いた企業だけを、開いた日時の新しい順に出します' : 'フォーム営業で送った企業のうち、まだ資料やHPを開いた企業はありません'}
+                    style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, fontFamily: font.family.sans, whiteSpace: 'nowrap',
                       background: viewedOnly ? color.success : 'transparent',
-                      color: viewedOnly ? color.white : color.success,
-                      border: `1px solid ${color.success}` }}>
+                      color: viewedOnly ? color.white : (viewedCount > 0 ? color.success : color.textLight),
+                      border: `1px solid ${viewedCount > 0 || viewedOnly ? color.success : color.border}`, cursor: viewedCount > 0 || viewedOnly ? 'pointer' : 'default' }}>
                     {`閲覧済み ${viewedCount}`}
                   </button>
                 )}
