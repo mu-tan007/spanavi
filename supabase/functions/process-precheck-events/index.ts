@@ -47,6 +47,7 @@ interface EventRow {
   recording_status: string; recording_attempts: number; recording_url: string | null
   slack_status: string; draft_status: string; draft_channel: string | null; draft_text: string | null
   draft_error: string | null; gmail_thread_id: string | null; gmail_draft_id: string | null
+  auto_registered_channel?: string  // この回に共有チャンネルを自動で登録した（#事前確認 への返信で知らせる）
 }
 
 /* ===================== 日付 ===================== */
@@ -408,6 +409,39 @@ async function findSlackReportThread(channels: string[], companyName: string): P
   return null
 }
 
+/**
+ * 共有チャンネルが登録されていないクライアント用：Slack 全体から、むー様がクライアント向けに出した
+ * アポ取得報告（「お世話になっております」で始まる投稿）を社名で探す。見つかったチャンネルは登録しておく。
+ * 社内の #アポ取得報告 はボットが出すので、むー様の投稿に限れば当たらない。#事前確認・DM は除く。
+ */
+async function findSlackReportAnywhere(companyName: string, excludeChannels: string[]): Promise<{ channel: string; ts: string; mentions: string } | null> {
+  const token = Deno.env.get('SLACK_USER_TOKEN')?.trim()
+  if (!token) return null
+  const core = coreCompanyName(companyName)
+  if (!core) return null
+  const me = await fetch('https://slack.com/api/auth.test', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({}))
+  if (!me?.user_id) return null
+  const res = await fetch(`https://slack.com/api/search.messages?${new URLSearchParams({ query: `"${core}" from:<@${me.user_id}>`, sort: 'timestamp', sort_dir: 'asc', count: '30' })}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!data.ok) return null
+  const norm = (s: string) => s.replace(/[\s　]/g, '')
+  // deno-lint-ignore no-explicit-any
+  const hit = (data.messages?.matches || []).find((m: any) => {
+    const text = m.text || ''
+    const body = text.replace(/^(\s*<@[A-Z0-9]+(?:\|[^>]*)?>\s*)+/, '')
+    return !m.channel?.is_im && !m.channel?.is_mpim && !excludeChannels.includes(m.channel?.id)
+      && /^\s*お世話になっております/.test(body)
+      && /アポ取得報告|アポイントを取得/.test(text) && norm(text).includes(norm(core))
+  })
+  if (!hit) return null
+  const threadTs = (hit.permalink || '').match(/thread_ts=([\d.]+)/)?.[1] || hit.ts
+  const mentions = ((hit.text || '').match(/^(\s*<@[A-Z0-9]+(?:\|[^>]*)?>\s*)+/)?.[0] || '')
+    .match(/<@[A-Z0-9]+/g)?.map((m: string) => m + '>').join(' ') || ''
+  return { channel: hit.channel.id, ts: threadTs, mentions }
+}
+
 /** 宛名の姓。アポ取得報告の1行目「川元 徳馬 様」から取る。取れなければ顧客の担当者名 */
 function surnameFrom(text: string, fallback: string | null): string {
   const m = text.match(/^\s*([^\s　\n]+)[\s　]*[^\n]*?様/)
@@ -428,8 +462,9 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
     .eq('id', appo.client_id).maybeSingle()
   // 共有チャンネルが登録されているクライアントは、Slack のアポ取得報告のスレッドへ返信する
   const slackChannels: string[] = client?.slack_channel_ids || []
-  const channel = slackChannels.length > 0 || client?.contact_method === 'Slack' ? 'slack'
+  let channel = slackChannels.length > 0 || client?.contact_method === 'Slack' ? 'slack'
     : client?.contact_method === 'Chatwork' ? 'chatwork' : 'email'
+  let autoRegistered = ''
   const shareRec = !!client?.precheck_share_recording && !!ev.recording_url
 
   let token = ''
@@ -437,9 +472,21 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
   let firstBody = ''
   let slackReply: { channel: string; ts: string; mentions: string } | null = null
   let slackError = ''
-  if (channel === 'slack' && slackChannels.length > 0) {
+  if (channel === 'slack') {
     try {
-      slackReply = await findSlackReportThread(slackChannels, appo.company_name || '')
+      slackReply = slackChannels.length > 0 ? await findSlackReportThread(slackChannels, appo.company_name || '') : null
+      if (!slackReply) {
+        // 登録済みのチャンネルに無い・未登録 → Slack 全体を探し、見つかったチャンネルを登録する
+        const precheckChannel = await orgSetting(sb, ev.org_id, 'slack_channel_precheck')
+        const found = await findSlackReportAnywhere(appo.company_name || '', [precheckChannel].filter(Boolean))
+        if (found) {
+          slackReply = found
+          if (!slackChannels.includes(found.channel)) {
+            await sb.from('clients').update({ slack_channel_ids: [...slackChannels, found.channel] }).eq('id', appo.client_id)
+            autoRegistered = found.channel
+          }
+        }
+      }
       if (!slackReply) slackError = 'Slackでアポ取得報告の投稿が見つかりませんでした'
     } catch (e) {
       slackError = (e as Error).message
@@ -454,6 +501,17 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
       // 宛名は「この下書きを送る相手」に合わせる（スレッドの途中で担当者が変わることがある）
       const toName = displayName((replyTarget(msgs[msgs.length - 1]).to || '').split(',')[0])
       firstBody = toName ? `${toName} 様` : plainBody(msgs[0]?.payload)
+    } else {
+      // メールが見つからない ＝ 共有チャンネルの登録漏れかもしれない。Slack 全体を探し、見つかれば登録する
+      const precheckChannel = await orgSetting(sb, ev.org_id, 'slack_channel_precheck')
+      const found = await findSlackReportAnywhere(appo.company_name || '', [precheckChannel].filter(Boolean))
+      if (found) {
+        channel = 'slack'
+        slackReply = found
+        const next = [...new Set([...slackChannels, found.channel])]
+        await sb.from('clients').update({ slack_channel_ids: next }).eq('id', appo.client_id)
+        autoRegistered = found.channel
+      }
     }
   }
 
@@ -484,7 +542,7 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
       slack_reply_channel: slackReply?.channel || null, slack_reply_ts: slackReply?.ts || null,
       slack_reply_mentions: slackReply?.mentions || null,
     }).eq('id', ev.id)
-    Object.assign(ev, { draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: slackError || null })
+    Object.assign(ev, { draft_status: 'ready', draft_channel: channel, draft_text: text, draft_error: slackError || null, auto_registered_channel: autoRegistered || undefined })
     return
   }
   if (!threadId) {
@@ -544,6 +602,7 @@ async function stepSlack(sb: SupabaseClient, ev: EventRow): Promise<void> {
     lines.push(`・顧客への報告：アポ取得報告のスレッドにGmailの返信下書きを作りました → <https://mail.google.com/mail/u/${FROM_EMAIL}/#all/${ev.gmail_thread_id}|スレッドを開く>`)
   } else if (ev.draft_status === 'ready') {
     lines.push(`・顧客への報告：${ev.draft_channel === 'slack' ? 'Slack' : 'Chatwork'}用の文面を用意しました → <${SPANAVI_URL}/?tab=precheck|Spanaviの事前確認で送信>`)
+    if (ev.auto_registered_channel) lines.push(`・このクライアントの共有チャンネル <#${ev.auto_registered_channel}> を新しく登録しました（メールが見つからず、Slackのアポ取得報告が見つかったため）`)
   } else if (ev.draft_status === 'failed') {
     lines.push(`・顧客への報告：下書きを作れませんでした（${ev.draft_error || '原因不明'}）`)
   }
