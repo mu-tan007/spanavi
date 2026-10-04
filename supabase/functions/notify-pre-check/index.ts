@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     const summary: Array<{ org_id: string; appoCount: number; sent: boolean }> = []
-    const previews: Array<{ org_id: string; text: string }> = []
+    const previews: Array<{ org_id: string; days: Array<{ date: string; label: string; count: number }> }> = []
 
     for (const { org_id: orgId, url: webhookUrl } of orgWebhooks) {
       // 当該 org のアポのみ取得（status='アポ取得' / 対象日範囲）
@@ -122,7 +122,11 @@ Deno.serve(async (req) => {
 
       const text = sections.join('\n').trimEnd()
       if (dryRun) {
-        previews.push({ org_id: orgId, text })
+        // 確認用の返り値に社名は載せない（この関数は公開鍵でも呼べるため）。見出しと件数だけ
+        previews.push({
+          org_id: orgId,
+          days: targetDays.filter(d => grouped[d.date]).map(d => ({ date: d.date, label: d.label, count: grouped[d.date].length })),
+        })
         summary.push({ org_id: orgId, appoCount: appos.length, sent: false })
         continue
       }

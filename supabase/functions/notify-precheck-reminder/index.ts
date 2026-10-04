@@ -7,40 +7,14 @@
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { loadJpHolidays, listDaysThroughBusinessDay, isBusinessDay, formatDateJP } from '../_shared/jpBusinessDays.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
 const RESOLVED_STATUSES = new Set(['確認完了', 'リスケ', 'キャンセル'])
-
-function addBusinessDays(date: Date, n: number): Date {
-  const r = new Date(date)
-  let added = 0
-  while (added < n) {
-    r.setUTCDate(r.getUTCDate() + 1)
-    const dow = r.getUTCDay()
-    if (dow !== 0 && dow !== 6) added++
-  }
-  return r
-}
-
-function toDateStr(date: Date): string {
-  const y = date.getUTCFullYear()
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const d = String(date.getUTCDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-function formatDateJP(date: Date): string {
-  const y = date.getUTCFullYear()
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const d = String(date.getUTCDate()).padStart(2, '0')
-  const w = DAY_NAMES[date.getUTCDay()]
-  return `${y}/${m}/${d}（${w}）`
-}
 
 interface AppoRow {
   id: string
@@ -80,18 +54,30 @@ Deno.serve(async (req) => {
       jstNow.getUTCDate(),
     ))
 
-    // 土日は対象なし（cron 側でも 1-5 で制限するが二重防御）
-    const dow = todayJst.getUTCDay()
-    if (dow === 0 || dow === 6) {
+    // dry_run: プッシュを送らず本文だけ返す（確認用）。today で基準日を差し替えられる（dry_run 時のみ）
+    let dryRun = false
+    try {
+      const body = await req.json()
+      dryRun = body?.dry_run === true
+      if (dryRun && /^\d{4}-\d{2}-\d{2}$/.test(body?.today || '')) todayJst.setTime(Date.parse(body.today + 'T00:00:00Z'))
+    } catch { /* cron は空ボディ */ }
+
+    // 土日・祝日は対象なし（cron 側でも平日に限っているが、祝日はここで止める）
+    const holidays = await loadJpHolidays()
+    if (!isBusinessDay(todayJst, holidays)) {
       return new Response(
-        JSON.stringify({ ok: true, skipped: 'weekend' }),
+        JSON.stringify({ ok: true, skipped: 'holiday' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const targetDate = addBusinessDays(todayJst, 1)
-    const targetDateStr = toDateStr(targetDate)
-    const targetLabelJP = formatDateJP(targetDate)
+    // 翌日〜次の営業日までの全日付。間の土日・祝日に面談があるアポも、この営業日のうちに知らせる
+    // （以前は次の営業日の1日だけを見ていたため、土日・祝日が面談日のアポは通知されていなかった）
+    const targetDays = listDaysThroughBusinessDay(todayJst, 1, holidays).slice(1)
+    const targetDateStr = targetDays.map(d => d.date).join(',')
+    const fromDateStr = targetDays[0].date
+    const toDateStrLast = targetDays[targetDays.length - 1].date
+    const previews: Array<{ dates: string; count: number }> = []
 
     // org ごとの Sourcing engagement を一括取得
     const { data: sourcingEngs, error: engsErr } = await supabase
@@ -143,8 +129,8 @@ Deno.serve(async (req) => {
         .select('id, company_name, getter_name, meeting_date, pre_check_status, org_id')
         .eq('org_id', orgId)
         .eq('status', 'アポ取得')
-        .gte('meeting_date', `${targetDateStr}T00:00:00+00:00`)
-        .lte('meeting_date', `${targetDateStr}T23:59:59+00:00`)
+        .gte('meeting_date', `${fromDateStr}T00:00:00+00:00`)
+        .lte('meeting_date', `${toDateStrLast}T23:59:59+00:00`)
       if (apposErr) {
         console.warn(`[precheck-reminder] org ${orgId} appos fetch warn:`, apposErr.message)
         continue
@@ -223,10 +209,16 @@ Deno.serve(async (req) => {
         const uniqueCompanies = Array.from(new Set(companies))
         const head = uniqueCompanies.slice(0, 3).join('、')
         const more = uniqueCompanies.length > 3 ? ` ほか${uniqueCompanies.length - 3}社` : ''
+        // 面談日は人ごとに違いうる（金曜なら土・日・月）ので、その人のアポの日付だけを並べる
+        const targetLabelJP = Array.from(new Set(
+          list.map(a => a.meeting_date.slice(0, 10)).sort(),
+        )).map(d => formatDateJP(new Date(d + 'T00:00:00Z'))).join('・')
         const body = list.length === 1
           ? `${targetLabelJP} 面談予定の「${head}」で事前確認が未完了です。`
           : `${targetLabelJP} 面談予定 ${list.length}件の事前確認が未完了です（${head}${more}）。`
 
+        // 確認用の返り値に社名は載せない（この関数は公開鍵でも呼べるため）。日付と件数だけ
+        if (dryRun) { previews.push({ dates: targetLabelJP, count: list.length }); continue }
         const { error: pushErr } = await supabase.functions.invoke('send-push', {
           body: {
             type: 'precheck_reminder',
@@ -249,7 +241,7 @@ Deno.serve(async (req) => {
 
     console.log('[precheck-reminder] done:', { targetDate: targetDateStr, summary })
     return new Response(
-      JSON.stringify({ ok: true, targetDate: targetDateStr, summary }),
+      JSON.stringify(dryRun ? { ok: true, dryRun, targetDate: targetDateStr, summary, previews } : { ok: true, targetDate: targetDateStr, summary }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
