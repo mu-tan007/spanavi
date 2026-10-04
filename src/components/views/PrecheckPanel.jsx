@@ -164,7 +164,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
           )}
           {['リスケ', 'キャンセル'].includes(result) && (
             <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[2] }}>
-              アポは「{NEXT_STATUS[result]}」になります。日を改めればお会いできそうなら、キャンセルではなくリスケを選んでください。顧客への報告はむー様が行います。
+              アポは「{NEXT_STATUS[result]}」になります。日を改めればお会いできそうなら、キャンセルではなくリスケを選んでください。クライアントへの報告は篠宮さんが行います。
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

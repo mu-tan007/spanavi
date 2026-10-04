@@ -386,7 +386,7 @@ async function createReplyDraft(token: string, threadId: string, body: string): 
  */
 async function findSlackReportThread(channels: string[], companyName: string): Promise<{ channel: string; ts: string; mentions: string } | null> {
   const token = Deno.env.get('SLACK_USER_TOKEN')?.trim()
-  if (!token) throw new Error('Slackの許可（むー様の名前で検索・投稿）がまだです')
+  if (!token) throw new Error('Slackの許可（篠宮の名前で検索・投稿）がまだです')
   const core = coreCompanyName(companyName)
   if (!core) return null
   const norm = (s: string) => s.replace(/[\s　]/g, '')

@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     if (!ev.slack_reply_channel || !ev.slack_reply_ts) return json({ error: '返信先のスレッドが見つかっていません' }, 400)
 
     const token = Deno.env.get('SLACK_USER_TOKEN')?.trim()
-    if (!token) return json({ error: 'Slackの許可（むー様の名前で送信）がまだです' }, 400)
+    if (!token) return json({ error: 'Slackの許可（篠宮の名前で送信）がまだです' }, 400)
 
     const body = [ev.slack_reply_mentions, String(text).trim()].filter(Boolean).join('\n')
     const res = await fetch('https://slack.com/api/chat.postMessage', {

@@ -66,7 +66,7 @@ export default function PrecheckDraftsCard({ clientData = [], isAdmin = false })
         const cl = clientData.find(c => c._supaId === row.appointment?.client_id);
         const channelLabel = row.draft_channel === 'slack' ? 'Slack' : row.draft_channel === 'chatwork' ? 'Chatwork' : 'メール';
         const destLabel = row.draft_channel === 'slack' && row.slack_reply_ts
-          ? `Slack（アポ取得報告のスレッドにむー様の名前で返信${row.slack_reply_mentions ? '・メンション付き' : ''}）`
+          ? `Slack（アポ取得報告のスレッドに篠宮の名前で返信${row.slack_reply_mentions ? '・メンション付き' : ''}）`
           : channelLabel;
         return (
           <div key={row.id} style={{ padding: `${space[3]}px 0`, borderTop: `1px solid ${color.borderLight}` }}>
