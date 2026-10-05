@@ -17,6 +17,8 @@ import RejectionCandidatesTab from './deals/RejectionCandidatesTab';
 import BuyerMatchingNeedsTab from './deals/BuyerMatchingNeedsTab';
 import GiftDmTab from './deals/GiftDmTab';
 import DocSendsTab from './deals/DocSendsTab';
+import ReportsTab from './deals/ReportsTab';
+import { fetchPendingReportCounts } from '../../lib/supabaseWrite';
 
 const BASE_TABS = [
   { id: 'calls',     label: '架電結果' },
@@ -27,9 +29,10 @@ const BASE_TABS = [
 // useUrlState の allowed には常に含めておく(URL直叩き/リロード対応)。
 // 'giftdm'(dorayaki AI) はギフト同梱DMの送付先を持つクライアント選択時のみ表示。
 // 'docsend'(フォーム営業) は資料リンクの送付先(doc_sends)を持つクライアント選択時のみ表示。
-const TAB_IDS = [...BASE_TABS.map(t => t.id), 'docsend', 'needs', 'giftdm'];
+// 'reports'(報告) は社内だけ（管理者）。クライアントポータル（ClientDealsView）には出さない。
+const TAB_IDS = [...BASE_TABS.map(t => t.id), 'docsend', 'needs', 'giftdm', 'reports'];
 
-export default function DealsView({ isAdmin = false, currentUser = '' }) {
+export default function DealsView({ isAdmin = false, currentUser = '', clientData = [], callListData = [], onReportCountsChanged = null }) {
   const { currentEngagement } = useEngagements();
   const { clients } = useEngagementClients(currentEngagement?.id);
 
@@ -40,6 +43,15 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
   const [subEngagementId, setSubEngagementId] = useUrlState('subEng', null);
 
   const [impersonating, setImpersonating] = useState(false);
+
+  // 送信待ちの報告の件数（タブの見出しに出す）
+  const [reportCounts, setReportCounts] = useState({ total: 0, byClient: {} });
+  const refreshReportCounts = async () => {
+    if (!isAdmin) return;
+    setReportCounts(await fetchPendingReportCounts());
+    onReportCountsChanged?.();
+  };
+  useEffect(() => { refreshReportCounts(); }, [isAdmin]);
 
   const selectedClient = useMemo(
     () => clients.find(c => c.id === selectedClientId) || null,
@@ -114,8 +126,9 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
       ...(hasDocSends === true ? [{ id: 'docsend', label: 'フォーム営業' }] : []),
       ...(hasMatchingList ? [{ id: 'needs', label: 'ニーズヒアリング' }] : []),
       ...(hasGiftDm === true ? [{ id: 'giftdm', label: 'dorayaki AI' }] : []),
+      ...(isAdmin ? [{ id: 'reports', label: (() => { const n = selectedClientId ? (reportCounts.byClient[selectedClientId] || 0) : reportCounts.total; return n ? `報告（${n}）` : '報告'; })() }] : []),
     ],
-    [hasMatchingList, hasGiftDm, hasDocSends]
+    [hasMatchingList, hasGiftDm, hasDocSends, isAdmin, reportCounts, selectedClientId]
   );
 
   // needs タブを開いたままタブが消える状況(別クライアント選択等)では架電結果へ戻す
@@ -123,7 +136,8 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
     if (activeTab === 'needs' && !hasMatchingList) setActiveTab('calls');
     if (activeTab === 'giftdm' && hasGiftDm === false) setActiveTab('calls');
     if (activeTab === 'docsend' && hasDocSends === false) setActiveTab('calls');
-  }, [activeTab, hasMatchingList, hasGiftDm, hasDocSends, setActiveTab]);
+    if (activeTab === 'reports' && !isAdmin) setActiveTab('calls');
+  }, [activeTab, hasMatchingList, hasGiftDm, hasDocSends, isAdmin, setActiveTab]);
 
   // クライアントが扱う engagement 一覧 (appointments ベース)
   const orgId = getOrgId();
@@ -322,6 +336,9 @@ export default function DealsView({ isAdmin = false, currentUser = '' }) {
           <BuyerMatchingNeedsTab
             client={{ id: selectedClient.id, name: selectedClient.name, org_id: selectedClient.orgId }}
           />
+        )}
+        {activeTab === 'reports' && isAdmin && (
+          <ReportsTab client={selectedClient} clientData={clientData} callListData={callListData} onCountsChanged={refreshReportCounts} />
         )}
         {activeTab === 'giftdm' && selectedClient && (
           <GiftDmTab

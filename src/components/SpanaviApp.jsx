@@ -62,9 +62,8 @@ import EngagementMembersView from './views/EngagementMembersView';
 
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
 import { REWARD_MASTER } from '../constants/rewardMaster';
-import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList, updateAppoCounted, fetchRewardMaster, fetchAppointmentLink } from "../lib/supabaseWrite";
+import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList, updateAppoCounted, fetchRewardMaster, fetchAppointmentLink, fetchPendingReportCounts } from "../lib/supabaseWrite";
 import LiveStatusView from './views/LiveStatusView';
-import PreCheckView from './views/PreCheckView';
 import IncomingCallBanner from './views/IncomingCallBanner';
 // ZoomPhoneEmbed は Smart Embed 経由での架電が不可のため無効化
 // import ZoomPhoneEmbed from './ZoomPhoneEmbed';
@@ -421,6 +420,18 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   const memberNames = useMemo(() => members.map(m => (typeof m === 'string' ? m : (m.name || ''))), [members]);
   // #事前確認 の通知に付けたリンク（?precheck=<アポID>・?tab=precheck）から開いたとき。
   // リンクは起動時に main.jsx が控えている（utils/precheckLink）。架電リストが読み込めた後に1回だけ処理する
+  // 案件 > 報告 を開く（周回報告の通知・旧「事前確認」画面のリンク）。案件の画面は URL の client・tab を読む
+  const openDealsReports = useCallback((clientId) => {
+    try { switchEngagement('seller_sourcing'); } catch { /* ignore */ }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'reports');
+      if (clientId) url.searchParams.set('client', clientId); else url.searchParams.delete('client');
+      window.history.replaceState({}, '', url.toString());
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    } catch { /* ignore */ }
+    setCurrentTab('deals');
+  }, [switchEngagement]);
   const precheckLinkHandledRef = useRef(false);
   useEffect(() => {
     // 全社の画面で開いていると架電リストが0件のまま読み込みが終わるので、件数ではなく読み込み済みかで待つ
@@ -430,14 +441,16 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     const link = takePrecheckLink();
     if (!link) return;
     try { switchEngagement('seller_sourcing'); } catch { /* ignore */ }
-    if (!link.appoId) { setCurrentTab('precheck'); return; }
+    if (link.reports) { openDealsReports(link.clientId); return; }
+
+    if (!link.appoId) return;
     fetchAppointmentLink(link.appoId).then(a => {
       if (!a?.item_id) return;
       const list = (supabaseData.callLists || []).find(l => l._supaId === a.list_id) || { _supaId: a.list_id || null, id: null, company: '' };
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
     });
   }, [supabaseData, switchEngagement]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","admin_settings"];
   // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
   const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
@@ -446,6 +459,17 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       return (saved && _VALID_TABS.includes(saved)) ? saved : "lists";
     } catch(e) { return "lists"; }
   });
+  // 送信待ちの報告（周回報告・事前確認の報告）の件数。サイドバーの「案件」に出す（管理者のみ・2026-10-05）
+  const [pendingReports, setPendingReports] = useState(0);
+  const refreshPendingReports = useCallback(async () => {
+    if (!isAdmin) return;
+    try { setPendingReports((await fetchPendingReportCounts()).total); } catch { /* 件数が出なくても画面は使える */ }
+  }, [isAdmin]);
+  useEffect(() => {
+    refreshPendingReports();
+    const t = setInterval(refreshPendingReports, 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [refreshPendingReports]);
   // 事業俯瞰のリスト分析等から CRM 詳細ページにジャンプするための共通遷移
   // (Router の useSearchParams は SpanaviApp が早期 return する経路で
   //  描画ツリーから外れて crash する場合があるため、history API を直接使う)
@@ -694,6 +718,14 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     setShowBellDropdown(false);
     // link 経由の遷移
     if (!n.link) return;
+    // 周回報告の通知: /?open=reports&client=<顧客ID> → 案件 > 報告
+    if (n.link.startsWith('/?open=reports')) {
+      let clientId = null;
+      try { clientId = new URL(n.link, window.location.origin).searchParams.get('client'); } catch { /* ignore */ }
+      openDealsReports(clientId);
+      return;
+    }
+
     // 例: /sourcing/library?card=daily_report
     if (n.link.startsWith('/sourcing/library')) {
       // Sourcing 事業に切替＋ Library タブ＋ Daily Report カード
@@ -1012,7 +1044,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                     }}
                     onMouseEnter={e => { if (!_sbChildActive) e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
                     onMouseLeave={e => { if (!_sbChildActive) e.currentTarget.style.background = 'transparent'; }}
-                    >{child.label}</button>
+                    >{child.label}{child.id === 'deals' && pendingReports > 0 && (<span title="送信待ちの報告" style={{ marginLeft: 6, padding: '0 6px', borderRadius: radius.pill, background: color.gold, color: color.navyDeep, fontSize: 11, fontWeight: 700 }}>{pendingReports}</span>)}</button>
                   );
                 })}
               </div>
@@ -1359,7 +1391,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                       }}
                       onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = C.offWhite; } }}
                       onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = C.white; } }}
-                      >{child.label}</button>
+                      >{child.label}{child.id === 'deals' && pendingReports > 0 && (<span title="送信待ちの報告" style={{ marginLeft: 6, padding: '0 6px', borderRadius: radius.pill, background: color.gold, color: color.navyDeep, fontSize: 11, fontWeight: 700 }}>{pendingReports}</span>)}</button>
                     );
                   })}
                 </div>
@@ -1430,8 +1462,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "incoming" && <IncomingCallsView setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "lists" && <ListView filteredLists={filteredLists} allLists={enrichedLists} filterStatus={filterStatus} setFilterStatus={setFilterStatus} filterType={filterType} setFilterType={setFilterType} searchQuery={searchQuery} setSearchQuery={setSearchQuery} sortBy={sortBy} setSortBy={setSortBy} setSelectedList={setSelectedList} callListData={callListData} setCallListData={setCallListData} listFormOpen={listFormOpen} setListFormOpen={setListFormOpen} editingListId={editingListId} setEditingListId={setEditingListId} now={now} isAdmin={isAdmin} clientData={clientData} contactsByClient={contactsByClient} setCallFlowScreen={setCallFlowScreen} onOpenIndustryRules={() => setCurrentTab('rules')} rewardMaster={rewardMaster} clientEngagementRewards={supabaseData?.clientEngagementRewards || []} />}
         {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} setCallFlowScreen={setCallFlowScreen} callListData={callListData} contactsByClient={contactsByClient} onDataRefetch={onDataRefetch} isAdmin={isAdmin} currentUser={currentUser} />}
-        {currentTab === "precheck" && <PreCheckView currentUser={currentUser} appoData={appoData} setAppoData={isAdmin ? setAppoData : null} setCallFlowScreen={setCallFlowScreen} callListData={callListData} clientData={clientData} contactsByClient={contactsByClient} members={members} setMembers={isAdmin ? setMembers : null} onDataRefetch={onDataRefetch} isAdmin={isAdmin} />}
-        {currentTab === "deals" && <DealsView isAdmin={isAdmin} currentUser={currentUser} />}
+        {currentTab === "deals" && <DealsView isAdmin={isAdmin} currentUser={currentUser} clientData={clientData} callListData={callListData} onReportCountsChanged={refreshPendingReports} />}
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} callListData={callListData} currentUser={currentUser} members={members} clientEngagementRewards={supabaseData?.clientEngagementRewards || []} />}
         {currentTab === "email_marketing" && <EmailMarketingView orgId={orgId} currentUser={currentUser} isAdmin={isAdmin} />}
 

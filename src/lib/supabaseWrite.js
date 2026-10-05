@@ -5709,3 +5709,32 @@ export async function invokeRoundReports(body) {
   }
   return { data, error: data?.error || null }
 }
+
+/** 送信待ちの報告の件数（周回報告＋事前確認の報告）。全体とクライアント様ごと（管理者のみ） */
+export async function fetchPendingReportCounts() {
+  const [{ data: rr }, { data: pe }] = await Promise.all([
+    supabase.from('round_reports').select('client_id').eq('status', 'draft').limit(500),
+    supabase.from('precheck_events')
+      .select('appointment:appointments!inner(client_id)')
+      .in('draft_status', ['ready', 'failed']).not('draft_text', 'is', null).limit(500),
+  ])
+  const byClient = {}
+  for (const r of rr || []) if (r.client_id) byClient[r.client_id] = (byClient[r.client_id] || 0) + 1
+  for (const p of pe || []) { const id = p.appointment?.client_id; if (id) byClient[id] = (byClient[id] || 0) + 1 }
+  const total = (rr || []).length + (pe || []).length
+  return { total, byClient }
+}
+
+/** 送った・片付けた周回報告（クライアント様ごとの履歴） */
+export async function fetchRoundReportHistory(clientId) {
+  let q = supabase
+    .from('round_reports')
+    .select('id, round, kind, status, delivery, sent_at, updated_at, sent_text, draft_text, mail_to, list:call_lists(name)')
+    .neq('status', 'draft')
+    .order('updated_at', { ascending: false })
+    .limit(30)
+  if (clientId) q = q.eq('client_id', clientId)
+  const { data, error } = await q
+  if (error) console.error('[DB] fetchRoundReportHistory error:', error)
+  return data || []
+}

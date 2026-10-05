@@ -19,7 +19,7 @@ const pct = (n, d) => (d ? `${(Math.round((n / d) * 1000) / 10).toFixed(1)}%` : 
  * スクリプトの改善案の欄は空けてあり、篠宮と相談して書き込むまで送れない。
  * 「相談用の材料」は断られ方のまとめで、先方には出さない。
  */
-export default function RoundReportsCard({ clientData = [], callListData = [], isAdmin = false }) {
+export default function RoundReportsCard({ clientData = [], callListData = [], isAdmin = false, clientId = null, onChanged = null }) {
   const [reports, setReports] = useState([]);
   const [texts, setTexts] = useState({});
   const [channels, setChannels] = useState({});
@@ -32,16 +32,19 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
   const [done, setDone] = useState('');
 
   const load = async () => {
-    const rows = await fetchPendingRoundReports();
+    const all = await fetchPendingRoundReports();
+    // 案件で選んでいるクライアント様の分だけ（未選択なら全クライアント様）
+    const rows = clientId ? all.filter(r => r.client_id === clientId) : all;
     setReports(rows);
+    onChanged?.();
     setTexts(prev => Object.fromEntries(rows.map(r => [r.id, prev[r.id] ?? r.draft_text ?? ''])));
     setChannels(prev => Object.fromEntries(rows.map(r => [r.id, prev[r.id] ?? r.slack_channel_id ?? ''])));
     setMails(prev => Object.fromEntries(rows.map(r => [r.id, prev[r.id] ?? { to: r.mail_to || '', cc: r.mail_cc || '' }])));
   };
-  useEffect(() => { if (isAdmin) load(); }, [isAdmin]);
+  useEffect(() => { if (isAdmin) load(); }, [isAdmin, clientId]);
 
   const listOptions = useMemo(() => (callListData || [])
-    .filter(l => !l.is_archived && l._supaId)
+    .filter(l => !l.is_archived && l._supaId && (!clientId || l.client_id === clientId))
     .map(l => ({ value: l._supaId, label: `${l.company}${l.industry ? `｜${l.industry}` : ''}` }))
     .sort((a, b) => a.label.localeCompare(b.label, 'ja')), [callListData]);
 

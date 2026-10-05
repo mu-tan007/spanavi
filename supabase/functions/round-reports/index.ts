@@ -153,7 +153,7 @@ async function detect(sb: SupabaseClient, dryRun: boolean, notify = true) {
       const id = await createReport(sb, list, latest.round, 'round', latest.completed_at!)
       if (id) {
         created++
-        if (notify) await notifyAdmins(sb, list.org_id, `${clientName}「${listLabel(list.name)}」が${latest.round}周目を終えました。報告の下書きがあります。スクリプトの改善案は篠宮と相談してから送ってください`)
+        if (notify) await notifyAdmins(sb, list.org_id, `${clientName}「${listLabel(list.name)}」が${latest.round}周目を終えました。報告の下書きがあります。スクリプトの改善案は篠宮と相談してから送ってください`, list.client_id)
       }
     } catch (e) {
       failures.push((e as Error).message)
@@ -420,13 +420,13 @@ async function slackDestination(channelIds: string[], listName: string): Promise
   return { options, defaultChannel, mentions }
 }
 
-/** 管理者のスマホとSpanaviの通知へ。押すと事前確認タブ（周回報告の欄）が開く */
-async function notifyAdmins(sb: SupabaseClient, orgId: string, body: string) {
+/** 管理者のスマホとSpanaviの通知へ。押すと 案件 > 報告（そのクライアント様）が開く */
+async function notifyAdmins(sb: SupabaseClient, orgId: string, body: string, clientId: string | null = null) {
   const { data: admins } = await sb.from('users').select('id').eq('org_id', orgId).eq('role', 'admin')
   const ids = (admins || []).map(a => a.id)
   if (!ids.length) return
   const { error } = await sb.functions.invoke('send-push', {
-    body: { type: 'round_report', title: '周回報告の下書き', body, user_ids: ids, org_id: orgId, link: '/?tab=precheck' },
+    body: { type: 'round_report', title: '周回報告の下書き', body, user_ids: ids, org_id: orgId, link: clientId ? `/?open=reports&client=${clientId}` : '/?open=reports' },
   })
   if (error) console.warn('[round-reports] send-push failed:', error.message)
 }

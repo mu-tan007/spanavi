@@ -8,18 +8,21 @@ import { fetchReadyPrecheckDrafts, markPrecheckDraftDone, invokeSendAppoReport, 
  * メールの顧客は Gmail の返信下書きになるのでここには出ない（作れなかったときだけ出す）。
  * 送るのは必ずむー様。インターンの画面からは顧客に何も届かない。
  */
-export default function PrecheckDraftsCard({ clientData = [], isAdmin = false }) {
+export default function PrecheckDraftsCard({ clientData = [], isAdmin = false, clientId = null, onChanged = null }) {
   const [drafts, setDrafts] = useState([]);
   const [texts, setTexts] = useState({});
   const [busy, setBusy] = useState(null);
   const [errors, setErrors] = useState({});
 
   const load = async () => {
-    const rows = await fetchReadyPrecheckDrafts();
+    const all = await fetchReadyPrecheckDrafts();
+    // 案件で選んでいるクライアント様の分だけ（未選択なら全クライアント様）
+    const rows = clientId ? all.filter(r => r.appointment?.client_id === clientId) : all;
     setDrafts(rows);
+    onChanged?.();
     setTexts(prev => Object.fromEntries(rows.map(r => [r.id, prev[r.id] ?? r.draft_text ?? ''])));
   };
-  useEffect(() => { if (isAdmin) load(); }, [isAdmin]);
+  useEffect(() => { if (isAdmin) load(); }, [isAdmin, clientId]);
 
   if (!isAdmin || drafts.length === 0) return null;
 
