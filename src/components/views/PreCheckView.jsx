@@ -340,6 +340,13 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
     }
   };
 
+  // 取得したアポの状態は架電ページの「事前確認」欄から変える。管理者以外は結果入力の窓を開かず、その企業の架電ページへ
+  const openCallPage = async (a) => {
+    const { data } = await fetchCallListItemByAppo(a.company, a.phone, a.list_id, a.item_id);
+    if (!data?.list_id) { alert('架電リストが見つかりませんでした'); return; }
+    handlePreCheckNavigate({ listId: data.list_id, itemId: data.id });
+  };
+
   const handlePreCheckSave = async (saveData) => {
     if (!selectedAppo?._supaId) { alert('保存先が見つかりません'); return; }
     const error = await updatePreCheckResult(selectedAppo._supaId, saveData);
@@ -555,7 +562,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
               showCount={false}
               rows={items}
               rowKey={(_, i) => `${g.key}-${i}`}
-              onRowClick={(a) => setSelectedAppo(a)}
+              onRowClick={(a) => (isAdmin ? setSelectedAppo(a) : openCallPage(a))}
               rowAccent={() => g.color}
               style={{
                 borderTopLeftRadius: 0,

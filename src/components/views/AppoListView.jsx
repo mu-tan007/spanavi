@@ -8,7 +8,7 @@ import { calcRankAndRate } from '../../utils/calculations';
 import { applyTaxIfPretax, calcInvoiceTax, calcInternReward, salesAmountOf } from '../../utils/money';
 import { cumulativeSalesDelta } from '../../utils/cumulativeSales';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, updatePreCheckResult, precheckResultForStatusChange, recordPrecheckFromStatusChange, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel, MAX_MAIL_ATTACHMENT_BYTES } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel, MAX_MAIL_ATTACHMENT_BYTES } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -2865,7 +2865,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                     {detailNavigating ? '検索中...' : '架電ページへ'}
                   </button>
                 )}
-                {!detailEditing ? (isAdmin || reportDetail.getter === currentUser) && (
+                {!detailEditing ? isAdmin && (
                   <button onClick={async () => {
                     setDetailEditForm({ ...reportDetail, _idx: appoData.findIndex(a => a._supaId === reportDetail._supaId) });
                     setDetailEditing(true);
@@ -2896,13 +2896,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       const original = appoData[idx];
                       const updated = { ...detailEditForm };
                       delete updated._idx;
-                      // メンバーが状態を事前確認の結果に変えたら、架電ページの事前確認欄と同じ記録を残す（管理者は顧客からの連絡で変えることがあるので対象外）
-                      const precheckResult = !isAdmin ? precheckResultForStatusChange(original?.status, updated.status) : null;
-                      const precheckMemo = (updated.note || '').trim();
-                      if (['リスケ', 'キャンセル'].includes(precheckResult) && !precheckMemo) {
-                        alert('リスケ・キャンセルは、先方のご事情を備考に書いてから保存してください（顧客への報告の文面に使います）');
-                        return;
-                      }
                       const wasKanryo = original?.status === '面談済';
                       const isKanryo  = updated.status === '面談済';
                       if ((isKanryo || wasKanryo) && setMembers) {
@@ -2929,19 +2922,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       setDetailSaving(true);
                       if (updated._supaId) {
                         const error = await updateAppointment(updated._supaId, updated);
-                        if (!error && precheckResult) {
-                          const { error: pcErr } = await recordPrecheckFromStatusChange({ appo: original, nextStatus: updated.status, memo: precheckMemo, currentUser, members });
-                          if (!pcErr) {
-                            Object.assign(updated, {
-                              preCheckStatus: precheckResult,
-                              preCheckMemo: [original.preCheckMemo, precheckMemo].filter(Boolean).join('\n'),
-                              cancelReason: precheckResult === 'キャンセル' ? precheckMemo : original.cancelReason,
-                            });
-                            await updatePreCheckResult(updated._supaId, { ...updated, rescheduledAt: updated.rescheduledAt || null });
-                          } else {
-                            alert('状態は保存しましたが、事前確認の記録に失敗しました。架電ページの「事前確認」欄から記録し直してください。');
-                          }
-                        }
                         setDetailSaving(false);
                         if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
                       } else { setDetailSaving(false); }
@@ -2965,7 +2945,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 const iS = { width: "100%", padding: "4px 8px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", background: color.white, boxSizing: "border-box" };
                 const u = (k, v) => setDetailEditForm(p => ({ ...p, [k]: v }));
                 // 売上・面談日・取得者などお金と実績に直結する項目は管理者のみ編集できる。
-                // 管理者以外は自分のアポのステータスだけを変えられる（備考・レポートは業務メモなので可）。
+                // 編集は管理者のみ。メンバーが取得したアポの状態は架電ページの「事前確認」欄から変える（10/5〜）。
                 const adminEdit = detailEditing && isAdmin;
                 return (
                   <>
