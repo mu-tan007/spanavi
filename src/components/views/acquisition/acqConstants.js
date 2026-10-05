@@ -1,7 +1,7 @@
 // 買収タブ（管理者のみ）の定義。値は DB の check 制約（20261006100000_acquisition_tab.sql）と揃える。
 
+// 配信を受けただけの案件は載せない（むー様 2026-10-06）。弊社から関心を伝えてやり取りを始めたものだけ。
 export const STAGES = [
-  { value: 'candidate', label: '配信から候補', variant: 'neutral', open: true },
   { value: 'received', label: '受領', variant: 'default', open: true },
   { value: 'nda', label: 'NDA', variant: 'info', open: true },
   { value: 'im_received', label: 'IM受領', variant: 'info', open: true },

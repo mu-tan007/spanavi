@@ -17,10 +17,22 @@ const DISCLOSE_OPTIONS = [
 ];
 const VIEW_OPTIONS = [
   { value: 'open', label: '進行中' },
-  { value: 'all', label: '終了も含む（候補を除く）' },
-  { value: 'candidate', label: '配信から候補' },
-  { value: 'closed', label: '終了したもの' },
+  { value: 'all', label: 'すべて' },
+  { value: 'closed', label: '終了' },
 ];
+
+// 1行に収まらない文字は「…」で切り、押さなくても全文は title で見られるようにする（隣の列へはみ出さない）
+const clip = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+function Two({ top, sub, topStyle }) {
+  const t = typeof top === 'string' ? top : undefined;
+  return (
+    <div style={{ lineHeight: 1.35, minWidth: 0 }} title={[t, sub].filter(Boolean).join('
+') || undefined}>
+      <div style={{ ...clip, ...topStyle }}>{top}</div>
+      {sub && <div style={{ ...clip, fontSize: font.size.xs, color: color.textLight }}>{sub}</div>}
+    </div>
+  );
+}
 
 function DocMarks({ row }) {
   const items = [['NN', row.has_nonname], ['IM', row.has_im], ['QA', row.has_qa]];
@@ -45,23 +57,18 @@ export default function AcqDealsView({ data, onOpenDeal }) {
   const [firmFilter, setFirmFilter] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const stats = useMemo(() => {
-    const real = deals.filter(d => d.current_stage !== 'candidate');
-    return {
-      total: real.length,
-      open: real.filter(d => isOpenStage(d.current_stage)).length,
-      candidates: deals.length - real.length,
-    };
-  }, [deals]);
+  const stats = useMemo(() => ({
+    total: deals.length,
+    open: deals.filter(d => isOpenStage(d.current_stage)).length,
+    top: deals.filter(d => d.reached_top_meeting).length,
+  }), [deals]);
 
   const rows = useMemo(() => {
     const kw = q.trim().toLowerCase();
     return deals.filter(d => {
       const st = d.current_stage;
-      if (view === 'open' && (st === 'candidate' || !isOpenStage(st))) return false;
-      if (view === 'all' && st === 'candidate') return false;
-      if (view === 'candidate' && st !== 'candidate') return false;
-      if (view === 'closed' && (st === 'candidate' || isOpenStage(st))) return false;
+      if (view === 'open' && !isOpenStage(st)) return false;
+      if (view === 'closed' && isOpenStage(st)) return false;
       if (disclose === 'after' && !d.im_disclosed) return false;
       if (disclose === 'before' && d.im_disclosed) return false;
       if (firmFilter && d.source_firm_id !== firmFilter) return false;
@@ -75,26 +82,18 @@ export default function AcqDealsView({ data, onOpenDeal }) {
   }, [deals, view, disclose, q, firmFilter]);
 
   const columns = [
-    { key: 'display_name', label: '案件名', width: 220, align: 'left', sticky: true, sortable: true,
+    { key: 'display_name', label: '案件名', width: 240, align: 'left', sortable: true,
       render: (r) => (
-        <div style={{ lineHeight: 1.35 }}>
-          <div style={{ fontWeight: font.weight.semibold, color: color.navy }}>
-            {r.im_disclosed ? (r.name || <span style={{ color: color.danger }}>企業名が未入力</span>) : r.project_name}
-          </div>
-          <div style={{ fontSize: font.size.xs, color: color.textLight }}>
-            {[r.im_disclosed ? r.project_name : 'ノンネーム', r.pj_code].filter(Boolean).join('・')}
-          </div>
-        </div>
+        <Two
+          top={r.im_disclosed ? (r.name || '企業名が未入力') : r.project_name}
+          topStyle={{ fontWeight: font.weight.semibold, color: r.im_disclosed && !r.name ? color.danger : color.navy }}
+          sub={[r.im_disclosed ? r.project_name : 'ノンネーム', r.pj_code].filter(Boolean).join('・')}
+        />
       ) },
-    { key: 'industry', label: '業種・地域', width: 170, align: 'left',
-      render: (r) => [r.industry, r.region].filter(Boolean).join('・') || '—' },
-    { key: 'source_firm_name', label: '紹介元', width: 170, align: 'left', sortable: true,
-      render: (r) => (
-        <div style={{ lineHeight: 1.35 }}>
-          <div>{r.source_firm_name || '—'}</div>
-          {r.source_contact_name && <div style={{ fontSize: font.size.xs, color: color.textLight }}>{r.source_contact_name}様</div>}
-        </div>
-      ) },
+    { key: 'industry', label: '業種・地域', width: 180, align: 'left',
+      render: (r) => <Two top={r.industry || '—'} sub={r.region} /> },
+    { key: 'source_firm_name', label: '紹介元', width: 190, align: 'left', sortable: true,
+      render: (r) => <Two top={r.source_firm_name || '—'} sub={r.source_contact_name ? `${r.source_contact_name}様` : null} /> },
     { key: 'received_on', label: '受領日', width: 96, align: 'right', sortable: true,
       cellStyle: { fontFamily: font.family.mono }, render: (r) => fmtDate(r.received_on) },
     { key: 'current_stage', label: '段階', width: 130, align: 'center', sortable: true,
@@ -138,7 +137,7 @@ export default function AcqDealsView({ data, onOpenDeal }) {
         : '—') },
     { key: 'docs', label: '書類', width: 120, align: 'center', render: (r) => <DocMarks row={r} /> },
     { key: 'closed_reason', label: '結果・理由', width: 240, align: 'left',
-      render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.closed_reason || ''}</span> },
+      render: (r) => <div title={r.closed_reason || undefined} style={{ ...clip, fontSize: font.size.xs, color: color.textMid }}>{r.closed_reason || ''}</div> },
   ];
 
   const firmOptions = [{ value: '', label: 'すべての紹介元' }, ...firms.map(f => ({ value: f.id, label: f.name }))];
@@ -153,7 +152,7 @@ export default function AcqDealsView({ data, onOpenDeal }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[3], marginBottom: space[4] }}>
         <KeyFigure label="紹介を受けた案件" value={`${stats.total}件`} />
         <KeyFigure label="進行中" value={`${stats.open}件`} />
-        <KeyFigure label="配信から候補" value={`${stats.candidates}件`} />
+        <KeyFigure label="トップ面談まで進んだ案件" value={`${stats.top}件`} />
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[2], marginBottom: space[3], alignItems: 'flex-end' }}>
         <div style={{ width: 220 }}><Select size="sm" value={disclose} onChange={(e) => setDisclose(e.target.value)} options={DISCLOSE_OPTIONS} /></div>
@@ -169,7 +168,7 @@ export default function AcqDealsView({ data, onOpenDeal }) {
         error={error}
         emptyMessage="該当する案件がありません"
         onRowClick={(r) => onOpenDeal(r.id)}
-        rowAccent={(r) => (r.current_stage === 'candidate' ? 'info' : (TOP_MEETING_OR_LATER.includes(r.current_stage) ? 'primary' : null))}
+        rowAccent={(r) => (TOP_MEETING_OR_LATER.includes(r.current_stage) ? 'primary' : null)}
         defaultSort={{ key: 'received_on', dir: 'desc' }}
         height="calc(100vh - 330px)"
       />
