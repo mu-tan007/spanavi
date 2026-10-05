@@ -315,6 +315,16 @@ function displayName(addr: string): string {
   return m ? m[1].trim() : ''
 }
 
+/**
+ * 表示名から日本語の氏名だけを取り出す。人名でない（日本語を含まない）ときは空。
+ * 「Shuhei Takano/高野 柊平」→「高野 柊平」（2026-10-05 フラーレン様で「Shuhei様」になった）
+ */
+function japaneseName(raw: string): string {
+  const ja = /[一-龯々ぁ-んァ-ヶ]/
+  const seg = raw.split(/[\/／|｜()（）\[\]【】,、]/).find(s => ja.test(s)) || ''
+  return seg.split(/[\s　]+/).filter(t => ja.test(t)).join(' ')
+}
+
 // deno-lint-ignore no-explicit-any
 function htmlBody(part: any): string {
   if (!part) return ''
@@ -566,8 +576,7 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
       // そのときは相手の本文の名乗り（「ブティックスの佐藤でございます」）→ 最初の報告の宛名、の順で取る
       const last = msgs[msgs.length - 1]
       const target = replyTarget(last)
-      const rawName = displayName((target.to || '').split(',')[0])
-      const toName = /[一-龯ぁ-んァ-ヶ]/.test(rawName) ? rawName : ''
+      const toName = japaneseName(displayName((target.to || '').split(',')[0]))
       const selfIntro = target.fromMe ? '' :
         (plainBody(last?.payload).match(/の([一-龯]{1,4})(?:と申します|でございます|です)/)?.[1] || '')
       firstBody = toName ? `${toName} 様` : selfIntro ? `${selfIntro} 様` : plainBody(msgs[0]?.payload)
