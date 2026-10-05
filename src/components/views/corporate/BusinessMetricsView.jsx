@@ -114,14 +114,21 @@ function CombinedChart({ data, currentKey, mode, hidden, onToggle, height }) {
   const maxOf = useMemo(() => Object.fromEntries(
     METRICS.map(m => [m.key, Math.max(0, ...data.map(d => Number(d[m.key] || 0)))])
   ), [data]);
-  const plotted = useMemo(() => data.map(d => {
-    if (!shape) return d;
+  // 線は締まった月までを実線、締まった最後の月→今月（途中）だけを点線で別に引く
+  const curIdx = data.findIndex(d => d.month === currentKey);
+  const plotted = useMemo(() => data.map((d, i) => {
     const o = { ...d };
-    for (const m of METRICS) {
-      o[m.key] = d[m.key] === null ? null : (maxOf[m.key] ? Math.round((Number(d[m.key]) / maxOf[m.key]) * 100) : 0);
+    if (shape) {
+      for (const m of METRICS) {
+        o[m.key] = d[m.key] === null ? null : (maxOf[m.key] ? Math.round((Number(d[m.key]) / maxOf[m.key]) * 100) : 0);
+      }
+    }
+    for (const m of METRICS.filter(x => SERIES[x.key].kind === 'line')) {
+      o[`${m.key}_cur`] = (curIdx > 0 && (i === curIdx || i === curIdx - 1)) ? o[m.key] : null;
+      if (i === curIdx) o[m.key] = null;
     }
     return o;
-  }), [data, shape, maxOf]);
+  }), [data, shape, maxOf, curIdx]);
   const rawByLabel = useMemo(() => new Map(data.map(d => [d.label, d])), [data]);
   const axisOf = (key) => (shape ? 'shape' : SERIES[key].axis);
   const tick = { fontSize: 11, fill: color.textMid };
@@ -162,6 +169,12 @@ function CombinedChart({ data, currentKey, mode, hidden, onToggle, height }) {
         {METRICS.filter(m => SERIES[m.key].kind === 'line').map(m => (
           <Line key={m.key} yAxisId={axisOf(m.key)} dataKey={m.key} name={m.label} type="monotone"
             stroke={SERIES_COLOR[m.key]} strokeWidth={2.5} dot={{ r: 3, fill: SERIES_COLOR[m.key] }} activeDot={{ r: 5 }}
+            hide={hidden.has(m.key)} isAnimationActive={false} />
+        ))}
+        {METRICS.filter(m => SERIES[m.key].kind === 'line').map(m => (
+          <Line key={`${m.key}_cur`} yAxisId={axisOf(m.key)} dataKey={`${m.key}_cur`} name={`${m.label}（今月途中）`} type="linear"
+            stroke={SERIES_COLOR[m.key]} strokeWidth={2} strokeDasharray="5 4" legendType="none"
+            dot={{ r: 3, fill: color.white, stroke: SERIES_COLOR[m.key] }} activeDot={false}
             hide={hidden.has(m.key)} isAnimationActive={false} />
         ))}
       </ComposedChart>
@@ -305,7 +318,7 @@ export default function BusinessMetricsView() {
           <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: space[2] }}>
             {mode === 'shape'
               ? '各指標をその期間で最も大きい月=100にそろえた形。棒と線が同じ向きに動いていれば連動している。マウスを当てると実数が出る。'
-              : '左の軸は社数と件数、右の軸は売上。薄い棒は今月（途中）。'}
+              : '左の軸は社数と件数、右の軸は売上。薄い棒と点線は今月（途中）。'}
           </div>
         </Card>
 
