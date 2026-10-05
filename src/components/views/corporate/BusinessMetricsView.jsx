@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, LabelList,
+  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Cell, Legend,
 } from 'recharts';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Card, DataTable, Select } from '../../ui';
@@ -10,7 +10,7 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 
 // ============================================================
 // 全社 > 業績（管理者のみ）
-//   月ごとの新規顧客数・支援した会社数・取得アポ数・売上を棒グラフで並べる。
+//   月ごとの新規顧客数・支援した会社数（棒）と取得アポ数・売上（線）を1つのグラフに重ねる。
 //   数え方は DB 関数 corporate_business_metrics に集約（新規＝契約締結日と初回架電日の早いほう、
 //   支援＝その月に1件以上架電、アポ＝登録日、売上＝面談日・開拓リスト由来は除く）。
 // ============================================================
@@ -26,6 +26,8 @@ const termNo = (fyStart) => fyStart - 2024; // 2025年6月期首＝第1期
 function jstToday() {
   return new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
 }
+
+const FIRST_DATA_MONTH = '2026-03-01'; // Spanavi で架電・アポの記録が始まった月
 
 const yen = (v) => (v === null || v === undefined ? '—' : `¥${Number(v).toLocaleString()}`);
 const cnt = (unit) => (v) => (v === null || v === undefined ? '—' : `${Number(v).toLocaleString()}${unit}`);
@@ -55,7 +57,7 @@ function Delta({ cur, prev }) {
   );
 }
 
-function MetricCard({ m, total, latest, prev, latestLabel }) {
+function MetricCard({ m, total, latest, prev, latestLabel, totalLabel }) {
   return (
     <div style={{
       background: color.white, border: `1px solid ${color.border}`, borderTop: `3px solid ${m.accent}`,
@@ -63,7 +65,7 @@ function MetricCard({ m, total, latest, prev, latestLabel }) {
       display: 'flex', flexDirection: 'column', gap: space[1], minWidth: 0,
     }}>
       <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>
-        {m.label}{m.sum ? '（今期累計）' : `（${latestLabel}）`}
+        {m.label}{m.sum ? `（${totalLabel}）` : `（${latestLabel}）`}
       </div>
       <div style={{ fontSize: font.size.xl, fontWeight: font.weight.bold, color: color.textDark, fontFamily: font.family.display }}>
         {m.fmt(m.sum ? total : latest)}
@@ -76,33 +78,93 @@ function MetricCard({ m, total, latest, prev, latestLabel }) {
   );
 }
 
-function MonthlyBars({ data, m, currentKey }) {
+// 棒＝顧客（新規・支援）、線＝成果（アポ・売上）。単位が違うので軸を3本持つ。
+// 「形で比べる」は各指標を期間内の最大値=100にそろえ、増減の連動だけを見る。
+const SERIES = {
+  new_clients: { kind: 'bar', axis: 'co' },
+  active_clients: { kind: 'bar', axis: 'co' },
+  appo_count: { kind: 'line', axis: 'appo' },
+  sales: { kind: 'line', axis: 'yen' },
+};
+const SERIES_COLOR = {
+  new_clients: color.gold,
+  active_clients: alpha(color.navyLight, 0.55),
+  appo_count: color.navy,
+  sales: color.success,
+};
+
+function CombinedTooltip({ active, payload, label, rawByLabel }) {
+  if (!active || !payload?.length) return null;
+  const raw = rawByLabel.get(label) || {};
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 20, right: 8, bottom: 0, left: m.money ? 4 : -16 }}>
+    <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, boxShadow: shadow.md, padding: `${space[2]}px ${space[3]}px`, fontSize: font.size.xs }}>
+      <div style={{ fontWeight: font.weight.semibold, color: color.textDark, marginBottom: space[1] }}>{label}</div>
+      {METRICS.map(m => (
+        <div key={m.key} style={{ display: 'flex', justifyContent: 'space-between', gap: space[4], color: color.textMid }}>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: SERIES_COLOR[m.key], marginRight: 6 }} />{m.label}</span>
+          <span style={{ color: color.textDark, fontWeight: font.weight.semibold }}>{m.fmt(raw[m.key])}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CombinedChart({ data, currentKey, mode, hidden, onToggle, height }) {
+  const shape = mode === 'shape';
+  const maxOf = useMemo(() => Object.fromEntries(
+    METRICS.map(m => [m.key, Math.max(0, ...data.map(d => Number(d[m.key] || 0)))])
+  ), [data]);
+  const plotted = useMemo(() => data.map(d => {
+    if (!shape) return d;
+    const o = { ...d };
+    for (const m of METRICS) {
+      o[m.key] = d[m.key] === null ? null : (maxOf[m.key] ? Math.round((Number(d[m.key]) / maxOf[m.key]) * 100) : 0);
+    }
+    return o;
+  }), [data, shape, maxOf]);
+  const rawByLabel = useMemo(() => new Map(data.map(d => [d.label, d])), [data]);
+  const axisOf = (key) => (shape ? 'shape' : SERIES[key].axis);
+  const tick = { fontSize: 11, fill: color.textMid };
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <ComposedChart data={plotted} margin={{ top: 24, right: 8, bottom: 0, left: 0 }} barGap={2}>
         <CartesianGrid stroke={color.borderLight} strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 11, fill: color.textMid }} axisLine={{ stroke: color.border }} tickLine={false} interval={0} />
-        <YAxis
-          tick={{ fontSize: 11, fill: color.textMid }} axisLine={false} tickLine={false}
-          width={m.money ? 48 : 40} allowDecimals={false} tickFormatter={m.money ? yenAxis : undefined}
+        <XAxis dataKey="label" tick={tick} axisLine={{ stroke: color.border }} tickLine={false} interval={0} />
+        {shape ? (
+          <YAxis yAxisId="shape" domain={[0, 100]} tick={tick} axisLine={false} tickLine={false} width={36} />
+        ) : (
+          <>
+            <YAxis yAxisId="co" tick={tick} axisLine={false} tickLine={false} width={36} allowDecimals={false}
+              label={{ value: '社', position: 'top', offset: 10, fontSize: 11, fill: color.textMid }} />
+            <YAxis yAxisId="appo" tick={tick} axisLine={false} tickLine={false} width={40} allowDecimals={false}
+              label={{ value: '件', position: 'top', offset: 10, fontSize: 11, fill: color.textMid }} />
+            <YAxis yAxisId="yen" orientation="right" tick={tick} axisLine={false} tickLine={false} width={52} tickFormatter={yenAxis}
+              label={{ value: '売上', position: 'top', offset: 10, fontSize: 11, fill: color.textMid }} />
+          </>
+        )}
+        <Tooltip cursor={{ fill: alpha(color.navyLight, 0.06) }} content={<CombinedTooltip rawByLabel={rawByLabel} />} />
+        <Legend
+          wrapperStyle={{ fontSize: font.size.xs, cursor: 'pointer', paddingTop: space[2] }}
+          onClick={(e) => onToggle(e.dataKey)}
+          formatter={(value, entry) => (
+            <span style={{ color: hidden.has(entry.dataKey) ? color.textLight : color.textMid, textDecoration: hidden.has(entry.dataKey) ? 'line-through' : 'none' }}>{value}</span>
+          )}
         />
-        <Tooltip
-          cursor={{ fill: alpha(color.navyLight, 0.06) }}
-          formatter={(v) => [m.fmt(v), m.label]}
-          contentStyle={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, fontSize: font.size.xs }}
-          labelStyle={{ color: color.textDark, fontWeight: font.weight.semibold }}
-        />
-        <Bar dataKey={m.key} radius={[3, 3, 0, 0]} maxBarSize={36} isAnimationActive={false}>
-          {data.map(d => (
-            <Cell key={d.month} fill={d.month === currentKey ? alpha(m.accent, 0.45) : m.accent} />
-          ))}
-          <LabelList
-            dataKey={m.key} position="top"
-            formatter={(v) => (v === null || v === undefined ? '' : m.money ? yenAxis(v) : v)}
-            style={{ fontSize: 10, fill: color.textMid }}
-          />
-        </Bar>
-      </BarChart>
+        {METRICS.filter(m => SERIES[m.key].kind === 'bar').map(m => (
+          <Bar key={m.key} yAxisId={axisOf(m.key)} dataKey={m.key} name={m.label} fill={SERIES_COLOR[m.key]}
+            hide={hidden.has(m.key)} radius={[3, 3, 0, 0]} maxBarSize={28} isAnimationActive={false}>
+            {plotted.map(d => (
+              <Cell key={d.month} fill={d.month === currentKey ? alpha(SERIES_COLOR[m.key], 0.4) : SERIES_COLOR[m.key]} />
+            ))}
+          </Bar>
+        ))}
+        {METRICS.filter(m => SERIES[m.key].kind === 'line').map(m => (
+          <Line key={m.key} yAxisId={axisOf(m.key)} dataKey={m.key} name={m.label} type="monotone"
+            stroke={SERIES_COLOR[m.key]} strokeWidth={2.5} dot={{ r: 3, fill: SERIES_COLOR[m.key] }} activeDot={{ r: 5 }}
+            hide={hidden.has(m.key)} isAnimationActive={false} />
+        ))}
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }
@@ -120,9 +182,18 @@ export default function BusinessMetricsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fyStart = Number(fy);
-  const from = `${fyStart}-06-01`;
-  const fyEnd = `${fyStart + 1}-05-01`;
+  const [mode, setMode] = useState('value');
+  const [hidden, setHidden] = useState(() => new Set());
+  const toggle = (key) => setHidden(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const isAll = fy === 'all';
+  const fyStart = isAll ? null : Number(fy);
+  const from = isAll ? FIRST_DATA_MONTH : `${fyStart}-06-01`;
+  const fyEnd = isAll ? currentMonth : `${fyStart + 1}-05-01`;
   const to = fyEnd < currentMonth ? fyEnd : currentMonth;
 
   const load = useCallback(async () => {
@@ -136,23 +207,26 @@ export default function BusinessMetricsView() {
 
   useEffect(() => { load(); }, [load]);
 
-  // 期の12か月を並べ、まだ来ていない月は空欄にする
+  // 期の12か月を並べ、まだ来ていない月は空欄にする（全期間は記録のある月だけ）
   const chartData = useMemo(() => {
     const byMonth = new Map(rows.map(r => [r.month, r]));
-    return Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(Date.UTC(fyStart, 5 + i, 1));
+    const startY = Number(from.slice(0, 4));
+    const startM = Number(from.slice(5, 7)) - 1;
+    const n = isAll ? rows.length : 12;
+    return Array.from({ length: n }, (_, i) => {
+      const d = new Date(Date.UTC(startY, startM + i, 1));
       const month = d.toISOString().slice(0, 10);
       const r = byMonth.get(month);
       return {
         month,
-        label: `${d.getUTCMonth() + 1}月`,
+        label: (isAll && (i === 0 || d.getUTCMonth() === 0)) ? `${d.getUTCFullYear() % 100}年${d.getUTCMonth() + 1}月` : `${d.getUTCMonth() + 1}月`,
         new_clients: r ? r.new_clients : null,
         active_clients: r ? r.active_clients : null,
         appo_count: r ? r.appo_count : null,
         sales: r ? r.sales : null,
       };
     });
-  }, [rows, fyStart]);
+  }, [rows, from, isAll]);
 
   // カードの比較は締まった月どうし（途中の今月を前月の丸1か月と比べると必ず下がって見えるため）
   const closed = rows.filter(r => r.month < currentMonth);
@@ -165,7 +239,7 @@ export default function BusinessMetricsView() {
 
   const tableRows = useMemo(() => rows.map((r, i) => ({ ...r, _prev: rows[i - 1] || null })).reverse(), [rows]);
 
-  const fyOptions = [];
+  const fyOptions = [{ value: 'all', label: '全期間（2026年3月〜）' }];
   for (let y = currentFy; y >= 2025; y--) {
     fyOptions.push({ value: String(y), label: `第${termNo(y)}期（${y}年6月〜${y + 1}年5月）` });
   }
@@ -190,7 +264,7 @@ export default function BusinessMetricsView() {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="業績"
-        description="月ごとの新規顧客・支援した会社・取得アポ・売上 ／ 薄い棒は今月（途中）"
+        description="月ごとの新規顧客・支援した会社・取得アポ・売上"
         right={right}
       />
 
@@ -203,6 +277,7 @@ export default function BusinessMetricsView() {
           {METRICS.map(m => (
             <MetricCard
               key={m.key} m={m} total={totals[m.key]} latestLabel={latestLabel}
+              totalLabel={isAll ? '累計' : fyStart === currentFy ? '今期累計' : '期の合計'}
               latest={latest ? latest[m.key] : null} prev={prevRow ? prevRow[m.key] : null}
             />
           ))}
@@ -211,13 +286,28 @@ export default function BusinessMetricsView() {
           ▲▼は締まった月どうしの前月比。今月分はグラフと表に途中の数字で出る。
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: space[4] }}>
-          {METRICS.map(m => (
-            <Card key={m.key} title={`${m.label}の推移`} description={m.note}>
-              <MonthlyBars data={chartData} m={m} currentKey={currentMonth} />
-            </Card>
-          ))}
-        </div>
+        <Card
+          title="顧客・アポ・売上の推移"
+          description="棒は顧客（新規・支援した会社）、線は成果（取得アポ・売上）。凡例を押すとその指標を隠せる"
+          action={(
+            <div style={{ width: 210 }}>
+              <Select size="sm" value={mode} onChange={e => setMode(e.target.value)} options={[
+                { value: 'value', label: '実数で見る' },
+                { value: 'shape', label: '形で比べる（最大=100）' },
+              ]} />
+            </div>
+          )}
+        >
+          <CombinedChart
+            data={chartData} currentKey={currentMonth} mode={mode}
+            hidden={hidden} onToggle={toggle} height={isMobile ? 340 : 460}
+          />
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: space[2] }}>
+            {mode === 'shape'
+              ? '各指標をその期間で最も大きい月=100にそろえた形。棒と線が同じ向きに動いていれば連動している。マウスを当てると実数が出る。'
+              : '左の軸は社数と件数、右の軸は売上。薄い棒は今月（途中）。'}
+          </div>
+        </Card>
 
         <Card title="月別" padding="none" headerStyle={CARD_HEAD}>
           <DataTable
