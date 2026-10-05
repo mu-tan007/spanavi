@@ -656,8 +656,9 @@ export default function ClientDetailPage({
 
   // 担当者ドロワー
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
-  // 左のタブは URL に持つ（読み直しても同じタブが開く）
-  const [tab, setTab] = useUrlState('client_tab', 'profile', { allowed: ['profile', 'contacts', 'meetings'] });
+  // 左のタブは URL に持つ（読み直しても同じタブが開く）。
+  // 既定は商談記録（基本情報はあまり見ないため。2026-10-05 むー様指示）
+  const [tab, setTab] = useUrlState('client_tab', 'meetings', { allowed: ['profile', 'contacts', 'meetings'] });
   // モバイル時のタブ切替
   const isMobile = useIsMobile();
 
@@ -681,9 +682,9 @@ export default function ClientDetailPage({
   const primary = sortedContacts.find(ct => ct.isPrimary) || sortedContacts[0] || null;
   const lastAt = lastContactOf(activity.items);
   const tabs = [
-    ['profile', '基本情報', 0],
+    ['meetings', '商談記録', (activity.data?.meetings || []).length],
     ['contacts', '担当者', sortedContacts.length],
-    ['meetings', '面談記録', (activity.data?.meetings || []).length],
+    ['profile', '基本情報', 0],
   ];
   const pill = (active, fg) => ({
     padding: '3px 10px', borderRadius: radius.pill, border: 'none', cursor: setClientData ? 'pointer' : 'default',

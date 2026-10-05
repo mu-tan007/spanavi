@@ -15,7 +15,7 @@ import { getOrgId } from '../../../lib/orgContext';
 
 export const ACTIVITY_KINDS = [
   ['all', 'すべて'],
-  ['deal', '面談'],
+  ['deal', '商談'],
   ['appo', 'アポ'],
   ['email', 'メール'],
   ['note', 'メモ'],
@@ -237,7 +237,7 @@ export default function ClientActivity({ clientId, currentUser, items, error, on
         {shown.length === 0 ? (
           <div style={{ padding: '28px 0', textAlign: 'center', fontSize: 12.5, color: color.textLight, lineHeight: 1.9 }}>
             記録なし<br />
-            {kind === 'all' && <>面談・アポ・ステータスの変更は、<br />それぞれの操作に紐づいて自動でここに並びます</>}
+            {kind === 'all' && <>商談・アポ・ステータスの変更は、<br />それぞれの操作に紐づいて自動でここに並びます</>}
           </div>
         ) : (
           <Timeline items={shown} onOpenMeeting={onOpenMeeting} />
@@ -277,7 +277,7 @@ function Timeline({ items, onOpenMeeting }) {
                 color: it.quiet ? color.textLight : clickable ? color.navyLight : color.textDark,
                 textDecoration: clickable ? 'underline' : 'none', textDecorationStyle: 'dotted', textUnderlineOffset: 3,
               }}>{it.text}</b>
-              {clickable && <span style={{ marginLeft: 6, fontSize: 10.5, color: color.textLight }}>面談記録を開く</span>}
+              {clickable && <span style={{ marginLeft: 6, fontSize: 10.5, color: color.textLight }}>商談記録を開く</span>}
             </div>
             {it.sub && <div style={{ marginTop: 4, fontSize: 11.5, color: color.textLight }}>{it.sub}</div>}
             {it.memo && (
