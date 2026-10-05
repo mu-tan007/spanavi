@@ -5,6 +5,22 @@ import {
   CHANNELS, PRICE_BASIS, SCHEMES, STAGES, DEFENSE_RELATIONS, parseYen, todayStr,
 } from './acqConstants';
 import { AcqModal, ModalButtons, FormGrid, TextArea, ErrorNote } from './AcqShared';
+import { color, font, space } from '../../../constants/design';
+import { Button } from '../../ui';
+
+// 名前のルール（むー様 2026-10-06）
+//   IM開示後：案件名は企業名（IMの「商号」を正式な表記のまま）
+//   IM開示前：ノンネームの名称を「業種（地域）」でそろえる
+//     業種は「〇〇業」（事業譲渡は「〇〇事業」）、製造は「〇〇製造業」、卸は「〇〇卸売業」
+//     地域は都道府県名。分からなければ地方名（関東・中部・近畿・九州など、「地方」は付けない）。不明なら省く
+//   PJ名・資料上の呼び名（PJ orange・T社・No.103 など）は名前に混ぜず「PJ名・呼び名」へ
+const IM_STAGES = ['im_received', 'top_meeting', 'loi_submitted', 'basic_agreement', 'dd', 'definitive_agreement', 'closed_won'];
+export const nonnameTitle = (industry, region) => {
+  const ind = String(industry || '').trim();
+  const reg = String(region || '').trim().replace(/地方$/, '');
+  if (!ind) return '';
+  return reg ? `${ind}（${reg}）` : ind;
+};
 
 const toInput = (v) => {
   if (v === null || v === undefined || v === '') return '';
@@ -20,6 +36,7 @@ export default function AcqDealFormModal({ deal, firms, contacts, onClose, onSav
   const [f, setF] = useState(() => ({
     name: deal?.name || '',
     project_name: deal?.project_name || '',
+    pj_code: deal?.pj_code || '',
     industry: deal?.industry || '',
     region: deal?.region || '',
     summary: deal?.summary || '',
@@ -54,7 +71,10 @@ export default function AcqDealFormModal({ deal, firms, contacts, onClose, onSav
 
   const save = async () => {
     setError(null);
-    if (!f.name.trim() && !f.project_name.trim()) { setError('案件名かPJ名のどちらかを入れてください'); return; }
+    if (!f.project_name.trim()) { setError('ノンネームの名称を「業種（地域）」で入れてください（「業種・地域から作る」で作れます）'); return; }
+    const disclosed = !!f.name.trim() || (isNew ? IM_STAGES.includes(f.first_stage) : !!deal?.im_disclosed);
+    if (disclosed && !f.name.trim()) { setError('IM開示後の案件は、案件名を企業名（IMの商号）にしてください'); return; }
+    if (/^(PJ|ＰＪ)\s|ノンネーム|_20\d{2}|No\.|（\d+\/\d+紹介）/i.test(f.project_name)) { setError('ノンネームの名称に PJ名・資料名・日付・番号を入れないでください（「PJ名・呼び名」へ）'); return; }
     const pmin = parseYen(f.asking_price_min);
     const pmax = parseYen(f.asking_price_max);
     if (Number.isNaN(pmin) || Number.isNaN(pmax)) { setError('希望価格は「4.2億」「3000万」「420000000」の形で入れてください'); return; }
@@ -62,6 +82,7 @@ export default function AcqDealFormModal({ deal, firms, contacts, onClose, onSav
     const row = {
       name: f.name.trim() || null,
       project_name: f.project_name.trim() || null,
+      pj_code: f.pj_code.trim() || null,
       industry: f.industry.trim() || null,
       region: f.region.trim() || null,
       summary: f.summary.trim() || null,
@@ -115,10 +136,18 @@ export default function AcqDealFormModal({ deal, firms, contacts, onClose, onSav
     >
       <ErrorNote error={error} />
       <FormGrid>
-        <Input label="案件名（実名）" value={f.name} onChange={set('name')} placeholder="例：株式会社辻建設" />
-        <Input label="PJ名・匿名の見出し" value={f.project_name} onChange={set('project_name')} placeholder="例：PJ orange" />
-        <Input label="業種" value={f.industry} onChange={set('industry')} />
-        <Input label="地域" value={f.region} onChange={set('region')} />
+        <div style={{ gridColumn: '1 / -1', fontSize: font.size.xs, color: color.textMid, lineHeight: 1.6, background: color.cream, padding: space[2], borderRadius: 4 }}>
+          名前のルール：IM開示後は案件名＝企業名（IMの商号のまま）。IM開示前はノンネームの名称を「業種（地域）」でそろえる（例：精密部品製造業（関東）・建築確認申請代行業（愛知県））。PJ名や資料上の呼び名は別の欄へ。
+        </div>
+        <Input label="業種" value={f.industry} onChange={set('industry')} placeholder="例：精密部品製造業" />
+        <Input label="地域" value={f.region} onChange={set('region')} placeholder="例：愛知県／関東" />
+        <div style={{ display: 'flex', gap: space[2], alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}><Input label="ノンネームの名称（業種（地域））" value={f.project_name} onChange={set('project_name')} placeholder="例：精密部品製造業（関東）" /></div>
+          <Button size="sm" variant="outline" onClick={() => setF(prev => ({ ...prev, project_name: nonnameTitle(prev.industry, prev.region) }))}>業種・地域から作る</Button>
+        </div>
+        <Input label="PJ名・呼び名" value={f.pj_code} onChange={set('pj_code')} placeholder="例：PJ orange・T社・No.103" />
+        <Input label="案件名＝企業名（IM開示後）" value={f.name} onChange={set('name')} placeholder="例：株式会社辻建設" hint="IMの商号を正式な表記のまま" />
+        <div />
         <Select label="入口" value={f.channel} onChange={set('channel')} options={CHANNELS} />
         <Input label="受領日" type="date" value={f.received_on} onChange={set('received_on')} />
         <Select label="紹介元の会社" value={f.source_firm_id} onChange={set('source_firm_id')} options={firmOptions} />

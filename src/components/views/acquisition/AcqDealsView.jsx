@@ -10,6 +10,11 @@ import { KeyFigure } from './AcqShared';
 import AcqDealFormModal from './AcqDealFormModal';
 
 // 買収 > 案件：紹介を受けた全案件の一覧
+const DISCLOSE_OPTIONS = [
+  { value: '', label: 'IM開示の前後すべて' },
+  { value: 'after', label: 'IM開示後（企業名）' },
+  { value: 'before', label: 'IM開示前（ノンネーム）' },
+];
 const VIEW_OPTIONS = [
   { value: 'open', label: '進行中' },
   { value: 'all', label: '終了も含む（候補を除く）' },
@@ -35,6 +40,7 @@ function DocMarks({ row }) {
 export default function AcqDealsView({ data, onOpenDeal }) {
   const { deals, firms, contacts, loading, error, reload } = data;
   const [view, setView] = useState('open');
+  const [disclose, setDisclose] = useState('');
   const [q, setQ] = useState('');
   const [firmFilter, setFirmFilter] = useState('');
   const [creating, setCreating] = useState(false);
@@ -56,22 +62,28 @@ export default function AcqDealsView({ data, onOpenDeal }) {
       if (view === 'all' && st === 'candidate') return false;
       if (view === 'candidate' && st !== 'candidate') return false;
       if (view === 'closed' && (st === 'candidate' || isOpenStage(st))) return false;
+      if (disclose === 'after' && !d.im_disclosed) return false;
+      if (disclose === 'before' && d.im_disclosed) return false;
       if (firmFilter && d.source_firm_id !== firmFilter) return false;
       if (kw) {
-        const hay = [d.name, d.project_name, d.industry, d.region, d.source_firm_name, d.source_contact_name, d.summary]
+        const hay = [d.name, d.project_name, d.pj_code, d.industry, d.region, d.source_firm_name, d.source_contact_name, d.summary]
           .filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(kw)) return false;
       }
       return true;
     });
-  }, [deals, view, q, firmFilter]);
+  }, [deals, view, disclose, q, firmFilter]);
 
   const columns = [
     { key: 'display_name', label: '案件名', width: 220, align: 'left', sticky: true, sortable: true,
       render: (r) => (
         <div style={{ lineHeight: 1.35 }}>
-          <div style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.display_name}</div>
-          {r.name && r.project_name && <div style={{ fontSize: font.size.xs, color: color.textLight }}>{r.project_name}</div>}
+          <div style={{ fontWeight: font.weight.semibold, color: color.navy }}>
+            {r.im_disclosed ? (r.name || <span style={{ color: color.danger }}>企業名が未入力</span>) : r.project_name}
+          </div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight }}>
+            {[r.im_disclosed ? r.project_name : 'ノンネーム', r.pj_code].filter(Boolean).join('・')}
+          </div>
         </div>
       ) },
     { key: 'industry', label: '業種・地域', width: 170, align: 'left',
@@ -144,6 +156,7 @@ export default function AcqDealsView({ data, onOpenDeal }) {
         <KeyFigure label="配信から候補" value={`${stats.candidates}件`} />
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[2], marginBottom: space[3], alignItems: 'flex-end' }}>
+        <div style={{ width: 220 }}><Select size="sm" value={disclose} onChange={(e) => setDisclose(e.target.value)} options={DISCLOSE_OPTIONS} /></div>
         <div style={{ width: 220 }}><Select size="sm" value={view} onChange={(e) => setView(e.target.value)} options={VIEW_OPTIONS} /></div>
         <div style={{ width: 240 }}><Select size="sm" value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} options={firmOptions} /></div>
         <div style={{ width: 260 }}><Input size="sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="案件名・業種・紹介元で探す" /></div>

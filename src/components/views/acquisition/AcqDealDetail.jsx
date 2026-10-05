@@ -67,8 +67,8 @@ export default function AcqDealDetail({ dealId, data, onBack, onOpenFirm, onOpen
   return (
     <div>
       <PageHeader
-        title={deal.display_name}
-        description={[deal.name && deal.project_name ? deal.project_name : null, [deal.industry, deal.region].filter(Boolean).join('・')].filter(Boolean).join('　')}
+        title={deal.im_disclosed ? (deal.name || '企業名が未入力（IM開示後）') : deal.project_name}
+        description={[deal.im_disclosed ? 'IM開示後' : 'IM開示前（ノンネーム）', deal.im_disclosed ? deal.project_name : null, deal.pj_code].filter(Boolean).join('　')}
         right={(
           <span style={{ display: 'inline-flex', gap: space[2] }}>
             <Button variant="outline" size="sm" onClick={onBack}>← 一覧へ</Button>
@@ -111,8 +111,10 @@ export default function AcqDealDetail({ dealId, data, onBack, onOpenFirm, onOpen
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: space[4] }}>
           <div style={{ background: color.white, border: `1px solid ${color.borderLight}`, borderRadius: radius.md, padding: space[4] }}>
             <InfoRows rows={[
-              ['実名', deal.name || '（ネームクリア前）'],
-              ['PJ名・見出し', deal.project_name],
+              ['企業名', deal.name || (deal.im_disclosed ? '未入力（IMの商号を入れてください）' : '（IM開示前）')],
+              ['ノンネームの名称', deal.project_name],
+              ['PJ名・呼び名', deal.pj_code],
+              ['業種・地域', [deal.industry, deal.region].filter(Boolean).join('・') || '—'],
               ['紹介元', deal.source_firm_id
                 ? <LinkText onClick={() => onOpenFirm(deal.source_firm_id)}>{deal.source_firm_name}</LinkText> : '—'],
               ['担当者', deal.source_contact_id
