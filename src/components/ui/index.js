@@ -8,3 +8,4 @@ export { default as Badge } from './Badge';
 export { default as Tag } from './Tag';
 export { default as DataTable } from './DataTable';
 export { default as ActionMenu } from './ActionMenu';
+export { default as Pager } from './Pager';

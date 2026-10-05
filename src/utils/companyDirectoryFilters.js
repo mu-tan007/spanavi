@@ -70,3 +70,86 @@ export function directoryConditionSummary(f) {
  if(f.provider)labels.push('出所：'+({client:'クライアント',tsr:'TSR',tdb:'TDB',other:'その他',unknown:'未設定'}[f.provider]||f.provider));
  return labels;
 }
+
+// ---------------------------------------------------------------------
+// 企業DB の検索カード（Phalanx の企業DBにならう・2026-10-05）
+//   基本の条件＝いつも見える（キーワード・架電リスト・担当者・業種・事業内容・所在地）
+//   詳細条件＝畳む。閉じている間は入っている数をバッジで出す。
+// ---------------------------------------------------------------------
+const BASIC_KEYS = new Set(['keyword','keywords','logic','listIds','owner','daibunrui','saibunrui','business','prefecture','city','cities']);
+const IGNORED_KEYS = new Set(['directory','sortCol','sortDir','page','pageSize']);
+const filled = v => Array.isArray(v) ? v.length>0 : v!=='' && v!==false && v!=null;
+
+// 詳細条件のうち入っている項目の数（範囲は下限・上限・不明の扱いをまとめて1つと数える）
+export function advancedDirectoryConditionCount(f) {
+ const rangeKeys = new Set([...DIRECTORY_RANGES.map(([k])=>k),'callCount']);
+ let n = 0;
+ for (const k of rangeKeys) if (filled(f[k+'Min']) || filled(f[k+'Max']) || filled(f[k+'NullMode'])) n += 1;
+ for (const k of Object.keys(DIRECTORY_FILTERS)) {
+  if (BASIC_KEYS.has(k) || IGNORED_KEYS.has(k)) continue;
+  if ([...rangeKeys].some(r=>k===r+'Min'||k===r+'Max'||k===r+'NullMode')) continue;
+  if (filled(f[k])) n += 1;
+ }
+ return n;
+}
+
+const PROVIDER_LABEL = {client:'クライアント',tsr:'TSR',tdb:'TDB',other:'その他',unknown:'出所未設定'};
+const MATCH_LABEL = {same:'一致',different:'不一致',unknown:'判定不可'};
+const HOME_LABEL = {available:'住所あり',unknown:'未確認',conflict:'情報の相違あり'};
+const SHAREHOLDER_LABEL = {individual:'個人のみ',corporate:'法人のみ',mixed:'個人・法人混在',empty:'不明'};
+const SCOPE_LABEL = {due:'次回対応の期限が到来',review:'名寄せ・情報の確認が必要'};
+
+// 入っている条件を1つずつのチップにする。patch は×で戻す値（関係する値をまとめて戻す）。
+// names は ID → 名前の表（架電リスト・商材・タイプ・登記の確認状況）。
+export function directoryConditionChips(f, names = {}) {
+ const out = [];
+ const nameOf = (table, id) => names[table]?.get?.(id) || id;
+ const keywords = f.keywords?.length ? f.keywords : (f.keyword ? [f.keyword] : []);
+ if (keywords.length) out.push({k:'keyword',label:'キーワード：'+keywords.join(f.logic==='OR'?' または ':' '),patch:{keyword:'',keywords:[]}});
+ const multi = (key, label, map) => (f[key]||[]).forEach(v=>out.push({k:key+':'+v,label:label+'：'+(map?map(v):v),
+  patch:{[key]:(f[key]||[]).filter(x=>x!==v), ...(key==='daibunrui'?{saibunrui:[]}:{})}}));
+ multi('listIds','架電リスト',v=>nameOf('lists',v));
+ if (f.owner) out.push({k:'owner',label:'担当者：'+f.owner,patch:{owner:''}});
+ multi('daibunrui','業種大分類');
+ multi('saibunrui','業種細分類');
+ if (f.business) out.push({k:'business',label:'事業内容：'+f.business,patch:{business:''}});
+ multi('prefecture','都道府県');
+ const cities = f.cities?.length ? f.cities : (f.city ? [f.city] : []);
+ if (cities.length) out.push({k:'city',label:'市区町村・住所：'+cities.join('、'),patch:{city:'',cities:[]}});
+ if (f.identifier) out.push({k:'identifier',label:'法人番号・企業コード：'+f.identifier,patch:{identifier:''}});
+ if (f.representative) out.push({k:'representative',label:'代表者：'+f.representative,patch:{representative:''}});
+ const phones = f.phonePatterns?.length ? f.phonePatterns : (f.phonePattern ? [f.phonePattern] : []);
+ if (phones.length) out.push({k:'phone',label:'電話番号：'+phones.join('、')+'で始まる',patch:{phonePattern:'',phonePatterns:[]}});
+ if (f.industry) out.push({k:'industry',label:'業種名：'+f.industry,patch:{industry:''}});
+ for (const [key,label] of [...DIRECTORY_RANGES,['callCount','架電回数']]) {
+  const min=f[key+'Min'], max=f[key+'Max'], mode=f[key+'NullMode'];
+  if (!filled(min) && !filled(max) && !filled(mode)) continue;
+  const name = label.replace(/（千円）$/, '');
+  let text;
+  if (mode==='only') text = '不明のみ';
+  else {
+   text = (min!==''?min:'下限なし')+'〜'+(max!==''?max:'上限なし')+(max!==''?(key==='established'?'以下':'未満'):'');
+   if (mode==='include') text += '・不明も含める'; else if (mode==='exclude') text += '・不明を除く';
+  }
+  out.push({k:key,label:name+'：'+text,patch:{[key+'Min']:'',[key+'Max']:'',...(key==='callCount'?{}:{[key+'NullMode']:''})}});
+ }
+ multi('shareholderType','株主の構成',v=>SHAREHOLDER_LABEL[v]||v);
+ if (f.repShareholderMatch) out.push({k:'repShareholderMatch',label:'株主欄に代表者名を含む',patch:{repShareholderMatch:false}});
+ multi('dbLabel','企業ラベル');
+ if (f.registry) out.push({k:'registry',label:'登記：'+(f.registry==='exclude_closed'?'閉鎖確認済みを除く':nameOf('registry',f.registry)),patch:{registry:''}});
+ if (f.addressMatch) out.push({k:'addressMatch',label:'会社・代表者住所：'+(MATCH_LABEL[f.addressMatch]||f.addressMatch),patch:{addressMatch:''}});
+ if (f.home) out.push({k:'home',label:'代表者自宅住所：'+(HOME_LABEL[f.home]||f.home),patch:{home:''}});
+ multi('callCategory','架電の商材',v=>nameOf('categoriesCall',v));
+ multi('callEngagement','架電のタイプ',v=>nameOf('engagements',v));
+ multi('callStatus','架電ステータス');
+ if (f.lastCallFrom || f.lastCallTo) out.push({k:'lastCall',label:'最終架電日：'+(f.lastCallFrom||'')+'〜'+(f.lastCallTo||''),patch:{lastCallFrom:'',lastCallTo:''}});
+ if (f.stage) out.push({k:'stage',label:'対応状況：'+f.stage,patch:{stage:''}});
+ if (f.scope) out.push({k:'scope',label:SCOPE_LABEL[f.scope]||f.scope,patch:{scope:''}});
+ if (f.nextActionFrom || f.nextActionTo) out.push({k:'nextAction',label:'次回対応日：'+(f.nextActionFrom||'')+'〜'+(f.nextActionTo||''),patch:{nextActionFrom:'',nextActionTo:''}});
+ if (f.provider) out.push({k:'provider',label:'データの出所：'+(PROVIDER_LABEL[f.provider]||f.provider),patch:{provider:''}});
+ if (f.sourceQuery) out.push({k:'sourceQuery',label:'提供元・ファイル名：'+f.sourceQuery,patch:{sourceQuery:''}});
+ return out;
+}
+
+// 表に既定で出す列（DIRECTORY_EXPORT_COLUMNS の key）。企業名はいつも左端に固定で出す。
+export const DIRECTORY_DEFAULT_COLUMNS = ['prefecture','industry_sub','revenue_k','employee_count','representative','phone','crm_stage','owner_name','next_action_at'];

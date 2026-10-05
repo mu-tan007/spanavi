@@ -8,12 +8,14 @@ vi.mock('./CompanyDirectoryFilters',()=>({default:props=><div data-testid="filte
 vi.mock('./CompanyProfileDialog',()=>({default:props=><div data-testid="profile" {...props}/>}));
 vi.mock('../database/DatabaseChatPanel',()=>({default:()=>null}));
 vi.mock('../database/DatabaseExportColumnModal',()=>({default:props=><div data-testid="export" {...props}/>}));
+vi.mock('../../hooks/useDirectoryFilterOptions',()=>({useDirectoryFilterOptions:()=>({options:{categories:[],prefectures:[],categoriesCall:[],engagements:[],lists:[]},names:{},error:'',retry:()=>{}})}));
 import { fetchCompanyProfileStats } from '../../lib/companyProfileApi';
 import { searchCompanyDirectory,buildDirectoryCsv } from '../../lib/companyDirectoryApi';
 import CompanyDirectory from './CompanyDirectory';
 let renderer;
 const node=id=>renderer.root.findByProps({'data-testid':id});
-const button=text=>renderer.root.findAllByType('button').find(n=>n.children.includes(text));
+const textOf=n=>typeof n==='string'?n:(n.children||[]).map(textOf).join('');
+const button=text=>renderer.root.findAllByType('button').find(n=>n.props['aria-label']===text||textOf(n).includes(text));
 const result=(name,count=51)=>({rows:[{id:name,company_name:name,address_match:'same',revenue_k:0}],count});
 const deferred=()=>{let resolve,reject;const promise=new Promise((r,j)=>{resolve=r;reject=j;});return{promise,resolve,reject};};
 beforeEach(()=>{vi.clearAllMocks();fetchCompanyProfileStats.mockResolvedValue({total:512982});searchCompanyDirectory.mockResolvedValue(result('初回'));});
@@ -44,8 +46,16 @@ describe('企業DBの検索を1画面で扱う',()=>{
  });
  it('ページ移動は適用済みの条件で行い、編集中の条件を混ぜない',async()=>{
   await mount();await act(async()=>node('filters').props.onChange('keyword','未検索'));
-  await act(async()=>button('次へ').props.onClick());
+  await act(async()=>button('次へ →').props.onClick());
   const f=searchCompanyDirectory.mock.calls.at(-1)[0];expect(f.page).toBe(1);expect(f.keyword).toBe('');
+ });
+ it('チップの×は下書きだけを外し、検索しない',async()=>{
+  await mount();await act(async()=>node('filters').props.onChange('keyword','建設'));
+  await act(async()=>node('filters').props.onSearch());
+  const calls=searchCompanyDirectory.mock.calls.length;
+  await act(async()=>button('キーワード：建設を外す').props.onClick());
+  expect(searchCompanyDirectory.mock.calls.length).toBe(calls);
+  expect(JSON.stringify(renderer.toJSON())).toContain('変更した条件は未反映です');
  });
  it('失敗した検索で条件を閉じず、不正な範囲では問い合わせない',async()=>{
   await mount();await act(async()=>node('filters').props.onChange('revenueMin','100'));
