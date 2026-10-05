@@ -202,14 +202,23 @@ async function createReport(
 
   const materials = await buildMaterials(sb, list.id, kind === 'manual' ? null : round).catch(e => `（材料を作れませんでした：${(e as Error).message}）`)
 
+  // 先方はSpanavi上のリスト名（全業種⑧など）を知らないので、預かった日と社数で呼ぶ（むー様 10/5）
+  const { data: meta } = await sb.from('call_lists').select('created_at, total_count').eq('id', list.id).maybeSingle()
+  const recv = meta?.created_at ? jstMonthDay(meta.created_at) : ''
+  const size = Number(meta?.total_count || stats?.list_size || 0)
+  const ref: ListRef = {
+    long: `${recv ? `${recv}にお預かりした` : 'お預かりした'}リスト（${size.toLocaleString()}社・Spanavi上の名前「${listLabel(list.name)}」）`,
+    short: `${recv ? `${recv}お預かりの` : ''}リスト（${size.toLocaleString()}社）`,
+  }
+
   const { data, error: insErr } = await sb.from('round_reports').insert({
     org_id: list.org_id, list_id: list.id, client_id: list.client_id, round, kind,
     completed_at: completedAt, stats,
-    draft_text: buildDraft(list.name, stats, kind, { delivery, mentions, greeting, portalUser: client?.portal_username || '' }),
+    draft_text: buildDraft(ref, stats, kind, { delivery, mentions, greeting, portalUser: client?.portal_username || '' }),
     materials, delivery,
     slack_channel_id: defaultChannel, slack_channel_options: options,
     mail_to: mail?.to || null, mail_cc: mail?.cc.join(', ') || null,
-    mail_subject: delivery === 'email' ? mailSubject(list.name, round, kind) : null,
+    mail_subject: delivery === 'email' ? mailSubject(ref, round, kind) : null,
     draft_error: draftError || null,
   }).select('id').maybeSingle()
   if (insErr) {
@@ -235,10 +244,19 @@ const md = (d: string | null | undefined) => {
 type Delivery = 'slack' | 'chatwork' | 'email'
 interface DraftOpts { delivery: Delivery; mentions: string; greeting: string; portalUser: string }
 
-function mailSubject(listName: string, round: number, kind: 'round' | 'manual'): string {
+/** 先方への呼び方。long は本文の最初、short は件名 */
+interface ListRef { long: string; short: string }
+
+/** 2026-09-25T… → 「9月25日」（日本時間） */
+function jstMonthDay(iso: string): string {
+  const d = new Date(new Date(iso).getTime() + 9 * 3600_000)
+  return `${d.getUTCMonth() + 1}月${d.getUTCDate()}日`
+}
+
+function mailSubject(ref: ListRef, round: number, kind: 'round' | 'manual'): string {
   return kind === 'manual'
-    ? `【架電状況のご報告】「${listLabel(listName)}」リスト`
-    : `【架電状況のご報告】「${listLabel(listName)}」リスト ${round}周目`
+    ? `【架電状況のご報告】${ref.short}`
+    : `【架電状況のご報告】${ref.short} ${round}周目`
 }
 
 /** このリスト（無ければ同じクライアント様の全リスト）でアポを取った会社。新しい順 */
@@ -257,7 +275,7 @@ async function appoCompanies(sb: SupabaseClient, list: { id: string; client_id: 
  * 先方への文面。改善案の欄は空けておく（むー様が相談のうえ書く）
  * Slack：先頭にメンション、宛名・署名なし／メール・Chatwork：宛名・名乗り・署名あり
  */
-function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', o: DraftOpts): string {
+function buildDraft(ref: ListRef, s: Stats, kind: 'round' | 'manual', o: DraftOpts): string {
   const r = s.round
   const t = s.this || { calls: 0, companies: 0, talks: 0, appo: 0 }
   const lines: string[] = []
@@ -278,7 +296,7 @@ function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', o: Dra
     const total = s.total || {}
     const rounds = (s.rounds || []) as { round: number; companies: number; calls: number; talks: number; appo: number }[]
     const minCompanies = Math.max(30, Math.ceil((rounds[0]?.companies || 0) * 0.05))
-    lines.push(`「${listLabel(listName)}」リストにつきまして、これまでの架電状況をご報告申し上げます。`)
+    lines.push(`${ref.long}につきまして、これまでの架電状況をご報告申し上げます。`)
     lines.push('')
     lines.push(`■これまでの結果（${md(total.first_day)}〜${md(total.last_day)}）`)
     lines.push(`・架電：${Number(total.companies || 0).toLocaleString()}社（${Number(total.calls || 0).toLocaleString()}コール）`)
@@ -293,7 +311,7 @@ function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', o: Dra
     appendTail(lines, s, o)
     return lines.join('\n')
   }
-  lines.push(`「${listLabel(listName)}」リストの${r}周目の架電が一通り完了いたしましたので、ご報告申し上げます。`)
+  lines.push(`${ref.long}の${r}周目の架電が一通り完了いたしましたので、ご報告申し上げます。`)
   lines.push('')
   lines.push(`■${r}周目の結果（${md(t.first_day)}〜${md(t.last_day)}）`)
   lines.push(`・架電：${t.companies.toLocaleString()}社（${t.calls.toLocaleString()}コール）`)
