@@ -74,10 +74,10 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
         if (error) throw new Error(typeof error === 'string' ? error : error.message);
         await updateRoundReport(row.id, { status: 'sent', sent_at: new Date().toISOString(), sent_text: text });
       } else {
-        // メール：Gmail に新しいメールの下書きを作る（宛先は直近のアポ取得報告メールと同じ）。送るのは Gmail で
-        const { error } = await invokeRoundReports({ action: 'gmail_draft', report_id: row.id, text, to: mails[row.id]?.to, cc: mails[row.id]?.cc });
+        // メール：むー様のGmailから送る（宛先は直近のアポ取得報告メールと同じ・画面で直せる）
+        const { error } = await invokeRoundReports({ action: 'send_email', report_id: row.id, text, to: mails[row.id]?.to, cc: mails[row.id]?.cc });
         if (error) throw new Error(error);
-        setDone(`${cl?.company || ''}の報告をGmailの下書きに入れました。Gmailで確かめて送ってください`);
+        setDone(`${cl?.company || ''}へ報告のメールを送りました`);
       }
       await load();
     } catch (e) {
@@ -181,7 +181,7 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
               <Button size="sm" variant="primary" loading={busy === row.id}
                 disabled={(method === 'slack' && !channels[row.id]) || (method === 'email' && !mails[row.id]?.to)}
                 onClick={() => send(row, method)}>
-                {method === 'slack' ? 'Slackで送信' : method === 'chatwork' ? 'Chatworkで送信' : 'Gmailに下書きを作る'}
+                {method === 'slack' ? 'Slackで送信' : method === 'chatwork' ? 'Chatworkで送信' : 'メールで送信'}
               </Button>
             </div>
           </div>

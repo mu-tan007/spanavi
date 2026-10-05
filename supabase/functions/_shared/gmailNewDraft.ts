@@ -1,9 +1,9 @@
 // ============================================================
-// Gmail に「新しいメール」の下書きを作る（周回報告用・2026-10-05）
+// Gmail から「新しいメール」を送る（周回報告用・2026-10-05）
 // ------------------------------------------------------------
 // 許可は事前確認と同じ google_oauth_tokens（name='gmail_precheck'・gmail.modify）を使う。
 // 宛先は、そのクライアント様へむー様が直近に出したアポ取得報告メールの To・Cc をそのまま使う。
-// 送信はしない（むー様が Gmail で確かめて送る）。
+// 送るのは、むー様がSpanaviの画面で文面と宛先を確かめて「メールで送信」を押したときだけ。
 // ============================================================
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -103,8 +103,13 @@ export async function findMailTarget(token: string, companyNames: string[]): Pro
   return null
 }
 
-/** 新しいメールの下書きを作る。戻り値は Gmail の下書きID */
-export async function createNewDraft(token: string, t: { to: string; cc: string[]; subject: string; body: string }): Promise<string> {
+/** 新しいメールをむー様のGmailから送る（Spanaviの画面で文面を確かめて「メールで送信」を押したとき）。戻り値は送ったメールのID */
+export async function sendNewMail(token: string, t: { to: string; cc: string[]; subject: string; body: string }): Promise<string> {
+  const sent = await gmail(token, 'messages/send', { method: 'POST', body: JSON.stringify({ raw: buildRaw(t) }) })
+  return sent.id
+}
+
+function buildRaw(t: { to: string; cc: string[]; subject: string; body: string }): string {
   const html = `<div dir="ltr">${escapeHtml(t.body).replace(/\n/g, '<br>')}</div>`
   const boundary = `b_${crypto.randomUUID()}`
   const lines = [
@@ -127,7 +132,6 @@ export async function createNewDraft(token: string, t: { to: string; cc: string[
     wrap76(btoa(unescape(encodeURIComponent(html)))),
     `--${boundary}--`,
   ]
-  const draft = await gmail(token, 'drafts', { method: 'POST', body: JSON.stringify({ message: { raw: b64urlEncode(lines.join('\r\n')) } }) })
-  return draft.id
+  return b64urlEncode(lines.join('\r\n'))
 }
 

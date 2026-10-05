@@ -14,7 +14,7 @@
 // ============================================================
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { getGmailToken, findMailTarget, createNewDraft, type MailTarget } from '../_shared/gmailNewDraft.ts'
+import { getGmailToken, findMailTarget, sendNewMail, type MailTarget } from '../_shared/gmailNewDraft.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,24 +91,24 @@ Deno.serve(async (req) => {
       return json({ ok: true, ts: data.ts })
     }
 
-    if (action === 'gmail_draft') {
-      // メールのクライアント様：改善案を書き終えた文面で Gmail に新しいメールの下書きを作る（送るのはむー様が Gmail で）
+    if (action === 'send_email') {
+      // メールのクライアント様：Spanaviの画面で文面と宛先を確かめて押したら、むー様のGmailから送る（10/5 むー様：下書きを挟まない）
       const text = String(body.text || '').trim()
       if (!body.report_id || !text) return json({ error: '文面がありません' }, 400)
       if (text.includes(SCRIPT_PLACEHOLDER)) return json({ error: 'トークスクリプトの改善案がまだ空です。篠宮と相談のうえ書き込んでください' }, 400)
       const { data: rep } = await sb.from('round_reports').select('id, org_id, status, mail_to, mail_cc, mail_subject').eq('id', body.report_id).maybeSingle()
       if (!rep || rep.org_id !== me.org_id) return json({ error: '報告が見つかりません' }, 404)
-      if (rep.status !== 'draft') return json({ error: 'すでに下書き済みか送信済みです' }, 409)
+      if (rep.status !== 'draft') return json({ error: 'すでに送信済みです' }, 409)
       const to = String(body.to || rep.mail_to || '').trim()
       if (!to) return json({ error: '宛先が分かりません。宛先を入れてください' }, 400)
       const cc = String(body.cc ?? rep.mail_cc ?? '').split(',').map(s => s.trim()).filter(Boolean)
       const token = await getGmailToken(sb)
-      const draftId = await createNewDraft(token, { to, cc, subject: rep.mail_subject || '【架電状況のご報告】', body: text })
+      const messageId = await sendNewMail(token, { to, cc, subject: rep.mail_subject || '【架電状況のご報告】', body: text })
       await sb.from('round_reports').update({
-        status: 'gmail_draft', gmail_draft_id: draftId, mail_to: to, mail_cc: cc.join(', ') || null,
+        status: 'sent', sent_at: new Date().toISOString(), mail_to: to, mail_cc: cc.join(', ') || null,
         sent_text: text, sent_by: me.id, updated_at: new Date().toISOString(),
       }).eq('id', rep.id)
-      return json({ ok: true, draft_id: draftId })
+      return json({ ok: true, message_id: messageId })
     }
 
     return json({ error: `不明な操作です（${action}）` }, 400)

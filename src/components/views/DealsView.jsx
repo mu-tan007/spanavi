@@ -338,7 +338,7 @@ export default function DealsView({ isAdmin = false, currentUser = '', clientDat
           />
         )}
         {activeTab === 'reports' && isAdmin && (
-          <ReportsTab client={selectedClient} clientData={clientData} callListData={callListData} onCountsChanged={refreshReportCounts} />
+          <ReportsTab client={selectedClient} clientData={clientData} callListData={callListData} onCountsChanged={refreshReportCounts} pendingByClient={reportCounts.byClient} onSelectClient={setSelectedClientId} />
         )}
         {activeTab === 'giftdm' && selectedClient && (
           <GiftDmTab

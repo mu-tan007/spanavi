@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { color, space, font } from '../../../constants/design';
-import { Card, Badge, DataTable } from '../../ui';
+import { Card, Badge, Button, DataTable } from '../../ui';
 import { fetchRoundReportHistory } from '../../../lib/supabaseWrite';
 import RoundReportsCard from '../RoundReportsCard';
 import PrecheckDraftsCard from '../PrecheckDraftsCard';
@@ -26,7 +26,7 @@ const ymd = (iso) => {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-export default function ReportsTab({ client, clientData = [], callListData = [], onCountsChanged = null }) {
+export default function ReportsTab({ client, clientData = [], callListData = [], onCountsChanged = null, pendingByClient = {}, onSelectClient = null }) {
   const clientId = client?.id || null;
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -42,13 +42,29 @@ export default function ReportsTab({ client, clientData = [], callListData = [],
   // 送信待ちが動いたら、件数と履歴を読み直す
   const onChanged = () => { onCountsChanged?.(); loadHistory(); };
   const opened = history.find(h => h.id === openId);
+  const pendingClients = Object.entries(pendingByClient)
+    .map(([id, n]) => ({ id, n, name: clientData.find(c => c._supaId === id)?.company || '（名前不明）' }))
+    .sort((a, b) => b.n - a.n);
 
   return (
     <div>
+      {/* クライアント様を選んでいないとき：送信待ちがあるクライアント様を並べ、押すとそのクライアント様に切り替える */}
+      {!clientId && pendingClients.length > 0 && (
+        <Card padding="md" title="送信待ちがあるクライアント様" style={{ marginBottom: space[4] }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[2] }}>
+            {pendingClients.map(p => (
+              <Button key={p.id} size="sm" variant="outline" onClick={() => onSelectClient?.(p.id)}>{p.name}（{p.n}）</Button>
+            ))}
+          </div>
+        </Card>
+      )}
       <RoundReportsCard clientData={clientData} callListData={callListData} isAdmin clientId={clientId} onChanged={onChanged} />
       <PrecheckDraftsCard clientData={clientData} isAdmin clientId={clientId} onChanged={onChanged} />
 
       <Card padding="md" title="これまでの周回報告" description="行を押すと送った文面が出ます">
+        {history.length === 0 && !loading ? (
+          <div style={{ fontSize: font.size.sm, color: color.textMid, padding: `${space[2]}px 0` }}>まだ周回報告はありません</div>
+        ) : (
         <DataTable
           columns={[
             { key: 'when', label: '日時', width: 110, align: 'right', render: r => ymd(r.sent_at || r.updated_at) },
@@ -64,8 +80,10 @@ export default function ReportsTab({ client, clientData = [], callListData = [],
           loading={loading}
           emptyMessage="まだ周回報告はありません"
           onRowClick={r => setOpenId(id => (id === r.id ? null : r.id))}
-          height={Math.min(420, 56 + history.length * 40)}
+          fillWidth
+          height={Math.min(440, 96 + history.length * 44)}
         />
+        )}
         {opened && (
           <div style={{
             whiteSpace: 'pre-wrap', fontSize: font.size.sm, color: color.textDark,

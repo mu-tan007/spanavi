@@ -461,9 +461,14 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   });
   // 送信待ちの報告（周回報告・事前確認の報告）の件数。サイドバーの「案件」に出す（管理者のみ・2026-10-05）
   const [pendingReports, setPendingReports] = useState(0);
+  const [pendingByClient, setPendingByClient] = useState({});
   const refreshPendingReports = useCallback(async () => {
     if (!isAdmin) return;
-    try { setPendingReports((await fetchPendingReportCounts()).total); } catch { /* 件数が出なくても画面は使える */ }
+    try {
+      const r = await fetchPendingReportCounts();
+      setPendingReports(r.total);
+      setPendingByClient(r.byClient);
+    } catch { /* 件数が出なくても画面は使える */ }
   }, [isAdmin]);
   useEffect(() => {
     refreshPendingReports();
@@ -1044,7 +1049,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                     }}
                     onMouseEnter={e => { if (!_sbChildActive) e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
                     onMouseLeave={e => { if (!_sbChildActive) e.currentTarget.style.background = 'transparent'; }}
-                    >{child.label}{child.id === 'deals' && pendingReports > 0 && (<span title="送信待ちの報告" style={{ marginLeft: 6, padding: '0 6px', borderRadius: radius.pill, background: color.gold, color: color.navyDeep, fontSize: 11, fontWeight: 700 }}>{pendingReports}</span>)}</button>
+                    >{child.label}{child.id === 'deals' && pendingReports > 0 && (<span role="button" title={'送信待ちの報告：' + Object.entries(pendingByClient).map(([id, n]) => ((clientData.find(c => c._supaId === id)?.company || '').replace(/株式会社|合同会社/g, '') || '名前不明') + ' ' + n + '件').join('／')} onClick={e => { e.stopPropagation(); openDealsReports(null); }} style={{ marginLeft: 6, padding: '0 6px', borderRadius: radius.pill, background: color.gold, color: color.navyDeep, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{pendingReports}</span>)}</button>
                   );
                 })}
               </div>
@@ -1391,7 +1396,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                       }}
                       onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = C.offWhite; } }}
                       onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = C.white; } }}
-                      >{child.label}{child.id === 'deals' && pendingReports > 0 && (<span title="送信待ちの報告" style={{ marginLeft: 6, padding: '0 6px', borderRadius: radius.pill, background: color.gold, color: color.navyDeep, fontSize: 11, fontWeight: 700 }}>{pendingReports}</span>)}</button>
+                      >{child.label}{child.id === 'deals' && pendingReports > 0 && (<span role="button" title={'送信待ちの報告：' + Object.entries(pendingByClient).map(([id, n]) => ((clientData.find(c => c._supaId === id)?.company || '').replace(/株式会社|合同会社/g, '') || '名前不明') + ' ' + n + '件').join('／')} onClick={e => { e.stopPropagation(); openDealsReports(null); }} style={{ marginLeft: 6, padding: '0 6px', borderRadius: radius.pill, background: color.gold, color: color.navyDeep, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{pendingReports}</span>)}</button>
                     );
                   })}
                 </div>
