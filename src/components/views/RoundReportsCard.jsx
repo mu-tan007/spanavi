@@ -124,7 +124,7 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
               <span style={{ fontWeight: font.weight.bold, color: color.navy }}>{cl?.company || ''}</span>
               <span style={{ color: color.textMid }}>{listLabel(row.list?.name)}</span>
               <Badge size="sm" variant={row.kind === 'manual' ? 'warn' : 'primary'}>
-                {row.kind === 'manual' ? `${row.round}周目の途中` : `${row.round}周目`}
+                {row.kind === 'manual' ? '途中報告' : `${row.round}周目`}
               </Badge>
               <span style={{ marginLeft: 'auto', fontSize: font.size.xs, color: color.textMid }}>
                 接続率 {pct(t.talks, t.calls)}・アポ {t.appo ?? 0}件（{(t.calls ?? 0).toLocaleString()}コール）
