@@ -4,6 +4,9 @@ import SidebarShell, { ActiveItem, SectionHeader } from './SidebarShell';
 
 // 「全社」タブ（管理者のみ）のメニュー。ページを足すときは CORPORATE_TABS にも入れる。
 export const CORPORATE_SECTIONS = [
+  { label: 'BUSINESS', items: [
+    { id: 'business_metrics', label: '業績' },
+  ]},
   { label: 'MARKETING', items: [
     { id: 'site_analytics', label: 'サイト分析' },
   ]},

@@ -215,6 +215,7 @@ export function useSpanaviData(authOrgId) {
         no: c.sort_order || 0,
         status: c.status || '',
         contract: c.contract_status || '',
+        contractSignedOn: c.contract_signed_on || '',
         company: c.name || '',
         industry: c.industry || '',
         target: c.supply_target || 0,

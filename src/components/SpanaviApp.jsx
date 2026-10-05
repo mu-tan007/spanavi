@@ -40,6 +40,7 @@ import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
 import CorporateSidebar, { CORPORATE_SECTIONS, CORPORATE_TABS } from './common/sidebars/CorporateSidebar';
 import SiteAnalyticsView from './views/corporate/SiteAnalyticsView';
+import BusinessMetricsView from './views/corporate/BusinessMetricsView';
 import CapitalApp from './views/capital/CapitalApp';
 import { capitalNavigate, getCapitalPathname } from './views/capital/lib/capitalNav';
 import RecallModal from './views/RecallModal';
@@ -434,7 +435,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
     });
   }, [supabaseData?.callLists, switchEngagement]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","admin_settings"];
   // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
   const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
@@ -1415,6 +1416,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は実装中です" />
         )}
         {engSlug === 'spartia_capital' && currentTab !== 'admin_settings' && <CapitalApp isAdmin={isAdmin} />}
+        {engSlug === 'corporate' && isAdmin && currentTab === 'business_metrics' && <BusinessMetricsView />}
         {engSlug === 'corporate' && isAdmin && currentTab === 'site_analytics' && <SiteAnalyticsView />}
         {engSlug !== 'seller_sourcing' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && engSlug !== 'corporate' && currentTab !== 'admin_settings' && (
           <EngagementPlaceholder engagement={currentEngagement} />

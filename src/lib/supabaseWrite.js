@@ -215,6 +215,7 @@ export async function insertClient(data, engagementId = null) {
       name: data.company,
       status: data.status || '準備中',
       contract_status: data.contract || '未',
+      contract_signed_on: data.contractSignedOn || null,
       industry: data.industry || '',
       supply_target: parseInt(data.target) || 0,
       reward_type: data.rewardType || null,
@@ -246,6 +247,8 @@ export async function updateClient(supaId, data) {
       name: data.company,
       status: data.status,
       contract_status: data.contract,
+      // 契約締結日（全社 > 業績の新規顧客の月判定に使う）
+      contract_signed_on: data.contractSignedOn === undefined ? undefined : (data.contractSignedOn || null),
       industry: data.industry,
       supply_target: parseInt(data.target) || 0,
       reward_type: data.rewardType,

@@ -167,6 +167,16 @@ export default function ClientFormModal({
                 ]}
               />
             </div>
+            <div>
+              <label style={labelStyle}>契約締結日</label>
+              <Input
+                size="sm"
+                type="date"
+                value={form.contractSignedOn || ''}
+                onChange={e => u('contractSignedOn', e.target.value)}
+              />
+            </div>
+            <div />
 
             <div style={{ gridColumn: '1 / -1' }}>
               {isEdit ? (
