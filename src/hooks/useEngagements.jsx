@@ -8,12 +8,16 @@ const STORAGE_KEY = 'spanavi_current_engagement_slug';
 // engagements テーブルには商材×ステージの全組合せ (IFAリード獲得 等) が active で
 // 存在するが、それらは EngagementPlaceholder にフォールバックするだけのため、
 // localStorage に古い slug が残っていてもプレースホルダーに戻らないようにする。
-const IMPLEMENTED_ENG_SLUGS = ['seller_sourcing', 'spartia_career', 'corporate'];
+const IMPLEMENTED_ENG_SLUGS = ['seller_sourcing', 'spartia_career', 'corporate', 'acquisition'];
 
 // 「全社」タブ（管理者のみ）。DB の engagements / products には置かない仮想の事業。
 // DB に入れると CRM・案件などの事業の選択肢に混ざるため、ここで別に持つ。
 export const CORPORATE_PRODUCT = { id: 'corporate', name: '全社', slug: 'corporate', display_order: 0 };
 export const CORPORATE_ENGAGEMENT = { id: 'corporate', name: '全社', slug: 'corporate', status: 'active', product_id: 'corporate', virtual: true };
+// 「買収」タブ（管理者のみ）。全社と同じく DB に置かない仮想の事業。弊社が買い手として受けた案件を扱う。
+export const ACQUISITION_PRODUCT = { id: 'acquisition', name: '買収', slug: 'acquisition', display_order: 0.5 };
+export const ACQUISITION_ENGAGEMENT = { id: 'acquisition', name: '買収', slug: 'acquisition', status: 'active', product_id: 'acquisition', virtual: true };
+const VIRTUAL_ENGAGEMENTS = { corporate: CORPORATE_ENGAGEMENT, acquisition: ACQUISITION_ENGAGEMENT };
 
 const EngagementContext = createContext(null);
 
@@ -57,7 +61,7 @@ export function EngagementProvider({ children }) {
           setDbEngagements(engRes.data);
           const saved = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch { return null; } })();
           const all = engRes.data;
-          const initial = (saved === 'corporate' ? CORPORATE_ENGAGEMENT : null)
+          const initial = (VIRTUAL_ENGAGEMENTS[saved] || null)
             || all.find(e => e.slug === saved && IMPLEMENTED_ENG_SLUGS.includes(e.slug))
             || all.find(e => e.slug === 'seller_sourcing')
             || all[0];
@@ -90,7 +94,7 @@ export function EngagementProvider({ children }) {
   const products = useMemo(() => dbProducts, [dbProducts]);
   const categories = useMemo(() => dbCategories, [dbCategories]);
   const currentEngagement = useMemo(
-    () => (currentSlug === 'corporate' ? CORPORATE_ENGAGEMENT : engagements.find(e => e.slug === currentSlug)) || null,
+    () => (VIRTUAL_ENGAGEMENTS[currentSlug] || engagements.find(e => e.slug === currentSlug)) || null,
     [engagements, currentSlug]
   );
   // 現在の engagement が属する product
@@ -105,7 +109,7 @@ export function EngagementProvider({ children }) {
   );
 
   const switchEngagement = (slug) => {
-    const eng = slug === 'corporate' ? CORPORATE_ENGAGEMENT : engagements.find(e => e.slug === slug);
+    const eng = VIRTUAL_ENGAGEMENTS[slug] || engagements.find(e => e.slug === slug);
     if (!eng) return;
     setCurrentSlug(slug);
     try { localStorage.setItem(STORAGE_KEY, slug); } catch { /* ignore */ }

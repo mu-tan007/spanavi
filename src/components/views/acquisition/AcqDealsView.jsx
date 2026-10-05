@@ -1,0 +1,173 @@
+import React, { useMemo, useState } from 'react';
+import { color, space, font } from '../../../constants/design';
+import { Badge, Button, DataTable, Input, Select } from '../../ui';
+import PageHeader from '../../common/PageHeader';
+import {
+  STAGES, STAGE_BY_VALUE, stageLabel, isOpenStage, TOP_MEETING_OR_LATER,
+  priceRange, priceBasisLabel, schemeLabel, yen, fmtDate,
+} from './acqConstants';
+import { KeyFigure } from './AcqShared';
+import AcqDealFormModal from './AcqDealFormModal';
+
+// 買収 > 案件：紹介を受けた全案件の一覧
+const VIEW_OPTIONS = [
+  { value: 'open', label: '進行中' },
+  { value: 'all', label: '終了も含む（候補を除く）' },
+  { value: 'candidate', label: '配信から候補' },
+  { value: 'closed', label: '終了したもの' },
+];
+
+function DocMarks({ row }) {
+  const items = [['NN', row.has_nonname], ['IM', row.has_im], ['QA', row.has_qa]];
+  return (
+    <span style={{ display: 'inline-flex', gap: space[1] }}>
+      {items.map(([k, on]) => (
+        <span key={k} style={{
+          fontSize: font.size.xs, fontFamily: font.family.mono, padding: '0 4px',
+          color: on ? color.navy : color.textLight, fontWeight: on ? font.weight.semibold : font.weight.normal,
+          border: `1px solid ${on ? color.navy : color.borderLight}`, borderRadius: 3,
+        }}>{k}</span>
+      ))}
+    </span>
+  );
+}
+
+export default function AcqDealsView({ data, onOpenDeal }) {
+  const { deals, firms, contacts, loading, error, reload } = data;
+  const [view, setView] = useState('open');
+  const [q, setQ] = useState('');
+  const [firmFilter, setFirmFilter] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const stats = useMemo(() => {
+    const real = deals.filter(d => d.current_stage !== 'candidate');
+    return {
+      total: real.length,
+      open: real.filter(d => isOpenStage(d.current_stage)).length,
+      candidates: deals.length - real.length,
+    };
+  }, [deals]);
+
+  const rows = useMemo(() => {
+    const kw = q.trim().toLowerCase();
+    return deals.filter(d => {
+      const st = d.current_stage;
+      if (view === 'open' && (st === 'candidate' || !isOpenStage(st))) return false;
+      if (view === 'all' && st === 'candidate') return false;
+      if (view === 'candidate' && st !== 'candidate') return false;
+      if (view === 'closed' && (st === 'candidate' || isOpenStage(st))) return false;
+      if (firmFilter && d.source_firm_id !== firmFilter) return false;
+      if (kw) {
+        const hay = [d.name, d.project_name, d.industry, d.region, d.source_firm_name, d.source_contact_name, d.summary]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(kw)) return false;
+      }
+      return true;
+    });
+  }, [deals, view, q, firmFilter]);
+
+  const columns = [
+    { key: 'display_name', label: '案件名', width: 220, align: 'left', sticky: true, sortable: true,
+      render: (r) => (
+        <div style={{ lineHeight: 1.35 }}>
+          <div style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.display_name}</div>
+          {r.name && r.project_name && <div style={{ fontSize: font.size.xs, color: color.textLight }}>{r.project_name}</div>}
+        </div>
+      ) },
+    { key: 'industry', label: '業種・地域', width: 170, align: 'left',
+      render: (r) => [r.industry, r.region].filter(Boolean).join('・') || '—' },
+    { key: 'source_firm_name', label: '紹介元', width: 170, align: 'left', sortable: true,
+      render: (r) => (
+        <div style={{ lineHeight: 1.35 }}>
+          <div>{r.source_firm_name || '—'}</div>
+          {r.source_contact_name && <div style={{ fontSize: font.size.xs, color: color.textLight }}>{r.source_contact_name}様</div>}
+        </div>
+      ) },
+    { key: 'received_on', label: '受領日', width: 96, align: 'right', sortable: true,
+      cellStyle: { fontFamily: font.family.mono }, render: (r) => fmtDate(r.received_on) },
+    { key: 'current_stage', label: '段階', width: 130, align: 'center', sortable: true,
+      sortValue: (r) => STAGES.findIndex(s => s.value === r.current_stage),
+      render: (r) => <Badge variant={STAGE_BY_VALUE[r.current_stage]?.variant || 'default'} dot>{stageLabel(r.current_stage)}</Badge> },
+    { key: 'revenue', label: '売上', width: 90, align: 'right', sortable: true, sortType: 'number',
+      cellStyle: { fontFamily: font.family.mono }, render: (r) => yen(r.revenue) },
+    { key: 'ebitda', label: '修正EBITDA', width: 130, align: 'right', sortable: true, sortType: 'number',
+      sortValue: (r) => r.ebitda_ours ?? r.ebitda_im,
+      cellStyle: { fontFamily: font.family.mono },
+      render: (r) => (
+        <div style={{ lineHeight: 1.35 }}>
+          <div>{yen(r.ebitda_ours ?? r.ebitda_im)}</div>
+          {r.ebitda_ours != null && r.ebitda_im != null && Number(r.ebitda_ours) !== Number(r.ebitda_im) && (
+            <div style={{ fontSize: font.size.xs, color: color.textLight }}>IM {yen(r.ebitda_im)}</div>
+          )}
+        </div>
+      ) },
+    { key: 'asking', label: '希望価格', width: 140, align: 'right', sortable: true, sortType: 'number',
+      sortValue: (r) => r.asking_price_min ?? r.asking_price_max,
+      cellStyle: { fontFamily: font.family.mono },
+      render: (r) => (
+        <div style={{ lineHeight: 1.35 }}>
+          <div style={{ fontWeight: font.weight.semibold, color: color.navy }}>{priceRange(r.asking_price_min, r.asking_price_max)}</div>
+          {(r.asking_price_min != null || r.asking_price_max != null) && (
+            <div style={{ fontSize: font.size.xs, color: color.textLight }}>{priceBasisLabel(r.asking_price_basis)}</div>
+          )}
+          {r.asking_price_min == null && r.asking_price_max == null && r.asking_price_text && (
+            <div style={{ fontSize: font.size.xs, color: color.textMid }}>{r.asking_price_text}</div>
+          )}
+        </div>
+      ) },
+    { key: 'multiple', label: '倍率', width: 70, align: 'right', sortable: true, sortType: 'number',
+      cellStyle: { fontFamily: font.family.mono }, render: (r) => (r.multiple != null ? `${r.multiple}倍` : '—') },
+    { key: 'net_cash', label: 'ネットキャッシュ', width: 110, align: 'right', sortable: true, sortType: 'number',
+      cellStyle: { fontFamily: font.family.mono }, render: (r) => yen(r.net_cash) },
+    { key: 'scheme', label: 'スキーム', width: 84, align: 'center', render: (r) => schemeLabel(r.scheme) },
+    { key: 'next_deadline_on', label: '次の期限', width: 120, align: 'right', sortable: true,
+      render: (r) => (r.next_deadline_on
+        ? <div style={{ lineHeight: 1.35 }}><div style={{ fontFamily: font.family.mono }}>{fmtDate(r.next_deadline_on)}</div>{r.next_deadline_label && <div style={{ fontSize: font.size.xs, color: color.textLight }}>{r.next_deadline_label}</div>}</div>
+        : '—') },
+    { key: 'docs', label: '書類', width: 120, align: 'center', render: (r) => <DocMarks row={r} /> },
+    { key: 'closed_reason', label: '結果・理由', width: 240, align: 'left',
+      render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.closed_reason || ''}</span> },
+  ];
+
+  const firmOptions = [{ value: '', label: 'すべての紹介元' }, ...firms.map(f => ({ value: f.id, label: f.name }))];
+
+  return (
+    <div>
+      <PageHeader
+        title="案件"
+        description="仲介会社・FAから紹介を受けた売却案件。行を押すと詳細が開きます"
+        right={<Button variant="primary" onClick={() => setCreating(true)}>案件を追加</Button>}
+      />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[3], marginBottom: space[4] }}>
+        <KeyFigure label="紹介を受けた案件" value={`${stats.total}件`} />
+        <KeyFigure label="進行中" value={`${stats.open}件`} />
+        <KeyFigure label="配信から候補" value={`${stats.candidates}件`} />
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[2], marginBottom: space[3], alignItems: 'flex-end' }}>
+        <div style={{ width: 220 }}><Select size="sm" value={view} onChange={(e) => setView(e.target.value)} options={VIEW_OPTIONS} /></div>
+        <div style={{ width: 240 }}><Select size="sm" value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} options={firmOptions} /></div>
+        <div style={{ width: 260 }}><Input size="sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="案件名・業種・紹介元で探す" /></div>
+      </div>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey="id"
+        loading={loading}
+        error={error}
+        emptyMessage="該当する案件がありません"
+        onRowClick={(r) => onOpenDeal(r.id)}
+        rowAccent={(r) => (r.current_stage === 'candidate' ? 'info' : (TOP_MEETING_OR_LATER.includes(r.current_stage) ? 'primary' : null))}
+        defaultSort={{ key: 'received_on', dir: 'desc' }}
+        height="calc(100vh - 330px)"
+      />
+      {creating && (
+        <AcqDealFormModal
+          firms={firms}
+          contacts={contacts}
+          onClose={() => setCreating(false)}
+          onSaved={async (id) => { setCreating(false); await reload(); if (id) onOpenDeal(id); }}
+        />
+      )}
+    </div>
+  );
+}

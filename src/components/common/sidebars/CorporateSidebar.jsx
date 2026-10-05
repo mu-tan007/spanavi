@@ -13,7 +13,21 @@ export const CORPORATE_SECTIONS = [
 ];
 export const CORPORATE_TABS = CORPORATE_SECTIONS.flatMap(s => s.items.map(it => it.id));
 
+// 「買収」タブ（管理者のみ）のメニュー。ページを足すときは ACQUISITION_TABS にも入る。
+export const ACQUISITION_SECTIONS = [
+  { label: 'DEALS', items: [
+    { id: 'acq_deals', label: '案件' },
+  ]},
+  { label: 'NETWORK', items: [
+    { id: 'acq_firms', label: '仲介会社・FA' },
+    { id: 'acq_contacts', label: '担当者' },
+  ]},
+];
+export const ACQUISITION_TABS = ACQUISITION_SECTIONS.flatMap(s => s.items.map(it => it.id));
+
+// sections を渡すと同じ見た目で別の仮想事業（買収）のメニューにもなる
 export default function CorporateSidebar({
+  sections = CORPORATE_SECTIONS,
   currentTab,
   setCurrentTab,
   branding,
@@ -45,7 +59,7 @@ export default function CorporateSidebar({
         ><Settings size={14} />設定</button>
       )}
     >
-      {CORPORATE_SECTIONS.map(section => (
+      {sections.map(section => (
         <React.Fragment key={section.label}>
           <SectionHeader label={section.label} />
           {section.items.map(it => (
