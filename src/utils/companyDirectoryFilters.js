@@ -46,6 +46,8 @@ export const DIRECTORY_EXPORT_COLUMNS = [
  ['source_company_code','提供元の企業コード'],['ordinary_income_k','経常利益（千円）'],['crm_stage','対応状況'],['owner_name','担当者'],
  ['address_match','会社住所と代表者自宅住所',r=>({same:'一致',different:'不一致',unknown:'判定不可'}[r.address_match] || '')],
  ['next_action_at','次回対応'],['registry_status','登記確認状況'],
+ ['call_count','架電回数'],['last_call_at','最終架電日',r=>r.last_call_at?new Date(r.last_call_at).toLocaleDateString('sv-SE',{timeZone:'Asia/Tokyo'}):''],
+ ['last_call_status','最後の架電結果'],['last_call_list','最後に架電したリスト'],
 ].map(([key,label,get],index)=>({key,label,get,defaultExport:index<14}));
 export const directoryCsvQuote = value => {
  const text = String(value ?? '');
@@ -152,4 +154,4 @@ export function directoryConditionChips(f, names = {}) {
 }
 
 // 表に既定で出す列（DIRECTORY_EXPORT_COLUMNS の key）。企業名はいつも左端に固定で出す。
-export const DIRECTORY_DEFAULT_COLUMNS = ['prefecture','industry_sub','revenue_k','employee_count','representative','phone','crm_stage','owner_name','next_action_at'];
+export const DIRECTORY_DEFAULT_COLUMNS = ['prefecture','industry_sub','revenue_k','employee_count','representative','phone','call_count','last_call_at','last_call_status','last_call_list'];

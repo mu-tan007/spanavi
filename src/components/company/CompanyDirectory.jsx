@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, ChevronDown, Download, RefreshCw, Columns3 } from 'lucide-react';
-import { Button, Select, Card, Badge, DataTable, Pager } from '../ui';
+import { Button, Card, Badge, DataTable, Pager } from '../ui';
 import { color, space, font, radius, shadow } from '../../constants/design';
 import { fetchCompanyProfileStats } from '../../lib/companyProfileApi';
 import { searchCompanyDirectory, buildDirectoryCsv } from '../../lib/companyDirectoryApi';
@@ -24,22 +24,38 @@ import DatabaseExportColumnModal from '../database/DatabaseExportColumnModal';
 // =====================================================================
 
 const PAGE_SIZE = 50;
-const COLUMN_STORE = 'spanavi.companyDb.columns';
+const COLUMN_STORE = 'spanavi.companyDb.columns.v2';   // v2：架電の列を既定に足した（2026-10-05）
+// 検索条件と最後に検索した条件。読み込み直しても消えないよう、このタブの間だけ残す。
+const SEARCH_STORE = 'spanavi.companyDb.search';
+// 見出しで並べ替えられる列（search_company_directory の sortCol と同じ）。文字の列は昇順から。
+const SORTABLE = { company_name: 'string', prefecture: 'string', next_action_at: 'string', revenue_k: 'number', net_income_k: 'number', ordinary_income_k: 'number', capital_k: 'number', employee_count: 'number', representative_age: 'number', established_year: 'number' };
 const matchLabels = { same: '一致', different: '不一致', unknown: '判定不可' };
 const NUMBER_KEYS = new Set(['revenue_k', 'net_income_k', 'ordinary_income_k', 'capital_k', 'employee_count', 'representative_age', 'established_year']);
-const WIDTH = { business_description: 220, address: 240, shareholders: 200, officers: 200, clients: 200, remarks: 200, next_action_at: 150, phone: 130, industry_sub: 160, industry_major: 140, id: 280 };
+const WIDTH = { last_call_list: 230, last_call_status: 130, last_call_at: 110, call_count: 90, business_description: 220, address: 240, shareholders: 200, officers: 200, clients: 200, remarks: 200, next_action_at: 150, phone: 130, industry_sub: 160, industry_major: 140, id: 280 };
 
 const fmtNumber = (v) => (v == null || v === '' ? '—' : Number(v).toLocaleString('ja-JP'));
 function columnDef(c) {
-  const base = { key: c.key, label: c.label, width: WIDTH[c.key] || (NUMBER_KEYS.has(c.key) ? 120 : 120) };
+  const base = { key: c.key, label: c.label, width: WIDTH[c.key] || 120, ...(SORTABLE[c.key] ? { sortable: true, sortType: SORTABLE[c.key] } : {}) };
   if (NUMBER_KEYS.has(c.key)) return { ...base, align: 'right', render: (r) => fmtNumber(r[c.key]) };
   if (c.key === 'address_match') return { ...base, align: 'center', render: (r) => (r.address_match ? <Badge variant={r.address_match === 'same' ? 'success' : 'neutral'}>{matchLabels[r.address_match]}</Badge> : '—') };
   if (c.key === 'crm_stage' || c.key === 'registry_status') return { ...base, align: 'center', render: (r) => r[c.key] || '—' };
   if (c.key === 'next_action_at') return { ...base, align: 'right', render: (r) => (r.next_action_at ? new Date(r.next_action_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—') };
+  if (c.key === 'call_count') return { ...base, align: 'right', render: (r) => (r.call_count > 0 ? r.call_count.toLocaleString('ja-JP') + '回' : <span style={{ color: color.textLight }}>未架電</span>) };
+  if (c.key === 'last_call_at') return { ...base, align: 'right', render: (r) => (r.last_call_at ? new Date(r.last_call_at).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—') };
+  if (c.key === 'last_call_status') return { ...base, align: 'center', render: (r) => (r.last_call_status ? <Badge variant="neutral">{r.last_call_status}</Badge> : '—') };
+  if (c.key === 'last_call_list') return { ...base, align: 'left', render: (r) => (r.last_call_list ? <span title={r.last_call_list}>{r.last_call_list}</span> : '—') };
   if (c.key === 'industry_sub') return { ...base, align: 'left', render: (r) => r.industry_sub || r.industry || '—' };
   return { ...base, align: 'left', render: c.get ? (r) => c.get(r) || '—' : (r) => r[c.key] ?? r.values?.[c.key] ?? '—' };
 }
 const PICKABLE = DIRECTORY_EXPORT_COLUMNS.filter((c) => c.key !== 'company_name');
+
+function loadSearch() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(SEARCH_STORE) || 'null');
+    if (saved && typeof saved === 'object') return saved;
+  } catch { /* 読めなければ未検索から */ }
+  return null;
+}
 
 function loadColumns() {
   try {
@@ -90,19 +106,26 @@ function ColumnPicker({ value, onChange }) {
   );
 }
 
-export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen = false, onCloseAi }) {
+export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
   const isMobile = useIsMobile();
-  const [draft, setDraft] = useState(DIRECTORY_FILTERS), [request, setRequest] = useState(null);
+  const saved = useMemo(loadSearch, []);
+  const [draft, setDraft] = useState(() => ({ ...DIRECTORY_FILTERS, ...(saved?.draft || {}) }));
+  const [request, setRequest] = useState(() => (saved?.applied ? { filters: { ...DIRECTORY_FILTERS, ...saved.applied }, collapse: false } : null));
+  const [aiOpen, setAiOpen] = useState(false);
   const [result, setResult] = useState({ rows: [], count: null, filters: DIRECTORY_FILTERS });
   const [stats, setStats] = useState(null), [loading, setLoading] = useState(false), [error, setError] = useState('');
-  const [validation, setValidation] = useState(''), [expanded, setExpanded] = useState(true), [attempt, setAttempt] = useState(0), [target, setTarget] = useState(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [validation, setValidation] = useState(''), [expanded, setExpanded] = useState(() => saved?.expanded ?? true), [attempt, setAttempt] = useState(0), [target, setTarget] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(() => !!saved?.detailsOpen);
   const [visibleColumns, setVisibleColumns] = useState(loadColumns);
   const [columnPicker, setColumnPicker] = useState(false), [exporting, setExporting] = useState(false), [exportProgress, setExportProgress] = useState(0), [exportError, setExportError] = useState('');
   const exportController = useRef(null), active = useRef(true);
   const { options, names, error: optionError, retry: retryOptions } = useDirectoryFilterOptions();
 
   useEffect(() => { active.current = true; return () => { active.current = false; exportController.current?.abort(); }; }, []);
+  // 条件と、最後に検索した条件（ページ・並び順を含む）を残す
+  useEffect(() => {
+    try { sessionStorage.setItem(SEARCH_STORE, JSON.stringify({ draft, applied: request?.filters || null, expanded, detailsOpen })); } catch { /* 残せなくても画面は動かす */ }
+  }, [draft, request, expanded, detailsOpen]);
   useEffect(() => {
     const controller = new AbortController(); let current = true;
     fetchCompanyProfileStats(controller.signal).then((data) => { if (current) setStats(data); }).catch((e) => { if (current) setError(e.message); });
@@ -136,6 +159,14 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
   };
   const clear = () => { setDraft(DIRECTORY_FILTERS); setValidation(''); setExpanded(true); setDetailsOpen(false); setError(''); setRequest(null); setResult({ rows: [], count: null, filters: DIRECTORY_FILTERS }); };
   const page = (index) => setRequest({ filters: { ...result.filters, page: index }, collapse: false });
+  // 見出しで並べ替え：適用済みの条件のまま、1ページ目から引き直す
+  const sortBy = (state) => {
+    if (!state || !request) return;
+    const cur = request.filters;
+    if (state.key === cur.sortCol && state.dir === cur.sortDir) return;
+    setDraft((prev) => ({ ...prev, sortCol: state.key, sortDir: state.dir }));
+    setRequest({ filters: { ...cur, sortCol: state.key, sortDir: state.dir, page: 0 }, collapse: false });
+  };
   // チップの×：下書きだけを変える。検索はしない（押した後は検索ボタンへ）。
   const removeChip = (patch) => { setDraft((prev) => ({ ...prev, ...patch })); setTimeout(() => typeof document !== 'undefined' && document.querySelector('[data-directory-search]')?.focus(), 0); };
 
@@ -156,7 +187,7 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
   const strip = (f) => JSON.stringify({ ...f, page: 0, pageSize: PAGE_SIZE });
   const draftChanged = !!request && strip(normalizeDirectoryFilters(draft)) !== strip(result.filters);
   const columns = useMemo(() => [
-    { key: 'company_name', label: '企業名', width: 230, align: 'left', mobilePrimary: true, render: (r) => <span style={{ fontWeight: 700, color: color.textDark }}>{r.company_name}</span> },
+    { key: 'company_name', label: '企業名', width: 230, align: 'left', mobilePrimary: true, sortable: true, sortType: 'string', render: (r) => <span style={{ fontWeight: 700, color: color.textDark }}>{r.company_name}</span> },
     ...PICKABLE.filter((c) => visibleColumns.includes(c.key)).map(columnDef),
   ], [visibleColumns]);
 
@@ -175,6 +206,7 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
           <span style={{ fontSize: 11.5, color: color.textLight }}>全 {stats ? stats.total.toLocaleString() : '—'} 社</span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button size="sm" variant="ghost" onClick={() => setAiOpen(true)}>AI検索・保存した条件</Button>
           <Button size="sm" variant="ghost" onClick={clear}>条件クリア</Button>
           <Button size="sm" data-directory-search loading={loading} onClick={() => apply(draft)} title="Enterで検索">検索</Button>
           <button type="button" aria-label={expanded ? '検索条件を閉じる' : '検索条件を変更'} title={expanded ? '検索条件を閉じる' : '検索条件を開く'} aria-expanded={expanded}
@@ -228,14 +260,11 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
       </span>
       <div style={{ flex: 1 }} />
       <ColumnPicker value={visibleColumns} onChange={setVisibleColumns} />
-      <Select size="sm" aria-label="企業一覧の並び順" value={result.filters.sortCol + ':' + result.filters.sortDir} disabled={loading} containerStyle={{ width: 180 }}
-        onChange={(e) => { const [sortCol, sortDir] = e.target.value.split(':'); const filters = { ...result.filters, sortCol, sortDir, page: 0 }; setDraft((prev) => ({ ...prev, sortCol, sortDir })); setRequest({ filters, collapse: false }); }}
-        options={[{ value: 'company_name:asc', label: '企業名順' }, { value: 'revenue_k:desc', label: '売上高が大きい順' }, { value: 'net_income_k:desc', label: '当期純利益が大きい順' }, { value: 'employee_count:desc', label: '従業員数が多い順' }, { value: 'representative_age:desc', label: '代表者年齢が高い順' }, { value: 'next_action_at:asc', label: '次回対応が近い順' }]} />
       <Button size="sm" variant="ghost" aria-label="企業一覧を再読み込み" iconLeft={<RefreshCw size={15} />} onClick={() => setAttempt((n) => n + 1)} disabled={loading}>再読み込み</Button>
       {isAdmin && <Button size="sm" variant="outline" iconLeft={<Download size={15} />} disabled={loading || !!error || !count || exporting} onClick={() => setColumnPicker(true)}>検索結果をCSV出力</Button>}
     </div>
 
-    <DataTable ariaLabel="企業一覧" loading={loading} error={error} rows={result.rows} rowKey="id" fillWidth height="auto" showCount={false}
+    <DataTable key={request.filters.sortCol + ':' + request.filters.sortDir} ariaLabel="企業一覧" manualSort defaultSort={{ key: request.filters.sortCol || 'company_name', dir: request.filters.sortDir || 'asc' }} onSortChange={sortBy} loading={loading} error={error} rows={result.rows} rowKey="id" fillWidth height="auto" showCount={false}
       onRowClick={(row) => setTarget({ companyId: row.id })} emptyMessage="条件に合う企業はありません" rowAccent={(row) => (row.needs_review ? 'warn' : null)} columns={columns} />
 
     <div style={{ marginTop: space[4] }}>
@@ -245,6 +274,6 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
 
     {target && <CompanyProfileDialog target={target} onClose={() => setTarget(null)} onChanged={() => setAttempt((n) => n + 1)} onSelectCompany={(companyId) => setTarget({ companyId })} />}
     {columnPicker && <DatabaseExportColumnModal columns={DIRECTORY_EXPORT_COLUMNS} totalCount={count} onCancel={() => setColumnPicker(false)} onConfirm={exportCsv} />}
-    <DatabaseChatPanel open={aiOpen} onClose={onCloseAi} baseFilters={draft} onApplyFilters={(filters) => { apply(filters); if (advancedDirectoryConditionCount(normalizeDirectoryFilters(filters)) > 0) setDetailsOpen(true); onCloseAi?.(); }} />
+    <DatabaseChatPanel open={aiOpen} onClose={() => setAiOpen(false)} baseFilters={draft} onApplyFilters={(filters) => { apply(filters); if (advancedDirectoryConditionCount(normalizeDirectoryFilters(filters)) > 0) setDetailsOpen(true); setAiOpen(false); }} />
   </>;
 }

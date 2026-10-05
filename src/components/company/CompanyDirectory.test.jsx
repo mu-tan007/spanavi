@@ -87,4 +87,21 @@ describe('企業DBの検索を1画面で扱う',()=>{
   await act(async()=>button('条件クリア').props.onClick());
   const text=JSON.stringify(renderer.toJSON());expect(text).toContain('条件を指定して検索してください');expect(text).not.toContain('初回');
  });
+ it('見出しで並べ替えると、適用済みの条件で1ページ目から引き直す',async()=>{
+  await mount();await act(async()=>node('filters').props.onSearch());
+  await act(async()=>button('検索条件を変更').props.onClick());
+  await act(async()=>node('filters').props.onChange('keyword','未検索'));
+  await act(async()=>renderer.root.findByProps({ariaLabel:'企業一覧'}).props.onSortChange({key:'prefecture',dir:'desc'}));
+  const f=searchCompanyDirectory.mock.calls.at(-1)[0];expect(f.sortCol).toBe('prefecture');expect(f.sortDir).toBe('desc');expect(f.page).toBe(0);expect(f.keyword).toBe('');
+ });
+ it('読み込み直しても、最後に検索した条件で一覧を出し直す',async()=>{
+  const store=new Map();globalThis.sessionStorage={getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,String(v))};
+  try{
+   await mount();await act(async()=>node('filters').props.onChange('keyword','建設'));
+   await act(async()=>node('filters').props.onSearch());
+   act(()=>renderer.unmount());renderer=null;searchCompanyDirectory.mockClear();
+   await mount();
+   expect(searchCompanyDirectory).toHaveBeenCalledTimes(1);expect(searchCompanyDirectory.mock.calls[0][0].keyword).toBe('建設');
+  }finally{delete globalThis.sessionStorage;}
+ });
 });

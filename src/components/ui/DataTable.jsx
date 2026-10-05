@@ -75,6 +75,8 @@ export default function DataTable({
   ariaLabel,
   defaultSort = null,
   onSortChange,
+  // true のとき見出しの並び替えは親に知らせるだけで、行は並べ替えない（サーバー側で並べる一覧用）
+  manualSort = false,
   // 行展開
   expandable,
   renderExpanded,
@@ -104,7 +106,7 @@ export default function DataTable({
   };
 
   const sortedRows = useMemo(() => {
-    if (!sortState || !sortState.key) return rows;
+    if (manualSort || !sortState || !sortState.key) return rows;
     const col = columns.find((c) => c.key === sortState.key);
     if (!col) return rows;
     const accessor = typeof col.sortValue === 'function' ? col.sortValue : (r) => r[col.key];
@@ -120,7 +122,7 @@ export default function DataTable({
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
       return String(va).localeCompare(String(vb), 'ja') * dir;
     });
-  }, [rows, sortState, columns]);
+  }, [rows, sortState, columns, manualSort]);
   // 展開トグル列を表示するか（expandable プロップ指定時のみ）。
   // renderExpanded だけ指定された場合はトグル列なしで body のみ描画
   // （企業名タップ等、外部から toggle するパターンに対応）。
