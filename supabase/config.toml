@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.site-visit]
 verify_jwt = false
+
+[functions.acq-slack-notify]
+verify_jwt = true
