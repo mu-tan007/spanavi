@@ -30,6 +30,7 @@ import ScriptTreeGuide from '../common/ScriptTreeGuide';
 import { resolveListContacts, resolveListClient, tagAppointmentContacts } from '../../utils/listContacts';
 import { initialAppoStatus } from '../../utils/appoStatus';
 import { useAccessControl } from '../../hooks/useAccessControl';
+import { pickExcludeReason } from '../common/excludeReasonPicker';
 
 const CompanyProfileDialog = React.lazy(() => import('../company/CompanyProfileDialog'));
 
@@ -1104,6 +1105,13 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       return;
     }
 
+    // 「除外」は理由の種類を選んでから保存する（キャンセルなら何も保存しない）
+    let excludeScope = null;
+    if (result === '除外') {
+      excludeScope = await pickExcludeReason();
+      if (!excludeScope) return;
+    }
+
     const calledAt = new Date().toISOString();
     const _prevRecResult = callRecords
       .filter(r => r.item_id === selectedRow.id)
@@ -1116,6 +1124,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       item_id: selectedRow.id, list_id: list._supaId,
       round: selectedRound, status: result, memo: localMemo || null,
       called_at: calledAt, recording_url: null, getter_name: currentUser,
+      exclude_scope: excludeScope,
     });
     if (error || !newRec) {
       console.error('[handleResult] insertCallRecord 失敗');

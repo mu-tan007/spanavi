@@ -38,6 +38,7 @@ import { useUrlState } from '../../hooks/useUrlState';
 import { useEngagements } from '../../hooks/useEngagements';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import PageHeader from '../common/PageHeader';
+import { pickExcludeReason } from '../common/excludeReasonPicker';
 
 const SEARCH_COMPANY_COLS = [
   { key: 'company', width: 350, align: 'left' },
@@ -872,6 +873,12 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       setAppoModal({ item: { ...(selectedItemFull || {}), ...selectedItem }, list: l, round: selectedRound });
       return;
     }
+    // 「除外」は理由の種類を選んでから保存する（キャンセルなら何も保存しない）
+    let excludeScope = null;
+    if (label === '除外') {
+      excludeScope = await pickExcludeReason();
+      if (!excludeScope) return;
+    }
     const calledAt = new Date().toISOString();
     const { result: newRec, error } = await insertCallRecord({
       item_id: selectedItem.id,
@@ -881,6 +888,7 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
       memo: localMemo || null,
       called_at: calledAt,
       getter_name: currentUser || null,
+      exclude_scope: excludeScope,
     });
     if (error || !newRec) { console.error('[DetailResult] insertCallRecord 失敗', error); return; }
     const newRecs = [...itemRecords, newRec].sort((a, b) => a.round - b.round);

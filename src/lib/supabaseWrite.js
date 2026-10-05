@@ -1814,6 +1814,8 @@ export async function insertCallRecord(data) {
         called_at: data.called_at || new Date().toISOString(),
         recording_url: data.recording_url || null,
         getter_name: data.getter_name || null,
+        // 「除外」の理由の種類（company / client / duplicate）。他の結果では null
+        exclude_scope: data.status === '除外' ? (data.exclude_scope || null) : null,
       })
       .select()
       .single()
