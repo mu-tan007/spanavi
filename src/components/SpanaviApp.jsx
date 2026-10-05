@@ -423,7 +423,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // リンクは起動時に main.jsx が控えている（utils/precheckLink）。架電リストが読み込めた後に1回だけ処理する
   const precheckLinkHandledRef = useRef(false);
   useEffect(() => {
-    if (precheckLinkHandledRef.current || !supabaseData?.callLists?.length) return;
+    // 全社の画面で開いていると架電リストが0件のまま読み込みが終わるので、件数ではなく読み込み済みかで待つ
+    // （周回報告の通知 ?tab=precheck が全社のダッシュボードで止まっていた・2026-10-05）
+    if (precheckLinkHandledRef.current || !supabaseData) return;
     precheckLinkHandledRef.current = true;
     const link = takePrecheckLink();
     if (!link) return;
@@ -431,10 +433,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     if (!link.appoId) { setCurrentTab('precheck'); return; }
     fetchAppointmentLink(link.appoId).then(a => {
       if (!a?.item_id) return;
-      const list = supabaseData.callLists.find(l => l._supaId === a.list_id) || { _supaId: a.list_id || null, id: null, company: '' };
+      const list = (supabaseData.callLists || []).find(l => l._supaId === a.list_id) || { _supaId: a.list_id || null, id: null, company: '' };
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
     });
-  }, [supabaseData?.callLists, switchEngagement]);
+  }, [supabaseData, switchEngagement]);
   const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","precheck","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","admin_settings"];
   // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
   const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
