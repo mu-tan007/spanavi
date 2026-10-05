@@ -26,8 +26,7 @@ const clip = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap
 function Two({ top, sub, topStyle }) {
   const t = typeof top === 'string' ? top : undefined;
   return (
-    <div style={{ lineHeight: 1.35, minWidth: 0 }} title={[t, sub].filter(Boolean).join('
-') || undefined}>
+    <div style={{ lineHeight: 1.35, minWidth: 0 }} title={[t, sub].filter(Boolean).join(' / ') || undefined}>
       <div style={{ ...clip, ...topStyle }}>{top}</div>
       {sub && <div style={{ ...clip, fontSize: font.size.xs, color: color.textLight }}>{sub}</div>}
     </div>
