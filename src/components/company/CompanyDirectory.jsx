@@ -121,6 +121,8 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
   const [visibleColumns, setVisibleColumns] = useState(loadColumns);
   const [columnPicker, setColumnPicker] = useState(false), [exporting, setExporting] = useState(false), [exportProgress, setExportProgress] = useState(0), [exportError, setExportError] = useState('');
   const exportController = useRef(null), active = useRef(true);
+  const cardRef = useRef(null), draftRef = useRef(draft);
+  draftRef.current = draft;
   const { options, names, error: optionError, retry: retryOptions } = useDirectoryFilterOptions();
 
   useEffect(() => { active.current = true; return () => { active.current = false; exportController.current?.abort(); }; }, []);
@@ -159,6 +161,25 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
     if (message) { setExpanded(true); setDetailsOpen(true); return; }
     setDraft(normalized); setRequest({ filters: normalized, collapse: true });
   };
+  // Enter で検索（Phalanx と同じ）。入力欄はフォームの送信で検索するので、ここではそれ以外を受ける：
+  // 検索カードの中のプルダウン・何も選んでいない状態・条件を畳んでいる時。ボタン・リンク・小窓の中は除く。
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229 || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.defaultPrevented) return;
+      if (aiOpen || target || columnPicker) return;
+      const t = e.target, tag = t?.tagName;
+      if (t?.closest?.('[role="dialog"],[role="menu"]')) return;
+      if (['TEXTAREA', 'BUTTON', 'A'].includes(tag) || t?.isContentEditable) return;
+      const inCard = !!(cardRef.current && t && cardRef.current.contains(t));
+      if (tag === 'INPUT' && (!inCard || t.form)) return;
+      if (tag === 'SELECT' && !inCard) return;
+      e.preventDefault();
+      apply(draftRef.current);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
   const clear = () => { setDraft(DIRECTORY_FILTERS); setValidation(''); setExpanded(true); setDetailsOpen(false); setError(''); setRequest(null); setResult({ rows: [], count: null, filters: DIRECTORY_FILTERS }); };
   const page = (index) => setRequest({ filters: { ...result.filters, page: index }, collapse: false });
   // 見出しで並べ替え：適用済みの条件のまま、1ページ目から引き直す
@@ -201,7 +222,7 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
 
   return <>
     {/* ── 検索カード ── */}
-    <div style={card}>
+    <div ref={cardRef} style={card}>
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', marginBottom: expanded || chips.length ? 16 : 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 'auto' }}>
           <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: color.navy, color: color.white }}><Search size={19} /></span>

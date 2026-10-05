@@ -116,6 +116,12 @@ export default function CategorySearchInput({ items, value = [], onChange, place
         onChange={handleInputChange}
         onPaste={handlePaste}
         onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          // 文字を打って候補が出ているときの Enter は、先頭の候補を選ぶ（検索には進めない）
+          if (e.key !== 'Enter' || e.nativeEvent?.isComposing || !input.trim() || filtered.length === 0) return;
+          e.preventDefault();
+          handleSelect(filtered[0]);
+        }}
         placeholder={value.length > 0 ? '追加...' : placeholder}
       />
 
