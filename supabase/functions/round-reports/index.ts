@@ -263,7 +263,7 @@ async function buildMaterials(sb: SupabaseClient, listId: string, round: number 
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-5-5',
-      max_tokens: 1500,
+      max_tokens: 4000,
       system: `M&A仲介の売り手ソーシングのテレアポで、社長または受付に断られた記録の一覧を渡す。
 トークスクリプトの見直しを社長と相談するための材料として、断られ方を3〜5個の型に分けて日本語で書く。
 - 各型に「件数の目安」と「実際の言い回しや状況の例」を1〜2個付ける
