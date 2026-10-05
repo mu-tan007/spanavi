@@ -154,13 +154,11 @@ export default function BusinessMetricsView() {
     });
   }, [rows, fyStart]);
 
-  // カードの「最新月」：今期なら当月（途中）、過去の期なら最終月
-  const latestIdx = rows.length - 1;
-  const latest = rows[latestIdx] || null;
-  const prevRow = rows[latestIdx - 1] || null;
-  const latestLabel = latest
-    ? `${Number(latest.month.slice(5, 7))}月${latest.month === currentMonth ? '（途中）' : ''}`
-    : '';
+  // カードの比較は締まった月どうし（途中の今月を前月の丸1か月と比べると必ず下がって見えるため）
+  const closed = rows.filter(r => r.month < currentMonth);
+  const latest = closed[closed.length - 1] || null;
+  const prevRow = closed[closed.length - 2] || null;
+  const latestLabel = latest ? `${Number(latest.month.slice(5, 7))}月` : '';
   const totals = useMemo(() => Object.fromEntries(
     METRICS.map(m => [m.key, rows.reduce((s, r) => s + Number(r[m.key] || 0), 0)])
   ), [rows]);
@@ -180,7 +178,7 @@ export default function BusinessMetricsView() {
 
   const deltaCell = (r, key, fmt) => {
     const p = r._prev;
-    if (!p) return fmt(r[key]);
+    if (!p || r.month === currentMonth) return fmt(r[key]);
     return (
       <span style={{ display: 'inline-flex', gap: space[2], alignItems: 'baseline' }}>
         {fmt(r[key])}<Delta cur={r[key]} prev={p[key]} />
@@ -210,7 +208,7 @@ export default function BusinessMetricsView() {
           ))}
         </div>
         <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: -space[3] }}>
-          ▲▼は前月との比較。
+          ▲▼は締まった月どうしの前月比。今月分はグラフと表に途中の数字で出る。
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: space[4] }}>
@@ -230,7 +228,7 @@ export default function BusinessMetricsView() {
             rowKey="month"
             emptyMessage="まだ数字がありません"
             columns={[
-              { key: 'month', label: '月', width: 100, align: 'right', render: r => `${r.month.slice(0, 4)}/${r.month.slice(5, 7)}` },
+              { key: 'month', label: '月', width: 140, align: 'right', render: r => `${r.month.slice(0, 4)}/${r.month.slice(5, 7)}${r.month === currentMonth ? '（途中）' : ''}` },
               { key: 'new_clients', label: '新規顧客', width: 130, align: 'right', render: r => deltaCell(r, 'new_clients', cnt('社')) },
               { key: 'active_clients', label: '支援した会社', width: 130, align: 'right', render: r => deltaCell(r, 'active_clients', cnt('社')) },
               { key: 'appo_count', label: '取得アポ', width: 130, align: 'right', render: r => deltaCell(r, 'appo_count', cnt('件')) },
