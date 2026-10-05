@@ -11,7 +11,7 @@ export const EXCLUDE_SCOPES = [
   { value: 'duplicate', key: '3', label: '同じリスト内の重複',       desc: '同じ会社が2行ある。他のリストには影響しない' },
 ];
 
-function Picker({ onPick }) {
+export function ExcludeReasonPicker({ onPick }) {
   useEffect(() => {
     // 架電ページのショートカット（数字キー）に先回りして受け取る
     const onKey = (e) => {
@@ -81,6 +81,6 @@ export function pickExcludeReason() {
       host.remove();
       resolve(v);
     };
-    root.render(<Picker onPick={done} />);
+    root.render(<ExcludeReasonPicker onPick={done} />);
   });
 }
