@@ -45,7 +45,9 @@ describe('企業DBの検索を1画面で扱う',()=>{
   const text=JSON.stringify(renderer.toJSON());expect(text).toContain('最新企業');expect(text).not.toContain('古い企業');
  });
  it('ページ移動は適用済みの条件で行い、編集中の条件を混ぜない',async()=>{
-  await mount();await act(async()=>node('filters').props.onChange('keyword','未検索'));
+  await mount();await act(async()=>node('filters').props.onSearch());
+  await act(async()=>button('検索条件を変更').props.onClick());
+  await act(async()=>node('filters').props.onChange('keyword','未検索'));
   await act(async()=>button('次へ →').props.onClick());
   const f=searchCompanyDirectory.mock.calls.at(-1)[0];expect(f.page).toBe(1);expect(f.keyword).toBe('');
  });
@@ -61,18 +63,28 @@ describe('企業DBの検索を1画面で扱う',()=>{
   await mount();await act(async()=>node('filters').props.onChange('revenueMin','100'));
   await act(async()=>node('filters').props.onChange('revenueMax','50'));
   await act(async()=>node('filters').props.onSearch());
-  expect(searchCompanyDirectory).toHaveBeenCalledTimes(1);expect(node('filters').props.error).toContain('上限');
+  expect(searchCompanyDirectory).toHaveBeenCalledTimes(0);expect(node('filters').props.error).toContain('上限');
   await act(async()=>node('filters').props.onChange('revenueMax','200'));
   searchCompanyDirectory.mockRejectedValueOnce(new Error('検索失敗'));
   await act(async()=>node('filters').props.onSearch());
   expect(node('filters')).toBeDefined();expect(JSON.stringify(renderer.toJSON())).toContain('検索失敗');
  });
  it('CSVは最後に成功した検索条件を使う',async()=>{
-  await mount();await act(async()=>node('filters').props.onChange('keyword','未検索'));
+  await mount();await act(async()=>node('filters').props.onSearch());
+  await act(async()=>button('検索条件を変更').props.onClick());
+  await act(async()=>node('filters').props.onChange('keyword','未検索'));
   await act(async()=>button('検索結果をCSV出力').props.onClick());
   buildDirectoryCsv.mockRejectedValueOnce(new Error('中断'));
   await act(async()=>node('export').props.onConfirm(['company_name']));
   expect(buildDirectoryCsv.mock.calls[0][0].keyword).toBe('');
   expect(buildDirectoryCsv.mock.calls[0][1]).toBe(51);
+ });
+  it('検索するまで一覧を引かず、条件クリアで未検索に戻す',async()=>{
+  await mount();expect(searchCompanyDirectory).not.toHaveBeenCalled();
+  expect(JSON.stringify(renderer.toJSON())).toContain('条件を指定して検索してください');
+  await act(async()=>node('filters').props.onSearch());
+  expect(JSON.stringify(renderer.toJSON())).toContain('初回');
+  await act(async()=>button('条件クリア').props.onClick());
+  const text=JSON.stringify(renderer.toJSON());expect(text).toContain('条件を指定して検索してください');expect(text).not.toContain('初回');
  });
 });

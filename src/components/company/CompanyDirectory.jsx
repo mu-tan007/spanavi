@@ -92,9 +92,9 @@ function ColumnPicker({ value, onChange }) {
 
 export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen = false, onCloseAi }) {
   const isMobile = useIsMobile();
-  const [draft, setDraft] = useState(DIRECTORY_FILTERS), [request, setRequest] = useState({ filters: DIRECTORY_FILTERS, collapse: false });
+  const [draft, setDraft] = useState(DIRECTORY_FILTERS), [request, setRequest] = useState(null);
   const [result, setResult] = useState({ rows: [], count: null, filters: DIRECTORY_FILTERS });
-  const [stats, setStats] = useState(null), [loading, setLoading] = useState(true), [error, setError] = useState('');
+  const [stats, setStats] = useState(null), [loading, setLoading] = useState(false), [error, setError] = useState('');
   const [validation, setValidation] = useState(''), [expanded, setExpanded] = useState(true), [attempt, setAttempt] = useState(0), [target, setTarget] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState(loadColumns);
@@ -108,7 +108,9 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
     fetchCompanyProfileStats(controller.signal).then((data) => { if (current) setStats(data); }).catch((e) => { if (current) setError(e.message); });
     return () => { current = false; controller.abort(); };
   }, [revision, attempt]);
+  // 未検索のうちは一覧を出さない（Phalanxと同じ）。51万社を黙って引くと遅く、意味もない。
   useEffect(() => {
+    if (!request) { setLoading(false); return undefined; }
     const controller = new AbortController(); let current = true; setLoading(true); setError('');
     searchCompanyDirectory(request.filters, controller.signal).then((data) => {
       if (current) { setResult({ ...data, filters: request.filters }); if (request.collapse) setExpanded(false); }
@@ -132,10 +134,10 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
     if (message) { setExpanded(true); setDetailsOpen(true); return; }
     setDraft(normalized); setRequest({ filters: normalized, collapse: true });
   };
-  const clear = () => { setDraft(DIRECTORY_FILTERS); setValidation(''); setExpanded(true); setRequest({ filters: DIRECTORY_FILTERS, collapse: false }); };
+  const clear = () => { setDraft(DIRECTORY_FILTERS); setValidation(''); setExpanded(true); setDetailsOpen(false); setError(''); setRequest(null); setResult({ rows: [], count: null, filters: DIRECTORY_FILTERS }); };
   const page = (index) => setRequest({ filters: { ...result.filters, page: index }, collapse: false });
   // チップの×：下書きだけを変える。検索はしない（押した後は検索ボタンへ）。
-  const removeChip = (patch) => { setDraft((prev) => ({ ...prev, ...patch })); setTimeout(() => document.querySelector('[data-directory-search]')?.focus(), 0); };
+  const removeChip = (patch) => { setDraft((prev) => ({ ...prev, ...patch })); setTimeout(() => typeof document !== 'undefined' && document.querySelector('[data-directory-search]')?.focus(), 0); };
 
   const exportCsv = async (keys) => {
     setColumnPicker(false); setExporting(true); setExportProgress(0); setExportError('');
@@ -152,7 +154,7 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
   const count = result.count;
   const chips = useMemo(() => directoryConditionChips(draft, names), [draft, names]);
   const strip = (f) => JSON.stringify({ ...f, page: 0, pageSize: PAGE_SIZE });
-  const draftChanged = strip(normalizeDirectoryFilters(draft)) !== strip(result.filters);
+  const draftChanged = !!request && strip(normalizeDirectoryFilters(draft)) !== strip(result.filters);
   const columns = useMemo(() => [
     { key: 'company_name', label: '企業名', width: 230, align: 'left', mobilePrimary: true, render: (r) => <span style={{ fontWeight: 700, color: color.textDark }}>{r.company_name}</span> },
     ...PICKABLE.filter((c) => visibleColumns.includes(c.key)).map(columnDef),
@@ -210,6 +212,12 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
     {exporting && <Card><span role="status">CSV出力用に {exportProgress.toLocaleString()} 社を取得しました。</span><Button size="sm" variant="ghost" onClick={() => exportController.current?.abort()}>出力を中断</Button></Card>}
     {exportError && <p role="alert" style={{ color: color.danger }}>{exportError}</p>}
 
+    {!request ? (
+      <div style={{ ...card, padding: '60px 40px', textAlign: 'center' }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: color.textDark, marginBottom: 8 }}>条件を指定して検索してください</div>
+        <div style={{ fontSize: 12, color: color.textLight }}>条件なしで検索すると全社を表示します。</div>
+      </div>
+    ) : <>
     {/* ── 結果の段 ── */}
     {draftChanged && !loading && (
       <div role="status" style={{ fontSize: 12.5, color: color.textMid, margin: '0 0 10px' }}>変更した条件は未反映です。検索またはEnterで更新します。</div>
@@ -233,6 +241,7 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false, aiOpen
     <div style={{ marginTop: space[4] }}>
       <Pager page={result.filters.page} pageSize={PAGE_SIZE} total={count} unit="社" onPage={page} disabled={loading || !!error} />
     </div>
+    </>}
 
     {target && <CompanyProfileDialog target={target} onClose={() => setTarget(null)} onChanged={() => setAttempt((n) => n + 1)} onSelectCompany={(companyId) => setTarget({ companyId })} />}
     {columnPicker && <DatabaseExportColumnModal columns={DIRECTORY_EXPORT_COLUMNS} totalCount={count} onCancel={() => setColumnPicker(false)} onConfirm={exportCsv} />}
