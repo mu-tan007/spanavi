@@ -114,7 +114,7 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
       {reports.map(row => {
         const cl = clientData.find(c => c._supaId === row.client_id);
         const s = row.stats || {};
-        const t = s.this || {};
+        const t = (row.kind === 'manual' ? s.total : s.this) || {};
         const method = /slack/i.test(cl?.contact || '') || (row.slack_channel_options || []).length ? 'slack'
           : /chatwork/i.test(cl?.contact || '') ? 'chatwork' : 'other';
         const chOptions = (row.slack_channel_options || []).map(o => ({ value: o.id, label: `#${o.name}` }));

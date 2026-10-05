@@ -153,7 +153,7 @@ async function createReport(
     ? await sb.from('clients').select('name, contact_method, slack_channel_ids').eq('id', list.client_id).maybeSingle()
     : { data: null }
   const { options, defaultChannel, mentions } = await slackDestination(client?.slack_channel_ids || [], list.name)
-  const materials = await buildMaterials(sb, list.id, round).catch(e => `（材料を作れませんでした：${(e as Error).message}）`)
+  const materials = await buildMaterials(sb, list.id, kind === 'manual' ? null : round).catch(e => `（材料を作れませんでした：${(e as Error).message}）`)
 
   const { data, error: insErr } = await sb.from('round_reports').insert({
     org_id: list.org_id, list_id: list.id, client_id: list.client_id, round, kind,
@@ -189,9 +189,27 @@ function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', mentio
   const lines: string[] = []
   if (mentions) lines.push(mentions)
   lines.push('お世話になっております。')
-  lines.push(kind === 'manual'
-    ? `「${listLabel(listName)}」リストにつきまして、${r}周目の途中ではございますが、これまでの架電状況をご報告申し上げます。`
-    : `「${listLabel(listName)}」リストの${r}周目の架電が一通り完了いたしましたので、ご報告申し上げます。`)
+  if (kind === 'manual') {
+    // 途中報告：いちばん後ろの周は数社だけのことが多いので、周ごとの結果と累計でまとめる
+    const total = s.total || {}
+    const rounds = (s.rounds || []) as { round: number; companies: number; calls: number; talks: number; appo: number }[]
+    const minCompanies = Math.max(30, Math.ceil((rounds[0]?.companies || 0) * 0.05))
+    lines.push(`「${listLabel(listName)}」リストにつきまして、これまでの架電状況をご報告申し上げます。`)
+    lines.push('')
+    lines.push(`■これまでの結果（${md(total.first_day)}〜${md(total.last_day)}）`)
+    lines.push(`・架電：${Number(total.companies || 0).toLocaleString()}社（${Number(total.calls || 0).toLocaleString()}コール）`)
+    lines.push(`・社長様との接続：${Number(total.talks || 0).toLocaleString()}件（接続率${pct(total.talks, total.calls)}）`)
+    lines.push(`・アポイント：${total.appo || 0}件`)
+    const shown = rounds.filter(x => x.companies >= minCompanies)
+    if (shown.length > 1) {
+      lines.push('')
+      lines.push('■周ごとの結果')
+      for (const x of shown) lines.push(`・${x.round}周目：${x.companies.toLocaleString()}社、接続率${pct(x.talks, x.calls)}、アポイント${x.appo}件`)
+    }
+    appendTail(lines, s)
+    return lines.join('\n')
+  }
+  lines.push(`「${listLabel(listName)}」リストの${r}周目の架電が一通り完了いたしましたので、ご報告申し上げます。`)
   lines.push('')
   lines.push(`■${r}周目の結果（${md(t.first_day)}〜${md(t.last_day)}）`)
   lines.push(`・架電：${t.companies.toLocaleString()}社（${t.calls.toLocaleString()}コール）`)
@@ -204,6 +222,12 @@ function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', mentio
     lines.push(`・社長様との接続：${Number(s.total.talks).toLocaleString()}件（接続率${pct(s.total.talks, s.total.calls)}）`)
     lines.push(`・アポイント：${s.total.appo}件`)
   }
+  appendTail(lines, s)
+  return lines.join('\n')
+}
+
+/** つながりやすい時間帯・改善案の欄（空けておく）・締め */
+function appendTail(lines: string[], s: Stats) {
   if (s.best_slots?.length) {
     lines.push('')
     lines.push('■社長様につながりやすい曜日・時間帯（累計）')
@@ -214,23 +238,23 @@ function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', mentio
   lines.push(SCRIPT_PLACEHOLDER)
   lines.push('')
   lines.push('引き続き何卒よろしくお願い申し上げます。')
-  return lines.join('\n')
 }
 
 /**
  * 相談用の材料：その周で断られた記録（架電後にAIが付けた所見）を、断られ方の型に分けて短くまとめる。
  * 改善案は書かせない。先方には出さない。
  */
-async function buildMaterials(sb: SupabaseClient, listId: string, round: number): Promise<string> {
-  const { data } = await sb.from('call_records')
-    .select('status, rejection_reason')
-    .eq('list_id', listId).eq('round', round)
+async function buildMaterials(sb: SupabaseClient, listId: string, round: number | null): Promise<string> {
+  // 途中報告（round=null）はリスト全体の直近の記録から作る
+  let q = sb.from('call_records').select('status, rejection_reason').eq('list_id', listId)
+  if (round !== null) q = q.eq('round', round)
+  const { data } = await q
     .in('status', ['キーマン断り', '受付ブロック'])
     .not('rejection_reason', 'is', null)
     .order('called_at', { ascending: false })
     .limit(120)
   const rows = (data || []).filter(r => (r.rejection_reason || '').trim())
-  if (!rows.length) return 'この周に断られた記録の所見はありません。'
+  if (!rows.length) return '断られた記録の所見はありません。'
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY がありません')
   const input = rows.map((r, i) => `${i + 1}.［${r.status}］${String(r.rejection_reason).replace(/\s+/g, ' ').slice(0, 300)}`).join('\n')
@@ -270,6 +294,13 @@ async function slackDestination(channelIds: string[], listName: string): Promise
       const info = await fetch(`https://slack.com/api/conversations.info?${new URLSearchParams({ channel: id })}`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json()).catch(() => ({}))
       if (info?.ok && info.channel?.name) name = info.channel.name
+      else {
+        // むー様の許可にチャンネル一覧の権限が無いときは、検索結果に付くチャンネル名で引く
+        const hit = await fetch(`https://slack.com/api/search.messages?${new URLSearchParams({ query: `in:<#${id}>`, count: '1' })}`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json()).catch(() => ({}))
+        const nm = hit?.messages?.matches?.[0]?.channel?.name
+        if (nm) name = nm
+      }
     }
     options.push({ id, name })
   }
