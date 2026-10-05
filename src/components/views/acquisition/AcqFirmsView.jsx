@@ -4,13 +4,22 @@ import { Badge, Button, DataTable, Input, Select } from '../../ui';
 import PageHeader from '../../common/PageHeader';
 import { supabase } from '../../../lib/supabase';
 import { FIRM_KINDS, firmKindLabel, stageLabel, STAGE_BY_VALUE, priceRange, fmtDate } from './acqConstants';
-import { AcqModal, ModalButtons, FormGrid, TextArea, ErrorNote, InfoRows, SubTabs, ConfirmDialog } from './AcqShared';
+import { AcqModal, ModalButtons, FormGrid, TextArea, ErrorNote, InfoRows, SubTabs, ConfirmDialog, LinkText } from './AcqShared';
 import { useActivities, ActivityList } from './AcqActivities';
 import { ContactFormModal } from './AcqContactsView';
 
-// 買収 > 仲介会社・FA：紹介元の会社ごとの紹介件数・トップ面談数・最後の紹介日
-export function AcqFirmsView({ data, onOpenFirm }) {
-  const { firms, loading, error, reload } = data;
+// 買収 > 仲介会社・担当者：紹介元の会社ごとに、紹介件数・トップ面談数・最後の紹介日と担当者をまとめる
+export function AcqFirmsView({ data, onOpenFirm, onOpenContact }) {
+  const { firms, contacts, loading, error, reload } = data;
+  const contactsByFirm = useMemo(() => {
+    const m = new Map();
+    for (const c of contacts) {
+      if (!c.firm_id) continue;
+      if (!m.has(c.firm_id)) m.set(c.firm_id, []);
+      m.get(c.firm_id).push(c);
+    }
+    return m;
+  }, [contacts]);
   const [q, setQ] = useState('');
   const [kind, setKind] = useState('');
   const [creating, setCreating] = useState(false);
@@ -28,16 +37,25 @@ export function AcqFirmsView({ data, onOpenFirm }) {
     { key: 'deal_count', label: '紹介件数', width: 100, align: 'right', sortable: true, sortType: 'number', cellStyle: { fontFamily: font.family.mono } },
     { key: 'top_meeting_count', label: 'トップ面談', width: 100, align: 'right', sortable: true, sortType: 'number', cellStyle: { fontFamily: font.family.mono } },
     { key: 'last_received_on', label: '最後の紹介', width: 110, align: 'right', sortable: true, cellStyle: { fontFamily: font.family.mono }, render: (r) => fmtDate(r.last_received_on) },
-    { key: 'contact_count', label: '担当者', width: 80, align: 'right', sortable: true, sortType: 'number', cellStyle: { fontFamily: font.family.mono } },
+    { key: 'contacts', label: '担当者', width: 300, align: 'left', sortable: true, sortType: 'number', sortValue: (r) => r.contact_count,
+      render: (r) => {
+        const list = contactsByFirm.get(r.id) || [];
+        if (!list.length) return <span style={{ color: color.textLight }}>—</span>;
+        return (
+          <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: `${space[0.5]}px ${space[2]}px` }}>
+            {list.map(c => <LinkText key={c.id} onClick={() => onOpenContact(c.id)}>{c.name}様</LinkText>)}
+          </span>
+        );
+      } },
     { key: 'client_id', label: '営業代行の顧客', width: 120, align: 'center', render: (r) => (r.client_id ? <Badge variant="info">顧客</Badge> : '') },
-    { key: 'notes', label: 'メモ', width: 260, align: 'left', render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.notes || ''}</span> },
+    { key: 'notes', label: 'メモ', width: 220, align: 'left', render: (r) => <span style={{ fontSize: font.size.xs, color: color.textMid }}>{r.notes || ''}</span> },
   ];
 
   return (
     <div>
       <PageHeader
-        title="仲介会社・FA"
-        description="案件の紹介元・売り手側FA・マッチングサイト。行を押すと担当者と紹介案件が開きます"
+        title="仲介会社・担当者"
+        description="紹介元の会社ごとに担当者をまとめています。会社名の行を押すと会社の詳細、担当者名を押すとその方のやり取りが開きます"
         right={<Button variant="primary" onClick={() => setCreating(true)}>会社を追加</Button>}
       />
       <div style={{ display: 'flex', gap: space[2], marginBottom: space[3] }}>
@@ -107,7 +125,7 @@ export function FirmFormModal({ firm, onClose, onSaved }) {
 export function AcqFirmDetail({ firmId, data, onBack, onOpenDeal, onOpenContact }) {
   const { firms, contacts, deals, reload } = data;
   const firm = firms.find(f => f.id === firmId);
-  const [tab, setTab] = useState('deals');
+  const [tab, setTab] = useState('contacts');
   const [editing, setEditing] = useState(false);
   const [addingContact, setAddingContact] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -166,8 +184,8 @@ export function AcqFirmDetail({ firmId, data, onBack, onOpenDeal, onOpenContact 
         ]} />
       </div>
       <SubTabs value={tab} onChange={setTab} tabs={[
-        { value: 'deals', label: '案件', count: firmDeals.length },
         { value: 'contacts', label: '担当者', count: firmContacts.length },
+        { value: 'deals', label: '案件', count: firmDeals.length },
         { value: 'activities', label: 'やり取り', count: acts.rows.length },
       ]} />
       {tab === 'deals' && <DataTable columns={dealColumns} rows={firmDeals} rowKey="id" emptyMessage="案件はまだありません" onRowClick={(r) => onOpenDeal(r.id)} height="auto" />}

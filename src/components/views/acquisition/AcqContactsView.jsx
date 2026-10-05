@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { color, space, font, radius } from '../../../constants/design';
 import { Badge, Button, DataTable, Input, Select } from '../../ui';
-import PageHeader from '../../common/PageHeader';
 import { supabase } from '../../../lib/supabase';
 import { CONTACT_CHANNELS, stageLabel, STAGE_BY_VALUE, priceRange, fmtDate, fmtDateTime } from './acqConstants';
 import { AcqModal, ModalButtons, FormGrid, TextArea, ErrorNote, InfoRows, SubTabs, LinkText, ConfirmDialog } from './AcqShared';
@@ -9,71 +8,7 @@ import { useActivities, ActivityList, ActivityFormModal } from './AcqActivities'
 
 const channelText = (v) => CONTACT_CHANNELS.find(x => x.value === v)?.label || '—';
 
-// 買収 > 担当者：紹介元の担当者ごとの連絡先・紹介案件・やり取り
-export function AcqContactsView({ data, onOpenContact }) {
-  const { contacts, firms, deals, loading, error, reload } = data;
-  const [q, setQ] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const stats = useMemo(() => {
-    const m = new Map();
-    for (const d of deals) {
-      if (!d.source_contact_id || d.current_stage === 'candidate') continue;
-      const s = m.get(d.source_contact_id) || { n: 0, last: null };
-      s.n += 1;
-      if (d.received_on && (!s.last || d.received_on > s.last)) s.last = d.received_on;
-      m.set(d.source_contact_id, s);
-    }
-    return m;
-  }, [deals]);
-
-  const rows = useMemo(() => contacts
-    .map(c => ({ ...c, deal_count: stats.get(c.id)?.n || 0, last_received_on: stats.get(c.id)?.last || null, firm_name: c.firm?.name || '' }))
-    .filter(c => {
-      const kw = q.trim().toLowerCase();
-      if (!kw) return true;
-      return [c.name, c.firm_name, c.email, c.title].filter(Boolean).join(' ').toLowerCase().includes(kw);
-    }), [contacts, stats, q]);
-
-  const columns = [
-    { key: 'name', label: '氏名', width: 150, align: 'left', sortable: true, render: (r) => <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{r.name}</span> },
-    { key: 'firm_name', label: '会社', width: 220, align: 'left', sortable: true },
-    { key: 'title', label: '役職', width: 150, align: 'left' },
-    { key: 'deal_count', label: '紹介件数', width: 90, align: 'right', sortable: true, sortType: 'number', cellStyle: { fontFamily: font.family.mono } },
-    { key: 'last_received_on', label: '最後の紹介', width: 110, align: 'right', sortable: true, cellStyle: { fontFamily: font.family.mono }, render: (r) => fmtDate(r.last_received_on) },
-    { key: 'preferred_channel', label: '連絡手段', width: 90, align: 'center', render: (r) => channelText(r.preferred_channel) },
-    { key: 'email', label: 'メール', width: 220, align: 'left' },
-    { key: 'phone', label: '電話', width: 130, align: 'left' },
-  ];
-
-  return (
-    <div>
-      <PageHeader
-        title="担当者"
-        description="紹介元の担当者。行を押すと紹介案件とやり取りの履歴が開きます"
-        right={<Button variant="primary" onClick={() => setCreating(true)}>担当者を追加</Button>}
-      />
-      <div style={{ width: 300, marginBottom: space[3] }}>
-        <Input size="sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="氏名・会社・メールで探す" />
-      </div>
-      <DataTable
-        columns={columns}
-        rows={rows}
-        rowKey="id"
-        loading={loading}
-        error={error}
-        emptyMessage="担当者はまだいません"
-        onRowClick={(r) => onOpenContact(r.id)}
-        defaultSort={{ key: 'deal_count', dir: 'desc' }}
-        height="calc(100vh - 250px)"
-      />
-      {creating && (
-        <ContactFormModal firms={firms} onClose={() => setCreating(false)}
-          onSaved={async (id) => { setCreating(false); await reload(); onOpenContact(id); }} />
-      )}
-    </div>
-  );
-}
+// 担当者の追加・編集と詳細。一覧は仲介会社のページに会社ごとにまとめて出す（AcqFirmsView）。
 
 export function ContactFormModal({ contact, firms, defaults = {}, onClose, onSaved }) {
   const [f, setF] = useState({

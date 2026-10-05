@@ -19,8 +19,7 @@ export const ACQUISITION_SECTIONS = [
     { id: 'acq_deals', label: '案件' },
   ]},
   { label: 'NETWORK', items: [
-    { id: 'acq_firms', label: '仲介会社・FA' },
-    { id: 'acq_contacts', label: '担当者' },
+    { id: 'acq_firms', label: '仲介会社・担当者' },
   ]},
 ];
 export const ACQUISITION_TABS = ACQUISITION_SECTIONS.flatMap(s => s.items.map(it => it.id));

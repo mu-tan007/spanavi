@@ -451,7 +451,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
     });
   }, [supabaseData, switchEngagement]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","acq_deals","acq_firms","acq_contacts","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","acq_deals","acq_firms","admin_settings"];
   // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
   const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
