@@ -1,26 +1,27 @@
 // 買収タブ（管理者のみ）の定義。値は DB の check 制約（20261006100000_acquisition_tab.sql）と揃える。
 
-// 配信を受けただけの案件は載せない（むー様 2026-10-06）。弊社から関心を伝えてやり取りを始めたものだけ。
+// 段階（むー様 2026-10-06）：受領 → NN済 → IM済 → トップ面談済 → LOI済 → DD中 → SPA済 → CL
+//   rank は並び替え用。終了（見送り・不成約・ネームクリア不可）は進行中より前（小さい値）に並べる。
+//   配信を受けただけの案件は載せない。弊社から関心を伝えてやり取りを始めたものだけ。
 export const STAGES = [
-  { value: 'received', label: '受領', variant: 'default', open: true },
-  { value: 'nda', label: 'NDA', variant: 'info', open: true },
-  { value: 'im_received', label: 'IM受領', variant: 'info', open: true },
-  { value: 'qa', label: 'QA中', variant: 'info', open: true },
-  { value: 'top_meeting', label: 'トップ面談', variant: 'primary', open: true },
-  { value: 'loi_submitted', label: 'LOI提出', variant: 'primary', open: true },
-  { value: 'basic_agreement', label: '基本合意', variant: 'warn', open: true },
-  { value: 'dd', label: 'DD', variant: 'warn', open: true },
-  { value: 'definitive_agreement', label: '最終契約', variant: 'warn', open: true },
-  { value: 'closed_won', label: 'クロージング', variant: 'success', open: false },
-  { value: 'declined_by_us', label: '見送り（弊社）', variant: 'neutral', open: false },
-  { value: 'lost', label: '不成約（先方）', variant: 'danger', open: false },
-  { value: 'name_clear_denied', label: 'ネームクリア不可', variant: 'neutral', open: false },
+  { value: 'received', label: '受領', variant: 'default', open: true, rank: 1 },
+  { value: 'nonname', label: 'NN済', variant: 'info', open: true, rank: 2 },
+  { value: 'im_received', label: 'IM済', variant: 'info', open: true, rank: 3 },
+  { value: 'top_meeting', label: 'トップ面談済', variant: 'primary', open: true, rank: 4 },
+  { value: 'loi_submitted', label: 'LOI済', variant: 'primary', open: true, rank: 5 },
+  { value: 'dd', label: 'DD中', variant: 'warn', open: true, rank: 6 },
+  { value: 'definitive_agreement', label: 'SPA済', variant: 'warn', open: true, rank: 7 },
+  { value: 'closed_won', label: 'CL', variant: 'success', open: false, rank: 8 },
+  { value: 'declined_by_us', label: '見送り（弊社）', variant: 'neutral', open: false, rank: -1 },
+  { value: 'lost', label: '不成約（先方）', variant: 'danger', open: false, rank: -2 },
+  { value: 'name_clear_denied', label: 'ネームクリア不可', variant: 'neutral', open: false, rank: -3 },
 ];
 export const STAGE_BY_VALUE = Object.fromEntries(STAGES.map(s => [s.value, s]));
 export const stageLabel = (v) => STAGE_BY_VALUE[v]?.label || '—';
+export const stageRank = (v) => STAGE_BY_VALUE[v]?.rank ?? 0;
 export const isOpenStage = (v) => STAGE_BY_VALUE[v]?.open ?? true;
 // トップ面談以上まで進んだか（集計用）
-export const TOP_MEETING_OR_LATER = ['top_meeting', 'loi_submitted', 'basic_agreement', 'dd', 'definitive_agreement', 'closed_won'];
+export const TOP_MEETING_OR_LATER = ['top_meeting', 'loi_submitted', 'dd', 'definitive_agreement', 'closed_won'];
 
 export const FIRM_KINDS = [
   { value: 'intermediary', label: '仲介' },

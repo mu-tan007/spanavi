@@ -3,18 +3,13 @@ import { color, space, font } from '../../../constants/design';
 import { Badge, Button, DataTable, Input, Select } from '../../ui';
 import PageHeader from '../../common/PageHeader';
 import {
-  STAGES, STAGE_BY_VALUE, stageLabel, isOpenStage, TOP_MEETING_OR_LATER,
+  STAGE_BY_VALUE, stageLabel, stageRank, isOpenStage, TOP_MEETING_OR_LATER,
   priceRange, priceBasisLabel, schemeLabel, yen, fmtDate,
 } from './acqConstants';
 import { KeyFigure } from './AcqShared';
 import AcqDealFormModal from './AcqDealFormModal';
 
 // 買収 > 案件：紹介を受けた全案件の一覧
-const DISCLOSE_OPTIONS = [
-  { value: '', label: 'IM開示の前後すべて' },
-  { value: 'after', label: 'IM開示後（企業名）' },
-  { value: 'before', label: 'IM開示前（ノンネーム）' },
-];
 const VIEW_OPTIONS = [
   { value: 'open', label: '進行中' },
   { value: 'all', label: 'すべて' },
@@ -51,7 +46,6 @@ function DocMarks({ row }) {
 export default function AcqDealsView({ data, onOpenDeal }) {
   const { deals, firms, contacts, loading, error, reload } = data;
   const [view, setView] = useState('open');
-  const [disclose, setDisclose] = useState('');
   const [q, setQ] = useState('');
   const [firmFilter, setFirmFilter] = useState('');
   const [creating, setCreating] = useState(false);
@@ -68,8 +62,6 @@ export default function AcqDealsView({ data, onOpenDeal }) {
       const st = d.current_stage;
       if (view === 'open' && !isOpenStage(st)) return false;
       if (view === 'closed' && isOpenStage(st)) return false;
-      if (disclose === 'after' && !d.im_disclosed) return false;
-      if (disclose === 'before' && d.im_disclosed) return false;
       if (firmFilter && d.source_firm_id !== firmFilter) return false;
       if (kw) {
         const hay = [d.name, d.project_name, d.pj_code, d.industry, d.region, d.source_firm_name, d.source_contact_name, d.summary]
@@ -78,7 +70,7 @@ export default function AcqDealsView({ data, onOpenDeal }) {
       }
       return true;
     });
-  }, [deals, view, disclose, q, firmFilter]);
+  }, [deals, view, q, firmFilter]);
 
   const columns = [
     { key: 'display_name', label: '案件名', width: 240, align: 'left', sortable: true,
@@ -96,7 +88,7 @@ export default function AcqDealsView({ data, onOpenDeal }) {
     { key: 'received_on', label: '受領日', width: 96, align: 'right', sortable: true,
       cellStyle: { fontFamily: font.family.mono }, render: (r) => fmtDate(r.received_on) },
     { key: 'current_stage', label: '段階', width: 130, align: 'center', sortable: true,
-      sortValue: (r) => STAGES.findIndex(s => s.value === r.current_stage),
+      sortType: 'number', sortValue: (r) => stageRank(r.current_stage),
       render: (r) => <Badge variant={STAGE_BY_VALUE[r.current_stage]?.variant || 'default'} dot>{stageLabel(r.current_stage)}</Badge> },
     { key: 'revenue', label: '売上', width: 90, align: 'right', sortable: true, sortType: 'number',
       cellStyle: { fontFamily: font.family.mono }, render: (r) => yen(r.revenue) },
@@ -154,7 +146,6 @@ export default function AcqDealsView({ data, onOpenDeal }) {
         <KeyFigure label="トップ面談まで進んだ案件" value={`${stats.top}件`} />
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[2], marginBottom: space[3], alignItems: 'flex-end' }}>
-        <div style={{ width: 220 }}><Select size="sm" value={disclose} onChange={(e) => setDisclose(e.target.value)} options={DISCLOSE_OPTIONS} /></div>
         <div style={{ width: 220 }}><Select size="sm" value={view} onChange={(e) => setView(e.target.value)} options={VIEW_OPTIONS} /></div>
         <div style={{ width: 240 }}><Select size="sm" value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} options={firmOptions} /></div>
         <div style={{ width: 260 }}><Input size="sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="案件名・業種・紹介元で探す" /></div>

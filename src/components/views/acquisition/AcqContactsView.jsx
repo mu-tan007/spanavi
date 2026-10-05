@@ -119,7 +119,7 @@ export function AcqContactDetail({ contactId, data, onBack, onOpenDeal, onOpenFi
           ['電話', contact.phone],
           ['連絡手段', channelText(contact.preferred_channel)],
           ['LINEの表示名', contact.line_name],
-          ['紹介件数', `${myDeals.filter(d => d.current_stage !== 'candidate').length}件`],
+          ['紹介件数', `${myDeals.length}件`],
           ['最後のやり取り', lastAct ? fmtDateTime(lastAct) : '—'],
           ['メモ', contact.notes],
         ]} />

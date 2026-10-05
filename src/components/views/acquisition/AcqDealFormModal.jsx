@@ -14,7 +14,7 @@ import { Button } from '../../ui';
 //     業種は「〇〇業」（事業譲渡は「〇〇事業」）、製造は「〇〇製造業」、卸は「〇〇卸売業」
 //     地域は都道府県名。分からなければ地方名（関東・中部・近畿・九州など、「地方」は付けない）。不明なら省く
 //   PJ名・資料上の呼び名（PJ orange・T社・No.103 など）は名前に混ぜず「PJ名・呼び名」へ
-const IM_STAGES = ['im_received', 'top_meeting', 'loi_submitted', 'basic_agreement', 'dd', 'definitive_agreement', 'closed_won'];
+const IM_STAGES = ['im_received', 'top_meeting', 'loi_submitted', 'dd', 'definitive_agreement', 'closed_won'];
 export const nonnameTitle = (industry, region) => {
   const ind = String(industry || '').trim();
   const reg = String(region || '').trim().replace(/地方$/, '');
