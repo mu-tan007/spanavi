@@ -10,6 +10,7 @@ import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
 import PrecheckDraftsCard from './PrecheckDraftsCard';
+import RoundReportsCard from './RoundReportsCard';
 
 export function PreCheckModal({ appo, onSave, onCancel, onNavigate }) {
   const PRE_CHECK_OPTIONS = ['確認完了', '確認中', 'リスケ', 'キャンセル'];
@@ -481,6 +482,7 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
       />
 
       <PrecheckDraftsCard clientData={clientData} isAdmin={isAdmin} />
+      <RoundReportsCard clientData={clientData} callListData={callListData} isAdmin={isAdmin} />
 
       {/* サマリー */}
       <Card padding="md" style={{ marginBottom: 16 }}>

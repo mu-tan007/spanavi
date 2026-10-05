@@ -5673,3 +5673,37 @@ export async function invokeCancelPrecheckEvent(eventId) {
   }
   return { data, error: data?.error || null }
 }
+
+// ── 架電の周回報告（2026-10-05）────────────────────────────
+/** 送信待ちの周回報告（管理者のみ読める） */
+export async function fetchPendingRoundReports() {
+  const { data, error } = await supabase
+    .from('round_reports')
+    .select('id, list_id, client_id, round, kind, completed_at, stats, draft_text, materials, status, slack_channel_id, slack_channel_options, created_at, list:call_lists(name)')
+    .eq('status', 'draft')
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) console.error('[DB] fetchPendingRoundReports error:', error)
+  return data || []
+}
+
+/** 下書きの保存・片付け（status: 'dismissed' / 'sent'） */
+export async function updateRoundReport(id, patch) {
+  const { error } = await supabase
+    .from('round_reports')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) console.error('[DB] updateRoundReport error:', error)
+  return error
+}
+
+/** round-reports の呼び出し（create_manual / send_slack） */
+export async function invokeRoundReports(body) {
+  const { data, error } = await supabase.functions.invoke('round-reports', { body })
+  if (error) {
+    let msg = error.message
+    try { msg = (await error.context?.json())?.error || msg } catch { /* ignore */ }
+    return { error: msg }
+  }
+  return { data, error: data?.error || null }
+}
