@@ -3,7 +3,7 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, DataTable } from '../ui';
 import { CALL_RESULTS } from '../../constants/callResults';
-import { updatePreCheckResult, updateAppoCounted, updateMemberReward, fetchCallListItemByAppo, invokeSendAppoReport, invokeSendEmail } from '../../lib/supabaseWrite';
+import { updatePreCheckResult, recordPrecheckFromStatusChange, updateAppoCounted, updateMemberReward, fetchCallListItemByAppo, invokeSendAppoReport, invokeSendEmail } from '../../lib/supabaseWrite';
 import { cumulativeSalesDelta, shouldBeCountedInCumulative } from '../../utils/cumulativeSales';
 import { calcRankAndRate } from '../../utils/calculations';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
@@ -322,7 +322,7 @@ const preCheckBadgeVariant = (pcs) => {
   return 'neutral';
 };
 
-export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {}, members = [], setMembers = null, onDataRefetch = null, isAdmin = false }) {
+export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen, callListData = [], clientData = [], contactsByClient = {}, members = [], setMembers = null, onDataRefetch = null, isAdmin = false, currentUser = '' }) {
   const isMobile = useIsMobile();
   const [selectedAppo, setSelectedAppo] = useState(null);
   const [reportAppo, setReportAppo] = useState(null);
@@ -344,6 +344,12 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
     if (!selectedAppo?._supaId) { alert('保存先が見つかりません'); return; }
     const error = await updatePreCheckResult(selectedAppo._supaId, saveData);
     if (error) { alert('保存に失敗しました: ' + (error.message || '不明なエラー')); return; }
+    // 架電ページの事前確認欄と同じ記録を残す（録音・#事前確認 への返信・顧客への報告の下書きはここから動く）
+    const { result: precheckRecorded, error: precheckErr } = await recordPrecheckFromStatusChange({
+      appo: selectedAppo, nextStatus: saveData.status, currentUser, members,
+      memo: (saveData.preCheckStatus === 'キャンセル' ? [saveData.cancelReason, saveData.preCheckMemo] : [saveData.preCheckMemo]).filter(Boolean).join('\n'),
+    });
+    if (precheckErr) alert('結果は保存しましたが、事前確認の記録に失敗しました。架電ページの「事前確認」欄から記録し直してください。');
 
     // 面談済だったアポをキャンセル/リスケにした場合は累計売上から減算する。
     // （この画面から面談済を外す経路で減算が漏れ、累計売上がズレていた）
@@ -377,13 +383,15 @@ export default function PreCheckView({ appoData, setAppoData, setCallFlowScreen,
       await updateAppoCounted(selectedAppo._supaId, shouldBeCountedInCumulative(saveData.status));
     }
     if (delta !== 0 && onDataRefetch) setTimeout(onDataRefetch, 500);
-    setAppoData(prev => prev.map(a =>
+    if (setAppoData) setAppoData(prev => prev.map(a =>
       a._supaId === selectedAppo._supaId
         ? { ...a, status: saveData.status, preCheckStatus: saveData.preCheckStatus, preCheckMemo: saveData.preCheckMemo, rescheduledAt: saveData.rescheduledAt, cancelReason: saveData.cancelReason }
         : a
     ));
+    else if (onDataRefetch) onDataRefetch();
     setSelectedAppo(null);
-    // Slack通知（非同期・エラー無視）
+    // Slack通知（非同期・エラー無視）。事前確認の記録を残した場合は #事前確認 のスレッドへ返信が付くので出さない
+    if (precheckRecorded) return;
     try {
       const appo = selectedAppo;
       let msg = `【事前確認結果】 *${appo.company}* ／ ${appo.client}\n`;

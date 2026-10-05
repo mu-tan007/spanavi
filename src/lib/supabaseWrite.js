@@ -5601,6 +5601,32 @@ export async function insertPrecheckEvent({ appointmentId, itemId, result, memo,
   return { data, error }
 }
 
+// アポ一覧・事前確認タブで状態を事前確認の結果に変えたときも、架電ページの事前確認欄と同じ記録を残す。
+// 記録が無いと録音・#事前確認 への返信・顧客への報告の下書きが一切動かない（10/5 十字電子で発覚）。
+const PRECHECK_RESULT_BY_STATUS = { '事前確認済': '確認完了', 'リスケ中': 'リスケ', 'キャンセル': 'キャンセル' }
+
+export function precheckResultForStatusChange(prevStatus, nextStatus) {
+  if (prevStatus === nextStatus || !['アポ取得', 'リスケ中'].includes(prevStatus)) return null
+  return PRECHECK_RESULT_BY_STATUS[nextStatus] || null
+}
+
+/** appo は画面のアポ行（更新前）。記録したら結果（確認完了など）を返す */
+export async function recordPrecheckFromStatusChange({ appo, nextStatus, memo, currentUser, members = [] }) {
+  const result = precheckResultForStatusChange(appo?.status, nextStatus)
+  if (!result) return { result: null, error: null }
+  const norm = (s) => String(s || '').replace(/[\s　]/g, '')
+  const member = members.find(m => typeof m === 'object' && norm(m.name) === norm(currentUser))
+  const { error } = await insertPrecheckEvent({
+    appointmentId: appo._supaId, itemId: appo.item_id, result, memo,
+    calledPhone: appo.phone, callerName: currentUser, callerZoomUserId: member?.zoomUserId || null,
+    prevAppo: {
+      status: appo.status, pre_check_status: appo.preCheckStatus || null, pre_check_memo: appo.preCheckMemo || null,
+      rescheduled_at: appo.rescheduledAt || null, cancel_reason: appo.cancelReason || null,
+    },
+  })
+  return { result, error }
+}
+
 /** Slack・Chatwork の顧客向けに用意した報告の文面（むー様が送る前のもの） */
 export async function fetchReadyPrecheckDrafts() {
   const { data, error } = await supabase
