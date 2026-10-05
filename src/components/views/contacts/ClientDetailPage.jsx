@@ -811,9 +811,7 @@ export default function ClientDetailPage({
                   {c.contact === 'Chatwork' && (
                     <EditableField label="Chatwork ルームID" value={c.chatworkRoomId} placeholder="123456789" onSave={v => patchClient({ chatworkRoomId: v })} />
                   )}
-                  {(c.calendar === 'Spir' || c.calendar === '調整アポ') && (
-                    <EditableField label="日程調整URL" value={c.schedulingUrl} placeholder="https://app.spir.com/..." onSave={v => patchClient({ schedulingUrl: v })} />
-                  )}
+                  {/* 日程調整URLは担当者ごとのもの（担当者タブで持つ）なので、基本情報には出さない（2026-10-06 むー様） */}
                 </div>
               </div>
             )}
