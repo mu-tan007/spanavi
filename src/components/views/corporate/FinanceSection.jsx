@@ -11,7 +11,7 @@ import { Card, DataTable } from '../../ui';
 //   事業別の外注費は税理士共有フォルダの請求書の合計（corporate_finance_monthly）。
 // ============================================================
 
-const yen = (v) => (v === null || v === undefined ? '—' : `¥${Number(v).toLocaleString()}`);
+const yen = (v) => (v === null || v === undefined ? '—' : `${Number(v) < 0 ? '−' : ''}¥${Math.abs(Number(v)).toLocaleString()}`);
 const yenAxis = (v) => (Math.abs(v) >= 10_000 ? `${Math.round(v / 10_000).toLocaleString()}万` : String(v));
 const pct = (v) => (v === null || v === undefined || !isFinite(v) ? '—' : `${(v * 100).toFixed(0)}%`);
 
@@ -55,7 +55,7 @@ export function FinanceChart({ data, series, height, currentKey }) {
         <Legend wrapperStyle={{ fontSize: font.size.xs, paddingTop: space[2] }} />
         {series.filter(s => s.kind === 'bar').map(s => (
           <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} stackId={s.stack}
-            radius={s.stack ? undefined : [3, 3, 0, 0]} maxBarSize={28} isAnimationActive={false}>
+            radius={s.stack ? undefined : [3, 3, 0, 0]} barSize={26} isAnimationActive={false}>
             {data.map(d => (
               <Cell key={d.month} fill={d.month === currentKey ? alpha(s.color, 0.4) : s.color} />
             ))}
