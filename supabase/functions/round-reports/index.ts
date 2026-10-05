@@ -14,6 +14,7 @@
 // ============================================================
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getGmailToken, findMailTarget, createNewDraft, type MailTarget } from '../_shared/gmailNewDraft.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -89,6 +90,26 @@ Deno.serve(async (req) => {
       return json({ ok: true, ts: data.ts })
     }
 
+    if (action === 'gmail_draft') {
+      // メールのクライアント様：改善案を書き終えた文面で Gmail に新しいメールの下書きを作る（送るのはむー様が Gmail で）
+      const text = String(body.text || '').trim()
+      if (!body.report_id || !text) return json({ error: '文面がありません' }, 400)
+      if (text.includes(SCRIPT_PLACEHOLDER)) return json({ error: 'トークスクリプトの改善案がまだ空です。篠宮と相談のうえ書き込んでください' }, 400)
+      const { data: rep } = await sb.from('round_reports').select('id, org_id, status, mail_to, mail_cc, mail_subject').eq('id', body.report_id).maybeSingle()
+      if (!rep || rep.org_id !== me.org_id) return json({ error: '報告が見つかりません' }, 404)
+      if (rep.status !== 'draft') return json({ error: 'すでに下書き済みか送信済みです' }, 409)
+      const to = String(body.to || rep.mail_to || '').trim()
+      if (!to) return json({ error: '宛先が分かりません。宛先を入れてください' }, 400)
+      const cc = String(body.cc ?? rep.mail_cc ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      const token = await getGmailToken(sb)
+      const draftId = await createNewDraft(token, { to, cc, subject: rep.mail_subject || '【架電状況のご報告】', body: text })
+      await sb.from('round_reports').update({
+        status: 'gmail_draft', gmail_draft_id: draftId, mail_to: to, mail_cc: cc.join(', ') || null,
+        sent_text: text, sent_by: me.id, updated_at: new Date().toISOString(),
+      }).eq('id', rep.id)
+      return json({ ok: true, draft_id: draftId })
+    }
+
     return json({ error: `不明な操作です（${action}）` }, 400)
   } catch (e) {
     return json({ error: (e as Error).message }, 500)
@@ -150,17 +171,45 @@ async function createReport(
   if (error) throw new Error(error.message)
 
   const { data: client } = list.client_id
-    ? await sb.from('clients').select('name, contact_method, slack_channel_ids').eq('id', list.client_id).maybeSingle()
+    ? await sb.from('clients').select('name, contact_method, contact_person, slack_channel_ids, portal_username').eq('id', list.client_id).maybeSingle()
     : { data: null }
-  const { options, defaultChannel, mentions } = await slackDestination(client?.slack_channel_ids || [], list.name)
+  // 送り方は事前確認と同じ決め方：共有チャンネルがあれば Slack、連絡手段が Chatwork なら Chatwork、それ以外はメール
+  const slackIds: string[] = client?.slack_channel_ids || []
+  const delivery: Delivery = slackIds.length > 0 || client?.contact_method === 'Slack' ? 'slack'
+    : client?.contact_method === 'Chatwork' ? 'chatwork' : 'email'
+
+  let options: { id: string; name: string }[] = []
+  let defaultChannel: string | null = null
+  let mentions = ''
+  let greeting = ''
+  let mail: MailTarget | null = null
+  let draftError = ''
+  if (delivery === 'slack') {
+    ({ options, defaultChannel, mentions } = await slackDestination(slackIds, list.name))
+  } else if (delivery === 'email') {
+    // 宛先と宛名：このリスト（無ければこのクライアント様）でアポを取った会社のアポ取得報告メールから引く
+    try {
+      const token = await getGmailToken(sb)
+      mail = await findMailTarget(token, await appoCompanies(sb, list))
+      if (mail) greeting = mail.greeting
+      else draftError = 'アポ取得報告のメールが見つからず、宛先が分かりません'
+    } catch (e) {
+      draftError = (e as Error).message
+    }
+  }
+  if (!greeting && delivery !== 'slack') greeting = (client?.contact_person || '').split(/[\s　]/)[0] || ''
+
   const materials = await buildMaterials(sb, list.id, kind === 'manual' ? null : round).catch(e => `（材料を作れませんでした：${(e as Error).message}）`)
 
   const { data, error: insErr } = await sb.from('round_reports').insert({
     org_id: list.org_id, list_id: list.id, client_id: list.client_id, round, kind,
     completed_at: completedAt, stats,
-    draft_text: buildDraft(list.name, stats, kind, mentions),
-    materials,
+    draft_text: buildDraft(list.name, stats, kind, { delivery, mentions, greeting, portalUser: client?.portal_username || '' }),
+    materials, delivery,
     slack_channel_id: defaultChannel, slack_channel_options: options,
+    mail_to: mail?.to || null, mail_cc: mail?.cc.join(', ') || null,
+    mail_subject: delivery === 'email' ? mailSubject(list.name, round, kind) : null,
+    draft_error: draftError || null,
   }).select('id').maybeSingle()
   if (insErr) {
     if (insErr.code === '23505') return null // もう作られていた
@@ -182,13 +231,45 @@ const md = (d: string | null | undefined) => {
   return `${Number(m)}/${Number(day)}`
 }
 
-/** 先方への文面。改善案の欄は空けておく（むー様が相談のうえ書く） */
-function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', mentions: string): string {
+type Delivery = 'slack' | 'chatwork' | 'email'
+interface DraftOpts { delivery: Delivery; mentions: string; greeting: string; portalUser: string }
+
+function mailSubject(listName: string, round: number, kind: 'round' | 'manual'): string {
+  return kind === 'manual'
+    ? `【架電状況のご報告】「${listLabel(listName)}」リスト`
+    : `【架電状況のご報告】「${listLabel(listName)}」リスト ${round}周目`
+}
+
+/** このリスト（無ければ同じクライアント様の全リスト）でアポを取った会社。新しい順 */
+async function appoCompanies(sb: SupabaseClient, list: { id: string; client_id: string | null }): Promise<string[]> {
+  const pick = async (col: 'list_id' | 'client_id', val: string) => {
+    const { data } = await sb.from('appointments').select('company_name').eq(col, val)
+      .not('company_name', 'is', null).order('created_at', { ascending: false }).limit(5)
+    return (data || []).map(a => a.company_name as string)
+  }
+  const own = await pick('list_id', list.id)
+  if (own.length || !list.client_id) return own
+  return await pick('client_id', list.client_id)
+}
+
+/**
+ * 先方への文面。改善案の欄は空けておく（むー様が相談のうえ書く）
+ * Slack：先頭にメンション、宛名・署名なし／メール・Chatwork：宛名・名乗り・署名あり
+ */
+function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', o: DraftOpts): string {
   const r = s.round
   const t = s.this || { calls: 0, companies: 0, talks: 0, appo: 0 }
   const lines: string[] = []
-  if (mentions) lines.push(mentions)
-  lines.push('お世話になっております。')
+  if (o.delivery === 'slack') {
+    if (o.mentions) lines.push(o.mentions)
+    lines.push('お世話になっております。')
+  } else {
+    lines.push(`${o.greeting || 'ご担当者'}様`)
+    lines.push('')
+    lines.push('お世話になっております。')
+    lines.push('Spartiaの篠宮でございます。')
+    lines.push('')
+  }
   if (kind === 'manual') {
     // 途中報告：いちばん後ろの周は数社だけのことが多いので、周ごとの結果と累計でまとめる
     const total = s.total || {}
@@ -206,7 +287,7 @@ function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', mentio
       lines.push('■周ごとの結果')
       for (const x of shown) lines.push(`・${x.round}周目：${x.companies.toLocaleString()}社、接続率${pct(x.talks, x.calls)}、アポイント${x.appo}件`)
     }
-    appendTail(lines, s)
+    appendTail(lines, s, o)
     return lines.join('\n')
   }
   lines.push(`「${listLabel(listName)}」リストの${r}周目の架電が一通り完了いたしましたので、ご報告申し上げます。`)
@@ -222,12 +303,12 @@ function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', mentio
     lines.push(`・社長様との接続：${Number(s.total.talks).toLocaleString()}件（接続率${pct(s.total.talks, s.total.calls)}）`)
     lines.push(`・アポイント：${s.total.appo}件`)
   }
-  appendTail(lines, s)
+  appendTail(lines, s, o)
   return lines.join('\n')
 }
 
 /** つながりやすい時間帯・改善案の欄（空けておく）・締め */
-function appendTail(lines: string[], s: Stats) {
+function appendTail(lines: string[], s: Stats, o: DraftOpts) {
   if (s.best_slots?.length) {
     lines.push('')
     lines.push('■社長様につながりやすい曜日・時間帯（累計）')
@@ -236,8 +317,21 @@ function appendTail(lines: string[], s: Stats) {
   lines.push('')
   lines.push('■トークスクリプトの改善案')
   lines.push(SCRIPT_PLACEHOLDER)
+  if (o.portalUser) {
+    // ポータルのIDがあるクライアント様だけ。パスワードは載せない（むー様 10/5）
+    lines.push('')
+    lines.push('■より詳しい架電状況')
+    lines.push('企業ごとの結果や録音は、Spanaviのクライアントポータルでご確認いただけます。')
+    lines.push('URL：https://spanavi.jp/client/login')
+    lines.push(`ユーザーID：${o.portalUser}`)
+    lines.push('（パスワードは以前お送りしたものをお使いください）')
+  }
   lines.push('')
   lines.push('引き続き何卒よろしくお願い申し上げます。')
+  if (o.delivery !== 'slack') {
+    lines.push('')
+    lines.push('Spartia 篠宮')
+  }
 }
 
 /**

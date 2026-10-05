@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { color, space, radius, font } from '../../constants/design';
-import { Button, Card, Badge, Select } from '../ui';
+import { Button, Card, Badge, Select, Input } from '../ui';
 import { fetchPendingRoundReports, updateRoundReport, invokeRoundReports, invokeSendAppoReport } from '../../lib/supabaseWrite';
 
 const SCRIPT_PLACEHOLDER = '（篠宮と相談のうえ記入）';
@@ -28,12 +28,15 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
   const [errors, setErrors] = useState({});
   const [manualListId, setManualListId] = useState('');
   const [manualMsg, setManualMsg] = useState('');
+  const [mails, setMails] = useState({});
+  const [done, setDone] = useState('');
 
   const load = async () => {
     const rows = await fetchPendingRoundReports();
     setReports(rows);
     setTexts(prev => Object.fromEntries(rows.map(r => [r.id, prev[r.id] ?? r.draft_text ?? ''])));
     setChannels(prev => Object.fromEntries(rows.map(r => [r.id, prev[r.id] ?? r.slack_channel_id ?? ''])));
+    setMails(prev => Object.fromEntries(rows.map(r => [r.id, prev[r.id] ?? { to: r.mail_to || '', cc: r.mail_cc || '' }])));
   };
   useEffect(() => { if (isAdmin) load(); }, [isAdmin]);
 
@@ -68,8 +71,10 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
         if (error) throw new Error(typeof error === 'string' ? error : error.message);
         await updateRoundReport(row.id, { status: 'sent', sent_at: new Date().toISOString(), sent_text: text });
       } else {
-        // メール・LINE など：コピーして手で送ったあとに押す
-        await updateRoundReport(row.id, { status: 'sent', sent_at: new Date().toISOString(), sent_text: text });
+        // メール：Gmail に新しいメールの下書きを作る（宛先は直近のアポ取得報告メールと同じ）。送るのは Gmail で
+        const { error } = await invokeRoundReports({ action: 'gmail_draft', report_id: row.id, text, to: mails[row.id]?.to, cc: mails[row.id]?.cc });
+        if (error) throw new Error(error);
+        setDone(`${cl?.company || ''}の報告をGmailの下書きに入れました。Gmailで確かめて送ってください`);
       }
       await load();
     } catch (e) {
@@ -107,6 +112,8 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
         {manualMsg && <span style={{ fontSize: font.size.xs, color: color.textMid }}>{manualMsg}</span>}
       </div>
 
+      {done && <div style={{ fontSize: font.size.sm, color: color.success, marginBottom: space[2] }}>{done}</div>}
+
       {reports.length === 0 && (
         <div style={{ fontSize: font.size.sm, color: color.textMid, padding: `${space[2]}px 0` }}>送信待ちの周回報告はありません</div>
       )}
@@ -115,8 +122,8 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
         const cl = clientData.find(c => c._supaId === row.client_id);
         const s = row.stats || {};
         const t = (row.kind === 'manual' ? s.total : s.this) || {};
-        const method = /slack/i.test(cl?.contact || '') || (row.slack_channel_options || []).length ? 'slack'
-          : /chatwork/i.test(cl?.contact || '') ? 'chatwork' : 'other';
+        // 送り方は下書きを作ったときに決めたもの（Slack・Chatwork・メール）
+        const method = row.delivery || 'slack';
         const chOptions = (row.slack_channel_options || []).map(o => ({ value: o.id, label: `#${o.name}` }));
         return (
           <div key={row.id} style={{ padding: `${space[3]}px 0`, borderTop: `1px solid ${color.borderLight}` }}>
@@ -146,6 +153,17 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
               </div>
             )}
 
+            {method === 'email' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2], marginBottom: space[2] }}>
+                <Input size="sm" label="宛先（To）" value={mails[row.id]?.to ?? ''}
+                  onChange={e => setMails(m => ({ ...m, [row.id]: { ...m[row.id], to: e.target.value } }))} />
+                <Input size="sm" label="Cc" value={mails[row.id]?.cc ?? ''}
+                  onChange={e => setMails(m => ({ ...m, [row.id]: { ...m[row.id], cc: e.target.value } }))} />
+                <div style={{ gridColumn: '1 / -1', fontSize: font.size.xs, color: color.textMid }}>件名：{row.mail_subject}</div>
+              </div>
+            )}
+            {row.draft_error && <div style={{ fontSize: font.size.xs, color: color.warn, marginBottom: space[1] }}>{row.draft_error}</div>}
+
             <textarea value={texts[row.id] ?? ''} onChange={e => setTexts(x => ({ ...x, [row.id]: e.target.value }))} rows={16} style={textareaStyle} />
             {errors[row.id] && <div style={{ fontSize: font.size.xs, color: color.danger, marginTop: space[1] }}>{errors[row.id]}</div>}
 
@@ -157,13 +175,10 @@ export default function RoundReportsCard({ clientData = [], callListData = [], i
               )}
               <Button size="sm" variant="outline" disabled={busy === row.id} onClick={() => dismiss(row)}>送らずに片付ける</Button>
               <Button size="sm" variant="outline" disabled={busy === row.id} onClick={() => save(row)}>保存</Button>
-              {method === 'other' && (
-                <Button size="sm" variant="outline" onClick={() => navigator.clipboard?.writeText(texts[row.id] || '')}>文面をコピー</Button>
-              )}
               <Button size="sm" variant="primary" loading={busy === row.id}
-                disabled={method === 'slack' && !channels[row.id]}
+                disabled={(method === 'slack' && !channels[row.id]) || (method === 'email' && !mails[row.id]?.to)}
                 onClick={() => send(row, method)}>
-                {method === 'slack' ? 'Slackで送信' : method === 'chatwork' ? 'Chatworkで送信' : '送信済みにする'}
+                {method === 'slack' ? 'Slackで送信' : method === 'chatwork' ? 'Chatworkで送信' : 'Gmailに下書きを作る'}
               </Button>
             </div>
           </div>

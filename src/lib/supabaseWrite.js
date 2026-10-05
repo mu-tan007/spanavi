@@ -5679,7 +5679,7 @@ export async function invokeCancelPrecheckEvent(eventId) {
 export async function fetchPendingRoundReports() {
   const { data, error } = await supabase
     .from('round_reports')
-    .select('id, list_id, client_id, round, kind, completed_at, stats, draft_text, materials, status, slack_channel_id, slack_channel_options, created_at, list:call_lists(name)')
+    .select('id, list_id, client_id, round, kind, completed_at, stats, draft_text, materials, status, slack_channel_id, slack_channel_options, delivery, mail_to, mail_cc, mail_subject, draft_error, created_at, list:call_lists(name)')
     .eq('status', 'draft')
     .order('created_at', { ascending: false })
     .limit(50)
