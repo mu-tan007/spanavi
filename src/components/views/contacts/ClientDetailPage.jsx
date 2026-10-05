@@ -20,6 +20,68 @@ const GRAY_100 = '#F3F4F6';
 const GRAY_50 = '#F8F9FA';
 const GOLD = '#B8860B';
 
+// 獲得・停止の選択肢（2026-10-06 むー様の分類）
+const CHANNEL_OPTIONS = ['問い合わせフォーム', 'SNSのDM', '紹介', 'テレアポ', 'フォーム営業', 'その他'];
+const STOP_REASON_OPTIONS = ['方針転換・体制', 'アポの質', '予算', '成果不足', 'その他'];
+const STOPPED_BY_OPTIONS = ['先方', '弊社', '自然消滅'];
+const RESUME_OPTIONS = ['あり', '未定', 'なし'];
+const toOptions = (arr) => [{ value: '', label: '—' }, ...arr.map(v => ({ value: v, label: v }))];
+/** 「110,000円」「11万」「5件」→ 数字。空や読めないものは null */
+const parseNum = (v) => {
+  const s = String(v ?? '').replace(/[,，円件\s]/g, '');
+  if (!s) return null;
+  const man = s.match(/^(\d+(?:\.\d+)?)万$/);
+  const n = man ? Math.round(Number(man[1]) * 10000) : parseInt(s, 10);
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * ステータスを停止中・保留に変えるときに、止まった理由を聞く小さな窓。
+ * ここで入れた内容は、右の活動履歴の「ステータスを〇〇に変えました」に一緒に残る（DBのトリガーで記録）。
+ * 停止中にすると、そのクライアントの架電リストは自動でアーカイブされる。
+ */
+function StopReasonModal({ client, toStatus, onCancel, onSave }) {
+  const [form, setForm] = useState({
+    stoppedBy: client.stoppedBy || '', stopReason: client.stopReason || '',
+    resumeOutlook: client.resumeOutlook || '', stopNote: client.stopNote || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const save = async () => { setSaving(true); await onSave(form); setSaving(false); };
+  return (
+    <div onClick={onCancel} style={{
+      position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.5), zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space[4],
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: 'min(460px, 100%)', background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl,
+        padding: space[5], fontFamily: font.family.sans,
+      }}>
+        <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[1] }}>
+          {client.company}を「{toStatus}」にします
+        </div>
+        <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: space[4] }}>
+          止まった理由を残しておくと、あとで再開の候補を探せます。
+          {toStatus === '停止中' && '架電リストは自動でアーカイブされます。'}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[3] }}>
+          <Select size="sm" label="止めた側" value={form.stoppedBy} onChange={set('stoppedBy')} options={toOptions(STOPPED_BY_OPTIONS)} />
+          <Select size="sm" label="理由" value={form.stopReason} onChange={set('stopReason')} options={toOptions(STOP_REASON_OPTIONS)} />
+          <Select size="sm" label="再開の見込み" value={form.resumeOutlook} onChange={set('resumeOutlook')} options={toOptions(RESUME_OPTIONS)} />
+          <div />
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Input size="sm" label="ひとこと（任意）" value={form.stopNote} onChange={set('stopNote')} placeholder="例：予算の上限に達した。11月に再開の相談" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space[2], marginTop: space[5] }}>
+          <Button size="sm" variant="outline" onClick={onCancel}>やめる</Button>
+          <Button size="sm" variant="primary" loading={saving} onClick={save}>「{toStatus}」にする</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const statusStyle = (st) => {
   if (st === '支援中') return { color: '#10B981' };
   if (st === '準備中') return { color: C.gold };
@@ -654,6 +716,9 @@ export default function ClientDetailPage({
     onBack?.();
   };
 
+  // 停止中・保留に変えるときの理由の窓（変える先のステータス。null なら閉じている）
+  const [stopTo, setStopTo] = useState(null);
+
   // 担当者ドロワー
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
   // 左のタブは URL に持つ（読み直しても同じタブが開く）。
@@ -699,13 +764,27 @@ export default function ClientDetailPage({
         fontSize: 12.5, color: color.textMid, fontFamily: font.family.sans,
       }}>← 一覧へ戻る</button>
 
+      {stopTo && (
+        <StopReasonModal client={c} toStatus={stopTo} onCancel={() => setStopTo(null)}
+          onSave={async (form) => {
+            // 理由と状態を1回で保存する（DBのトリガーが、理由つきでステータス変更の記録を残す）
+            await patchClient({ ...form, status: stopTo, statusChangedAt: new Date().toISOString() });
+            setStopTo(null); activity.reload();
+          }} />
+      )}
+
       {/* 見出し：社名・ステータス・契約・業種・主担当。札を並べすぎない。 */}
       <div style={{ ...activityCardStyle, marginTop: space[3], padding: '16px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap' }}>
           <InlineCompanyName company={c.company} editable={!!setClientData} onSave={v => patchClient({ company: v })} />
           {setClientData ? (
             <select value={c.status || ''} title="ステータスを変更"
-              onChange={async (e) => { await patchClient({ status: e.target.value, statusChangedAt: new Date().toISOString() }); activity.reload(); }}
+              onChange={async (e) => {
+                const next = e.target.value;
+                // 停止中・保留にするときは、止まった理由を先に聞く
+                if (next === '停止中' || next === '保留') { setStopTo(next); return; }
+                await patchClient({ status: next, statusChangedAt: new Date().toISOString() }); activity.reload();
+              }}
               style={pill(true, sc.color)}>
               {['準備中','支援中','停止中','保留','中期フォロー','面談予定','問い合わせ'].map(s2 => <option key={s2} value={s2}>{s2}</option>)}
             </select>
@@ -792,6 +871,29 @@ export default function ClientDetailPage({
                   <EditableField label="支払特記" value={c.payNote} placeholder="（任意）" onSave={v => patchClient({ payNote: v })} />
                   <EditableField label="契約締結日" value={c.contractSignedOn} placeholder="例: 2026-10-05" onSave={v => patchClient({ contractSignedOn: v })} />
                   <EditableField label="業種" value={c.industry} placeholder="（任意）" onSave={v => patchClient({ industry: v })} />
+                  <EditableField label="単価（アポ1件・税込）" value={c.feeAmount != null ? `${Number(c.feeAmount).toLocaleString()}円` : ''}
+                    placeholder="例: 110000" onSave={v => patchClient({ feeAmount: parseNum(v) })} />
+                  <EditableField label="月の件数の上限" value={c.monthlyCap != null ? `${c.monthlyCap}件` : ''}
+                    placeholder="例: 5（先方が面談をさばける量）" onSave={v => patchClient({ monthlyCap: parseNum(v) })} />
+                  <EditableField label="試しの条件" value={c.trialTerms}
+                    placeholder="例: 予算50万円・最初10件。3件以上で月5件の本契約" onSave={v => patchClient({ trialTerms: v })} />
+
+                  <div style={profileHead}>獲得</div>
+                  <EditableField label="獲得経路" value={c.acquisitionChannel} type="select" options={toOptions(CHANNEL_OPTIONS)}
+                    onSave={v => patchClient({ acquisitionChannel: v })} />
+                  {(c.acquisitionChannel === '紹介' || c.referrer) && (
+                    <EditableField label="紹介元" value={c.referrer} placeholder="例: 〇〇株式会社 〇〇様" onSave={v => patchClient({ referrer: v })} />
+                  )}
+
+                  {(c.status === '停止中' || c.status === '保留' || c.stopReason) && (
+                    <>
+                      <div style={profileHead}>停止</div>
+                      <EditableField label="止めた側" value={c.stoppedBy} type="select" options={toOptions(STOPPED_BY_OPTIONS)} onSave={v => patchClient({ stoppedBy: v })} />
+                      <EditableField label="理由" value={c.stopReason} type="select" options={toOptions(STOP_REASON_OPTIONS)} onSave={v => patchClient({ stopReason: v })} />
+                      <EditableField label="再開の見込み" value={c.resumeOutlook} type="select" options={toOptions(RESUME_OPTIONS)} onSave={v => patchClient({ resumeOutlook: v })} />
+                      <EditableField label="ひとこと" value={c.stopNote} placeholder="（任意）" onSave={v => patchClient({ stopNote: v })} />
+                    </>
+                  )}
                 </div>
                 <div>
                   <div style={profileHead}>進め方</div>

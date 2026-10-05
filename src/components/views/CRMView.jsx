@@ -255,6 +255,8 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const [sortState, setSortState] = useState({ key: null, dir: null });
   // 商材フィルタ ('all' or '商材名')
   const [productFilter, setProductFilter] = useUrlState('product', 'all');
+  // 止まった理由の絞り込み（停止中・保留を見るとき用・2026-10-06）
+  const [stopReasonFilter, setStopReasonFilter] = useUrlState('stop_reason', 'all');
   // CRM内サブセクション ('clients' = クライアント一覧 / 'rewards' = 報酬体系マスタ / 'contracts' = 契約書テンプレ)
   const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'rewards'] });
 
@@ -360,6 +362,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const filtered = displayClientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
     if (productFilter !== "all" && c.industry !== productFilter) return false;
+    if ((statusFilter === '停止中' || statusFilter === '保留') && stopReasonFilter !== 'all' && (c.stopReason || '未入力') !== stopReasonFilter) return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
     if (alertFilter === 'overdue' && !isOverdue(c)) return false;
     if (alertFilter === 'expired' && !isExpired(c)) return false;
@@ -734,6 +737,29 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
               );
             })()}
           </div>
+          {/* 止まった理由（停止中・保留のときだけ出す。詳細画面で入れた理由で絞る） */}
+          {(statusFilter === '停止中' || statusFilter === '保留') && (() => {
+            const pool = displayClientData.filter(c => c.status === statusFilter);
+            const counts = pool.reduce((m, c) => { const k = c.stopReason || '未入力'; m[k] = (m[k] || 0) + 1; return m; }, {});
+            const keys = ['方針転換・体制', 'アポの質', '予算', '成果不足', 'その他', '未入力'].filter(k => counts[k]);
+            const btn = (active) => ({
+              padding: '4px 12px', borderRadius: radius.sm, fontSize: 11, fontWeight: font.weight.semibold,
+              cursor: 'pointer', fontFamily: font.family.sans,
+              border: '1px solid ' + (active ? NAVY : color.border),
+              background: active ? NAVY : color.white, color: active ? color.white : color.textMid,
+            });
+            return (
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, marginRight: 4 }}>止まった理由:</span>
+                <button onClick={() => setStopReasonFilter('all')} style={btn(stopReasonFilter === 'all')}>
+                  全て <span style={{ fontSize: 10, opacity: 0.7 }}>{pool.length}</span></button>
+                {keys.map(k => (
+                  <button key={k} onClick={() => setStopReasonFilter(k)} style={btn(stopReasonFilter === k)}>
+                    {k} <span style={{ fontSize: 10, opacity: 0.7 }}>{counts[k]}</span></button>
+                ))}
+              </div>
+            );
+          })()}
           <CRMTable
             filtered={filtered}
             clientData={clientData}

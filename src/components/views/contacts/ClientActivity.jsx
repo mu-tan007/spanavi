@@ -99,6 +99,8 @@ function buildTimeline(d) {
       at: l.changed_at, key: 's' + l.id, tone: 'status', kind: 'status', quiet: true,
       lead: l.changed_by_name ? `${l.changed_by_name}が` : '',
       text: `ステータスを${l.to_status || '—'}に変えました`,
+      // 停止中・保留にしたときの理由（止めた側・理由・再開の見込み・ひとこと）
+      memo: l.note || undefined,
     });
   }
 

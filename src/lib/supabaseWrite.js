@@ -239,6 +239,15 @@ export async function insertClient(data, engagementId = null) {
   return { result, error }
 }
 
+/** 「110,000」「11万」のような入力を整数に。空や数字でないものは null */
+function toIntOrNull(v) {
+  if (v === null || v === '') return null
+  const s = String(v).replace(/[,，円\s]/g, '')
+  const man = s.match(/^(\d+(?:\.\d+)?)万$/)
+  const n = man ? Math.round(Number(man[1]) * 10000) : parseInt(s, 10)
+  return Number.isFinite(n) ? n : null
+}
+
 export async function updateClient(supaId, data) {
   if (!supaId) { console.warn('[DB] updateClient: no supaId'); return null }
   const { error } = await supabase
@@ -279,6 +288,16 @@ export async function updateClient(supaId, data) {
       precheck_share_recording: data.precheckShareRecording === undefined ? undefined : data.precheckShareRecording,
       // 担当者全員で訪問するか（架電画面のカレンダーに全員の予定を重ねたタブを出す）
       calendar_all_contacts: data.calendarAllContacts === undefined ? undefined : data.calendarAllContacts,
+      // 獲得・契約・停止（2026-10-06）。渡されたときだけ反映
+      acquisition_channel: data.acquisitionChannel === undefined ? undefined : (data.acquisitionChannel || null),
+      referrer: data.referrer === undefined ? undefined : (data.referrer || null),
+      fee_amount: data.feeAmount === undefined ? undefined : toIntOrNull(data.feeAmount),
+      monthly_cap: data.monthlyCap === undefined ? undefined : toIntOrNull(data.monthlyCap),
+      trial_terms: data.trialTerms === undefined ? undefined : (data.trialTerms || null),
+      stop_reason: data.stopReason === undefined ? undefined : (data.stopReason || null),
+      stopped_by: data.stoppedBy === undefined ? undefined : (data.stoppedBy || null),
+      resume_outlook: data.resumeOutlook === undefined ? undefined : (data.resumeOutlook || null),
+      stop_note: data.stopNote === undefined ? undefined : (data.stopNote || null),
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)

@@ -246,6 +246,16 @@ export function useSpanaviData(authOrgId) {
         address: c.address || '',
         representativeName: c.representative_name || '',
         hpUrl: c.hp_url || '',
+        // 獲得・契約・停止（2026-10-06）
+        acquisitionChannel: c.acquisition_channel || '',
+        referrer: c.referrer || '',
+        feeAmount: c.fee_amount ?? null,
+        monthlyCap: c.monthly_cap ?? null,
+        trialTerms: c.trial_terms || '',
+        stopReason: c.stop_reason || '',
+        stoppedBy: c.stopped_by || '',
+        resumeOutlook: c.resume_outlook || '',
+        stopNote: c.stop_note || '',
       }))
 
       // members → 既存DEFAULT_MEMBERSフォーマット（名前のリスト）
