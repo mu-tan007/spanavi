@@ -10,6 +10,8 @@ import { PAYMENT_SITE_OPTIONS } from '../crm/utils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
 import ClientMeetingsSection from '../crm/ClientMeetingsSection';
+import ClientActivity, { useClientActivity, lastContactOf, daysAgo, activityCardStyle } from './ClientActivity';
+import { useUrlState } from '../../../hooks/useUrlState';
 
 const NAVY = '#0D2247';
 const BLUE = '#1E40AF';
@@ -500,8 +502,8 @@ function InlineCompanyName({ company, editable, onSave }) {
         onBlur={commit}
         onKeyDown={e => { if (e.key === 'Escape') { setVal(company || ''); setEditing(false); } if (e.key === 'Enter') commit(); }}
         style={{
-          fontSize: 17, fontWeight: font.weight.bold, color: NAVY,
-          border: `1px solid ${NAVY}`, borderRadius: radius.sm, padding: '2px 6px',
+          fontSize: 19, fontWeight: font.weight.bold, color: color.textDark,
+          border: `1px solid ${color.navy}`, borderRadius: radius.sm, padding: '2px 6px',
           fontFamily: font.family.sans, outline: 'none', minWidth: 240,
         }}
       />
@@ -511,7 +513,7 @@ function InlineCompanyName({ company, editable, onSave }) {
     <span
       onClick={() => editable && setEditing(true)}
       style={{
-        fontSize: 17, fontWeight: font.weight.bold, color: NAVY,
+        fontSize: 19, fontWeight: font.weight.bold, color: color.textDark, letterSpacing: -0.1,
         cursor: editable ? 'pointer' : 'default',
         padding: '2px 6px', margin: '0 -6px', borderRadius: radius.sm,
       }}
@@ -534,28 +536,25 @@ function SectionTitle({ children }) {
 }
 
 function NextContactRow({ client, setClientData }) {
-  const initial = client.nextContactAt ? String(client.nextContactAt).slice(0, 10) : '';
-  const [val, setVal] = useState(initial);
-  useEffect(() => {
-    setVal(client.nextContactAt ? String(client.nextContactAt).slice(0, 10) : '');
-  }, [client.nextContactAt]);
+  const toYmd = (v) => (v ? new Date(v).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : '');
+  const [val, setVal] = useState(toYmd(client.nextContactAt));
+  useEffect(() => { setVal(toYmd(client.nextContactAt)); }, [client.nextContactAt]);
 
   const handleSave = async () => {
-    const newVal = val ? new Date(val + 'T09:00:00').toISOString() : null;
-    if (newVal === client.nextContactAt) return;
+    const newVal = val ? new Date(val + 'T09:00:00+09:00').toISOString() : null;
+    if ((newVal || null) === (client.nextContactAt || null)) return;
     if (!client._supaId) return;
     const { error } = await updateClientNextContactAt(client._supaId, newVal);
     if (error) { alert('保存に失敗しました'); return; }
-    if (setClientData) {
-      setClientData(prev => prev.map(x =>
-        x._supaId === client._supaId ? { ...x, nextContactAt: newVal } : x
-      ));
-    }
+    setClientData?.(prev => prev.map(x => (x._supaId === client._supaId ? { ...x, nextContactAt: newVal } : x)));
   };
 
+  // 期日を過ぎたら赤（一覧の「予定日超過」と同じ判定）
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+  const overdue = !!val && val < today;
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 9, fontWeight: font.weight.semibold, color: C.textLight, marginBottom: 2 }}>次回接点予定日</div>
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: color.textMid }}>
+      次回接点
       <input
         type="date"
         value={val}
@@ -563,16 +562,21 @@ function NextContactRow({ client, setClientData }) {
         onBlur={handleSave}
         disabled={!setClientData}
         style={{
-          width: '100%', padding: '6px 8px', borderRadius: radius.sm,
-          border: `1px solid ${GRAY_200}`,
-          fontSize: font.size.xs, fontFamily: font.family.sans, outline: 'none',
-          background: setClientData ? color.white : GRAY_50,
-          color: C.textDark,
+          padding: '4px 8px', borderRadius: radius.md,
+          border: `1px solid ${overdue ? color.danger : color.border}`,
+          fontSize: 12, fontFamily: font.family.sans, outline: 'none',
+          background: color.white, color: overdue ? color.danger : color.textDark,
+          fontWeight: overdue ? 700 : 400,
         }}
       />
-    </div>
+    </label>
   );
 }
+
+const profileHead = {
+  fontSize: 11, fontWeight: 700, color: color.textMid, letterSpacing: 0.5,
+  paddingBottom: 6, marginBottom: 10, borderBottom: `1px solid ${color.borderLight}`,
+};
 
 function FieldRow({ label, value, mono = false, valueColor }) {
   return (
@@ -652,6 +656,8 @@ export default function ClientDetailPage({
 
   // 担当者ドロワー
   const [contactDrawer, setContactDrawer] = useState({ isOpen: false, mode: 'add', existingContact: null });
+  // 左のタブは URL に持つ（読み直しても同じタブが開く）
+  const [tab, setTab] = useUrlState('client_tab', 'profile', { allowed: ['profile', 'contacts', 'meetings'] });
   // モバイル時のタブ切替
   const isMobile = useIsMobile();
 
@@ -662,6 +668,8 @@ export default function ClientDetailPage({
     return 0;
   });
 
+  const activity = useClientActivity(c?._supaId, sortedContacts);
+
   if (!c) {
     return (
       <div style={{ padding: 40, textAlign: 'center', color: C.textLight, fontFamily: font.family.sans }}>
@@ -670,259 +678,195 @@ export default function ClientDetailPage({
     );
   }
 
+  const primary = sortedContacts.find(ct => ct.isPrimary) || sortedContacts[0] || null;
+  const lastAt = lastContactOf(activity.items);
+  const tabs = [
+    ['profile', '基本情報', 0],
+    ['contacts', '担当者', sortedContacts.length],
+    ['meetings', '面談記録', (activity.data?.meetings || []).length],
+  ];
+  const pill = (active, fg) => ({
+    padding: '3px 10px', borderRadius: radius.pill, border: 'none', cursor: setClientData ? 'pointer' : 'default',
+    background: active ? `${fg}14` : color.gray100, color: fg,
+    fontSize: 11.5, fontWeight: 700, fontFamily: font.family.sans, outline: 'none',
+  });
+
   return (
-    <div style={{ animation: 'fadeIn 0.2s ease', fontFamily: font.family.sans, color: C.textDark }}>
-      {/* Top header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 18px', background: color.white,
-        border: `1px solid ${GRAY_200}`, borderRadius: radius.md, marginBottom: 16,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={onBack}
-            style={{
-              padding: '6px 12px', borderRadius: radius.md,
-              border: `1px solid ${GRAY_200}`, background: color.white,
-              fontSize: font.size.xs, color: C.textMid,
-              cursor: 'pointer', fontFamily: font.family.sans,
-            }}
-          >‹ 一覧に戻る</button>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            {setClientData ? (
-              <select
-                value={c.status || ''}
-                onChange={async (e) => { await patchClient({ status: e.target.value, statusChangedAt: new Date().toISOString() }); }}
-                title="ステータスを変更"
-                style={{
-                  borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
-                  border: 'none', borderRadius: 0,
-                  color: sc.color, fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                  background: 'transparent', cursor: 'pointer', fontFamily: font.family.sans,
-                  outline: 'none',
-                }}
-              >
-                {['準備中','支援中','停止中','保留','中期フォロー','面談予定','問い合わせ'].map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            ) : (
-              <span style={{
-                borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
-                color: sc.color, fontSize: font.size.xs, fontWeight: font.weight.semibold,
-              }}>{c.status}</span>
-            )}
-            {setClientData ? (
-              <select
-                value={c.contract || '未'}
-                onChange={async (e) => { await patchClient({ contract: e.target.value }); }}
-                title="契約状態を変更"
-                style={{
-                  fontSize: 9, padding: '2px 8px', borderRadius: radius.sm,
-                  background: c.contract === '済' ? NAVY + '12' : GRAY_50,
-                  color: c.contract === '済' ? NAVY : C.textLight,
-                  border: 'none', cursor: 'pointer', fontFamily: font.family.sans,
-                  fontWeight: font.weight.semibold, outline: 'none',
-                }}
-              >
-                <option value="未">契約未</option>
-                <option value="済">契約済</option>
-              </select>
-            ) : (
-              c.contract === '済' && (
-                <span style={{
-                  fontSize: 9, padding: '2px 8px', borderRadius: radius.sm,
-                  background: NAVY + '12', color: NAVY, fontWeight: font.weight.semibold,
-                }}>契約済</span>
-              )
-            )}
-            <InlineCompanyName company={c.company} editable={!!setClientData} onSave={v => patchClient({ company: v })} />
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+    <div style={{ animation: 'fadeIn 0.2s ease', fontFamily: font.family.sans, color: color.textDark }}>
+      <button onClick={onBack} style={{
+        padding: '4px 0', border: 'none', background: 'transparent', cursor: 'pointer',
+        fontSize: 12.5, color: color.textMid, fontFamily: font.family.sans,
+      }}>← 一覧へ戻る</button>
+
+      {/* 見出し：社名・ステータス・契約・業種・主担当。札を並べすぎない。 */}
+      <div style={{ ...activityCardStyle, marginTop: space[3], padding: '16px 22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap' }}>
+          <InlineCompanyName company={c.company} editable={!!setClientData} onSave={v => patchClient({ company: v })} />
+          {setClientData ? (
+            <select value={c.status || ''} title="ステータスを変更"
+              onChange={async (e) => { await patchClient({ status: e.target.value, statusChangedAt: new Date().toISOString() }); activity.reload(); }}
+              style={pill(true, sc.color)}>
+              {['準備中','支援中','停止中','保留','中期フォロー','面談予定','問い合わせ'].map(s2 => <option key={s2} value={s2}>{s2}</option>)}
+            </select>
+          ) : <span style={pill(true, sc.color)}>{c.status}</span>}
+          {setClientData ? (
+            <select value={c.contract || '未'} title="契約状態を変更"
+              onChange={async (e) => { await patchClient({ contract: e.target.value }); }}
+              style={pill(c.contract === '済', c.contract === '済' ? color.navy : color.textLight)}>
+              <option value="未">契約未</option>
+              <option value="済">契約済</option>
+            </select>
+          ) : (c.contract === '済' && <span style={pill(true, color.navy)}>契約済</span>)}
+          {c.industry && <span style={{ fontSize: 12, color: color.textLight }}>{c.industry}</span>}
+          <div style={{ flex: 1 }} />
+          <NextContactRow client={c} setClientData={setClientData} />
+          <span style={{ fontSize: 11.5, color: color.textMid, whiteSpace: 'nowrap' }}>
+            最終接点 {lastAt ? (daysAgo(lastAt) || '—') : '—'}
+          </span>
           {isAdmin && setClientData && (
-            <button
-              onClick={handleDelete}
-              title="このクライアントを削除"
-              style={{
-                padding: '5px 12px', borderRadius: radius.md,
-                border: `1px solid ${GRAY_200}`, background: color.white,
-                fontSize: font.size.xs, color: C.textLight, fontWeight: font.weight.medium,
-                cursor: 'pointer', fontFamily: font.family.sans,
-              }}
+            <button onClick={handleDelete} title="このクライアントを削除" style={{
+              padding: '4px 12px', borderRadius: radius.lg, border: `1px solid ${color.border}`,
+              background: color.white, fontSize: 11.5, color: color.textLight, cursor: 'pointer', fontFamily: font.family.sans,
+            }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = color.danger; e.currentTarget.style.color = color.danger; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = GRAY_200; e.currentTarget.style.color = C.textLight; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = color.border; e.currentTarget.style.color = color.textLight; }}
             >削除</button>
           )}
         </div>
+        <div style={{ marginTop: 6, display: 'flex', gap: space[4], flexWrap: 'wrap', fontSize: 12, color: color.textMid }}>
+          {primary && <span>主担当 {primary.name}{primary.email ? `（${primary.email}）` : ''}</span>}
+          {c.representativeName && <span>代表 {c.representativeName}</span>}
+          {c.address && <span>{c.address}</span>}
+          {c.hpUrl && <a href={c.hpUrl} target="_blank" rel="noreferrer" style={{ color: color.navyLight }}>HP</a>}
+        </div>
       </div>
 
-      {/* 2-column layout: 左=担当者/契約条件 / 中=面談議事録 */}
+      {/* 左：タブ（もの） ／ 右：活動履歴（したこと）。活動履歴は右に常に出す。 */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '320px 1fr',
-        gap: 16,
-        alignItems: 'start',
+        display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr)' : 'minmax(0,1fr) 400px',
+        gap: space[5], marginTop: space[5], alignItems: 'start',
       }}>
-        {/* Left column: 担当者・契約条件 */}
-        <div style={{
-          display: 'flex', flexDirection: 'column', gap: 12,
-        }}>
-          {/* 担当者カード (コンパクト) */}
-          <CollapsibleCard title={`担当者 (${sortedContacts.length})`} defaultOpen={true}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            paddingBottom: 6, marginBottom: 6,
-          }}>
-            <div style={{ fontSize: 10, color: C.textLight }}>
-              {sortedContacts.length > 0 ? '主担当: ' + (sortedContacts.find(ct => ct.isPrimary)?.name || sortedContacts[0]?.name || '—') : ''}
-            </div>
-            {setContactsByClient && (
-              <button
-                onClick={() => setContactDrawer({ isOpen: true, mode: 'add', existingContact: null })}
-                style={{
-                  padding: '4px 10px', borderRadius: radius.sm,
-                  border: `1px solid ${NAVY}`, background: color.white,
-                  color: NAVY, fontSize: 10, fontWeight: font.weight.medium,
-                  cursor: 'pointer', fontFamily: font.family.sans,
-                }}
-              >＋ 追加</button>
-            )}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 2, marginBottom: space[3], flexWrap: 'wrap', height: 32, alignItems: 'center' }}>
+            {tabs.map(([k, label, n]) => {
+              const on = tab === k;
+              return (
+                <button key={k} onClick={() => setTab(k)} style={{
+                  padding: '7px 15px', border: 'none', cursor: 'pointer', borderRadius: radius.md,
+                  background: on ? color.navy : 'transparent', color: on ? color.white : color.textMid,
+                  fontFamily: font.family.sans, fontSize: 12.5, fontWeight: on ? 700 : 500,
+                }}>
+                  {label}
+                  {n > 0 && (
+                    <span style={{
+                      marginLeft: 6, padding: '1px 6px', borderRadius: radius.pill,
+                      background: on ? 'rgba(255,255,255,0.22)' : color.gray100,
+                      color: on ? color.white : color.textLight, fontSize: 10.5,
+                    }}>{n}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
-          {sortedContacts.length === 0 ? (
-            <div style={{ fontSize: font.size.xs, color: C.textLight, padding: 12, textAlign: 'center' }}>
-              担当者が登録されていません
-            </div>
-          ) : (
-            sortedContacts.map(ct => (
-              <div
-                key={ct.id}
-                onClick={() => setContactDrawer({ isOpen: true, mode: 'edit', existingContact: ct })}
-                style={{
-                  padding: '10px 8px',
-                  borderBottom: `1px solid ${GRAY_100}`,
-                  cursor: 'pointer', transition: 'background 0.12s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#EAF4FF'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                  {ct.isPrimary && (
-                    <span style={{
-                      fontSize: 8, fontWeight: font.weight.bold, letterSpacing: 1,
-                      color: NAVY, border: `1px solid ${NAVY}`,
-                      borderRadius: 2, padding: '1px 4px',
-                    }}>主</span>
+          <div style={activityCardStyle}>
+            {tab === 'profile' && (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', columnGap: space[6] }}>
+                <div>
+                  <div style={profileHead}>契約条件</div>
+                  {c?._supaId && setClientData ? (
+                    <EngagementRewardsInline clientId={c._supaId} rewardMaster={rewardMaster} />
+                  ) : (
+                    <FieldRow label="報酬体系" value={
+                      c.rewardType ? (
+                        <span onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
+                          style={{ color: color.navyLight, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                          {c.rewardType} {rm ? `(${rm.name})` : ''}
+                        </span>
+                      ) : '-'
+                    } />
                   )}
-                  <span style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: NAVY }}>{ct.name}</span>
+                  <EditableField label="支払サイト" value={c.paySite} placeholder="例: 毎月末日〆翌月末払い"
+                    datalistOptions={PAYMENT_SITE_OPTIONS} onSave={v => patchClient({ paySite: v })} />
+                  <EditableField label="支払特記" value={c.payNote} placeholder="（任意）" onSave={v => patchClient({ payNote: v })} />
+                  <EditableField label="契約締結日" value={c.contractSignedOn} placeholder="例: 2026-10-05" onSave={v => patchClient({ contractSignedOn: v })} />
+                  <EditableField label="業種" value={c.industry} placeholder="（任意）" onSave={v => patchClient({ industry: v })} />
                 </div>
-                {ct.email && (
-                  <div style={{ fontSize: 10, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {ct.email}
-                  </div>
-                )}
-                {c.contact === 'Slack' && ct.slackMemberId && (
-                  <div style={{ fontSize: 9, color: C.textLight, marginTop: 2 }}>@{ct.slackMemberId}</div>
-                )}
-                <div style={{
-                  marginTop: 4, fontSize: 10, color: NAVY, fontWeight: font.weight.medium,
-                }}>詳細を開く ›</div>
+                <div>
+                  <div style={profileHead}>進め方</div>
+                  <EditableField label="リスト負担" value={c.listSrc} type="select"
+                    options={[{ value: '', label: '—' }, { value: '当社持ち', label: '当社持ち' }, { value: '先方持ち', label: '先方持ち' }, { value: '両方', label: '両方' }]}
+                    onSave={v => patchClient({ listSrc: v })} />
+                  <EditableField label="カレンダー" value={c.calendar} type="select"
+                    options={[{ value: '', label: '—' }, { value: 'Google', label: 'Google' }, { value: 'Spir', label: 'Spir' }, { value: 'Outlook', label: 'Outlook' }, { value: 'なし', label: 'なし' }, { value: '調整アポ', label: '調整アポ' }, { value: 'Google(入力)', label: 'Google(入力)' }]}
+                    onSave={v => patchClient({ calendar: v })} />
+                  <EditableField label="連絡手段" value={c.contact} type="select"
+                    options={[{ value: '', label: '—' }, { value: 'LINE', label: 'LINE' }, { value: 'Slack', label: 'Slack' }, { value: 'Chatwork', label: 'Chatwork' }, { value: 'メール', label: 'メール' }]}
+                    onSave={v => patchClient({ contact: v })} />
+                  {c.contact === 'Slack' && (
+                    <EditableField label="Slack Webhook URL（アポ報告用）" value={c.slackWebhookUrl}
+                      placeholder="https://hooks.slack.com/services/..." onSave={v => patchClient({ slackWebhookUrl: v })} />
+                  )}
+                  {c.contact === 'Chatwork' && (
+                    <EditableField label="Chatwork ルームID" value={c.chatworkRoomId} placeholder="123456789" onSave={v => patchClient({ chatworkRoomId: v })} />
+                  )}
+                  {(c.calendar === 'Spir' || c.calendar === '調整アポ') && (
+                    <EditableField label="日程調整URL" value={c.schedulingUrl} placeholder="https://app.spir.com/..." onSave={v => patchClient({ schedulingUrl: v })} />
+                  )}
+                </div>
               </div>
-            ))
-          )}
-          </CollapsibleCard>
+            )}
 
-          {/* 契約条件カード (デフォルト開・各フィールドをクリックで編集) */}
-          <CollapsibleCard title="契約条件" defaultOpen={true}>
-            {/* 報酬体系: タイプ別をクリックでモーダル編集 */}
-            {c?._supaId && setClientData ? (
-              <EngagementRewardsInline clientId={c._supaId} rewardMaster={rewardMaster} />
-            ) : (
-              <FieldRow label="報酬体系" value={
-                c.rewardType ? (
-                  <span onClick={(e) => { e.stopPropagation(); onShowReward?.(c.rewardType); }}
-                    style={{ color: NAVY, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                    {c.rewardType} {rm ? `(${rm.name})` : ''}
-                  </span>
-                ) : '-'
-              } />
+            {tab === 'contacts' && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: space[2] }}>
+                  <div style={{ fontSize: 12, color: color.textMid }}>
+                    {primary ? `主担当 ${primary.name}` : '担当者が登録されていません'}
+                  </div>
+                  {setContactsByClient && (
+                    <button onClick={() => setContactDrawer({ isOpen: true, mode: 'add', existingContact: null })} style={{
+                      padding: '4px 12px', borderRadius: radius.lg, border: `1px solid ${color.border}`,
+                      background: color.white, color: color.navyLight, fontSize: 11.5, cursor: 'pointer', fontFamily: font.family.sans,
+                    }}>担当者を追加</button>
+                  )}
+                </div>
+                {sortedContacts.map(ct => (
+                  <div key={ct.id} onClick={() => setContactDrawer({ isOpen: true, mode: 'edit', existingContact: ct })}
+                    style={{ padding: '10px 4px', borderTop: `1px solid ${color.borderLight}`, cursor: 'pointer' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = color.gray50; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 700, color: color.textDark }}>{ct.name}</span>
+                      {ct.isPrimary && <span style={pill(true, color.navy)}>主担当</span>}
+                    </div>
+                    {ct.email && <div style={{ marginTop: 2, fontSize: 12, color: color.textMid }}>{ct.email}</div>}
+                    {c.contact === 'Slack' && ct.slackMemberId && <div style={{ fontSize: 11, color: color.textLight, marginTop: 2 }}>@{ct.slackMemberId}</div>}
+                  </div>
+                ))}
+              </div>
             )}
-            <EditableField
-              label="支払サイト" value={c.paySite}
-              placeholder="例: 毎月末日〆翌月末払い"
-              datalistOptions={PAYMENT_SITE_OPTIONS}
-              onSave={v => patchClient({ paySite: v })}
-            />
-            <EditableField
-              label="支払特記" value={c.payNote}
-              placeholder="（任意）"
-              onSave={v => patchClient({ payNote: v })}
-            />
-            <EditableField
-              label="リスト負担" value={c.listSrc} type="select"
-              options={[
-                { value: '', label: '—' },
-                { value: '当社持ち', label: '当社持ち' },
-                { value: '先方持ち', label: '先方持ち' },
-                { value: '両方', label: '両方' },
-              ]}
-              onSave={v => patchClient({ listSrc: v })}
-            />
-            <EditableField
-              label="カレンダー" value={c.calendar} type="select"
-              options={[
-                { value: '', label: '—' },
-                { value: 'Google', label: 'Google' },
-                { value: 'Spir', label: 'Spir' },
-                { value: 'Outlook', label: 'Outlook' },
-                { value: 'なし', label: 'なし' },
-                { value: '調整アポ', label: '調整アポ' },
-                { value: 'Google(入力)', label: 'Google(入力)' },
-              ]}
-              onSave={v => patchClient({ calendar: v })}
-            />
-            <EditableField
-              label="連絡手段" value={c.contact} type="select"
-              options={[
-                { value: '', label: '—' },
-                { value: 'LINE', label: 'LINE' },
-                { value: 'Slack', label: 'Slack' },
-                { value: 'Chatwork', label: 'Chatwork' },
-                { value: 'メール', label: 'メール' },
-              ]}
-              onSave={v => patchClient({ contact: v })}
-            />
-            {c.contact === 'Slack' && (
-              <EditableField
-                label="Slack Webhook URL (アポ報告用)" value={c.slackWebhookUrl}
-                placeholder="https://hooks.slack.com/services/..."
-                onSave={v => patchClient({ slackWebhookUrl: v })}
-              />
+
+            {tab === 'meetings' && (
+              <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
             )}
-            {c.contact === 'Chatwork' && (
-              <EditableField
-                label="Chatwork ルームID" value={c.chatworkRoomId}
-                placeholder="123456789"
-                onSave={v => patchClient({ chatworkRoomId: v })}
-              />
-            )}
-            {(c.calendar === 'Spir' || c.calendar === '調整アポ') && (
-              <EditableField
-                label="日程調整URL" value={c.schedulingUrl}
-                placeholder="https://app.spir.com/..."
-                onSave={v => patchClient({ schedulingUrl: v })}
-              />
-            )}
-          </CollapsibleCard>
+          </div>
         </div>
 
-        {/* Center column: 面談記録 (メイン) — 白背景の高さは中身(ボックス)に連動 */}
-        <div style={{
-          background: color.white, border: `1px solid ${GRAY_200}`, borderRadius: radius.md,
-          padding: '10px 14px', alignSelf: 'start',
-        }}>
-          <ClientMeetingsSection clientId={c?._supaId} currentUser={currentUser} />
+        <div style={{ position: isMobile ? 'static' : 'sticky', top: 16, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, marginBottom: space[3], padding: '0 3px' }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: color.textDark }}>活動履歴</span>
+            {activity.items.length > 0 && <span style={{ fontSize: 10.5, color: color.textLight }}>{activity.items.length}</span>}
+          </div>
+          <div style={activityCardStyle}>
+            <ClientActivity
+              clientId={c._supaId}
+              currentUser={currentUser}
+              items={activity.items}
+              error={activity.error}
+              onSaved={activity.reload}
+              onOpenMeeting={() => setTab('meetings')}
+            />
+          </div>
         </div>
       </div>
 
