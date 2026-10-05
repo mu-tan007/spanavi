@@ -68,7 +68,9 @@ export default function ClientMeetingsSection({ clientId, currentUser = '' }) {
     const list = data || [];
     const tagged = list.map(r => ({ ...r, _cat: matchDefaultCategory(r.title) }));
     const present = new Set(tagged.map(r => r._cat).filter(Boolean));
-    const missing = DEFAULT_TITLES.filter(t => !present.has(t));
+    // ⚠️ 3枠を自動で作るのは、面談記録がまだ1件もない顧客のときだけ（2026-10-05 むー様指摘）。
+    //    欠けた枠を毎回入れ直していたため、×で消した枠が読み直すたびに復活していた。
+    const missing = list.length === 0 ? DEFAULT_TITLES.filter(t => !present.has(t)) : [];
     let merged = tagged;
     if (missing.length > 0) {
       const inserted = [];

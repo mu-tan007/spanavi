@@ -53,9 +53,9 @@ const fmtMd = (v) => { const s = tokyoYmd(v); return `${Number(s.slice(5, 7))}/$
 function buildTimeline(d) {
   const out = [];
 
-  // 面談（保存されているものだけ。中身の無い空の枠は出さない）
+  // 面談（中身が書かれたものだけ。自動で作られた空の枠は、作った日時が面談日に入っているので出さない）
   for (const m of d.meetings) {
-    if (!m.meeting_at && !m.summary && !m.next_action) continue;
+    if (!(m.summary || '').trim() && !(m.next_action || '').trim()) continue;
     out.push({
       at: m.meeting_at || m.created_at, dateOnly: !!m.meeting_at,
       key: 'm' + m.id, tone: 'deal', kind: 'deal',
