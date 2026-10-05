@@ -126,6 +126,7 @@ export function CompanyFinance({ data, isMobile, currentKey, periodLabel }) {
             { key: 'all_sales', label: '売上（会計）', width: 140, align: 'right', render: r => yen(r.all_sales) },
             { key: 'sourcing_sales', label: 'うち営業代行（自社集計）', width: 170, align: 'right', render: r => yen(r.sourcing_sales) },
             { key: 'spacareer_sales', label: 'うちスパキャリ（自社集計）', width: 170, align: 'right', render: r => yen(r.spacareer_sales) },
+            { key: 'other_sales', label: 'うちその他', width: 120, align: 'right', render: r => yen(r.other_sales) },
             { key: 'all_outsourcing', label: '外注費', width: 120, align: 'right', render: r => yen(r.all_outsourcing) },
             { key: 'all_sga', label: '販管費', width: 120, align: 'right', render: r => yen(r.all_sga) },
             { key: 'all_operating_profit', label: '営業利益', width: 130, align: 'right', render: r => yen(r.all_operating_profit) },
@@ -133,7 +134,7 @@ export function CompanyFinance({ data, isMobile, currentKey, periodLabel }) {
         />
       </Card>
       <div style={{ fontSize: font.size.xs, color: color.textLight, marginTop: -space[3] }}>
-        会計の売上は請求・入金で計上するため、自社集計の事業別売上（営業代行は面談日、スパキャリはStripeの入金日）と月がずれることがある。
+        会計ではスパキャリの売上をStripeから銀行に振り込まれた日（手数料差引後）で数えるため、自社集計（Stripeの決済日・税込）と月と金額がずれる。7月は会計＝営業代行の請求書＋その月のStripe振込で一致。「その他」は紹介報酬・人材紹介など、どの事業にも入らない売上。
       </div>
     </>
   );
@@ -152,7 +153,7 @@ export function SegmentFinance({ data, segment, isMobile, currentKey, periodLabe
   const settled = rows.filter(r => r._profit !== null);
   const sales = sumOf(settled, '_sales');
   const profit = sumOf(settled, '_profit');
-  const salesNote = segment === 'sourcing' ? '面談日の月・税込' : 'Stripeの入金日の月・返金を引いた額';
+  const salesNote = segment === 'sourcing' ? '面談日の月・税込（初期費用などを含む）' : 'Stripeの決済日の月（返金差引）＋銀行振込の受講料';
   const series = [
     { key: '_sales', label: '売上', kind: 'bar', color: FINANCE_COLOR.sales },
     { key: '_cost', label: '外注費', kind: 'bar', color: FINANCE_COLOR.cost },
