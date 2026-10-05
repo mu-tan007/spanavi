@@ -37,8 +37,15 @@ export function buildDocKey(orgId, dealId, fileName) {
   return `${orgId}/${dealId}/${rand}${ext ? '.' + ext.toLowerCase() : ''}`;
 }
 
+// 押した瞬間に空のタブを開いてから署名付きURLへ移す（待ってから開くとポップアップとして止められる）
 export async function openDocument(storagePath) {
-  const { data, error } = await supabase.storage.from('acq-docs').createSignedUrl(storagePath, 600);
-  if (error) throw error;
-  window.open(data.signedUrl, '_blank', 'noopener');
+  const win = window.open('', '_blank');
+  try {
+    const { data, error } = await supabase.storage.from('acq-docs').createSignedUrl(storagePath, 600);
+    if (error) throw error;
+    if (win) { win.opener = null; win.location.href = data.signedUrl; } else { window.location.assign(data.signedUrl); }
+  } catch (e) {
+    win?.close();
+    throw e;
+  }
 }
