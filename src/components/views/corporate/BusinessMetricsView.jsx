@@ -175,7 +175,11 @@ function CombinedChart({ data, currentKey, mode, hidden, onToggle, height }) {
         {METRICS.filter(m => SERIES[m.key].kind === 'line').map(m => (
           <Line key={`${m.key}_cur`} yAxisId={axisOf(m.key)} dataKey={`${m.key}_cur`} name={`${m.label}（今月途中）`} type="linear"
             stroke={SERIES_COLOR[m.key]} strokeWidth={2} strokeDasharray="5 4" legendType="none"
-            dot={{ r: 3, fill: color.white, stroke: SERIES_COLOR[m.key] }} activeDot={false}
+            // 白抜きの点は今月だけ（締まった月の点は実線側の点と重なるので描かない）
+            dot={(p) => (p.index === curIdx && p.cy != null
+              ? <circle key={p.key} cx={p.cx} cy={p.cy} r={3} fill={color.white} stroke={SERIES_COLOR[m.key]} strokeWidth={2} />
+              : <g key={p.key} />)}
+            activeDot={false}
             hide={hidden.has(m.key)} isAnimationActive={false} />
         ))}
       </ComposedChart>
