@@ -325,6 +325,30 @@ function japaneseName(raw: string): string {
   return seg.split(/[\s　]+/).filter(t => ja.test(t)).join(' ')
 }
 
+/** メールアドレスだけを小文字で取り出す */
+function emailOf(addr: string): string {
+  return (addr.match(/<([^>]+)>/)?.[1] || addr).trim().toLowerCase()
+}
+
+/**
+ * その相手へむー様が最後に送ったメールの1行目の宛名（「高野様」「高野 柊平 様」）。
+ * 送信者名がローマ字だけでも、途中で担当者が替わっても、むー様の呼び方をそのまま使える。
+ */
+// deno-lint-ignore no-explicit-any
+function myLastGreeting(msgs: any[], toAddr: string): string {
+  const to = emailOf(toAddr)
+  if (!to) return ''
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]
+    if (!isMe(header(m, 'From'))) continue
+    if (emailOf(header(m, 'To').split(',')[0]) !== to) continue
+    const first = plainBody(m.payload).split('\n').map(l => l.trim()).find(Boolean) || ''
+    const g = first.match(/^(.+?)[\s　]*様$/)?.[1] || ''
+    if (/[一-龯々ぁ-んァ-ヶ]/.test(g) && g.length <= 12) return g
+  }
+  return ''
+}
+
 // deno-lint-ignore no-explicit-any
 function htmlBody(part: any): string {
   if (!part) return ''
@@ -572,11 +596,13 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
       const th = await gmail(token, `threads/${threadId}?format=full`)
       const msgs = th.messages || []
       // 宛名は「この下書きを送る相手」に合わせる（スレッドの途中で担当者が変わることがある）
+      // 最優先は、その相手へむー様が最後に送ったメールの宛名（むー様が自分で書いた呼び方）
       // 共用アドレス（info-btix-ma など）は表示名が人名でないので使わない。
       // そのときは相手の本文の名乗り（「ブティックスの佐藤でございます」）→ 最初の報告の宛名、の順で取る
       const last = msgs[msgs.length - 1]
       const target = replyTarget(last)
-      const toName = japaneseName(displayName((target.to || '').split(',')[0]))
+      const toAddr = (target.to || '').split(',')[0]
+      const toName = myLastGreeting(msgs, toAddr) || japaneseName(displayName(toAddr))
       const selfIntro = target.fromMe ? '' :
         (plainBody(last?.payload).match(/の([一-龯]{1,4})(?:と申します|でございます|です)/)?.[1] || '')
       firstBody = toName ? `${toName} 様` : selfIntro ? `${selfIntro} 様` : plainBody(msgs[0]?.payload)
