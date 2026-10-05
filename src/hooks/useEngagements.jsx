@@ -15,7 +15,7 @@ const IMPLEMENTED_ENG_SLUGS = ['seller_sourcing', 'spartia_career', 'corporate',
 export const CORPORATE_PRODUCT = { id: 'corporate', name: '全社', slug: 'corporate', display_order: 0 };
 export const CORPORATE_ENGAGEMENT = { id: 'corporate', name: '全社', slug: 'corporate', status: 'active', product_id: 'corporate', virtual: true };
 // 「買収」タブ（管理者のみ）。全社と同じく DB に置かない仮想の事業。弊社が買い手として受けた案件を扱う。
-export const ACQUISITION_PRODUCT = { id: 'acquisition', name: '買収', slug: 'acquisition', display_order: 0.5 };
+export const ACQUISITION_PRODUCT = { id: 'acquisition', name: '買収', slug: 'acquisition', display_order: 9999 }; // いちばん右
 export const ACQUISITION_ENGAGEMENT = { id: 'acquisition', name: '買収', slug: 'acquisition', status: 'active', product_id: 'acquisition', virtual: true };
 const VIRTUAL_ENGAGEMENTS = { corporate: CORPORATE_ENGAGEMENT, acquisition: ACQUISITION_ENGAGEMENT };
 
