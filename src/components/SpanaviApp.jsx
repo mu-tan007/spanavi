@@ -853,13 +853,14 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // engagements テーブルには商材×ステージの全組合せ (IFAリード獲得 等) が存在するが、
   // それらは EngagementPlaceholder にフォールバックするだけのため巡回から除外する。
   useEffect(() => {
-    const IMPLEMENTED_ENG_SLUGS = ['seller_sourcing', 'spartia_career'];
+    // 上部の事業タブと同じ並び（全社・営業代行・スパキャリ・買収）。全社と買収は DB に無い仮想の事業で、見られる人だけ
+    const TAB_ORDER = ['corporate', 'seller_sourcing', 'spartia_career', 'acquisition'];
+    const VIRTUAL_SLUGS = ['corporate', 'acquisition'];
     const handleKeyDown = (e) => {
       if (!e.ctrlKey) return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        const slugs = (engagements || [])
-          .filter(eg => eg.status === 'active' && IMPLEMENTED_ENG_SLUGS.includes(eg.slug))
-          .map(eg => eg.slug);
+        const active = new Set((engagements || []).filter(eg => eg.status === 'active').map(eg => eg.slug));
+        const slugs = TAB_ORDER.filter(sl => (VIRTUAL_SLUGS.includes(sl) || active.has(sl)) && canViewEngagement(sl));
         if (slugs.length === 0) return;
         const cur = engSlug && slugs.includes(engSlug) ? engSlug : slugs[0];
         const idx = slugs.indexOf(cur);
@@ -895,6 +896,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         const tabs = ['customers','recruiting','sessions','trainer_schedule','homework','social_style','ai_courses','templates','session_records','trainer_rewards','analytics','revenue','sales_funnel','crowdworks_scout','mypage'];
         if (isAdmin) tabs.push('admin_settings');
         cycle(tabs, currentTab, e.key, setCurrentTab);
+      } else if (engSlug === 'corporate') {
+        cycle(CORPORATE_TABS, currentTab, e.key, setCurrentTab);
+      } else if (engSlug === 'acquisition') {
+        cycle(ACQUISITION_TABS, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_capital') {
         const paths = ['/dashboard', '/deals', '/needs', '/partners', '/documents', '/members'];
         const cur = getCapitalPathname();
@@ -905,7 +910,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentTab, navGroups, engSlug, isAdmin, engagements, switchEngagement]);
+  }, [currentTab, navGroups, engSlug, isAdmin, engagements, switchEngagement, canViewEngagement]);
 
   // engagement async ロード中は描画しない（タブ誤遷移防止）
   // 背景は index.html の splash と同じ navy グラデーション (ログイン画面とも統一)
