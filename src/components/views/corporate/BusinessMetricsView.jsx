@@ -3,7 +3,8 @@ import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Cell, Legend,
 } from 'recharts';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
-import { Card, DataTable, Select } from '../../ui';
+import { Button, Card, DataTable, Select } from '../../ui';
+import { CompanyFinance, SegmentFinance } from './FinanceSection';
 import PageHeader from '../../common/PageHeader';
 import { supabase } from '../../../lib/supabase';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -191,7 +192,9 @@ export default function BusinessMetricsView() {
   const currentMonth = `${today.slice(0, 7)}-01`;
 
   const [fy, setFy] = useState(String(currentFy));
+  const [segment, setSegment] = useState('company');
   const [rows, setRows] = useState([]);
+  const [finRows, setFinRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -212,9 +215,16 @@ export default function BusinessMetricsView() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: e } = await supabase.rpc('corporate_business_metrics', { p_from: from, p_to: to });
+    const [biz, fin] = await Promise.all([
+      supabase.rpc('corporate_business_metrics', { p_from: from, p_to: to }),
+      supabase.rpc('corporate_finance_metrics', { p_from: from, p_to: to }),
+    ]);
+    const e = biz.error || fin.error;
     if (e) setError(e.message);
-    setRows((data || []).map(r => ({ ...r, sales: Number(r.sales) })));
+    setRows((biz.data || []).map(r => ({ ...r, sales: Number(r.sales) })));
+    // bigint は文字列で返るので数値にそろえる（null は null のまま）
+    const num = (v) => (v === null || v === undefined ? null : Number(v));
+    setFinRows((fin.data || []).map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, k === 'month' ? v : num(v)]))));
     setLoading(false);
   }, [from, to]);
 
@@ -240,6 +250,14 @@ export default function BusinessMetricsView() {
       };
     });
   }, [rows, from, isAll]);
+
+  // お金の表とグラフも、行動のグラフと同じ月の並びにそろえる
+  const finChartData = useMemo(() => {
+    const byMonth = new Map(finRows.map(r => [r.month, r]));
+    return chartData.map(c => ({ ...(byMonth.get(c.month) || {}), month: c.month, label: c.label }))
+      .filter(c => c.month <= currentMonth);
+  }, [finRows, chartData, currentMonth]);
+  const periodLabel = isAll ? '累計' : fyStart === currentFy ? '今期' : `第${termNo(fyStart)}期`;
 
   // カードの比較は締まった月どうし（途中の今月を前月の丸1か月と比べると必ず下がって見えるため）
   const closed = rows.filter(r => r.month < currentMonth);
@@ -277,15 +295,36 @@ export default function BusinessMetricsView() {
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="業績"
-        description="月ごとの新規顧客・支援した会社・取得アポ・売上"
+        description={segment === 'company'
+          ? '会社全体の収支（税理士の試算表）'
+          : segment === 'sourcing' ? '営業代行の顧客・アポ・売上と収支' : 'スパキャリの売上と収支'}
         right={right}
       />
+
+      <div style={{ display: 'flex', gap: space[2], paddingTop: space[4], flexWrap: 'wrap' }}>
+        {[
+          { value: 'company', label: '全社' },
+          { value: 'sourcing', label: '営業代行' },
+          { value: 'spacareer', label: 'スパキャリ' },
+        ].map(t => (
+          <Button key={t.value} size="sm" variant={segment === t.value ? 'primary' : 'outline'} onClick={() => setSegment(t.value)}>
+            {t.label}
+          </Button>
+        ))}
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[5], paddingTop: space[5] }}>
         {error && (
           <Card variant="flat"><span style={{ color: color.danger, fontSize: font.size.sm }}>読み込みエラー：{error}</span></Card>
         )}
 
+        {segment === 'company' && (
+          <CompanyFinance data={finChartData} isMobile={isMobile} currentKey={currentMonth} periodLabel={periodLabel} />
+        )}
+        {segment === 'spacareer' && (
+          <SegmentFinance data={finChartData} segment="spacareer" isMobile={isMobile} currentKey={currentMonth} periodLabel={periodLabel} />
+        )}
+        {segment === 'sourcing' && (<>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: space[3] }}>
           {METRICS.map(m => (
             <MetricCard
@@ -339,6 +378,9 @@ export default function BusinessMetricsView() {
             ]}
           />
         </Card>
+
+        <SegmentFinance data={finChartData} segment="sourcing" isMobile={isMobile} currentKey={currentMonth} periodLabel={periodLabel} />
+        </>)}
       </div>
     </div>
   );
