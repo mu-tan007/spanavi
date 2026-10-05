@@ -42,7 +42,8 @@ Deno.serve(async (req) => {
 
     if (action === 'detect') {
       // 社名などは返さない（公開鍵でも呼べるため）
-      const result = await detect(sb, body.dry_run === true)
+      // notify=false は作り直しのとき（通知を二重に出さない）
+      const result = await detect(sb, body.dry_run === true, body.notify !== false)
       return json(result)
     }
 
@@ -119,7 +120,7 @@ Deno.serve(async (req) => {
 // ------------------------------------------------------------
 // 周回の終わったリストを探して下書きを作る
 // ------------------------------------------------------------
-async function detect(sb: SupabaseClient, dryRun: boolean) {
+async function detect(sb: SupabaseClient, dryRun: boolean, notify = true) {
   const { data: lists, error } = await sb.from('call_lists')
     .select('id, org_id, name, client_id, clients(name)')
     .eq('is_archived', false)
@@ -152,7 +153,7 @@ async function detect(sb: SupabaseClient, dryRun: boolean) {
       const id = await createReport(sb, list, latest.round, 'round', latest.completed_at!)
       if (id) {
         created++
-        await notifyAdmins(sb, list.org_id, `${clientName}「${listLabel(list.name)}」が${latest.round}周目を終えました。報告の下書きがあります。スクリプトの改善案は篠宮と相談してから送ってください`)
+        if (notify) await notifyAdmins(sb, list.org_id, `${clientName}「${listLabel(list.name)}」が${latest.round}周目を終えました。報告の下書きがあります。スクリプトの改善案は篠宮と相談してから送ってください`)
       }
     } catch (e) {
       failures.push((e as Error).message)
