@@ -265,7 +265,9 @@ function buildDraft(listName: string, s: Stats, kind: 'round' | 'manual', o: Dra
     if (o.mentions) lines.push(o.mentions)
     lines.push('お世話になっております。')
   } else {
-    lines.push(`${o.greeting || 'ご担当者'}様`)
+    // むー様の書き方に合わせる：姓だけなら「佐藤様」、氏名なら「川元 徳馬 様」
+    const g = o.greeting || 'ご担当者'
+    lines.push(/[\s　]/.test(g) ? `${g} 様` : `${g}様`)
     lines.push('')
     lines.push('お世話になっております。')
     lines.push('Spartiaの篠宮でございます。')
