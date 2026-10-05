@@ -35,7 +35,9 @@ const WIDTH = { last_call_list: 230, last_call_status: 130, last_call_at: 110, c
 
 const fmtNumber = (v) => (v == null || v === '' ? '—' : Number(v).toLocaleString('ja-JP'));
 function columnDef(c) {
-  const base = { key: c.key, label: c.label, width: WIDTH[c.key] || 120, ...(SORTABLE[c.key] ? { sortable: true, sortType: SORTABLE[c.key] } : {}) };
+  // 数字・電話・日付は等幅（他の一覧と同じ）
+  const mono = NUMBER_KEYS.has(c.key) || ['phone', 'call_count', 'last_call_at', 'next_action_at'].includes(c.key);
+  const base = { key: c.key, label: c.label, width: WIDTH[c.key] || 120, ...(mono ? { cellStyle: { fontFamily: font.family.mono } } : {}), ...(SORTABLE[c.key] ? { sortable: true, sortType: SORTABLE[c.key] } : {}) };
   if (NUMBER_KEYS.has(c.key)) return { ...base, align: 'right', render: (r) => fmtNumber(r[c.key]) };
   if (c.key === 'address_match') return { ...base, align: 'center', render: (r) => (r.address_match ? <Badge variant={r.address_match === 'same' ? 'success' : 'neutral'}>{matchLabels[r.address_match]}</Badge> : '—') };
   if (c.key === 'crm_stage' || c.key === 'registry_status') return { ...base, align: 'center', render: (r) => r[c.key] || '—' };
@@ -92,9 +94,9 @@ function ColumnPicker({ value, onChange }) {
             <Button size="sm" variant="ghost" onClick={() => set(DIRECTORY_DEFAULT_COLUMNS)}>既定に戻す</Button>
             <Button size="sm" variant="ghost" onClick={() => set(PICKABLE.map((c) => c.key))}>すべて</Button>
           </div>
-          <div style={{ fontSize: 11, color: color.textLight, marginBottom: 6 }}>企業名はいつも左端に出ます。選んだ列はこの端末に残ります。</div>
+          <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: 6 }}>企業名はいつも左端に出ます。選んだ列はこの端末に残ります。</div>
           {PICKABLE.map((c) => (
-            <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', fontSize: 12.5, color: color.textDark, cursor: 'pointer' }}>
+            <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', fontSize: font.size.base, color: color.textDark, cursor: 'pointer' }}>
               <input type="checkbox" checked={value.includes(c.key)}
                 onChange={(e) => set(e.target.checked ? [...value, c.key] : value.filter((k) => k !== c.key))} />
               {c.label}
@@ -187,7 +189,7 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
   const strip = (f) => JSON.stringify({ ...f, page: 0, pageSize: PAGE_SIZE });
   const draftChanged = !!request && strip(normalizeDirectoryFilters(draft)) !== strip(result.filters);
   const columns = useMemo(() => [
-    { key: 'company_name', label: '企業名', width: 230, align: 'left', mobilePrimary: true, sortable: true, sortType: 'string', render: (r) => <span style={{ fontWeight: 700, color: color.textDark }}>{r.company_name}</span> },
+    { key: 'company_name', label: '企業名', width: 230, align: 'left', mobilePrimary: true, sortable: true, sortType: 'string', render: (r) => <span style={{ fontWeight: font.weight.bold, color: color.textDark }}>{r.company_name}</span> },
     ...PICKABLE.filter((c) => visibleColumns.includes(c.key)).map(columnDef),
   ], [visibleColumns]);
 
@@ -202,8 +204,8 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', marginBottom: expanded || chips.length ? 16 : 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 'auto' }}>
           <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: color.navy, color: color.white }}><Search size={19} /></span>
-          <h2 style={{ fontSize: 17, margin: 0, color: color.navy }}>企業検索</h2>
-          <span style={{ fontSize: 11.5, color: color.textLight }}>全 {stats ? stats.total.toLocaleString() : '—'} 社</span>
+          <h2 style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, margin: 0, color: color.navy }}>企業検索</h2>
+          <span style={{ fontSize: font.size.xs, color: color.textLight, fontFamily: font.family.mono }}>全 {stats ? stats.total.toLocaleString() : '—'} 社</span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Button size="sm" variant="ghost" onClick={() => setAiOpen(true)}>AI検索・保存した条件</Button>
@@ -229,12 +231,12 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
       {/* 入っている条件。×で外せる（検索はしない）。 */}
       {!expanded && chips.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: color.textMid, marginRight: 8 }}>選択中の条件</span>
+          <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.textMid, marginRight: 8 }}>選択中の条件</span>
           {chips.map((c) => (
             <button key={c.k} type="button" aria-label={c.label + 'を外す'} onClick={() => removeChip(c.patch)} style={{
               display: 'inline-flex', gap: 8, alignItems: 'center', padding: '4px 9px', cursor: 'pointer',
               background: color.infoSoft, border: `1px solid ${color.border}`, borderRadius: radius.md,
-              color: color.navy, fontSize: 11.5, fontFamily: font.family.sans, textAlign: 'left', maxWidth: '100%',
+              color: color.navy, fontSize: font.size.xs, fontFamily: font.family.sans, textAlign: 'left', maxWidth: '100%',
             }}>{c.label}<span aria-hidden="true" style={{ color: color.textMid }}>×</span></button>
           ))}
         </div>
@@ -246,17 +248,17 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
 
     {!request ? (
       <div style={{ ...card, padding: '60px 40px', textAlign: 'center' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: color.textDark, marginBottom: 8 }}>条件を指定して検索してください</div>
-        <div style={{ fontSize: 12, color: color.textLight }}>条件なしで検索すると全社を表示します。</div>
+        <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.textDark, marginBottom: 8 }}>条件を指定して検索してください</div>
+        <div style={{ fontSize: font.size.sm, color: color.textLight }}>条件なしで検索すると全社を表示します。</div>
       </div>
     ) : <>
     {/* ── 結果の段 ── */}
     {draftChanged && !loading && (
-      <div role="status" style={{ fontSize: 12.5, color: color.textMid, margin: '0 0 10px' }}>変更した条件は未反映です。検索またはEnterで更新します。</div>
+      <div role="status" style={{ fontSize: font.size.base, color: color.textMid, margin: '0 0 10px' }}>変更した条件は未反映です。検索またはEnterで更新します。</div>
     )}
     <div style={{ display: 'flex', gap: space[2], alignItems: 'center', flexWrap: 'wrap', marginBottom: space[3] }}>
-      <span role="status" style={{ fontSize: 13, color: color.textMid }}>
-        {loading ? '検索中…' : count == null ? '—' : <><strong style={{ fontSize: 18, color: color.navy }}>{count.toLocaleString()}</strong> 社</>}
+      <span role="status" style={{ fontSize: font.size.base, color: color.textMid }}>
+        {loading ? '検索中…' : count == null ? '—' : <><strong style={{ fontSize: font.size.xl, color: color.navy, fontFamily: font.family.mono }}>{count.toLocaleString()}</strong> 社</>}
       </span>
       <div style={{ flex: 1 }} />
       <ColumnPicker value={visibleColumns} onChange={setVisibleColumns} />

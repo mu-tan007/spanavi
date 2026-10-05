@@ -18,7 +18,7 @@ const all = { value: '', label: '指定なし' };
 const homeOptions = [all, { value: 'available', label: '住所あり' }, { value: 'unknown', label: '未確認' }, { value: 'conflict', label: '情報の相違あり' }];
 
 export function FieldLabel({ children }) {
-  return <div style={{ fontSize: 11.5, color: color.textMid, fontWeight: 600, marginBottom: 5 }}>{children}</div>;
+  return <div style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, marginBottom: 5 }}>{children}</div>;
 }
 
 // 番号付きの条件の枠。見出しは左に固定幅、項目は右に並べる。
@@ -31,11 +31,11 @@ export function Section({ number, label, children, columns = 3, isMobile }) {
     }}>
       <span style={{
         display: 'flex', alignItems: 'center', gap: 10, width: isMobile ? 'auto' : 150, flexShrink: 0, paddingTop: isMobile ? 0 : 6,
-        fontSize: 12.5, fontWeight: 700, color: color.navy,
+        fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy,
       }}>
         <span aria-hidden="true" style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: radius.xl,
-          background: color.navy, color: color.white, fontSize: 12, fontWeight: 700, flexShrink: 0,
+          background: color.navy, color: color.white, fontSize: font.size.sm, fontWeight: font.weight.bold, flexShrink: 0,
         }}>{number}</span>
         {label}
       </span>
@@ -121,7 +121,7 @@ export default function CompanyDirectoryFilters({
         <Button type="button" size="sm" variant="ghost" aria-expanded={detailsOpen} onClick={onDetailsToggle}>
           {detailsOpen ? '詳細条件を閉じる' : '詳細条件'}
           {!detailsOpen && advanced > 0 && (
-            <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: radius.pill, background: color.infoSoft, color: color.navy, fontSize: 11 }}>{advanced}</span>
+            <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: radius.pill, background: color.infoSoft, color: color.navy, fontSize: font.size.xs }}>{advanced}</span>
           )}
         </Button>
       </div>

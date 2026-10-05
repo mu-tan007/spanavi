@@ -36,7 +36,7 @@ export default function Pager({ page, pageSize, total, unit = '件', onPage, dis
   return (
     <nav aria-label="ページ送り" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, width: '100%', flexWrap: 'wrap' }}>
       <Button size="sm" variant="ghost" disabled={disabled || atStart} onClick={prev} title="前のページ（Ctrl + ←）">← 前へ</Button>
-      <span aria-live="polite" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: color.textMid, whiteSpace: 'nowrap' }}>
+      <span aria-live="polite" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: font.size.sm, color: color.textMid, whiteSpace: 'nowrap', fontFamily: font.family.mono }}>
         {empty ? `0${unit}` : <>
           {pages != null ? (
             <>
@@ -53,7 +53,7 @@ export default function Pager({ page, pageSize, total, unit = '件', onPage, dis
                 }}
                 onBlur={(e) => { e.currentTarget.value = page + 1; }}
                 style={{
-                  width: 62, padding: '4px 6px', textAlign: 'right', fontSize: 12, fontFamily: font.family.sans,
+                  width: 62, padding: '4px 6px', textAlign: 'right', fontSize: font.size.sm, fontFamily: font.family.mono,
                   border: `1px solid ${color.border}`, borderRadius: radius.md, outline: 'none', color: color.textDark,
                 }} />
               / {fmt(pages)}
