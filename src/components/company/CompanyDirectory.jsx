@@ -187,7 +187,8 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
   const count = result.count;
   const chips = useMemo(() => directoryConditionChips(draft, names), [draft, names]);
   const strip = (f) => JSON.stringify({ ...f, page: 0, pageSize: PAGE_SIZE });
-  const draftChanged = !!request && strip(normalizeDirectoryFilters(draft)) !== strip(result.filters);
+  // 比べる相手は「最後に検索を頼んだ条件」。結果がまだ届いていない（失敗した）ときに未反映と出さない。
+  const draftChanged = !!request && strip(normalizeDirectoryFilters(draft)) !== strip(request.filters);
   const columns = useMemo(() => [
     { key: 'company_name', label: '企業名', width: 230, align: 'left', mobilePrimary: true, sortable: true, sortType: 'string', render: (r) => <span style={{ fontWeight: font.weight.bold, color: color.textDark }}>{r.company_name}</span> },
     ...PICKABLE.filter((c) => visibleColumns.includes(c.key)).map(columnDef),
