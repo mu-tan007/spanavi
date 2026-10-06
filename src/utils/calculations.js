@@ -32,6 +32,12 @@ export const getNextRankInfo = (totalSales, orgSettings = null) => {
   return next ? { nextRank: next.name, gap: next.threshold - (totalSales || 0) } : null;
 };
 
+// ランクの段を下から順に返す（マイページのランクの道）。率は calcRankAndRate と同じ決め方。
+export const getRankLadder = (orgSettings = null) =>
+  [...resolveRanks(orgSettings)]
+    .sort((a, b) => a.threshold - b.threshold)
+    .map(r => ({ name: r.name, threshold: r.threshold, rate: calcRankAndRate(r.threshold, orgSettings).rate }));
+
 // ランクとインセンティブ率の自動計算（累計売上から判定）
 // orgSettings: org_settingsテーブルから取得した { setting_key: setting_value } マップ（省略時はデフォルト値）
 export const calcRankAndRate = (totalSales, orgSettings = null) => {

@@ -48,3 +48,19 @@ describe('getNextRankInfo（次のランクまでの不足額）', () => {
     expect(getNextRankInfo(300000, s)).toEqual({ nextRank: 'ゴールド', gap: 700000 });
   });
 });
+
+describe('getRankLadder', () => {
+  it('デフォルトは下から トレーニー0/22% → スーパースパルタン1000万/28%', async () => {
+    const { getRankLadder } = await import('./calculations');
+    expect(getRankLadder()).toEqual([
+      { name: 'トレーニー', threshold: 0, rate: 0.22 },
+      { name: 'プレイヤー', threshold: 2000000, rate: 0.24 },
+      { name: 'スパルタン', threshold: 5000000, rate: 0.26 },
+      { name: 'スーパースパルタン', threshold: 10000000, rate: 0.28 },
+    ]);
+  });
+  it('org_settings の率（%表記）を反映する', async () => {
+    const { getRankLadder } = await import('./calculations');
+    expect(getRankLadder({ 'reward_rate_トレーニー': '30' })[0].rate).toBe(0.30);
+  });
+});

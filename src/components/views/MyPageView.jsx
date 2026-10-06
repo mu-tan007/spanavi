@@ -1,10 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import React from 'react';
 import { supabase } from '../../lib/supabase';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { C } from '../../constants/colors';
-import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import {
   getProfileImageUrl, uploadProfileImage, updateMemberAvatarUrl,
   updateMember, updateMemberProfile,
@@ -13,10 +10,43 @@ import {
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed, resetPushSubscription } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
 import ZoomWindowGuardRow from './ZoomWindowGuardRow';
-import { calcRankAndRate, getNextRankInfo } from '../../utils/calculations';
+import { calcRankAndRate, getNextRankInfo, getRankLadder } from '../../utils/calculations';
 import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/money';
+import './MyPageView.css';
 
-const fmtYen = (v) => '¥' + Math.round(v || 0).toLocaleString();
+const fmtMan = (v) => (v >= 10000 ? `${(v / 10000).toLocaleString()}万` : v.toLocaleString());
+
+// 数字のカウントアップ（ページを開いたときに1回だけ）。「動きを減らす」設定なら即座に出す。
+function useCountUp(target, delay = 0) {
+  const [v, setV] = useState(target);
+  const first = useRef(true);
+  useEffect(() => {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!first.current || reduce || !target) { setV(target); return undefined; }
+    first.current = false;
+    let raf;
+    const t0 = performance.now() + delay;
+    const step = (t) => {
+      const k = Math.max(0, Math.min((t - t0) / 900, 1));
+      setV(Math.round(target * (1 - Math.pow(1 - k, 4))));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, delay]);
+  return v;
+}
+
+// パスワードの強さ（0〜4）
+const pwScore = (v) => {
+  if (!v) return 0;
+  let s = 0;
+  if (v.length >= 8) s++;
+  if (/[A-Za-z]/.test(v) && /\d/.test(v)) s++;
+  if (v.length >= 12) s++;
+  if (/[^A-Za-z0-9]/.test(v)) s++;
+  return Math.max(1, s);
+};
 
 // 組織共通の個人プロフィール画面。事業を跨いで同じ内容が表示される。
 export default function MyPageView({ currentUser, userId, members, isAdmin = false, onDataRefetch, appoData = [], onOpenPayroll = null, engSlug = null, openZoomGuide = false }) {
@@ -47,6 +77,8 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
   const [profileImage, setProfileImage] = useState(() => getProfileImageUrl(userId));
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => { setImgFailed(false); }, [profileImage]);
 
   const handleImageChange = async (e) => {
     const file = e.target.files?.[0];
@@ -78,13 +110,22 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     }
   };
 
+  // 下に出る知らせ
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const showToast = (text) => {
+    setToast(text);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
+
   // 基本情報の編集（本人またはadmin）
   const supaId = memberInfo?._supaId || memberInfo?.id;
   const [profileForm, setProfileForm] = useState({ name: '', email: '', phone_number: '', start_date: '' });
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState(null);
-  const [profileSavedAt, setProfileSavedAt] = useState(null);
 
   useEffect(() => {
     if (!memberInfo) return;
@@ -107,7 +148,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
       return;
     }
     setProfileEditing(false);
-    setProfileSavedAt(Date.now());
+    showToast('基本情報を保存しました');
     // members 配列が古いままだと閲覧モードで旧値が見えるので、上位に再 fetch を依頼
     if (typeof onDataRefetch === 'function') {
       try { await onDataRefetch(); } catch (e) { console.warn('[MyPage] onDataRefetch failed:', e); }
@@ -184,6 +225,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     }
     setPwForm({ pw1: '', pw2: '' });
     setPwMessage({ ok: true, text: 'パスワードを変更しました。次回ログインから新しいパスワードをご利用ください。' });
+    showToast('パスワードを変更しました');
     setTimeout(() => setPwMessage(null), 8000);
   };
 
@@ -200,6 +242,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     await updateMember(supaId, { ...memberInfo, zoomPhoneNumber: zoomPhone.trim() });
     setZoomPhoneSaving(false);
     setZoomPhoneEditing(false);
+    showToast('Zoom Phone の番号を保存しました');
     if (typeof onDataRefetch === 'function') {
       try { await onDataRefetch(); } catch (e) { console.warn('[MyPage] onDataRefetch failed:', e); }
     }
@@ -232,9 +275,11 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
       if (pushEnabled) {
         await unsubscribeFromPush(userId);
         setPushEnabled(false);
+        showToast('プッシュ通知をオフにしました');
       } else {
         await subscribeToPush(userId, getOrgId());
         setPushEnabled(true);
+        showToast('プッシュ通知をオンにしました');
       }
     } catch (err) {
       alert(err?.message === 'Notification permission denied'
@@ -291,372 +336,270 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
     }
   };
 
+  // ランクの道（0〜最上位の境目を平方根で並べ、下の段が詰まりすぎないようにする）
+  const ladder = useMemo(() => getRankLadder(orgSettings), [orgSettings]);
+  const topThreshold = ladder.length ? ladder[ladder.length - 1].threshold : 0;
+  const ladderPos = (v) => (topThreshold > 0 ? Math.min(Math.sqrt(Math.max(v, 0) / topThreshold), 1) * 100 : 0);
+  const mePos = Math.max(ladderPos(totalSales), 1.2);
+
+  const animSales = useCountUp(totalSales);
+  const animGap = useCountUp(nextRank?.gap || 0, 60);
+  const ms = monthSummary || { count: 0, sales: 0, incentive: 0 };
+  const animCount = useCountUp(ms.count, 120);
+  const animMonthSales = useCountUp(ms.sales, 180);
+  const animIncentive = useCountUp(ms.incentive, 240);
+
+  const s1 = pwScore(pwForm.pw1);
+  const pwHint = !pwForm.pw1
+    ? { cls: '', text: '8文字以上・英字と数字をまぜると強くなります' }
+    : pwForm.pw1.length < 8
+      ? { cls: 'ng', text: `あと${8 - pwForm.pw1.length}文字` }
+      : { cls: s1 >= 3 ? 'ok' : '', text: ['', '弱い', 'ふつう', '強い', 'とても強い'][s1] };
+  const pwMatch = !pwForm.pw2 ? null : pwForm.pw1 === pwForm.pw2;
+  const pwReady = pwForm.pw1.length >= 8 && pwForm.pw1 === pwForm.pw2;
+  const notifyBlocked = typeof Notification !== 'undefined' && Notification.permission === 'denied';
+  const nameInitial = (currentUser || '?')[0];
+
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* プロフィールカード */}
-      <div style={{
-        background: `linear-gradient(135deg, ${color.navyDeep}, ${color.navy})`,
-        borderRadius: radius.xl,
-        padding: isMobile ? '20px 18px' : '28px 32px', marginBottom: space[4],
-        color: color.white, display: 'flex',
-        alignItems: isMobile ? 'flex-start' : 'center',
-        gap: isMobile ? space[3.5] || 14 : space[6], flexDirection: isMobile ? 'column' : 'row',
-      }}>
-        <div style={{ position: 'relative' }}>
-          <div style={{
-            width: 84, height: 84, borderRadius: '50%',
-            background: alpha(color.white, 0.12),
-            border: `2px solid ${alpha(color.gold, 0.38)}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: font.size['3xl'], fontWeight: font.weight.black, color: color.white,
-            overflow: 'hidden', flexShrink: 0,
-          }}>
-            {profileImage
-              ? <img src={profileImage} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : (currentUser || '?')[0]}
+    <div className="mp">
+      {/* 自分とランク */}
+      <section className={`card mp-hero${memberInfo && showSourcingStats ? '' : ' solo'}`}>
+        <div className="mp-who">
+          <div className="mp-ph">
+            {profileImage && !imgFailed
+              ? <img src={profileImage} alt={currentUser} onError={() => setImgFailed(true)} />
+              : nameInitial}
+            <label className={uploading ? 'busy' : ''}>
+              {uploading ? '…' : '編集'}
+              <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} disabled={uploading} />
+            </label>
           </div>
-          <label style={{
-            position: 'absolute', bottom: -2, right: -2,
-            padding: '3px 7px', borderRadius: radius.lg,
-            background: color.gold, color: color.navyDeep,
-            fontSize: 9, fontWeight: font.weight.bold,
-            cursor: uploading ? 'wait' : 'pointer',
-          }}>
-            {uploading ? '…' : '編集'}
-            <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} disabled={uploading} />
-          </label>
-        </div>
-
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: font.size['2xl'] - 2, fontWeight: font.weight.black, marginBottom: 6 }}>{currentUser}</div>
-          <div style={{ display: 'flex', gap: 14, fontSize: font.size.xs, color: color.goldLight, flexWrap: 'wrap' }}>
-            {memberInfo?.position && <span>{memberInfo.position}</span>}
-            {memberInfo?.team && <span>{memberInfo.team}チーム</span>}
-          </div>
-          {memberInfo && showSourcingStats && (
-            <div style={{
-              marginTop: 12, display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 16,
-              flexWrap: 'wrap', fontSize: font.size.xs,
-            }}>
-              <span style={{
-                padding: '3px 12px', borderRadius: radius.pill,
-                background: alpha(color.gold, 0.18), border: `1px solid ${alpha(color.gold, 0.5)}`,
-                color: color.goldLight, fontWeight: font.weight.bold,
-              }}>{rankInfo.rank}</span>
-              <span style={{ color: alpha(color.white, 0.85) }}>
-                累計売上 <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.white }}>{fmtYen(totalSales)}</span>
-              </span>
-              <span style={{ color: alpha(color.white, 0.85) }}>
-                インセンティブ率 <span style={{ fontFamily: font.family.mono, fontWeight: font.weight.bold, color: color.white }}>{Math.round(rankInfo.rate * 100)}%</span>
-              </span>
-              {nextRank && (
-                <span style={{ color: alpha(color.white, 0.65) }}>
-                  次の「{nextRank.nextRank}」まで あと{fmtYen(nextRank.gap)}
-                </span>
-              )}
+          <div style={{ minWidth: 0 }}>
+            <h1>{currentUser}</h1>
+            <div className="mp-role">
+              {memberInfo?.position && <span>{memberInfo.position}</span>}
+              {memberInfo?.team && <span>{memberInfo.team}チーム</span>}
             </div>
-          )}
-          {uploadError && <div style={{ marginTop: 6, fontSize: font.size.xs - 1, color: '#FCA5A5' }}>{uploadError}</div>}
+            {memberInfo && showSourcingStats && (
+              <span className="mp-rank">{rankInfo.rank} ・ インセンティブ率 {Math.round(rankInfo.rate * 100)}%</span>
+            )}
+            {uploadError && <div className="mp-err">{uploadError}</div>}
+          </div>
         </div>
-      </div>
 
-      {/* 基本情報カード */}
-      <InfoCard
-        title="基本情報"
-        right={!profileEditing && supaId ? (
-          <Button size="sm" variant="secondary" onClick={() => setProfileEditing(true)}>編集</Button>
-        ) : null}
-      >
-        {profileEditing ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <EditRow label="氏名">
-              <Input
-                size="sm"
-                value={profileForm.name}
-                onChange={e => setProfileForm(s => ({ ...s, name: e.target.value }))}
-                containerStyle={{ maxWidth: 320 }}
-              />
-            </EditRow>
-            <EditRow label="連絡先メール">
-              <Input
-                size="sm"
-                type="email"
-                value={profileForm.email}
-                onChange={e => setProfileForm(s => ({ ...s, email: e.target.value }))}
-                style={{ fontFamily: font.family.mono }}
-                placeholder="example@example.com"
-                containerStyle={{ maxWidth: 320 }}
-              />
-              <div style={{ marginTop: 4, fontSize: font.size.xs - 1, color: color.textLight }}>
-                通知・請求書などの連絡先です。ログイン用メールアドレスは変わりません。
+        {memberInfo && showSourcingStats && (
+          <div className="mp-ladder">
+            <div className="mp-ladder-h">
+              <div>
+                <span className="mp-lbl">累計売上</span>
+                <span className="mp-big n"><small>¥</small>{animSales.toLocaleString()}</span>
               </div>
-            </EditRow>
-            <EditRow label="携帯番号">
-              <Input
-                size="sm"
-                type="tel"
-                value={profileForm.phone_number}
-                onChange={e => setProfileForm(s => ({ ...s, phone_number: e.target.value }))}
-                style={{ fontFamily: font.family.mono }}
-                placeholder="090-1234-5678"
-                containerStyle={{ maxWidth: 320 }}
-              />
-            </EditRow>
-            {isAdmin ? (
-              <EditRow label="入社日">
-                <Input
-                  size="sm"
-                  type="date"
-                  value={profileForm.start_date || ''}
-                  onChange={e => setProfileForm(s => ({ ...s, start_date: e.target.value }))}
-                  style={{ fontFamily: font.family.mono }}
-                  containerStyle={{ maxWidth: 320 }}
-                />
-              </EditRow>
-            ) : (
-              <EditRow label="入社日">
-                <div style={{ fontSize: font.size.sm, color: color.textMid, fontFamily: font.family.mono }}>
-                  {profileForm.start_date || '—'}
-                  <span style={{ marginLeft: 8, fontSize: font.size.xs - 1, color: color.textLight, fontFamily: font.family.sans }}>
-                    （変更は管理者にご依頼ください）
-                  </span>
+              {nextRank ? (
+                <div className="mp-next">
+                  <span className="mp-lbl">「{nextRank.nextRank}」まであと</span>
+                  <b className="n">¥{animGap.toLocaleString()}</b>
                 </div>
-              </EditRow>
-            )}
-            {profileError && <div style={{ fontSize: font.size.xs, color: color.danger, padding: '4px 0' }}>{profileError}</div>}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-              <Button size="sm" variant="secondary" onClick={handleCancelProfile} disabled={profileSaving}>キャンセル</Button>
-              <Button size="sm" onClick={handleSaveProfile} loading={profileSaving}>
-                {profileSaving ? '保存中…' : '保存'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <InfoRow label="氏名" value={memberInfo?.name || currentUser || '—'} />
-            <InfoRow label="連絡先メール" value={memberInfo?.email || '—'} mono />
-            <InfoRow label="携帯番号" value={memberInfo?.phone_number || '—'} mono />
-            <InfoRow label="入社日" value={memberInfo?.start_date || memberInfo?.joinDate || '—'} mono />
-            {profileSavedAt && Date.now() - profileSavedAt < 4000 && (
-              <div style={{ marginTop: 8, fontSize: font.size.xs - 1, color: color.success, fontWeight: font.weight.semibold }}>✓ 保存しました</div>
-            )}
-          </>
-        )}
-      </InfoCard>
-
-      {/* 報酬・請求書（営業代行タブのみ） */}
-      {showSourcingStats && (
-      <InfoCard
-        title="報酬・請求書"
-        right={onOpenPayroll ? (
-          <Button size="sm" variant="secondary" onClick={onOpenPayroll}>報酬明細を開く</Button>
-        ) : null}
-      >
-        {monthSummary ? (
-          <>
-            <InfoRow label={`${monthLabel}のアポ`} value={`${monthSummary.count}件`} mono />
-            <InfoRow label={`${monthLabel}の当社売上`} value={fmtYen(monthSummary.sales)} mono />
-            <InfoRow label={`${monthLabel}のインセンティブ`} value={fmtYen(monthSummary.incentive)} mono />
-            <div style={{ marginTop: 8, fontSize: font.size.xs - 1, color: color.textLight }}>
-              チームボーナス・紹介フィー・調整を含む確定額は報酬明細でご確認ください。
-            </div>
-          </>
-        ) : (
-          <div style={{ fontSize: font.size.sm, color: color.textLight, padding: '4px 0' }}>
-            {monthLabel}の実績はまだありません。
-          </div>
-        )}
-        <div style={{ height: 1, background: color.borderLight, margin: '10px 0' }} />
-        <InfoRow
-          label="口座情報"
-          value={invoiceProfile?.bank_name
-            ? `登録済み（${invoiceProfile.bank_name}${invoiceProfile.branch_name ? ' ' + invoiceProfile.branch_name : ''}）`
-            : '未登録（報酬明細の請求書作成から登録できます）'}
-        />
-      </InfoCard>
-      )}
-
-      {/* セキュリティ（本人のみ表示。他メンバーのページ閲覧時はログイン中ユーザーのパスワードを変えてしまうため出さない） */}
-      {isSelf && (
-        <InfoCard title="セキュリティ">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <EditRow label="新しいパスワード">
-              <Input
-                size="sm"
-                type="password"
-                value={pwForm.pw1}
-                onChange={e => setPwForm(s => ({ ...s, pw1: e.target.value }))}
-                placeholder="8文字以上"
-                autoComplete="new-password"
-                containerStyle={{ maxWidth: 320 }}
-              />
-            </EditRow>
-            <EditRow label="確認用">
-              <Input
-                size="sm"
-                type="password"
-                value={pwForm.pw2}
-                onChange={e => setPwForm(s => ({ ...s, pw2: e.target.value }))}
-                placeholder="同じパスワードをもう一度"
-                autoComplete="new-password"
-                containerStyle={{ maxWidth: 320 }}
-              />
-            </EditRow>
-            {pwMessage && (
-              <div style={{ fontSize: font.size.xs, color: pwMessage.ok ? color.success : color.danger }}>
-                {pwMessage.text}
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                size="sm"
-                onClick={handleChangePassword}
-                loading={pwSaving}
-                disabled={pwSaving || !pwForm.pw1 || !pwForm.pw2}
-              >{pwSaving ? '変更中…' : 'パスワードを変更'}</Button>
-            </div>
-          </div>
-        </InfoCard>
-      )}
-
-      {/* 連携・通知設定 */}
-      <InfoCard title="連携 / 通知設定">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>Zoom Phone 番号</div>
-              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>架電時に相手に表示される番号</div>
-            </div>
-            {zoomPhoneEditing ? (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <Input
-                  size="sm"
-                  fullWidth={false}
-                  value={zoomPhone}
-                  onChange={e => setZoomPhone(e.target.value)}
-                  placeholder="例: 0312345678"
-                  style={{ fontFamily: font.family.mono }}
-                  containerStyle={{ width: 180 }}
-                />
-                <Button size="sm" onClick={handleSaveZoomPhone} loading={zoomPhoneSaving}>
-                  {zoomPhoneSaving ? '保存中...' : '保存'}
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => setZoomPhoneEditing(false)}>キャンセル</Button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontFamily: font.family.mono, fontSize: font.size.base, color: color.navy, fontWeight: font.weight.semibold }}>
-                  {zoomPhone || '未設定'}
-                </span>
-                {isAdmin && <Button size="sm" variant="secondary" onClick={() => setZoomPhoneEditing(true)}>編集</Button>}
-              </div>
-            )}
-          </div>
-
-          <div style={{ height: 1, background: color.borderLight }} />
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>プッシュ通知</div>
-              <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
-                アポ獲得・日次レポートなどをブラウザで受け取る
-                {typeof Notification !== 'undefined' && Notification.permission === 'denied' && (
-                  <span style={{ marginLeft: 6, color: color.danger, fontWeight: font.weight.semibold }}>
-                    ブラウザで通知がブロックされています。ブラウザ設定から許可してください。
-                  </span>
-                )}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              {pushEnabled && (
-                <>
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={handleResetPush}
-                      loading={pushLoading}
-                      style={{ fontSize: font.size.xs - 1 }}
-                      title="古いService Workerを削除して通知を再設定（トラブルシュート用）"
-                    >{pushLoading ? '処理中…' : 'リセット'}</Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleTestPush}
-                    loading={pushTestSending}
-                    style={{ fontSize: font.size.xs - 1 }}
-                    title="このデバイスにテスト通知を送信"
-                  >{pushTestSending ? '送信中…' : 'テスト送信'}</Button>
-                </>
+              ) : (
+                <div className="mp-next top"><span className="mp-lbl">ランク</span><b>最上位です</b></div>
               )}
-              <button
-                onClick={handleTogglePush}
-                disabled={pushLoading}
-                style={{
-                  padding: '6px 16px', borderRadius: radius.pill, border: 'none',
-                  background: pushEnabled ? color.navy : color.border,
-                  color: pushEnabled ? color.white : color.textLight,
-                  fontSize: font.size.xs, fontWeight: font.weight.bold,
-                  cursor: pushLoading ? 'wait' : 'pointer',
-                }}
-              >{pushLoading ? '処理中...' : pushEnabled ? 'ON' : 'OFF'}</button>
+            </div>
+            <div className="mp-track">
+              <div className="mp-rail"><i style={{ width: `${mePos}%` }} /></div>
+              {ladder.map((r, i) => (
+                <div
+                  key={r.name}
+                  className={[
+                    'mp-step',
+                    i === 0 ? 'first' : '',
+                    i === ladder.length - 1 ? 'last' : '',
+                    totalSales >= r.threshold ? 'done' : '',
+                    r.name === rankInfo.rank ? 'cur' : '',
+                  ].join(' ')}
+                  style={{ left: i === 0 ? 0 : `${ladderPos(r.threshold)}%` }}
+                >
+                  <i />
+                  <b>{r.name}</b>
+                  <span>{fmtMan(r.threshold)} ・ {Math.round(r.rate * 100)}%</span>
+                </div>
+              ))}
+              <span className="mp-dot" style={{ left: `${mePos}%` }} title="いまここ" />
             </div>
           </div>
-          {pushTestResult && (
-            <div style={{
-              fontSize: font.size.xs - 1,
-              color: pushTestResult.startsWith('✓') ? color.success : color.danger,
-              textAlign: 'right', lineHeight: 1.5,
-            }}>
-              {pushTestResult}
-            </div>
+        )}
+      </section>
+
+      <div className="mp-cols">
+        <div className="mp-stack">
+          {/* 今月の成績（営業代行タブのみ） */}
+          {showSourcingStats && (
+            <section className="card box">
+              <div className="card-h">
+                <b>{monthLabel}の成績</b>
+                {onOpenPayroll && <button type="button" className="btn sm" onClick={onOpenPayroll}>報酬明細を開く</button>}
+              </div>
+              <div className="mp-kpis">
+                <div className="mp-kpi"><span>アポ</span><b className="n">{animCount}<small>件</small></b></div>
+                <div className="mp-kpi"><span>当社売上</span><b className="n">¥{animMonthSales.toLocaleString()}</b><em>面談実施日ベース</em></div>
+                <div className="mp-kpi"><span>インセンティブ</span><b className="n g">¥{animIncentive.toLocaleString()}</b></div>
+              </div>
+              <p className="mp-note">
+                {monthSummary ? '' : `${monthLabel}の実績はまだありません。`}
+                チームボーナス・紹介フィー・調整を含む確定額は、報酬明細でご確認ください。
+              </p>
+            </section>
           )}
 
-          <div style={{ height: 1, background: color.borderLight }} />
+          {/* 基本情報 */}
+          <section className="card box">
+            <div className="card-h">
+              <b>基本情報</b>
+              {!profileEditing && supaId && <button type="button" className="btn sm" onClick={() => setProfileEditing(true)}>編集</button>}
+            </div>
+            <dl className="mp-dl">
+              <dt>氏名</dt>
+              <dd>{profileEditing
+                ? <input className="input" value={profileForm.name} onChange={e => setProfileForm(s => ({ ...s, name: e.target.value }))} />
+                : (memberInfo?.name || currentUser || '—')}</dd>
+              <dt>連絡先メール</dt>
+              <dd>{profileEditing ? (
+                <>
+                  <input className="input" type="email" placeholder="example@example.com" value={profileForm.email} onChange={e => setProfileForm(s => ({ ...s, email: e.target.value }))} />
+                  <span className="sub">通知・請求書などの連絡先です。ログイン用メールアドレスは変わりません。</span>
+                </>
+              ) : (memberInfo?.email || '—')}</dd>
+              <dt>携帯番号</dt>
+              <dd>{profileEditing
+                ? <input className="input" type="tel" placeholder="090-1234-5678" value={profileForm.phone_number} onChange={e => setProfileForm(s => ({ ...s, phone_number: e.target.value }))} />
+                : <span className="n">{memberInfo?.phone_number || '—'}</span>}</dd>
+              <dt>入社日</dt>
+              <dd>{profileEditing && isAdmin
+                ? <input className="input" type="date" value={profileForm.start_date || ''} onChange={e => setProfileForm(s => ({ ...s, start_date: e.target.value }))} />
+                : (
+                  <>
+                    <span className="n">{(profileEditing ? profileForm.start_date : (memberInfo?.start_date || memberInfo?.joinDate)) || '—'}</span>
+                    {profileEditing && <span className="sub">変更は管理者にご依頼ください</span>}
+                  </>
+                )}</dd>
+            </dl>
+            {profileError && <div className="mp-msg ng">{profileError}</div>}
+            {profileEditing && (
+              <div className="mp-edit-acts">
+                <button type="button" className="btn sm" onClick={handleCancelProfile} disabled={profileSaving}>キャンセル</button>
+                <button type="button" className="btn sm pri" onClick={handleSaveProfile} disabled={profileSaving}>{profileSaving ? '保存中…' : '保存'}</button>
+              </div>
+            )}
+          </section>
 
-          <ZoomWindowGuardRow openOnMount={openZoomGuide} />
+          {/* 報酬の振込先（営業代行タブのみ） */}
+          {showSourcingStats && (
+            <section className="card box">
+              <div className="card-h"><b>報酬の振込先</b></div>
+              {invoiceProfile?.bank_name ? (
+                <div className="mp-bank">
+                  <span className="mp-tag green">登録済み</span>
+                  <span>{invoiceProfile.bank_name}{invoiceProfile.branch_name ? ` ${invoiceProfile.branch_name}` : ''}</span>
+                </div>
+              ) : (
+                <div className="mp-alert">
+                  <p><b>口座が未登録です</b>登録がないと、報酬を振り込めません。報酬明細の請求書作成から登録できます</p>
+                  {onOpenPayroll && <button type="button" className="btn sm pri" onClick={onOpenPayroll}>報酬明細を開く</button>}
+                </div>
+              )}
+            </section>
+          )}
         </div>
-      </InfoCard>
 
-    </div>
-  );
-}
+        <div className="mp-stack">
+          {/* パスワード（本人のみ。他メンバーのページでは、ログイン中の人のパスワードを変えてしまうため出さない） */}
+          {isSelf && (
+            <section className="card box">
+              <div className="card-h"><b>パスワードの変更</b></div>
+              <div className="mp-pw">
+                <div>
+                  <label htmlFor="mp-pw1">新しいパスワード</label>
+                  <input id="mp-pw1" className="input" type="password" autoComplete="new-password" placeholder="8文字以上"
+                    value={pwForm.pw1} onChange={e => setPwForm(s => ({ ...s, pw1: e.target.value }))} />
+                  <div className={`mp-meter${s1 ? ` s${s1}` : ''}`}><i /><i /><i /><i /></div>
+                  <div className={`mp-hint ${pwHint.cls}`}>{pwHint.text}</div>
+                </div>
+                <div>
+                  <label htmlFor="mp-pw2">確認用</label>
+                  <input id="mp-pw2" className="input" type="password" autoComplete="new-password" placeholder="同じパスワードをもう一度"
+                    value={pwForm.pw2} onChange={e => setPwForm(s => ({ ...s, pw2: e.target.value }))} />
+                  <div className={`mp-hint ${pwMatch === null ? '' : pwMatch ? 'ok' : 'ng'}`}>
+                    {pwMatch === null ? '' : pwMatch ? '一致しています' : '一致していません'}
+                  </div>
+                </div>
+              </div>
+              {pwMessage && <div className={`mp-msg ${pwMessage.ok ? 'ok' : 'ng'}`}>{pwMessage.text}</div>}
+              <div className="mp-right">
+                <button type="button" className="btn pri" onClick={handleChangePassword} disabled={pwSaving || !pwReady}>
+                  {pwSaving ? '変更中…' : 'パスワードを変更'}
+                </button>
+              </div>
+            </section>
+          )}
 
-function InfoCard({ title, children, right }) {
-  return (
-    <Card padding="none" style={{ marginBottom: space[4] }}>
-      <div style={{ padding: '16px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{
-            fontSize: font.size.sm, fontWeight: font.weight.bold,
-            color: color.navy, letterSpacing: font.letterSpacing.wide,
-          }}>{title}</div>
-          {right}
+          {/* 連携と通知 */}
+          <section className="card box">
+            <div className="card-h"><b>連携と通知</b></div>
+
+            <div className="mp-set">
+              <div className="t"><b>Zoom Phone の番号</b><span>架電のとき相手に表示される番号</span></div>
+              {zoomPhoneEditing ? (
+                <div className="acts">
+                  <input className="input" value={zoomPhone} placeholder="例: 0312345678" onChange={e => setZoomPhone(e.target.value)} />
+                  <button type="button" className="btn sm pri" onClick={handleSaveZoomPhone} disabled={zoomPhoneSaving}>{zoomPhoneSaving ? '保存中…' : '保存'}</button>
+                  <button type="button" className="btn sm" onClick={() => setZoomPhoneEditing(false)}>キャンセル</button>
+                </div>
+              ) : (
+                <div className="acts">
+                  <span className="v">{zoomPhone || '未設定'}</span>
+                  {isAdmin && <button type="button" className="btn sm" onClick={() => setZoomPhoneEditing(true)}>編集</button>}
+                </div>
+              )}
+            </div>
+
+            <div className="mp-set">
+              <div className="t">
+                <b>プッシュ通知</b>
+                <span>アポ獲得・日次レポートなどをブラウザで受け取る</span>
+                {notifyBlocked && <span className="warn">ブラウザで通知がブロックされています。ブラウザの設定から許可してください。</span>}
+              </div>
+              <div className="acts">
+                {pushEnabled && (
+                  <button type="button" className="btn ghost sm" onClick={handleTestPush} disabled={pushTestSending} title="このデバイスにテスト通知を送る">
+                    {pushTestSending ? '送信中…' : 'テスト送信'}
+                  </button>
+                )}
+                {pushEnabled && isAdmin && (
+                  <button type="button" className="btn ghost sm" onClick={handleResetPush} disabled={pushLoading} title="古いService Workerを消して通知を設定し直す（不具合のとき用）">
+                    リセット
+                  </button>
+                )}
+                <button type="button" className={`mp-sw${pushEnabled ? ' on' : ''}`} onClick={handleTogglePush} disabled={pushLoading}
+                  role="switch" aria-checked={pushEnabled} aria-label="プッシュ通知"><i /></button>
+              </div>
+            </div>
+            {pushTestResult && (
+              <div className={`mp-result ${pushTestResult.startsWith('✓') ? 'ok' : 'ng'}`}>{pushTestResult.replace(/^[✓✗]\s*/, '')}</div>
+            )}
+
+            <div className="mp-guard">
+              <ZoomWindowGuardRow openOnMount={openZoomGuide} />
+            </div>
+          </section>
         </div>
-        {children}
       </div>
-    </Card>
-  );
-}
 
-function InfoRow({ label, value, mono = false }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${color.borderLight}` }}>
-      <div style={{ minWidth: 120, fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>{label}</div>
-      <div style={{
-        fontSize: font.size.sm, color: color.textDark,
-        fontFamily: mono ? font.family.mono : font.family.sans,
-      }}>{value}</div>
-    </div>
-  );
-}
-
-function EditRow({ label, children }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
-      <div style={{ minWidth: 120, fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold }}>{label}</div>
-      <div style={{ flex: 1 }}>{children}</div>
+      <div className={`mp-toast${toast ? ' on' : ''}`} role="status">
+        {toast && (
+          <>
+            <svg viewBox="0 0 14 14" fill="none" strokeWidth="2" aria-hidden="true"><path d="M2 7.5l3 3L12 4" /></svg>
+            {toast}
+          </>
+        )}
+      </div>
     </div>
   );
 }
