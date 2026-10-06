@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../../../lib/supabase';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Button, Badge } from '../../ui';
 import { statusStyle } from './utils';
@@ -6,7 +7,7 @@ import { statusStyle } from './utils';
 // ============================================================
 // 顧客管理 > スケジュール（2026-10-06）
 // どの日に、どの会社へ、何をするかを月のカレンダーで見る。
-//   ・アプローチ：次の一手の期限（clients.next_action_due）
+//   ・アプローチ：会社ごとの予定（client_actions。まだ済んでいないもの）の期限
 //   ・面談・接点：次回接点（clients.next_contact_at。面談予定の面談日時など）
 // 同じ日に何社もあるときは「アプローチ 5社」のようにまとめ、押すと右に内訳を出す。
 // ============================================================
@@ -32,26 +33,38 @@ export default function CRMScheduleView({ clientData = [], onOpenClient }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   // 右の内訳：{ title, items }
   const [panel, setPanel] = useState(null);
+  // 会社ごとの予定（1社に複数ある）
+  const [actions, setActions] = useState([]);
+  useEffect(() => {
+    supabase.from('client_actions').select('id,client_id,kind,note,owner,due').is('done_at', null).not('due', 'is', null)
+      .then(({ data }) => setActions(data || []));
+  }, []);
 
   // 日付ごとの予定
   const { byDay, overdue } = useMemo(() => {
     const map = {};
     const late = [];
     const add = (day, item) => { (map[day] = map[day] || []).push(item); };
+    const byId = {};
     for (const c of clientData) {
       if (!c?._supaId || c.company === 'M&Aソーシングパートナーズ株式会社' || c.status === '失注') continue;
-      if (c.nextActionDue) {
-        const it = { kind: 'action', day: c.nextActionDue, client: c };
-        add(c.nextActionDue, it);
-        if (c.nextActionDue < today) late.push(it);
-      }
+      byId[c._supaId] = c;
+    }
+    for (const a of actions) {
+      const c = byId[a.client_id];
+      if (!c) continue;
+      const it = { kind: 'action', day: a.due, client: c, action: a };
+      add(a.due, it);
+      if (a.due < today) late.push(it);
+    }
+    for (const c of Object.values(byId)) {
       if (c.nextContactAt) {
         const { day, time } = jst(c.nextContactAt);
         add(day, { kind: 'contact', day, time: time === '00:00' ? '' : time, client: c });
       }
     }
     return { byDay: map, overdue: late.sort((a, b) => a.day.localeCompare(b.day)) };
-  }, [clientData, today]);
+  }, [clientData, actions, today]);
 
   // 月のマス（前後の月の日も埋めて、日曜始まりの週で並べる）
   const cells = useMemo(() => {
@@ -130,8 +143,8 @@ export default function CRMScheduleView({ clientData = [], onOpenClient }) {
                   const late = k === 'action' && day < today;
                   if (list.length <= SHOW_NAMES_UP_TO) {
                     return list.map(it => (
-                      <button key={k + it.client._supaId} type="button" onClick={() => openDay(day, k)}
-                        title={`${it.client.company}${it.client.nextAction ? '：' + it.client.nextAction : ''}`}
+                      <button key={k + it.client._supaId + (it.action?.id || '')} type="button" onClick={() => openDay(day, k)}
+                        title={`${it.client.company}${it.action ? '：' + it.action.kind + (it.action.note ? ' ' + it.action.note : '') : ''}`}
                         style={chipStyle(kd, late)}>
                         {it.time ? `${it.time} ` : ''}{shortName(it.client.company)}
                       </button>
@@ -169,7 +182,7 @@ export default function CRMScheduleView({ clientData = [], onOpenClient }) {
               const sc = statusStyle(c.status);
               const kd = KIND[it.kind];
               return (
-                <div key={it.kind + c._supaId} style={{ padding: '10px 10px', borderBottom: `1px solid ${color.border}` }}>
+                <div key={it.kind + c._supaId + (it.action?.id || '')} style={{ padding: '10px 10px', borderBottom: `1px solid ${color.border}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                     <span style={{ fontSize: 10, fontWeight: font.weight.bold, color: kd.color, background: kd.soft, padding: '1px 6px', borderRadius: radius.sm }}>
                       {kd.label}{it.time ? ` ${it.time}` : ''}{panel.title.startsWith('期限切れ') ? ` ${it.day.slice(5).replace('-', '/')}` : ''}
@@ -181,11 +194,14 @@ export default function CRMScheduleView({ clientData = [], onOpenClient }) {
                     background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
                     fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, textDecoration: 'underline', textDecorationStyle: 'dotted',
                   }}>{c.company}</button>
-                  {c.nextAction && (
+                  {it.action ? (
                     <div style={{ fontSize: font.size.xs, color: color.textDark, marginTop: 4, lineHeight: 1.5 }}>
-                      {c.nextActionOwner && <span style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.white, background: c.nextActionOwner === '当方' ? color.navy : color.textLight, borderRadius: radius.sm, padding: '0 5px', marginRight: 4 }}>{c.nextActionOwner}</span>}
-                      {c.nextAction}
+                      <span style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.white, background: it.action.owner === '先方' ? color.textLight : color.navy, borderRadius: radius.sm, padding: '0 5px', marginRight: 4 }}>{it.action.owner}</span>
+                      <span style={{ fontWeight: font.weight.semibold, color: color.navy }}>{it.action.kind}</span>
+                      {it.action.note ? `：${it.action.note}` : ''}
                     </div>
+                  ) : c.nextAction && (
+                    <div style={{ fontSize: font.size.xs, color: color.textDark, marginTop: 4, lineHeight: 1.5 }}>次の一手：{c.nextAction}</div>
                   )}
                   {(c.lastContactAt || c.blocker) && (
                     <div style={{ fontSize: 11, color: color.textMid, marginTop: 2, lineHeight: 1.5 }}>

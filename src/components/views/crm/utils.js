@@ -19,6 +19,18 @@ export const SERVICE_LIST = ['売り手ソーシング', '買い手マッチン�
 // 次の一手を持つ人
 export const NEXT_ACTION_OWNERS = ['当方', '先方'];
 
+// 予定（次の一手）の種類。状態ごとに出す候補（2026-10-06）
+export const ACTION_KINDS_BY_STATUS = {
+  '支援中':       ['次のリスト依頼', '報告書の提出'],
+  '準備中':       ['催促', '支援開始の見込み'],
+  '停止中':       ['再開の打診'],
+  '中期フォロー': ['再営業'],
+  '面談予定':     ['再営業'],
+  '失注':         ['再度の切り出し'],
+};
+export const ACTION_KINDS = ['次のリスト依頼', '報告書の提出', '催促', '支援開始の見込み', '再開の打診', '再営業', '再度の切り出し', 'その他'];
+export const actionKindsFor = (status) => [...(ACTION_KINDS_BY_STATUS[status] || []), ...ACTION_KINDS.filter(k => !(ACTION_KINDS_BY_STATUS[status] || []).includes(k))];
+
 // ステータスのカテゴリ分類
 // - 取引先: 既に契約・支援関係がある会社 (支援中/準備中/停止中/保留)
 // - 接触済み: 接点はあるが未契約 (中期フォロー/面談予定)

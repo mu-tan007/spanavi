@@ -6,9 +6,10 @@ import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { updateClientNextContactAt, updateClient, deleteClient } from '../../../lib/supabaseWrite';
 import { useEngagements } from '../../../hooks/useEngagements';
-import { PAYMENT_SITE_OPTIONS, STAGE_LIST, SERVICE_LIST, NEXT_ACTION_OWNERS } from '../crm/utils';
+import { PAYMENT_SITE_OPTIONS, STAGE_LIST, SERVICE_LIST } from '../crm/utils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
+import ClientActionsEditor from './ClientActionsEditor';
 import ClientMeetingsSection from '../crm/ClientMeetingsSection';
 import ClientActivity, { useClientActivity, lastContactOf, daysAgo, activityCardStyle } from './ClientActivity';
 import { useUrlState } from '../../../hooks/useUrlState';
@@ -902,9 +903,10 @@ export default function ClientDetailPage({
                   <EditableField label="最後のやり取り（手段・どちらから）" value={[c.lastContactChannel, c.lastContactFrom].filter(Boolean).join('・')}
                     placeholder="例: メール・先方" onSave={v => { const [ch, fr] = (v || '').split(/[・,、]/); patchClient({ lastContactChannel: (ch || '').trim(), lastContactFrom: (fr || '').trim() }); }} />
                   <EditableField label="最後のやり取り（中身）" value={c.lastContactSummary} placeholder="例: 新しいリストを受領" onSave={v => patchClient({ lastContactSummary: v })} />
-                  <EditableField label="次の一手" value={c.nextAction} placeholder="例: 近況伺いと再開の打診" onSave={v => patchClient({ nextAction: v })} />
-                  <EditableField label="次の一手を持つ人" value={c.nextActionOwner} type="select" options={toOptions(NEXT_ACTION_OWNERS)} onSave={v => patchClient({ nextActionOwner: v })} />
-                  <EditableField label="次の一手の期限" value={c.nextActionDue} placeholder="例: 2026-10-20" onSave={v => patchClient({ nextActionDue: v })} />
+                  {/* 予定（次の一手）は複数持てる。一覧には一番早い未完了のものが出る */}
+                  <div style={{ fontSize: 10, color: C.textLight, fontWeight: font.weight.medium, marginBottom: 2, letterSpacing: 0.5 }}>予定（次の一手）</div>
+                  <ClientActionsEditor client={c}
+                    onChanged={patch => setClientData && setClientData(prev => prev.map(x => x._supaId === c._supaId ? { ...x, ...patch } : x))} />
                   <EditableField label="止まっている理由" value={c.blocker} placeholder="（任意）" onSave={v => patchClient({ blocker: v })} />
 
                   <div style={profileHead}>進め方</div>
