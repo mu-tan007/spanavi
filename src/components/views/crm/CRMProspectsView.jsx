@@ -13,16 +13,15 @@ import { DataTable, Input, Badge } from '../../ui';
 // ============================================================
 
 // 接点の段階（上ほど次に動く価値が高い）
-const STAGES = ['資料・HPを見た', '買収でつながり', '資料を送った', '架電のみ', '未接触', '断られた', '除外'];
-const STAGE_VARIANT = { '資料・HPを見た': 'success', '買収でつながり': 'primary', '資料を送った': 'info', '架電のみ': 'neutral', '未接触': 'neutral', '断られた': 'warn', '除外': 'default' };
+const STAGES = ['資料・HPを見た', '買収でつながり', '資料を送った', '架電のみ', '未接触', '断られた'];
+const STAGE_VARIANT = { '資料・HPを見た': 'success', '買収でつながり': 'primary', '資料を送った': 'info', '架電のみ': 'neutral', '未接触': 'neutral', '断られた': 'warn' };
 const NEXT = {
   '資料・HPを見た': '架電で面談を打診（見てくれた今が一番温かい）',
-  '買収でつながり': 'むー様から「売り手企業の開拓をやらせてください」と打診',
+  '買収でつながり': '当方から「売り手企業の開拓をやらせてください」と打診',
   '資料を送った': '架電で資料の感想を伺い、面談を打診',
   '架電のみ': '資料をフォームかメールで送り、閲覧を計測',
   '未接触': 'フォームで資料を送る',
   '断られた': '時期を空け、別のサービス（買い手開拓・DM）で再提案',
-  '除外': '—',
 };
 function servicesFor(kind) {
   if (kind === 'IFA') return 'IFA向けアポ（今の営業先のみ）';
@@ -36,7 +35,7 @@ export default function CRMProspectsView() {
   const [error, setError] = useState(null);
   const [source, setSource] = useState('all');
   const [kind, setKind] = useState('all');
-  const [stage, setStage] = useState('active');   // active＝除外以外
+  const [stage, setStage] = useState('all');
   const [q, setQ] = useState('');
 
   useEffect(() => {
@@ -60,7 +59,7 @@ export default function CRMProspectsView() {
   const pool2 = pool1.filter(r => kind === 'all' || r.kind === kind);
   const byStage = count(pool2, 'contact_stage');
   const shown = pool2
-    .filter(r => stage === 'all' || (stage === 'active' ? r.contact_stage !== '除外' : r.contact_stage === stage))
+    .filter(r => stage === 'all' || r.contact_stage === stage)
     .filter(r => !q.trim() || (r.company || '').includes(q.trim()) || (r.prefecture || '').includes(q.trim()))
     .sort((a, b) => STAGES.indexOf(a.contact_stage) - STAGES.indexOf(b.contact_stage));
 
@@ -113,7 +112,7 @@ export default function CRMProspectsView() {
       </div>
       <div style={row}>
         {label('接点')}
-        <button type="button" style={chip(stage === 'active')} onClick={() => setStage('active')}>除外以外 {pool2.length - (byStage['除外'] || 0)}</button>
+        <button type="button" style={chip(stage === 'all')} onClick={() => setStage('all')}>全て {pool2.length}</button>
         {STAGES.filter(s => byStage[s]).map(s => <button key={s} type="button" style={chip(stage === s)} onClick={() => setStage(s)}>{s} {byStage[s]}</button>)}
       </div>
       <DataTable
