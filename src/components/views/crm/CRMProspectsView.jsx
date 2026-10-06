@@ -40,11 +40,18 @@ export default function CRMProspectsView() {
   const [q, setQ] = useState('');
 
   useEffect(() => {
-    supabase.rpc('crm_prospects').then(({ data, error: e }) => {
-      if (e) setError(e.message);
-      setRows((data || []).map(r => ({ ...r, services: servicesFor(r.kind), next: NEXT[r.contact_stage] || '' })));
+    // データベースは一度に1,000件までしか返さないので、1,000件ずつ分けて読む
+    (async () => {
+      const all = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error: e } = await supabase.rpc('crm_prospects').range(from, from + 999);
+        if (e) { setError(e.message); break; }
+        all.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
+      setRows(all.map(r => ({ ...r, services: servicesFor(r.kind), next: NEXT[r.contact_stage] || '' })));
       setLoading(false);
-    });
+    })();
   }, []);
 
   const bySource = useMemo(() => count(rows, 'source'), [rows]);
@@ -69,7 +76,8 @@ export default function CRMProspectsView() {
     { key: 'contact_stage', label: '接点', width: 120, align: 'center', sortable: true, sortType: 'string',
       sortValue: r => STAGES.indexOf(r.contact_stage),
       render: r => <Badge variant={STAGE_VARIANT[r.contact_stage] || 'neutral'}>{r.contact_stage}</Badge> },
-    { key: 'company', label: '企業名', width: 240, align: 'left', sortable: true, sortType: 'string', sticky: true,
+    // 列の固定（sticky）は下にずらすと見出しに重なるので使わない
+    { key: 'company', label: '企業名', width: 240, align: 'left', sortable: true, sortType: 'string',
       render: r => r.url
         ? <a href={r.url.startsWith('http') ? r.url : 'https://' + r.url} target="_blank" rel="noreferrer" style={{ color: color.navy, fontWeight: font.weight.semibold }}>{r.company}</a>
         : <span style={{ color: color.navy, fontWeight: font.weight.semibold }}>{r.company}</span> },
