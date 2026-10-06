@@ -3358,6 +3358,20 @@ export async function fetchMemberHeatmap(getterName, fromISO, toISO) {
   return { data: data || [], error };
 }
 
+// ダッシュボード：人ごとの行動の集計（自分の会社だけ・DB側で集計して約30行を返す）
+export async function fetchDashboardMetrics(fromISO, toISO) {
+  const { data, error } = await supabase.rpc('dashboard_member_metrics', { p_from: fromISO, p_to: toISO });
+  if (error) console.error('[DB] fetchDashboardMetrics error:', error);
+  return { data: data || [], error };
+}
+
+// ダッシュボード：上位・中位の目安（毎晩4:10に直近3か月の人月で計算）
+export async function fetchDashboardBenchmarks() {
+  const { data, error } = await supabase.from('dashboard_benchmarks').select('computed_at, window_from, window_to, top, mid, top_names, mid_count').maybeSingle();
+  if (error) console.error('[DB] fetchDashboardBenchmarks error:', error);
+  return { data: data || null, error };
+}
+
 export async function fetchCallActivity(fromISO, toISO) {
   const all = [];
   let from = 0;
