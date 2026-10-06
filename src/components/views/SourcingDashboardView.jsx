@@ -3,7 +3,7 @@ import { color, space, radius, font, alpha } from '../../constants/design';
 import { Select, Card } from '../ui';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useUrlState } from '../../hooks/useUrlState';
-import PageHeader from '../common/PageHeader';
+import PageTitle from '../common/PageTitle';
 import { useRecordingPlayer } from '../common/RecordingPlayerProvider';
 import { useCallQueue } from './smart-queue/useCallQueue';
 import { fetchAllRecallRecords, fetchMemberReapproach, fetchMemberHeatmap, fetchDashboardMetrics, fetchDashboardBenchmarks } from '../../lib/supabaseWrite';
@@ -231,23 +231,23 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
 
   return (
     <div className="db">
-      <div className="db-ph">
-        <div>
-          <h1>ダッシュボード</h1>
-          <p>{activeMember}{team ? ` ・ ${team}チーム` : ''} ・ {periodLabel}（{range.fromDate.slice(5).replace('-', '/')}〜{effectiveTo.slice(5).replace('-', '/')}）</p>
-        </div>
-        <div className="db-ctl">
-          <select className="input" value={activeMember} onChange={e => setMember(e.target.value)} aria-label="メンバー">
-            {memberOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <Seg value={period} onChange={setPeriod} options={[['today', '今日'], ['week', '今週'], ['month', '月']]} />
-          {period === 'month' && (
-            <select className="input" value={monthStr} onChange={e => setMonthStr(e.target.value)} aria-label="月">
-              {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      <PageTitle
+        title="ダッシュボード"
+        sub={`${activeMember}${team ? ` ・ ${team}チーム` : ''} ・ ${periodLabel}（${range.fromDate.slice(5).replace('-', '/')}〜${effectiveTo.slice(5).replace('-', '/')}）`}
+        right={(
+          <>
+            <select className="input" value={activeMember} onChange={e => setMember(e.target.value)} aria-label="メンバー">
+              {memberOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-          )}
-        </div>
-      </div>
+            <Seg value={period} onChange={setPeriod} options={[['today', '今日'], ['week', '今週'], ['month', '月']]} />
+            {period === 'month' && (
+              <select className="input" value={monthStr} onChange={e => setMonthStr(e.target.value)} aria-label="月">
+                {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            )}
+          </>
+        )}
+      />
 
       {/* 基本の4つ */}
       <section className="db-kpis">

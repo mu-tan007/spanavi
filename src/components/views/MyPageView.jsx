@@ -13,6 +13,7 @@ import ZoomWindowGuardRow from './ZoomWindowGuardRow';
 import { calcRankAndRate, getNextRankInfo, getRankLadder } from '../../utils/calculations';
 import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/money';
 import './MyPageView.css';
+import '../common/PageTitle.css';
 
 const fmtMan = (v) => (v >= 10000 ? `${(v / 10000).toLocaleString()}万` : v.toLocaleString());
 
@@ -361,7 +362,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
   const nameInitial = (currentUser || '?')[0];
 
   return (
-    <div className="mp">
+    <div className="mp sp-page-top">
       {/* 自分とランク */}
       <section className={`card mp-hero${memberInfo && showSourcingStats ? '' : ' solo'}`}>
         <div className="mp-who">
