@@ -44,7 +44,7 @@ export default function CRMProspectsView() {
     (async () => {
       const all = [];
       for (let from = 0; ; from += 1000) {
-        const { data, error: e } = await supabase.rpc('crm_prospects').range(from, from + 999);
+        const { data, error: e } = await supabase.rpc('crm_prospects').order('key').range(from, from + 999);
         if (e) { setError(e.message); break; }
         all.push(...(data || []));
         if (!data || data.length < 1000) break;
