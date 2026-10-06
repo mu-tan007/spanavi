@@ -298,6 +298,17 @@ export async function updateClient(supaId, data) {
       stopped_by: data.stoppedBy === undefined ? undefined : (data.stoppedBy || null),
       resume_outlook: data.resumeOutlook === undefined ? undefined : (data.resumeOutlook || null),
       stop_note: data.stopNote === undefined ? undefined : (data.stopNote || null),
+      // 進み具合（2026-10-06）
+      service: data.service === undefined ? undefined : (data.service || null),
+      stage: data.stage === undefined ? undefined : (data.stage || null),
+      last_contact_at: data.lastContactAt === undefined ? undefined : (data.lastContactAt || null),
+      last_contact_channel: data.lastContactChannel === undefined ? undefined : (data.lastContactChannel || null),
+      last_contact_from: data.lastContactFrom === undefined ? undefined : (data.lastContactFrom || null),
+      last_contact_summary: data.lastContactSummary === undefined ? undefined : (data.lastContactSummary || null),
+      next_action: data.nextAction === undefined ? undefined : (data.nextAction || null),
+      next_action_owner: data.nextActionOwner === undefined ? undefined : (data.nextActionOwner || null),
+      next_action_due: data.nextActionDue === undefined ? undefined : (data.nextActionDue || null),
+      blocker: data.blocker === undefined ? undefined : (data.blocker || null),
     })
     .eq('id', supaId)
   if (error) console.error('[DB] updateClient error:', error)

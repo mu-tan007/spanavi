@@ -7,7 +7,16 @@ export const GRAY_200 = '#E5E7EB';
 export const GRAY_50 = '#F8F9FA';
 export const GOLD = '#B8860B';
 
-export const STATUS_LIST = ['支援中', '準備中', '停止中', '保留', '中期フォロー', '面談予定', '問い合わせ'];
+export const STATUS_LIST = ['支援中', '準備中', '停止中', '保留', '中期フォロー', '面談予定', '問い合わせ', '失注'];
+
+// 状態の中の段階（2026-10-06）。中期フォローが100社を超えたので、どこで止まっているかで分ける
+export const STAGE_LIST = ['未接触', '初回接触済', '初回面談予定', '初回面談済・検討中', '提案・見積済', '契約済・未開始', '架電中', '一時停止（先方都合）', '停止', '失注'];
+
+// 営業代行のサービス
+export const SERVICE_LIST = ['売り手ソーシング', '買い手マッチング', 'IFA向け', 'その他'];
+
+// 次の一手を持つ人
+export const NEXT_ACTION_OWNERS = ['むー様', 'インターン', '先方', 'Claude'];
 
 // ステータスのカテゴリ分類
 // - 取引先: 既に契約・支援関係がある会社 (支援中/準備中/停止中/保留)
@@ -21,6 +30,7 @@ export const STATUS_CATEGORY = {
   '中期フォロー': '接触済み',
   '面談予定':     '接触済み',
   '問い合わせ':   '接触済み',
+  '失注':         '接触済み',
 };
 
 export function statusCategory(st) {
@@ -37,7 +47,7 @@ export function statusCategoryStyle(category) {
 // カテゴリ単位でグルーピングされた STATUS_LIST (タブ表示用)
 export const STATUS_GROUPS = [
   { category: '取引先',   statuses: ['支援中', '準備中', '停止中', '保留'] },
-  { category: '接触済み', statuses: ['中期フォロー', '面談予定', '問い合わせ'] },
+  { category: '接触済み', statuses: ['中期フォロー', '面談予定', '問い合わせ', '失注'] },
 ];
 
 export function statusStyle(st) {
@@ -48,6 +58,7 @@ export function statusStyle(st) {
   if (st === '中期フォロー') return { bg: NAVY + '10', color: NAVY, dot: NAVY };
   if (st === '面談予定') return { bg: '#7c3aed15', color: '#7c3aed', dot: '#7c3aed' };
   if (st === '問い合わせ') return { bg: '#0891b215', color: '#0891b2', dot: '#0891b2' };
+  if (st === '失注') return { bg: '#6B728015', color: '#6B7280', dot: '#9CA3AF' };
   return { bg: C.textLight + '10', color: C.textLight, dot: C.textLight };
 }
 
@@ -79,21 +90,22 @@ export const CRM_COLS_BASE = [
   { key: 'favorite',       width: 36,  align: 'center' },
   { key: 'status',         width: 100, align: 'center' },
   { key: 'company',        width: 220, align: 'left'   },
-  { key: 'product',        width: 110, align: 'left'   },
-  { key: 'primaryContact', width: 120, align: 'left'   },
-  { key: 'primaryEmail',   width: 200, align: 'left'   },
-  { key: 'rewards',        width: 200, align: 'left'   },
-  { key: 'paySite',        width: 170, align: 'left'   },
-  { key: 'memo',           width: 220, align: 'left'   },
+  { key: 'service',        width: 110, align: 'left'   },
+  { key: 'stage',          width: 130, align: 'left'   },
+  { key: 'primaryContact', width: 110, align: 'left'   },
+  { key: 'lastContact',    width: 260, align: 'left'   },
+  { key: 'nextAction',     width: 300, align: 'left'   },
+  { key: 'memo',           width: 180, align: 'left'   },
 ];
 
 // 編集モードでもカラム構成は同じ (右端アイコン群は廃止)
 export const CRM_COLS_EDIT = [...CRM_COLS_BASE];
 
-export const CRM_COL_LABELS = ['★','ステータス','企業名','商材','主担当','メールアドレス','報酬体系','支払いサイト','メモ'];
+// メールアドレス・報酬体系・支払いサイトは詳細ページへ移した（2026-10-06）
+export const CRM_COL_LABELS = ['★','ステータス','企業名','サービス','段階','主担当','最後のやり取り','次の一手','メモ'];
 
 // 商材ソート可能なカラムキー一覧 (lastMeeting / targetRatio 削除済み)
-export const CRM_SORTABLE_KEYS = new Set(['product','company','status','paySite']);
+export const CRM_SORTABLE_KEYS = new Set(['company','status','service','stage','lastContact','nextAction']);
 
 // 支払サイトの一般的な選択肢 (datalist 候補。手入力もできる)
 export const PAYMENT_SITE_OPTIONS = [

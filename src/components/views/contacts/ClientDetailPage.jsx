@@ -6,7 +6,7 @@ import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { updateClientNextContactAt, updateClient, deleteClient } from '../../../lib/supabaseWrite';
 import { useEngagements } from '../../../hooks/useEngagements';
-import { PAYMENT_SITE_OPTIONS } from '../crm/utils';
+import { PAYMENT_SITE_OPTIONS, STAGE_LIST, SERVICE_LIST, NEXT_ACTION_OWNERS } from '../crm/utils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
 import ClientMeetingsSection from '../crm/ClientMeetingsSection';
@@ -896,6 +896,18 @@ export default function ClientDetailPage({
                   )}
                 </div>
                 <div>
+                  <div style={profileHead}>進み具合</div>
+                  <EditableField label="サービス" value={c.service} type="select" options={toOptions(SERVICE_LIST)} onSave={v => patchClient({ service: v })} />
+                  <EditableField label="段階" value={c.stage} type="select" options={toOptions(STAGE_LIST)} onSave={v => patchClient({ stage: v })} />
+                  <EditableField label="最後のやり取り（日付）" value={c.lastContactAt} placeholder="例: 2026-10-06" onSave={v => patchClient({ lastContactAt: v })} />
+                  <EditableField label="最後のやり取り（手段・どちらから）" value={[c.lastContactChannel, c.lastContactFrom].filter(Boolean).join('・')}
+                    placeholder="例: メール・先方" onSave={v => { const [ch, fr] = (v || '').split(/[・,、]/); patchClient({ lastContactChannel: (ch || '').trim(), lastContactFrom: (fr || '').trim() }); }} />
+                  <EditableField label="最後のやり取り（中身）" value={c.lastContactSummary} placeholder="例: 新しいリストを受領" onSave={v => patchClient({ lastContactSummary: v })} />
+                  <EditableField label="次の一手" value={c.nextAction} placeholder="例: 近況伺いと再開の打診" onSave={v => patchClient({ nextAction: v })} />
+                  <EditableField label="次の一手を持つ人" value={c.nextActionOwner} type="select" options={toOptions(NEXT_ACTION_OWNERS)} onSave={v => patchClient({ nextActionOwner: v })} />
+                  <EditableField label="次の一手の期限" value={c.nextActionDue} placeholder="例: 2026-10-20" onSave={v => patchClient({ nextActionDue: v })} />
+                  <EditableField label="止まっている理由" value={c.blocker} placeholder="（任意）" onSave={v => patchClient({ blocker: v })} />
+
                   <div style={profileHead}>進め方</div>
                   <EditableField label="リスト負担" value={c.listSrc} type="select"
                     options={[{ value: '', label: '—' }, { value: '当社持ち', label: '当社持ち' }, { value: '先方持ち', label: '先方持ち' }, { value: '両方', label: '両方' }]}

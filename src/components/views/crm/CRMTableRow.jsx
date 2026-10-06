@@ -1,98 +1,13 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { C } from '../../../constants/colors';
 import { color, space, radius, font, alpha } from '../../../constants/design';
 import {
   NAVY, GRAY_200, GRAY_50, GOLD,
   statusStyle, statusCategory, statusCategoryStyle,
-  priorityScore, priorityRank, PAYMENT_SITE_OPTIONS,
+  priorityScore, priorityRank,
 } from './utils';
 import { updateClient } from '../../../lib/supabaseWrite';
-import { applyTaxIfPretax } from '../../../utils/money';
 
-// 報酬体系 1件分のチップ (ホバーで段階別 tier 詳細をツールチップ表示)
-function RewardChip({ rw, rewardMaster }) {
-  const [hover, setHover] = useState(false);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const tiers = useMemo(() => {
-    return (rewardMaster || [])
-      .filter(r => r.id === rw.rewardType)
-      .sort((a, b) => (a._tierSort || 0) - (b._tierSort || 0));
-  }, [rewardMaster, rw.rewardType]);
-  const head = tiers[0];
-  const isFixed = head?.calc_type === 'fixed_per_appo' || head?.basis === '-';
-
-  const fmtPrice = (price) => {
-    const p = applyTaxIfPretax(price, head?.tax);
-    return '¥' + Number(p || 0).toLocaleString();
-  };
-
-  const handleEnter = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setPos({ x: rect.left, y: rect.bottom + 4 });
-    setHover(true);
-  };
-
-  return (
-    <span style={{ whiteSpace: 'nowrap' }}
-      onMouseEnter={handleEnter}
-      onMouseLeave={() => setHover(false)}>
-      <span style={{ color: color.textLight, fontSize: 10 }}>{rw.categoryName}/{rw.engName}: </span>
-      <span style={{ color: color.navy, fontWeight: font.weight.semibold, borderBottom: `1px dotted ${color.textLight}` }}>
-        {rw.rewardName}
-      </span>
-      {hover && tiers.length > 0 && (
-        <div onClick={e => e.stopPropagation()} style={{
-          position: 'fixed', top: pos.y, left: pos.x, zIndex: 99999,
-          padding: '8px 10px',
-          background: color.white, border: `1px solid ${color.border}`,
-          borderRadius: radius.md, boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-          minWidth: 260, fontSize: font.size.xs, color: color.textDark,
-          fontFamily: font.family.sans, fontWeight: font.weight.normal,
-          pointerEvents: 'none',
-        }}>
-          <div style={{ fontWeight: font.weight.bold, color: color.navy, marginBottom: 6, paddingBottom: 4, borderBottom: `1px solid ${color.border}` }}>
-            {rw.rewardName}
-            <span style={{ marginLeft: 6, fontSize: 10, color: color.textMid, fontWeight: font.weight.normal }}>
-              ({head?.basis || '—'}{head?.tax ? ` / ${head.tax}` : ''})
-            </span>
-          </div>
-          {isFixed ? (
-            <div style={{ fontFamily: font.family.mono }}>
-              アポ1件あたり {fmtPrice(head.price)}
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                {tiers.map((t, i) => {
-                  // memo「5億円未満：10万円」「1〜3件目: 15,000円」→ 範囲ラベル部分だけ抽出
-                  // (税別額の二重表示を避けるため、金額は右セルの fmtPrice 側で税込換算済みを出す)
-                  const rangeLabel = (() => {
-                    if (t.memo) {
-                      const idx = t.memo.search(/[：:]/);
-                      if (idx > 0) return t.memo.slice(0, idx).trim();
-                      return t.memo.trim();
-                    }
-                    return `${(t.lo || 0).toLocaleString()}〜${t.hi >= 999999999999 ? '上限なし' : (t.hi || 0).toLocaleString()}`;
-                  })();
-                  return (
-                    <tr key={i} style={{ borderTop: i > 0 ? `1px dashed ${color.borderLight}` : 'none' }}>
-                      <td style={{ padding: '3px 4px', color: color.textMid }}>{rangeLabel}</td>
-                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: font.family.mono, color: color.textDark, fontWeight: font.weight.semibold }}>
-                        {fmtPrice(t.price)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </span>
-  );
-}
-
-// 最終接点 (client_meetings.meeting_at) を「M/D」or「N日前」で表示
 function formatLastMeeting(ts) {
   if (!ts) return { label: '—', color: color.textLight };
   const d = new Date(ts);
@@ -170,72 +85,63 @@ function MemoCell({ client, setClientData, align }) {
 }
 
 // 支払いサイトのインライン編集 (clients.payment_site)
-// 候補は datalist で出しつつ、手入力の文言もそのまま保存できる
-function PaySiteCell({ client, setClientData, align }) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(client.paySite || '');
-  const inputRef = useRef(null);
-  useEffect(() => { setVal(client.paySite || ''); }, [client.paySite]);
-  useEffect(() => {
-    if (editing && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); }
-  }, [editing]);
+// 経過日数の表示（30日以上は黄、60日以上は赤、記録なしも赤）
+function daysAgo(day) {
+  if (!day) return null;
+  const t = new Date(day + 'T00:00:00').getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.floor((Date.now() - t) / 86400000));
+}
 
-  const commit = async () => {
-    setEditing(false);
-    const next = (val || '').trim();
-    if (next === (client.paySite || '')) return;
-    if (!client._supaId) return;
-    const updated = { ...client, paySite: next };
-    const error = await updateClient(client._supaId, updated);
-    if (error) { alert('保存失敗: ' + (error.message || '')); return; }
-    if (setClientData) {
-      setClientData(prev => prev.map(x => x._supaId === client._supaId ? updated : x));
-    }
-  };
-
-  if (editing) {
-    return (
-      <>
-        <input
-          ref={inputRef}
-          list="crm-paysite-options"
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          onClick={e => e.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={e => {
-            if (e.key === 'Enter') { e.currentTarget.blur(); }
-            if (e.key === 'Escape') { setVal(client.paySite || ''); setEditing(false); }
-          }}
-          style={{
-            width: '100%', padding: '4px 6px',
-            border: `1px solid ${color.navy}`, borderRadius: radius.sm,
-            fontSize: font.size.xs, fontFamily: font.family.sans, color: color.textDark,
-            outline: 'none', boxSizing: 'border-box', background: color.white,
-          }}
-        />
-        <datalist id="crm-paysite-options">
-          {PAYMENT_SITE_OPTIONS.map(o => <option key={o} value={o} />)}
-        </datalist>
-      </>
-    );
+function AgeTag({ days }) {
+  if (days == null) {
+    return <span style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.danger, background: color.dangerSoft, padding: '0 5px', borderRadius: 3, marginLeft: 4 }}>記録なし</span>;
   }
+  const warn = days >= 60 ? { c: color.danger, bg: color.dangerSoft } : days >= 30 ? { c: color.goldDim, bg: color.goldGlow } : null;
+  if (!warn) return <span style={{ fontSize: 10, color: color.textLight, marginLeft: 4 }}>{days === 0 ? '本日' : `${days}日前`}</span>;
+  return <span style={{ fontSize: 10, fontWeight: font.weight.bold, color: warn.c, background: warn.bg, padding: '0 5px', borderRadius: 3, marginLeft: 4 }}>{days}日前</span>;
+}
 
+// 最後のやり取り：日付・経過日数／手段・どちらから・中身
+function LastContactCell({ client: c, align }) {
+  const days = daysAgo(c.lastContactAt);
+  const sub = [c.lastContactChannel, c.lastContactFrom ? `${c.lastContactFrom}から` : ''].filter(Boolean).join('・');
   return (
-    <span
-      onClick={e => { e.stopPropagation(); setEditing(true); }}
-      title={client.paySite || 'クリックして入力'}
-      style={{
-        textAlign: align, fontSize: font.size.xs,
-        color: client.paySite ? color.textDark : color.textLight,
-        display: 'inline-block', width: '100%',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        cursor: 'pointer', padding: '2px 4px', borderRadius: radius.sm,
-      }}
-      onMouseEnter={e => { e.currentTarget.style.background = GRAY_50; }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-    >
-      {client.paySite || '—'}
+    <span style={{ textAlign: align, fontSize: font.size.xs, lineHeight: 1.45, overflow: 'hidden', minWidth: 0 }}
+      title={[c.lastContactAt, sub, c.lastContactSummary].filter(Boolean).join(' / ')}>
+      <span style={{ display: 'block', color: color.textDark, whiteSpace: 'nowrap' }}>
+        {c.lastContactAt ? c.lastContactAt.replaceAll('-', '/') : '—'}<AgeTag days={days} />
+      </span>
+      {(sub || c.lastContactSummary) && (
+        <span style={{
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          color: color.textMid,
+        }}>{sub}{sub && c.lastContactSummary ? '　' : ''}{c.lastContactSummary}</span>
+      )}
+    </span>
+  );
+}
+
+// 次の一手：誰が・中身／期限・止まっている理由
+function NextActionCell({ client: c, align }) {
+  const due = c.nextActionDue;
+  const overdue = due && due < new Date().toISOString().slice(0, 10);
+  const ownerBg = c.nextActionOwner === 'むー様' ? color.navy : c.nextActionOwner === '先方' ? color.textLight : color.navyLight;
+  return (
+    <span style={{ textAlign: align, fontSize: font.size.xs, lineHeight: 1.45, overflow: 'hidden', minWidth: 0 }}
+      title={[c.nextActionOwner, c.nextAction, due ? `期限 ${due}` : '', c.blocker ? `止まり：${c.blocker}` : ''].filter(Boolean).join(' / ')}>
+      <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', color: color.textDark }}>
+        {c.nextActionOwner && (
+          <span style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.white, background: ownerBg, borderRadius: 3, padding: '0 5px', marginRight: 4 }}>{c.nextActionOwner}</span>
+        )}
+        {c.nextAction || '—'}
+      </span>
+      {(due || c.blocker) && (
+        <span style={{ display: 'block', color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {due && <span style={{ color: overdue ? color.danger : color.textMid, fontWeight: overdue ? font.weight.bold : undefined }}>期限 {due.replaceAll('-', '/')}　</span>}
+          {c.blocker && `止まり：${c.blocker}`}
+        </span>
+      )}
     </span>
   );
 }
@@ -269,7 +175,8 @@ export default function CRMTableRow({
 }) {
   const c = client;
   const sc = statusStyle(c.status);
-  const altBg = rowIndex % 2 === 0 ? color.white : color.gray50;
+  // 契約済みで始まっていない先は金色の地で目立たせる（いちばん早く売上になる層）
+  const altBg = c.stage === '契約済・未開始' ? color.goldGlow : (rowIndex % 2 === 0 ? color.white : color.gray50);
   const contactList = contactsByClient[c._supaId] || [];
   const primary = contactList.find(ct => ct.isPrimary) || contactList[0];
 
@@ -392,17 +299,32 @@ export default function CRMTableRow({
         >{c.company}</span>
       </span>
 
-      {/* 3. 商材 */}
+      {/* 3. サービス */}
       <span style={{
         textAlign: crmCols[3]?.align,
         fontSize: font.size.xs, color: color.textMid,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>{c.industry || '-'}</span>
+      }}>{c.service || '—'}</span>
 
-      {/* 4. 主担当 */}
+      {/* 4. 段階（契約済みで始まっていない先は金色） */}
+      <span style={{ textAlign: crmCols[4]?.align, overflow: 'hidden' }}>
+        {c.stage ? (
+          <span style={{
+            display: 'inline-block', maxWidth: '100%',
+            fontSize: font.size.xs, fontWeight: font.weight.semibold,
+            padding: '1px 8px', borderRadius: 10,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            ...(c.stage === '契約済・未開始'
+              ? { background: color.gold, color: color.white, border: `1px solid ${color.gold}` }
+              : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
+          }}>{c.stage}</span>
+        ) : <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>}
+      </span>
+
+      {/* 5. 主担当 */}
       {primary ? (
         <span style={{
-          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[4]?.align,
+          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[5]?.align,
           display: 'inline-flex', alignItems: 'center', gap: 4,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -416,36 +338,14 @@ export default function CRMTableRow({
           <span style={{ fontWeight: font.weight.medium }}>{primary.name}</span>
         </span>
       ) : (
-        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[4]?.align }}>-</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[5]?.align }}>-</span>
       )}
 
-      {/* 5. メールアドレス (主担当に紐づく) */}
-      <span
-        style={{
-          textAlign: crmCols[5]?.align,
-          fontSize: font.size.xs, color: color.textMid,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}
-        title={primary?.email || ''}
-      >{primary?.email || '—'}</span>
+      {/* 6. 最後のやり取り（30日以上は黄、60日以上は赤） */}
+      <LastContactCell client={c} align={crmCols[6]?.align} />
 
-      {/* 6. 報酬体系 */}
-      <span style={{
-        textAlign: crmCols[6]?.align,
-        fontSize: font.size.xs, color: color.textMid,
-        display: 'flex', flexDirection: 'column', gap: 2,
-      }}>
-        {rewards.length === 0 ? (
-          <span style={{ color: color.textLight }}>—</span>
-        ) : (
-          rewards.map((rw, i) => (
-            <RewardChip key={i} rw={rw} rewardMaster={rewardMaster} />
-          ))
-        )}
-      </span>
-
-      {/* 7. 支払いサイト (インライン編集可) */}
-      <PaySiteCell client={c} setClientData={setClientData} align={crmCols[7]?.align} />
+      {/* 7. 次の一手（誰が・期限・止まっている理由） */}
+      <NextActionCell client={c} align={crmCols[7]?.align} />
 
       {/* 8. メモ (インライン編集可) */}
       <MemoCell client={c} setClientData={setClientData} align={crmCols[8]?.align} />

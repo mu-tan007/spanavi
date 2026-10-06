@@ -14,7 +14,7 @@ import { EmailFollowupModal } from './BusinessOverviewView';
 import RewardTypeManager from './masp/RewardTypeManager';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
-import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT, currentYearMonth } from './crm/utils';
+import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT, currentYearMonth, STAGE_LIST, SERVICE_LIST } from './crm/utils';
 import { fetchClientMonthlyTargets } from '../../lib/supabaseWrite';
 import RewardDetailModal from './crm/RewardDetailModal';
 import ClientFormModal from './crm/ClientFormModal';
@@ -253,22 +253,14 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
   // テーブル並び替え state: { key: 'product'|'lastMeeting'|..., dir: 'asc'|'desc' }
   const [sortState, setSortState] = useState({ key: null, dir: null });
-  // 商材フィルタ ('all' or '商材名')
-  const [productFilter, setProductFilter] = useUrlState('product', 'all');
+  // サービス・段階・要対応の絞り込み（2026-10-06。商材の絞り込みは M&A がほぼ全部で役に立たないため置き換え）
+  const [serviceFilter, setServiceFilter] = useUrlState('service', 'all');
+  const [stageFilter, setStageFilter] = useUrlState('stage', 'all');
+  const [followFilter, setFollowFilter] = useUrlState('follow', null, { allowed: ['due', 'stale'] });
   // 止まった理由の絞り込み（停止中・保留を見るとき用・2026-10-06）
   const [stopReasonFilter, setStopReasonFilter] = useUrlState('stop_reason', 'all');
   // CRM内サブセクション ('clients' = クライアント一覧 / 'rewards' = 報酬体系マスタ / 'contracts' = 契約書テンプレ)
   const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'rewards'] });
-
-  // クライアントが持つ商材一覧 (タブのカウント用)
-  const productCounts = useMemo(() => {
-    const m = {};
-    (clientData || []).forEach(c => {
-      if (!c.industry || c.company === 'M&Aソーシングパートナーズ株式会社') return;
-      m[c.industry] = (m[c.industry] || 0) + 1;
-    });
-    return m;
-  }, [clientData]);
 
   // 当月の月別目標（テーブル目標対比%列、KPI共通キャッシュ）
   const currentYM = useMemo(() => currentYearMonth(), []);
@@ -359,9 +351,20 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   const overdueCount = displayClientData.filter(isOverdue).length;
   const expiredCount = displayClientData.filter(isExpired).length;
 
+  // 次の一手の期限切れ／30日以上やり取りなし（記録なしも含む）
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isActionDue = (c) => !!c.nextActionDue && c.nextActionDue < todayStr;
+  const isContactStale = (c) => {
+    if (!c.lastContactAt) return true;
+    return (Date.now() - new Date(c.lastContactAt + 'T00:00:00').getTime()) / 86400000 >= 30;
+  };
+
   const filtered = displayClientData.filter(c => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
-    if (productFilter !== "all" && c.industry !== productFilter) return false;
+    if (serviceFilter !== 'all' && (c.service || '未設定') !== serviceFilter) return false;
+    if (stageFilter !== 'all' && (c.stage || '未設定') !== stageFilter) return false;
+    if (followFilter === 'due' && !isActionDue(c)) return false;
+    if (followFilter === 'stale' && !isContactStale(c)) return false;
     if ((statusFilter === '停止中' || statusFilter === '保留') && stopReasonFilter !== 'all' && (c.stopReason || '未入力') !== stopReasonFilter) return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
     if (alertFilter === 'overdue' && !isOverdue(c)) return false;
@@ -382,7 +385,10 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     const sortKey = sortState.key;
     const getVal = (c) => {
       switch (sortKey) {
-        case 'product':     return (c.industry || '').toString();
+        case 'service':     return (c.service || '').toString();
+        case 'stage':       return STAGE_LIST.indexOf(c.stage);
+        case 'lastContact': return c.lastContactAt ? new Date(c.lastContactAt).getTime() : -Infinity;
+        case 'nextAction':  return c.nextActionDue ? new Date(c.nextActionDue).getTime() : Infinity;
         case 'company':     return (c.company || '').toString();
         case 'status':      return (c.status || '').toString();
         case 'lastMeeting': {
@@ -695,48 +701,52 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             statusCounts={statusCounts}
             totalCount={displayClientData.length}
           />
-          {/* 商材タブ */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, marginRight: 4 }}>商材:</span>
-            {(() => {
-              const baseBtn = {
-                padding: '4px 12px', borderRadius: radius.sm, fontSize: 11, fontWeight: font.weight.semibold,
-                cursor: 'pointer', fontFamily: font.family.sans,
-              };
-              const total = displayClientData.length;
-              const ordered = categoryOptions.length > 0
-                ? categoryOptions.map(o => o.value).filter(v => productCounts[v] > 0)
-                : Object.keys(productCounts).sort();
-              return (
-                <>
-                  <button
-                    onClick={() => setProductFilter('all')}
-                    style={{
-                      ...baseBtn,
-                      border: '1px solid ' + (productFilter === 'all' ? NAVY : color.border),
-                      background: productFilter === 'all' ? NAVY : color.white,
-                      color: productFilter === 'all' ? color.white : color.textMid,
-                    }}
-                  >全て <span style={{ fontSize: 10, opacity: 0.7 }}>{total}</span></button>
-                  {ordered.map(p => {
-                    const active = productFilter === p;
-                    return (
-                      <button
-                        key={p}
-                        onClick={() => setProductFilter(p)}
-                        style={{
-                          ...baseBtn,
-                          border: '1px solid ' + (active ? NAVY : color.border),
-                          background: active ? NAVY : color.white,
-                          color: active ? color.white : color.textMid,
-                        }}
-                      >{p} <span style={{ fontSize: 10, opacity: 0.7 }}>{productCounts[p]}</span></button>
-                    );
-                  })}
-                </>
-              );
-            })()}
-          </div>
+          {/* サービス・段階・要対応（いま選んでいる状態の中で数える） */}
+          {(() => {
+            const pool = displayClientData.filter(c => statusFilter === 'all' || c.status === statusFilter);
+            const chip = (active, danger) => ({
+              padding: '4px 12px', borderRadius: radius.sm, fontSize: 11, fontWeight: font.weight.semibold,
+              cursor: 'pointer', fontFamily: font.family.sans,
+              border: '1px solid ' + (active ? (danger ? color.danger : NAVY) : (danger ? color.dangerSoft : color.border)),
+              background: active ? (danger ? color.danger : NAVY) : (danger ? color.dangerSoft : color.white),
+              color: active ? color.white : (danger ? color.danger : color.textMid),
+            });
+            const label = (t) => <span style={{ fontSize: 11, color: color.textLight, fontWeight: font.weight.semibold, minWidth: 56 }}>{t}</span>;
+            const row = { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' };
+            const count = (key) => pool.reduce((m, c) => { const k = c[key] || '未設定'; m[k] = (m[k] || 0) + 1; return m; }, {});
+            const svc = count('service');
+            const svcKeys = [...SERVICE_LIST, '未設定'].filter(k => svc[k]);
+            const svcPool = serviceFilter === 'all' ? pool : pool.filter(c => (c.service || '未設定') === serviceFilter);
+            const stg = svcPool.reduce((m, c) => { const k = c.stage || '未設定'; m[k] = (m[k] || 0) + 1; return m; }, {});
+            const stgKeys = [...STAGE_LIST, '未設定'].filter(k => stg[k]);
+            return (
+              <>
+                <div style={row}>
+                  {label('サービス')}
+                  <button onClick={() => setServiceFilter('all')} style={chip(serviceFilter === 'all')}>全て <span style={{ fontSize: 10, opacity: 0.7 }}>{pool.length}</span></button>
+                  {svcKeys.map(k => (
+                    <button key={k} onClick={() => setServiceFilter(k)} style={chip(serviceFilter === k)}>{k} <span style={{ fontSize: 10, opacity: 0.7 }}>{svc[k]}</span></button>
+                  ))}
+                </div>
+                {stgKeys.length > 1 && (
+                  <div style={row}>
+                    {label('段階')}
+                    <button onClick={() => setStageFilter('all')} style={chip(stageFilter === 'all')}>全て <span style={{ fontSize: 10, opacity: 0.7 }}>{svcPool.length}</span></button>
+                    {stgKeys.map(k => (
+                      <button key={k} onClick={() => setStageFilter(k)} style={chip(stageFilter === k)}>{k} <span style={{ fontSize: 10, opacity: 0.7 }}>{stg[k]}</span></button>
+                    ))}
+                  </div>
+                )}
+                <div style={row}>
+                  {label('要対応')}
+                  <button onClick={() => setFollowFilter(followFilter === 'due' ? null : 'due')} style={chip(followFilter === 'due', true)}>
+                    次の一手が期限切れ <span style={{ fontSize: 10, opacity: 0.7 }}>{svcPool.filter(isActionDue).length}</span></button>
+                  <button onClick={() => setFollowFilter(followFilter === 'stale' ? null : 'stale')} style={chip(followFilter === 'stale', true)}>
+                    30日以上やり取りなし <span style={{ fontSize: 10, opacity: 0.7 }}>{svcPool.filter(isContactStale).length}</span></button>
+                </div>
+              </>
+            );
+          })()}
           {/* 止まった理由（停止中・保留のときだけ出す。詳細画面で入れた理由で絞る） */}
           {(statusFilter === '停止中' || statusFilter === '保留') && (() => {
             const pool = displayClientData.filter(c => c.status === statusFilter);

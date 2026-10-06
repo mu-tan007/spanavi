@@ -256,6 +256,17 @@ export function useSpanaviData(authOrgId) {
         stoppedBy: c.stopped_by || '',
         resumeOutlook: c.resume_outlook || '',
         stopNote: c.stop_note || '',
+        // 進み具合（2026-10-06）。顧客管理の一覧に出す
+        service: c.service || '',
+        stage: c.stage || '',
+        lastContactAt: c.last_contact_at || '',
+        lastContactChannel: c.last_contact_channel || '',
+        lastContactFrom: c.last_contact_from || '',
+        lastContactSummary: c.last_contact_summary || '',
+        nextAction: c.next_action || '',
+        nextActionOwner: c.next_action_owner || '',
+        nextActionDue: c.next_action_due || '',
+        blocker: c.blocker || '',
       }))
 
       // members → 既存DEFAULT_MEMBERSフォーマット（名前のリスト）
