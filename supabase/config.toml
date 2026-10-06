@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.acq-slack-notify]
 verify_jwt = true
+
+[functions.client-last-contact]
+verify_jwt = false
