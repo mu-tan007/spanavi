@@ -7,7 +7,8 @@ export const GRAY_200 = '#E5E7EB';
 export const GRAY_50 = '#F8F9FA';
 export const GOLD = '#B8860B';
 
-export const STATUS_LIST = ['支援中', '準備中', '停止中', '保留', '中期フォロー', '面談予定', '問い合わせ', '失注'];
+// 「保留」「問い合わせ」は使われていなかったので外した（2026-10-06）
+export const STATUS_LIST = ['支援中', '準備中', '停止中', '中期フォロー', '面談予定', '失注'];
 
 // 状態の中の段階（2026-10-06）。中期フォローが100社を超えたので、どこで止まっているかで分ける
 export const STAGE_LIST = ['未接触', '初回接触済', '初回面談予定', '初回面談済・検討中', '提案・見積済', '契約済・未開始', '架電中', '一時停止（先方都合）', '停止', '失注'];
@@ -26,10 +27,8 @@ export const STATUS_CATEGORY = {
   '支援中':       '取引先',
   '準備中':       '取引先',
   '停止中':       '取引先',
-  '保留':         '取引先',
   '中期フォロー': '接触済み',
   '面談予定':     '接触済み',
-  '問い合わせ':   '接触済み',
   '失注':         '接触済み',
 };
 
@@ -46,18 +45,16 @@ export function statusCategoryStyle(category) {
 
 // カテゴリ単位でグルーピングされた STATUS_LIST (タブ表示用)
 export const STATUS_GROUPS = [
-  { category: '取引先',   statuses: ['支援中', '準備中', '停止中', '保留'] },
-  { category: '接触済み', statuses: ['中期フォロー', '面談予定', '問い合わせ', '失注'] },
+  { category: '取引先',   statuses: ['支援中', '準備中', '停止中'] },
+  { category: '接触済み', statuses: ['中期フォロー', '面談予定', '失注'] },
 ];
 
 export function statusStyle(st) {
   if (st === '支援中') return { bg: C.green + '15', color: C.green, dot: C.green };
   if (st === '準備中') return { bg: C.gold + '15', color: C.gold, dot: C.gold };
   if (st === '停止中') return { bg: '#e5383515', color: '#e53835', dot: '#e53835' };
-  if (st === '保留') return { bg: C.textLight + '15', color: C.textLight, dot: C.textLight };
   if (st === '中期フォロー') return { bg: NAVY + '10', color: NAVY, dot: NAVY };
   if (st === '面談予定') return { bg: '#7c3aed15', color: '#7c3aed', dot: '#7c3aed' };
-  if (st === '問い合わせ') return { bg: '#0891b215', color: '#0891b2', dot: '#0891b2' };
   if (st === '失注') return { bg: '#6B728015', color: '#6B7280', dot: '#9CA3AF' };
   return { bg: C.textLight + '10', color: C.textLight, dot: C.textLight };
 }
@@ -227,18 +224,6 @@ Spartiaの篠宮です。
 
 ${company}様の近況をお伺いさせてください。
 あらためてお力になれることがあればぜひご相談ください。
-
-何卒よろしくお願いいたします。`,
-  },
-  '保留': {
-    subjectFor: company => `[${company}様] サービス再開のご相談`,
-    bodyFor: (company, contactName) => `${contactName ? contactName + '様' : 'ご担当者様'}
-
-お世話になっております。
-Spartiaの篠宮です。
-
-${company}様のサービス再開について、改めてご相談させてください。
-ご都合のよろしいお時間をいただけますと幸いです。
 
 何卒よろしくお願いいたします。`,
   },

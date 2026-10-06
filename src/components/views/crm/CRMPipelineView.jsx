@@ -20,7 +20,7 @@ function daysInStatus(client) {
 
 // ファネルに表示するメイン段階（左→右）
 const FUNNEL_STAGES = ['面談予定', '準備中', '支援中'];
-const SECONDARY_STAGES = ['保留', '中期フォロー', '停止中'];
+const SECONDARY_STAGES = ['中期フォロー', '停止中', '失注'];
 
 function StatusChangeMenu({ client, onClose, onChange }) {
   return (

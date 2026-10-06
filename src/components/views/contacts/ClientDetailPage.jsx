@@ -86,10 +86,9 @@ const statusStyle = (st) => {
   if (st === '支援中') return { color: '#10B981' };
   if (st === '準備中') return { color: C.gold };
   if (st === '停止中') return { color: '#e53835' };
-  if (st === '保留') return { color: C.textLight };
   if (st === '中期フォロー') return { color: NAVY };
   if (st === '面談予定') return { color: '#7c3aed' };
-  if (st === '問い合わせ') return { color: '#0891b2' };
+  if (st === '失注') return { color: C.textLight };
   return { color: C.textLight };
 };
 
@@ -781,12 +780,12 @@ export default function ClientDetailPage({
             <select value={c.status || ''} title="ステータスを変更"
               onChange={async (e) => {
                 const next = e.target.value;
-                // 停止中・保留にするときは、止まった理由を先に聞く
-                if (next === '停止中' || next === '保留') { setStopTo(next); return; }
+                // 停止中にするときは、止まった理由を先に聞く
+                if (next === '停止中') { setStopTo(next); return; }
                 await patchClient({ status: next, statusChangedAt: new Date().toISOString() }); activity.reload();
               }}
               style={pill(true, sc.color)}>
-              {['準備中','支援中','停止中','保留','中期フォロー','面談予定','問い合わせ'].map(s2 => <option key={s2} value={s2}>{s2}</option>)}
+              {['準備中','支援中','停止中','中期フォロー','面談予定','失注'].map(s2 => <option key={s2} value={s2}>{s2}</option>)}
             </select>
           ) : <span style={pill(true, sc.color)}>{c.status}</span>}
           {setClientData ? (
@@ -885,7 +884,7 @@ export default function ClientDetailPage({
                     <EditableField label="紹介元" value={c.referrer} placeholder="例: 〇〇株式会社 〇〇様" onSave={v => patchClient({ referrer: v })} />
                   )}
 
-                  {(c.status === '停止中' || c.status === '保留' || c.stopReason) && (
+                  {(c.status === '停止中' || c.stopReason) && (
                     <>
                       <div style={profileHead}>停止</div>
                       <EditableField label="止めた側" value={c.stoppedBy} type="select" options={toOptions(STOPPED_BY_OPTIONS)} onSave={v => patchClient({ stoppedBy: v })} />

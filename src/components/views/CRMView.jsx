@@ -365,7 +365,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     if (stageFilter !== 'all' && (c.stage || '未設定') !== stageFilter) return false;
     if (followFilter === 'due' && !isActionDue(c)) return false;
     if (followFilter === 'stale' && !isContactStale(c)) return false;
-    if ((statusFilter === '停止中' || statusFilter === '保留') && stopReasonFilter !== 'all' && (c.stopReason || '未入力') !== stopReasonFilter) return false;
+    if (statusFilter === '停止中' && stopReasonFilter !== 'all' && (c.stopReason || '未入力') !== stopReasonFilter) return false;
     if (search && !c.company.includes(search) && !c.industry.includes(search)) return false;
     if (alertFilter === 'overdue' && !isOverdue(c)) return false;
     if (alertFilter === 'expired' && !isExpired(c)) return false;
@@ -748,7 +748,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             );
           })()}
           {/* 止まった理由（停止中・保留のときだけ出す。詳細画面で入れた理由で絞る） */}
-          {(statusFilter === '停止中' || statusFilter === '保留') && (() => {
+          {statusFilter === '停止中' && (() => {
             const pool = displayClientData.filter(c => c.status === statusFilter);
             const counts = pool.reduce((m, c) => { const k = c.stopReason || '未入力'; m[k] = (m[k] || 0) + 1; return m; }, {});
             const keys = ['方針転換・体制', 'アポの質', '予算', '成果不足', 'その他', '未入力'].filter(k => counts[k]);

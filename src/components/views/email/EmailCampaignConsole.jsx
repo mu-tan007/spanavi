@@ -10,7 +10,7 @@ import { Button, Input, Badge, DataTable } from '../../ui';
 // - 送付先を個別チェック/一括で選択 → 送信
 // - 配信済みは実績(開封/クリック/受信者)を表示
 
-const CLIENT_STATUSES = ['支援中', '準備中', '面談予定', '中期フォロー', '保留', '停止中'];
+const CLIENT_STATUSES = ['支援中', '準備中', '面談予定', '中期フォロー', '停止中'];
 
 const STATUS_LABEL = {
   draft:     { text: '下書き',     variant: 'neutral' },
