@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
 import { Button } from '../../ui';
+import { PROGRESS_STAGES, STAGE_BY_VALUE } from './acqConstants';
 
 // 買収タブで使う小さな部品（モーダル・項目の並び・複数行入力）
 
@@ -166,5 +167,27 @@ export function ConfirmDialog({ title, sub, okLabel = '実行', danger, busy, on
     >
       {sub && <div style={{ fontSize: font.size.sm, color: color.textMid, lineHeight: 1.6 }}>{sub}</div>}
     </AcqModal>
+  );
+}
+
+// 進み具合の点（受領〜CLの8段）。終了した案件は止まった段まで塗り、終了の印を右に付ける
+export function ProgressDots({ progressStage, closedStage, compact }) {
+  const reached = STAGE_BY_VALUE[progressStage]?.rank || 0;
+  const closed = !!closedStage;
+  const size = compact ? 7 : 9;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? 2 : 3 }}>
+      {PROGRESS_STAGES.map(s => {
+        const on = s.rank <= reached;
+        const here = s.rank === reached;
+        return (
+          <span key={s.value} title={s.label} style={{
+            width: size, height: size, borderRadius: '50%',
+            background: on ? (closed ? color.gray400 : (here ? color.gold : color.navy)) : color.white,
+            border: `1px solid ${on ? (closed ? color.gray400 : color.navy) : color.border}`,
+          }} />
+        );
+      })}
+    </span>
   );
 }

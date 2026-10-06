@@ -12,13 +12,15 @@ export const STAGES = [
   { value: 'dd', label: 'DD中', variant: 'warn', open: true, rank: 6 },
   { value: 'definitive_agreement', label: 'SPA済', variant: 'warn', open: true, rank: 7 },
   { value: 'closed_won', label: 'CL', variant: 'success', open: false, rank: 8 },
-  { value: 'declined_by_us', label: '見送り（弊社）', variant: 'neutral', open: false, rank: -1 },
+  { value: 'declined_by_us', label: '見送り', variant: 'neutral', open: false, rank: -1 },
   { value: 'lost', label: '不成約（先方）', variant: 'danger', open: false, rank: -2 },
   { value: 'name_clear_denied', label: 'ネームクリア不可', variant: 'neutral', open: false, rank: -3 },
 ];
 export const STAGE_BY_VALUE = Object.fromEntries(STAGES.map(s => [s.value, s]));
 export const stageLabel = (v) => STAGE_BY_VALUE[v]?.label || '—';
 export const stageRank = (v) => STAGE_BY_VALUE[v]?.rank ?? 0;
+export const PROGRESS_STAGES = STAGES.filter(s => s.rank > 0);
+export const CLOSED_STAGES = STAGES.filter(s => s.rank < 0);
 export const isOpenStage = (v) => STAGE_BY_VALUE[v]?.open ?? true;
 // トップ面談以上まで進んだか（集計用）
 export const TOP_MEETING_OR_LATER = ['top_meeting', 'loi_submitted', 'dd', 'definitive_agreement', 'closed_won'];
@@ -82,6 +84,7 @@ export const ACTIVITY_CHANNELS = [
   { value: 'phone', label: '電話' },
   { value: 'meeting', label: '面談' },
   { value: 'zoom', label: 'オンライン面談' },
+  { value: 'memo', label: 'メモ' },
   { value: 'other', label: 'その他' },
 ];
 export const activityChannelLabel = (v) => ACTIVITY_CHANNELS.find(k => k.value === v)?.label || 'その他';

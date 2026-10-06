@@ -1,43 +1,66 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { color, space, font, radius } from '../../../constants/design';
-import { Badge, Button, Input, Select } from '../../ui';
-import PageHeader from '../../common/PageHeader';
+import { Button } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import {
-  STAGES, STAGE_BY_VALUE, stageLabel, priceRange, priceBasisLabel, schemeLabel, channelLabel,
-  yen, fmtDate, todayStr, DEFENSE_RELATIONS,
+  priceRange, priceBasisLabel, schemeLabel, channelLabel, yen, fmtDate, DEFENSE_RELATIONS,
 } from './acqConstants';
-import { KeyFigure, InfoRows, SubTabs, LinkText, ErrorNote, AcqModal, ModalButtons, FormGrid, TextArea, ConfirmDialog } from './AcqShared';
+import { InfoRows, SubTabs, LinkText, ErrorNote, ConfirmDialog } from './AcqShared';
 import AcqDealFormModal from './AcqDealFormModal';
 import AcqDocuments from './AcqDocuments';
 import AcqFinancials from './AcqFinancials';
-import { useActivities, ActivityList, ActivityFormModal } from './AcqActivities';
+import AcqDealProgress from './AcqDealProgress';
+import AcqTimeline from './AcqTimeline';
+import { useActivities, ActivityFormModal } from './AcqActivities';
 
-// 買収 > 案件の詳細。上段に価格と段階、その下に 概要／書類／やり取り／財務。
-export default function AcqDealDetail({ dealId, data, onBack, onOpenFirm, onOpenContact, onOpenDeal }) {
+// 買収 > 案件のページ（Phalanx の企業情報ページの作りにそろえる）
+//   上から：一覧へ戻る → ヘッダー（企業名・紹介元・数字）→ 進捗 → 2列（左：概要／書類／財務のタブ、右：活動履歴）
+//   右の活動履歴は幅400pxで画面に貼り付け、中だけスクロール。幅が狭いときは1列にする
+const card = { background: color.white, border: `1px solid ${color.borderLight}`, borderRadius: radius.xl, padding: `${space[3]}px ${space[4]}px` };
+
+function Figure({ label, value, sub }) {
+  return (
+    <div style={{ minWidth: 96 }}>
+      <div style={{ fontSize: 10.5, color: color.textLight }}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: font.weight.semibold, color: color.navy, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</div>
+      {sub && <div style={{ fontSize: 10.5, color: color.textLight, whiteSpace: 'nowrap' }}>{sub}</div>}
+    </div>
+  );
+}
+
+export default function AcqDealDetail({ dealId, data, onBack, onOpenFirm, onOpenContact }) {
   const { firms, contacts, deals, reload: reloadAll } = data;
   const [deal, setDeal] = useState(null);
   const [events, setEvents] = useState([]);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('overview');
   const [editing, setEditing] = useState(false);
-  const [stageOpen, setStageOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
   const acts = useActivities({ dealId });
+  const wrapRef = useRef(null);
+  const [wide, setWide] = useState(true);
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([e]) => setWide(e.contentRect.width > 900));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [deal]);
 
   const load = useCallback(async () => {
     const [d, e] = await Promise.all([
       supabase.from('acq_deal_list').select('*').eq('id', dealId).maybeSingle(),
-      supabase.from('acq_deal_stage_events').select('*').eq('deal_id', dealId).order('occurred_on', { ascending: false }).order('seq', { ascending: false }),
+      supabase.from('acq_deal_stage_events').select('*').eq('deal_id', dealId).order('occurred_on').order('seq'),
     ]);
     if (d.error || e.error) { setError(d.error || e.error); return; }
     setDeal(d.data); setEvents(e.data || []);
   }, [dealId]);
   useEffect(() => { load(); }, [load]);
 
-  const refresh = async () => { await Promise.all([load(), reloadAll()]); };
+  const refresh = async () => { await Promise.all([load(), reloadAll(), acts.reload()]); };
 
   const removeDeal = async () => {
     setBusy(true);
@@ -58,109 +81,110 @@ export default function AcqDealDetail({ dealId, data, onBack, onOpenFirm, onOpen
     }
   };
 
-  if (error) return <div><Button variant="outline" size="sm" onClick={onBack}>← 一覧へ</Button><div style={{ marginTop: space[3] }}><ErrorNote error={error} /></div></div>;
+  if (error) return <div><Button variant="outline" size="sm" onClick={onBack}>← 一覧へ戻る</Button><div style={{ marginTop: space[3] }}><ErrorNote error={error} /></div></div>;
   if (!deal) return <div style={{ color: color.textLight }}>読み込み中…</div>;
 
-  const st = STAGE_BY_VALUE[deal.current_stage];
+  const title = deal.im_disclosed ? (deal.name || '企業名が未入力（IM開示後）') : deal.project_name;
   const ebitda = deal.ebitda_ours ?? deal.ebitda_im;
+
+  const overview = (
+    <div style={card}>
+      <InfoRows rows={[
+        ['企業名', deal.name || (deal.im_disclosed ? '未入力（IMの商号を入れてください）' : '（IM開示前）')],
+        ['ノンネームの名称', deal.project_name],
+        ['PJ名・呼び名', deal.pj_code],
+        ['業種・地域', [deal.industry, deal.region].filter(Boolean).join('・') || '—'],
+        ['紹介元', deal.source_firm_id ? <LinkText onClick={() => onOpenFirm(deal.source_firm_id)}>{deal.source_firm_name}</LinkText> : '—'],
+        ['担当者', deal.source_contact_id ? <LinkText onClick={() => onOpenContact(deal.source_contact_id)}>{deal.source_contact_name}様</LinkText> : '—'],
+        ['売り手側FA', deal.sell_side_firm_id ? <LinkText onClick={() => onOpenFirm(deal.sell_side_firm_id)}>{deal.sell_side_firm_name}</LinkText> : '—'],
+        ['入口', channelLabel(deal.channel)],
+        ['受領日', fmtDate(deal.received_on)],
+        ['スキーム', schemeLabel(deal.scheme)],
+        ['希望価格の原文', deal.asking_price_text],
+        ['次の期限', deal.next_deadline_on ? `${fmtDate(deal.next_deadline_on)} ${deal.next_deadline_label || ''}` : (deal.next_deadline_label || '—')],
+        ['防衛関連の領域', deal.scope_domain],
+        ['防衛との関わり', DEFENSE_RELATIONS.find(x => x.value === deal.defense_relation)?.label || '—'],
+        ['法人番号', deal.corporate_number],
+        ['案件フォルダ', deal.folder_path],
+        ['概要', deal.summary],
+        ['結果・理由', deal.closed_reason],
+      ]} />
+      <div style={{ marginTop: space[4], display: 'flex', justifyContent: 'flex-end' }}>
+        <Button variant="ghost" size="sm" onClick={() => setDeleting(true)}>この案件を削除</Button>
+      </div>
+    </div>
+  );
 
   return (
     <div>
-      <PageHeader
-        title={deal.im_disclosed ? (deal.name || '企業名が未入力（IM開示後）') : deal.project_name}
-        description={[deal.im_disclosed ? 'IM開示後' : 'IM開示前（ノンネーム）', deal.im_disclosed ? deal.project_name : null, deal.pj_code].filter(Boolean).join('　')}
-        right={(
-          <span style={{ display: 'inline-flex', gap: space[2] }}>
-            <Button variant="outline" size="sm" onClick={onBack}>← 一覧へ</Button>
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>編集</Button>
-            <Button variant="primary" size="sm" onClick={() => setStageOpen(true)}>段階を動かす</Button>
-          </span>
-        )}
-      />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[3], marginBottom: space[4] }}>
-        <KeyFigure label="希望価格" value={priceRange(deal.asking_price_min, deal.asking_price_max)}
-          sub={deal.asking_price_min != null || deal.asking_price_max != null ? priceBasisLabel(deal.asking_price_basis) : (deal.asking_price_text || null)} />
-        <KeyFigure label="倍率（希望価格÷修正EBITDA）" value={deal.multiple != null ? `${deal.multiple}倍` : '—'} />
-        <KeyFigure label="修正EBITDA" value={yen(ebitda)} sub={deal.ebitda_ours != null ? `弊社修正（IM ${yen(deal.ebitda_im)}）` : (deal.ebitda_im != null ? 'IMの値' : null)} />
-        <KeyFigure label="売上" value={yen(deal.revenue)} />
-        <KeyFigure label="ネットキャッシュ" value={yen(deal.net_cash)} />
-        <div style={{
-          flex: '1 1 160px', minWidth: 160, padding: `${space[3]}px ${space[4]}px`,
-          background: color.white, border: `1px solid ${color.borderLight}`, borderRadius: radius.md,
-        }}>
-          <div style={{ fontSize: font.size.xs, color: color.textLight, marginBottom: space[1] }}>段階</div>
-          <Badge variant={st?.variant || 'default'} dot>{stageLabel(deal.current_stage)}</Badge>
-          <div style={{ fontSize: font.size.xs, color: color.textMid, marginTop: space[1] }}>
-            {deal.next_deadline_on ? `次の期限 ${fmtDate(deal.next_deadline_on)} ${deal.next_deadline_label || ''}` : `更新 ${fmtDate(deal.stage_on)}`}
+      <div style={{ marginBottom: space[2] }}>
+        <Button variant="ghost" size="sm" onClick={onBack}>← 一覧へ戻る</Button>
+      </div>
+
+      {/* ヘッダー：企業名・紹介元・数字 */}
+      <div style={{ ...card, marginBottom: space[3], display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: space[4] }}>
+        <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: space[2], flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 19, fontWeight: font.weight.bold, color: deal.im_disclosed && !deal.name ? color.danger : color.textDark }}>{title}</span>
+            <span style={{ fontSize: 12, color: color.textLight }}>{deal.im_disclosed ? 'IM開示後' : 'IM開示前（ノンネーム）'}</span>
+            {deal.pj_code && <span style={{ fontSize: 12, color: color.textLight }}>・{deal.pj_code}</span>}
           </div>
+          <div style={{ fontSize: 12, color: color.textMid, marginTop: 2, display: 'flex', gap: space[2], flexWrap: 'wrap' }}>
+            <span>{[deal.industry, deal.region].filter(Boolean).join('・')}</span>
+            {deal.source_firm_id && (
+              <span style={{ padding: '1px 8px', borderRadius: radius.pill, background: color.navy, color: color.white, fontSize: 11 }}>
+                {deal.source_firm_name}{deal.source_contact_name ? `・${deal.source_contact_name}様` : ''}
+              </span>
+            )}
+            <span style={{ color: color.textLight }}>受領 {fmtDate(deal.received_on)}</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: space[4], flexWrap: 'wrap' }}>
+          <Figure label="希望価格" value={priceRange(deal.asking_price_min, deal.asking_price_max)}
+            sub={deal.asking_price_min != null || deal.asking_price_max != null ? priceBasisLabel(deal.asking_price_basis) : null} />
+          <Figure label="倍率" value={deal.multiple != null ? `${deal.multiple}倍` : '—'} />
+          <Figure label="修正EBITDA" value={yen(ebitda)} sub={deal.ebitda_ours != null ? '弊社修正' : (deal.ebitda_im != null ? 'IMの値' : null)} />
+          <Figure label="売上" value={yen(deal.revenue)} />
+          <Figure label="ネットキャッシュ" value={yen(deal.net_cash)} />
+        </div>
+        <div style={{ display: 'flex', gap: space[2] }}>
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>編集</Button>
+          <Button variant="outline" size="sm" onClick={() => setRecording(true)}>やり取りを記録</Button>
         </div>
       </div>
 
-      <SubTabs
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { value: 'overview', label: '概要' },
-          { value: 'docs', label: '書類', count: deal.doc_count ?? 0 },
-          { value: 'activities', label: 'やり取り', count: acts.rows.length },
-          { value: 'financials', label: '財務' },
-        ]}
-      />
+      {/* 進捗 */}
+      <AcqDealProgress dealId={dealId} deal={deal} events={events} onChanged={refresh} />
 
-      {tab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: space[4] }}>
-          <div style={{ background: color.white, border: `1px solid ${color.borderLight}`, borderRadius: radius.md, padding: space[4] }}>
-            <InfoRows rows={[
-              ['企業名', deal.name || (deal.im_disclosed ? '未入力（IMの商号を入れてください）' : '（IM開示前）')],
-              ['ノンネームの名称', deal.project_name],
-              ['PJ名・呼び名', deal.pj_code],
-              ['業種・地域', [deal.industry, deal.region].filter(Boolean).join('・') || '—'],
-              ['紹介元', deal.source_firm_id
-                ? <LinkText onClick={() => onOpenFirm(deal.source_firm_id)}>{deal.source_firm_name}</LinkText> : '—'],
-              ['担当者', deal.source_contact_id
-                ? <LinkText onClick={() => onOpenContact(deal.source_contact_id)}>{deal.source_contact_name}様</LinkText> : '—'],
-              ['売り手側FA', deal.sell_side_firm_id
-                ? <LinkText onClick={() => onOpenFirm(deal.sell_side_firm_id)}>{deal.sell_side_firm_name}</LinkText> : '—'],
-              ['入口', channelLabel(deal.channel)],
-              ['受領日', fmtDate(deal.received_on)],
-              ['スキーム', schemeLabel(deal.scheme)],
-              ['希望価格の原文', deal.asking_price_text],
-              ['防衛関連の領域', deal.scope_domain],
-              ['防衛との関わり', DEFENSE_RELATIONS.find(x => x.value === deal.defense_relation)?.label || '—'],
-              ['法人番号', deal.corporate_number],
-              ['案件フォルダ', deal.folder_path],
-              ['概要', deal.summary],
-              ['結果・理由', deal.closed_reason],
-            ]} />
-            <div style={{ marginTop: space[4], display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="ghost" size="sm" onClick={() => setDeleting(true)}>この案件を削除</Button>
-            </div>
+      {/* 2列：左はタブ、右は活動履歴 */}
+      <div ref={wrapRef} style={{ display: 'grid', gridTemplateColumns: wide ? 'minmax(0,1fr) 400px' : 'minmax(0,1fr)', gap: space[3], alignItems: 'start' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ height: 32 }}>
+            <SubTabs
+              value={tab}
+              onChange={setTab}
+              tabs={[
+                { value: 'overview', label: '概要' },
+                { value: 'docs', label: '書類', count: deal.doc_count ?? 0 },
+                { value: 'financials', label: '財務' },
+              ]}
+            />
           </div>
-          <div style={{ background: color.white, border: `1px solid ${color.borderLight}`, borderRadius: radius.md, padding: space[4] }}>
-            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[2] }}>段階の履歴</div>
-            {events.map(e => (
-              <div key={e.id} style={{ display: 'flex', gap: space[2], alignItems: 'baseline', padding: `${space[1]}px 0`, borderBottom: `1px solid ${color.borderLight}` }}>
-                <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, width: 84 }}>{fmtDate(e.occurred_on)}</span>
-                <Badge variant={STAGE_BY_VALUE[e.stage]?.variant || 'default'}>{stageLabel(e.stage)}</Badge>
-                {e.note && <span style={{ fontSize: font.size.xs, color: color.textMid }}>{e.note}</span>}
-              </div>
-            ))}
+          <div style={{ marginTop: space[2] }}>
+            {tab === 'overview' && overview}
+            {tab === 'docs' && <div style={card}><AcqDocuments dealId={dealId} onChanged={refresh} /></div>}
+            {tab === 'financials' && <div style={card}><AcqFinancials dealId={dealId} onChanged={refresh} /></div>}
           </div>
         </div>
-      )}
-
-      {tab === 'docs' && <AcqDocuments dealId={dealId} onChanged={refresh} />}
-
-      {tab === 'activities' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: space[2] }}>
-            <Button variant="primary" size="sm" onClick={() => setRecording(true)}>やり取りを記録</Button>
+        <div style={wide ? { position: 'sticky', top: space[4] } : undefined}>
+          <div style={{ height: 32, display: 'flex', alignItems: 'center', fontSize: 13, fontWeight: font.weight.semibold, color: color.navy }}>
+            活動履歴
           </div>
-          <ActivityList {...acts} onOpenContact={onOpenContact} onOpenDeal={(id) => { if (id !== dealId) onOpenDeal(id); }} />
+          <div style={{ ...card, marginTop: space[2], maxHeight: wide ? 'calc(100vh - 300px)' : undefined, overflowY: wide ? 'auto' : undefined }}>
+            <AcqTimeline dealId={dealId} acts={acts} events={events} onOpenContact={onOpenContact} onChanged={refresh} />
+          </div>
         </div>
-      )}
-
-      {tab === 'financials' && <AcqFinancials dealId={dealId} onChanged={refresh} />}
+      </div>
 
       {editing && (
         <AcqDealFormModal
@@ -171,27 +195,18 @@ export default function AcqDealDetail({ dealId, data, onBack, onOpenFirm, onOpen
           onSaved={async () => { setEditing(false); await refresh(); }}
         />
       )}
-      {stageOpen && (
-        <StageModal
-          dealId={dealId}
-          current={deal.current_stage}
-          closedReason={deal.closed_reason}
-          onClose={() => setStageOpen(false)}
-          onSaved={async () => { setStageOpen(false); await refresh(); }}
-        />
-      )}
       {recording && (
         <ActivityFormModal
           contacts={contacts}
           deals={deals}
           defaults={{ dealId, contactId: deal.source_contact_id }}
           onClose={() => setRecording(false)}
-          onSaved={async () => { setRecording(false); await acts.reload(); await reloadAll(); }}
+          onSaved={async () => { setRecording(false); await refresh(); }}
         />
       )}
       {deleting && (
         <ConfirmDialog
-          title={`案件「${deal.display_name}」を削除`}
+          title={`案件「${title}」を削除`}
           sub="書類・やり取りのひも付け・段階の履歴・財務もまとめて消え、元に戻せません"
           okLabel="削除する"
           danger
@@ -201,53 +216,5 @@ export default function AcqDealDetail({ dealId, data, onBack, onOpenFirm, onOpen
         />
       )}
     </div>
-  );
-}
-
-function StageModal({ dealId, current, closedReason, onClose, onSaved }) {
-  const [stage, setStage] = useState(current || 'received');
-  const [on, setOn] = useState(todayStr());
-  const [note, setNote] = useState('');
-  const [reason, setReason] = useState(closedReason || '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const closing = ['declined_by_us', 'lost', 'name_clear_denied'].includes(stage);
-
-  const save = async () => {
-    setError(null);
-    if (stage === current && !note.trim()) { setError('いまと同じ段階です。メモを残すか、別の段階を選んでください'); return; }
-    setSaving(true);
-    try {
-      const { error: e1 } = await supabase.from('acq_deal_stage_events').insert({ deal_id: dealId, stage, occurred_on: on, note: note.trim() || null });
-      if (e1) throw e1;
-      if (closing && reason.trim() !== (closedReason || '')) {
-        const { error: e2 } = await supabase.from('acq_deals').update({ closed_reason: reason.trim() || null, updated_at: new Date().toISOString() }).eq('id', dealId);
-        if (e2) throw e2;
-      }
-      await onSaved();
-    } catch (e) {
-      setError(e);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const from = stageLabel(current);
-  const to = stageLabel(stage);
-  return (
-    <AcqModal
-      title="段階を動かす"
-      onClose={onClose}
-      width={520}
-      footer={<ModalButtons onCancel={onClose} onSave={save} saving={saving} saveLabel={stage === current ? 'メモを残す' : `${from}→${to}へ動かす`} />}
-    >
-      <ErrorNote error={error} />
-      <FormGrid>
-        <Select label="次の段階" value={stage} onChange={(e) => setStage(e.target.value)} options={STAGES} />
-        <Input label="日付" type="date" value={on} onChange={(e) => setOn(e.target.value)} />
-        <TextArea label="メモ" value={note} onChange={setNote} rows={2} />
-        {closing && <TextArea label="見送り・不成約の理由" value={reason} onChange={setReason} rows={3} />}
-      </FormGrid>
-    </AcqModal>
   );
 }
