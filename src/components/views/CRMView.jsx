@@ -14,7 +14,7 @@ import { EmailFollowupModal } from './BusinessOverviewView';
 import RewardTypeManager from './masp/RewardTypeManager';
 import { dbFieldsToFe } from '../../utils/clientFieldsMap';
 import { insertClientContact as insertClientContactFn } from '../../lib/supabaseWrite';
-import CRMScheduleView from './crm/CRMScheduleView';
+import CRMProspectsView from './crm/CRMProspectsView';
 import { NAVY, CRM_COLS_BASE, CRM_COLS_EDIT, currentYearMonth, STAGE_LIST, SERVICE_LIST } from './crm/utils';
 import { fetchClientMonthlyTargets } from '../../lib/supabaseWrite';
 import RewardDetailModal from './crm/RewardDetailModal';
@@ -261,7 +261,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   // 止まった理由の絞り込み（停止中・保留を見るとき用・2026-10-06）
   const [stopReasonFilter, setStopReasonFilter] = useUrlState('stop_reason', 'all');
   // CRM内サブセクション ('clients' = クライアント一覧 / 'rewards' = 報酬体系マスタ / 'contracts' = 契約書テンプレ)
-  const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'schedule', 'rewards'] });
+  const [crmSection, setCrmSection] = useUrlState('crm_section', 'clients', { allowed: ['clients', 'prospects', 'rewards'] });
 
   // 当月の月別目標（テーブル目標対比%列、KPI共通キャッシュ）
   const currentYM = useMemo(() => currentYearMonth(), []);
@@ -640,7 +640,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: `1px solid ${color.border}` }}>
           {[
             { key: 'clients',   label: 'クライアント一覧' },
-            { key: 'schedule',  label: 'スケジュール' },
+            { key: 'prospects', label: '開拓' },
             { key: 'rewards',   label: '報酬体系マスタ' },
           ].map(t => {
             const active = crmSection === t.key;
@@ -662,10 +662,8 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         </div>
       )}
 
-      {/* スケジュール：どの日にどの会社へアプローチするかを月のカレンダーで見る（2026-10-06） */}
-      {view !== 'detail' && crmSection === 'schedule' && (
-        <CRMScheduleView clientData={displayClientData} onOpenClient={goToDetail} />
-      )}
+      {/* 開拓：まだアポを取ったことがない潜在顧客の一覧（2026-10-06。スケジュールのタブは使わないので外した） */}
+      {view !== 'detail' && crmSection === 'prospects' && <CRMProspectsView />}
 
       {/* 報酬体系マスタ画面 */}
       {view !== 'detail' && crmSection === 'rewards' && (
