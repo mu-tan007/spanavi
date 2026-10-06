@@ -412,10 +412,12 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   }
 
   // お気に入りは常にタブ上位 (各タブの中で最上段に並べる)
+  // 列で並べ替えていないときは、契約済みで始まっていない先をその次に出す（いちばん早く売上になる層）
+  const isKick = (c) => (!sortState.key && c.stage === '契約済・未開始') ? 1 : 0;
   filtered.sort((a, b) => {
     const af = a.isFavorite ? 1 : 0;
     const bf = b.isFavorite ? 1 : 0;
-    return bf - af;
+    return (bf - af) || (isKick(b) - isKick(a));
   });
 
   const statusCounts = {};
@@ -429,7 +431,9 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
 
   // ドラッグ並び替えは「手動順」で表示しているときだけ有効化する。
   // 文字検索・カラムソート・「面談予定」(独自ソート) 中は表示順と sort_order がズレるため無効。
-  const canDragClients = !!setClientData && !search.trim() && !sortState.key && statusFilter !== '面談予定';
+  // 契約済・未開始を上に寄せている一覧も、表示順と sort_order がズレるので無効
+  const canDragClients = !!setClientData && !search.trim() && !sortState.key && statusFilter !== '面談予定'
+    && !filtered.some(c => c.stage === '契約済・未開始');
 
   const crmDefaultCols = setClientData ? CRM_COLS_EDIT : CRM_COLS_BASE;
   const { columns: crmCols, gridTemplateColumns: crmGrid, contentMinWidth: crmMinW, onResizeStart: crmResize } = useColumnConfig(setClientData ? 'crmViewEdit' : 'crmView', crmDefaultCols);
