@@ -77,3 +77,9 @@ verify_jwt = false
 
 [functions.gcal-meetings-import]
 verify_jwt = false
+
+[functions.transcribe-call-batch]
+verify_jwt = true
+
+[functions.slack-recording-transcribe]
+verify_jwt = true
