@@ -59,12 +59,25 @@ async function latestMail(token: string, terms: string[]): Promise<Found | null>
   const id = list.messages?.[0]?.id
   if (!id) return null
   const msg = await gmailGet(token, `messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`)
-  const h = (n: string) => (msg.payload?.headers || []).find((x: { name: string }) => x.name.toLowerCase() === n.toLowerCase())?.value || ''
+  // deno-lint-ignore no-explicit-any
+  const hd = (m: any, n: string) => (m.payload?.headers || []).find((x: { name: string }) => x.name.toLowerCase() === n.toLowerCase())?.value || ''
   const at = Number(msg.internalDate)
+  // 先方の返事にこちらがすぐ返信していると、最新の1通は弊社の返信になる。
+  // 中身は「同じやり取りの直近3通」から作り、先方が何と答えたかを落とさない
+  let text = `件名：${hd(msg, 'Subject')}\n[${isOurs(hd(msg, 'From')) ? '弊社' : '先方'}] ${msg.snippet || ''}`
+  try {
+    const th = await gmailGet(token, `threads/${msg.threadId}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`)
+    // deno-lint-ignore no-explicit-any
+    const last = (th.messages || []).filter((m: any) => !(m.labelIds || []).includes('DRAFT')).slice(-3)
+    if (last.length) {
+      // deno-lint-ignore no-explicit-any
+      text = `件名：${hd(msg, 'Subject')}\n` + last.map((m: any) =>
+        `[${isOurs(hd(m, 'From')) ? '弊社' : '先方'} ${jstDay(Number(m.internalDate))}] ${m.snippet || ''}`).join('\n')
+    }
+  } catch { /* スレッドが読めなければ最新の1通だけで作る */ }
   return {
     at: new Date(at).toISOString(), day: jstDay(at), channel: 'メール',
-    from: isOurs(h('From')) ? '弊社' : '先方', ref: `gmail:${id}`,
-    text: `件名：${h('Subject')}\n本文の冒頭：${msg.snippet || ''}`,
+    from: isOurs(hd(msg, 'From')) ? '弊社' : '先方', ref: `gmail:${id}`, text,
   }
 }
 
@@ -104,6 +117,7 @@ async function summarize(company: string, f: Found): Promise<string> {
   const prompt = `M&Aの営業代行会社（弊社）と、クライアント「${company}」の最新のやり取りです。
 顧客管理の一覧に出す「中身」を、40字以内の日本語で1つだけ書いてください。
 ・誰が何をしたかが分かるように（例：「新しいリスト（建設300社）を受領」「9月分の請求書を送付」「アポ1件のキャンセル依頼」）
+・複数のメールがあるときは、先方が何と答えたか（了承・見送り・検討中・日程など）を優先して書く（例：「再開の打診に先方は社内検討と回答」）
 ・名詞で終える。「です・ます」や挨拶、前置きは書かない
 ・個人のメールアドレス、電話番号、パスワード、URLは書かない
 
@@ -129,6 +143,8 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}))
   const dryRun = !!body.dry_run
   const only: string | undefined = body.client_id
+  // resummarize：取り込み済みのものも中身を作り直す（作り方を変えたとき用）
+  const resummarize = !!body.resummarize
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
   let q = sb.from('clients').select('id,name,org_id,status,contact_email,client_email,slack_channel_ids,last_contact_at,last_contact_ref')
@@ -156,7 +172,7 @@ Deno.serve(async (req) => {
       ])
       const f = [m, s].filter(Boolean).sort((a, b) => (a!.at < b!.at ? 1 : -1))[0] as Found | undefined
       if (!f) return
-      if (f.ref === c.last_contact_ref) return                    // もう取り込み済み
+      if (f.ref === c.last_contact_ref && !resummarize) return   // もう取り込み済み
       if (c.last_contact_at && f.day < c.last_contact_at) return  // 手で入れた（LINEなど）方が新しい
       const summary = dryRun ? '' : await summarize(c.name, f)
       const patch = {
