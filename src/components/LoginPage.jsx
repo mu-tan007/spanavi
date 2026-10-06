@@ -2,435 +2,202 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import { LoginShell, SHELL_C, inputStyle, labelStyle, makeBtnStyle } from './common/LoginShell'
+import { ShieldMark } from './common/ShieldMark'
+import { useIsMobile } from '../hooks/useIsMobile'
+import './LoginPage.css'
 
-// 名前オートコンプリート（メンバーオブジェクトを返す）— 社内ログイン専用
-function MemberNameSelect({ members, selected, onSelect }) {
-  const [query, setQuery]     = useState(selected?.name ?? '')
-  const [, setFocused] = useState(false)
-  const [showList, setShowList] = useState(false)
-  const wrapperRef = useRef(null)
+// 社内ログイン。メールアドレス＋パスワードだけ（氏名から選ぶログインは 2026-10-07 に廃止）。
+// 盾は SpanaviLogo をそのまま使い、透かしもロゴと同じ座標で描く。
 
-  useEffect(() => { setQuery(selected?.name ?? '') }, [selected])
+const OUTFIT_URL = 'https://fonts.googleapis.com/css2?family=Outfit:wght@800&display=swap'
+const SHIELD_PATH = 'M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z'
+// SpanaviLogo と同じ放射線（中心 26,30・太線8本＋細線8本）
+const RAYS_BOLD = [[26, -5], [55, 30], [26, 65], [-3, 30], [47, 5], [47, 55], [5, 55], [5, 5]]
+const RAYS_THIN = [[37, -2], [53, 16], [53, 44], [37, 62], [15, 62], [-1, 44], [-1, 16], [15, -2]]
 
-  const filtered = members.filter(m =>
-    query.length === 0 || m.name.includes(query)
-  )
-
-  useEffect(() => {
-    const onClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowList(false)
-        if (!members.find(m => m.name === query)) setQuery(selected?.name ?? '')
-      }
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [query, selected, members])
-
-  const handleSelect = (m) => {
-    setQuery(m.name)
-    setShowList(false)
-    onSelect(m)
-  }
-
+function Watermark() {
   return (
-    <div style={{ marginBottom: 14, position: 'relative' }} ref={wrapperRef}>
-      <div style={labelStyle}>
-        氏名<span style={{ color: SHELL_C.errorRed, marginLeft: 2 }}>*</span>
-      </div>
-      <input
-        className="sp-login-input"
-        type="text"
-        value={query}
-        onChange={e => { setQuery(e.target.value); setShowList(true); onSelect(null) }}
-        placeholder="名前を入力して選択..."
-        autoComplete="off"
-        style={inputStyle}
-        onFocus={() => { setFocused(true); setShowList(true) }}
-        onBlur={() => setFocused(false)}
-      />
-      {showList && filtered.length > 0 && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-          background: '#FFFFFF', border: '1px solid rgba(255,255,255,0.30)', borderRadius: 4,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.20)', maxHeight: 220, overflowY: 'auto',
-        }}>
-          {filtered.map(m => (
-            <div
-              key={m.name}
-              onMouseDown={() => handleSelect(m)}
-              style={{
-                padding: '10px 14px', fontSize: 14, color: '#111827',
-                cursor: 'pointer', borderBottom: '1px solid #E5E7EB',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'}
-              onMouseLeave={e => e.currentTarget.style.background = '#FFFFFF'}
-            >
-              {m.name}
-            </div>
-          ))}
-        </div>
-      )}
+    <svg className="lg-watermark" viewBox="0 0 52 60" aria-hidden="true">
+      <defs><clipPath id="lgWmClip"><path d={SHIELD_PATH} /></clipPath></defs>
+      <path d={SHIELD_PATH} fill="none" stroke="#032D60" strokeWidth="0.6" />
+      <g clipPath="url(#lgWmClip)" stroke="#032D60" fill="none">
+        <g strokeWidth="0.6">{RAYS_BOLD.map(([x, y]) => <line key={`b${x},${y}`} x1="26" y1="30" x2={x} y2={y} />)}</g>
+        <g strokeWidth="0.4" opacity="0.7">{RAYS_THIN.map(([x, y]) => <line key={`t${x},${y}`} x1="26" y1="30" x2={x} y2={y} />)}</g>
+      </g>
+    </svg>
+  )
+}
+
+function HeroLines({ isMobile }) {
+  const v = isMobile ? 5 : 9
+  const h = isMobile ? 2 : 4
+  return (
+    <div className="lg-lines" aria-hidden="true">
+      {Array.from({ length: v }, (_, i) => (
+        <i key={`v${i}`} className="v" style={{ left: `${8 + i * (88 / v)}%`, animationDelay: `${-i * 1.3}s`, animationDuration: `${8 + (i % 3) * 2}s` }} />
+      ))}
+      {Array.from({ length: h }, (_, i) => (
+        <i key={`h${i}`} className="h" style={{ top: `${18 + i * 20}%`, animationDelay: `${-i * 3}s` }} />
+      ))}
     </div>
   )
 }
 
-// user IDからSupabase auth用メールアドレスを自動生成
-const ORG_DOMAIN = 'a0000000-0000-0000-0000-000000000001.spanavi.internal'
-const generateEmail = (id) => `user_${id}@${ORG_DOMAIN}`
-
 export default function LoginPage() {
   const { signIn, session } = useAuth()
   const navigate = useNavigate()
-  // mode: 'admin' | 'login' | 'forgot' | 'forgotSent' | 'forgotEmail' | 'forgotEmailSent'
-  // デフォルトはメールアドレスログイン（admin）
-  const [mode, setMode] = useState('admin')
+  const isMobile = useIsMobile()
 
-  // ログイン済みならアプリへリダイレクト
-  useEffect(() => {
-    if (session) navigate('/dashboard', { replace: true })
-  }, [session, navigate])
-
-  const [members, setMembers] = useState([])
-  const [selected, setSelected] = useState(null)
+  // view: 'login' | 'forgot' | 'sent'
+  const [view, setView] = useState('login')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  const [adminEmail, setAdminEmail] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
-
-  const [resetSelected, setResetSelected] = useState(null)
+  const [showPw, setShowPw] = useState(false)
+  const [caps, setCaps] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [error, setError] = useState('')
+  const [badField, setBadField] = useState('')
   const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
+  const [shakeKey, setShakeKey] = useState(0)
+  const doneRef = useRef(false)
 
+  // ログイン済みならアプリへ（ログイン直後は盾の動きを見せてから移る）
   useEffect(() => {
-    supabase
-      .from('members')
-      .select('id, name, rank')
-      .eq('is_active', true)
-      .neq('rank', 'admin')
-      .order('sort_order')
-      .then(({ data }) => {
-        if (data) setMembers(data.filter(m => m.name))
-      })
-  }, [])
+    if (session && !doneRef.current) navigate('/dashboard', { replace: true })
+  }, [session, navigate])
+
+  const fail = (msg, field) => {
+    setError(msg)
+    setBadField(field || '')
+    setShakeKey(k => k + 1)
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    setError('')
-    if (!selected) { setError('氏名を選択してください'); return }
-    const email = generateEmail(selected.id)
+    if (loading || done) return
+    if (!email.trim()) return fail('メールアドレスを入れてください', 'email')
+    if (!password) return fail('パスワードを入れてください', 'password')
+    setError(''); setBadField('')
     setLoading(true)
+    doneRef.current = true
     try {
-      await signIn(email, password)
-    } catch (loginErr) {
-      if (loginErr.message === 'Invalid login credentials') {
-        try {
-          const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { data: { name: selected.name } }
-          })
-          if (signUpErr) {
-            if (
-              signUpErr.message === 'User already registered' ||
-              signUpErr.message.includes('Database error') ||
-              signUpErr.message.includes('already registered') ||
-              signUpErr.message.includes('duplicate')
-            ) {
-              setError('パスワードが正しくありません')
-            } else {
-              setError(signUpErr.message)
-            }
-            setLoading(false)
-            return
-          }
-          if (!signUpData?.session) {
-            await signIn(email, password)
-          }
-        } catch {
-          setError('パスワードが正しくありません')
-        }
-      } else {
-        setError(loginErr.message)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleAdminLogin = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      await signIn(adminEmail, adminPassword)
+      await signIn(email.trim(), password)
+      setDone(true)
+      setTimeout(() => navigate('/dashboard', { replace: true }), 650)
     } catch {
-      setError('メールアドレスまたはパスワードが正しくありません')
+      doneRef.current = false
+      fail('メールアドレスかパスワードが違います', 'password')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleForgotPassword = async (e) => {
+  const handleForgot = async (e) => {
     e.preventDefault()
-    setError('')
-    if (!resetSelected) { setError('氏名を選択してください'); return }
+    if (loading) return
+    if (!/.+@.+\..+/.test(resetEmail.trim())) return fail('メールアドレスを正しく入れてください', 'reset')
+    setError(''); setBadField('')
     setLoading(true)
     try {
-      const email = generateEmail(resetSelected.id)
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email)
+      const { error: err } = await supabase.auth.resetPasswordForEmail(resetEmail.trim())
       if (err) throw err
-      setMode('forgotSent')
+      setView('sent')
     } catch (err) {
-      setError(err.message)
+      fail(err.message || '送れませんでした。時間をおいてお試しください', 'reset')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleForgotEmail = async (e) => {
-    e.preventDefault()
-    setError('')
-    if (!resetEmail) { setError('メールアドレスを入力してください'); return }
-    setLoading(true)
-    try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(resetEmail)
-      if (err) throw err
-      setMode('forgotEmailSent')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+  const go = (to) => {
+    setError(''); setBadField('')
+    if (to === 'forgot' && !resetEmail) setResetEmail(email)
+    setView(to)
   }
 
-  const btnStyle = makeBtnStyle(loading)
+  const order = ['login', 'forgot', 'sent']
+  const pos = (v) => (v === view ? 'is-on' : order.indexOf(v) < order.indexOf(view) ? 'is-left' : 'is-right')
+  const onCaps = (e) => setCaps(!!(e.getModifierState && e.getModifierState('CapsLock')))
 
-  const errBlock = error && (
-    <div style={{ marginBottom: 12, fontSize: 12, color: SHELL_C.errorRed }}>
-      {error}
-    </div>
-  )
-
-  const modeSubtitle = {
-    admin: 'メールアドレスとパスワードでサインイン',
-    login: '氏名とパスワードでサインイン',
-    forgot: '',
-    forgotSent: '',
-    forgotEmail: '',
-    forgotEmailSent: '',
-  }[mode]
+  const btnInner = (label) => (loading
+    ? <span className="lg-dots"><i /><i /><i /></span>
+    : label)
 
   return (
-    <LoginShell subtitle={modeSubtitle}>
-      {mode === 'login' && (
-        <form onSubmit={handleLogin} autoComplete="off">
-          <MemberNameSelect
-            members={members}
-            selected={selected}
-            onSelect={(m) => { setSelected(m); setPassword(''); setError('') }}
-          />
-          <div style={{ marginBottom: 4 }}>
-            <div style={labelStyle}>
-              パスワード<span style={{ color: SHELL_C.errorRed, marginLeft: 2 }}>*</span>
-            </div>
-            <input
-              className="sp-login-input"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="off"
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ textAlign: 'right', marginBottom: 16, marginTop: 6 }}>
-            <span
-              onClick={() => { setMode('forgot'); setError('') }}
-              style={{ fontSize: 12, color: SHELL_C.linkOnDark, cursor: 'pointer' }}
-            >
-              パスワードを忘れた方はこちら
-            </span>
-          </div>
-          {errBlock}
-          <button type="submit" className="sp-login-btn" disabled={loading} style={btnStyle}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = SHELL_C.navyHover }}
-            onMouseLeave={e => { e.currentTarget.style.background = SHELL_C.navy }}
-          >
-            {loading ? 'ログイン中...' : 'ログイン'}
-          </button>
-          <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <span
-              onClick={() => { setMode('admin'); setError('') }}
-              style={{ fontSize: 12, color: SHELL_C.linkOnDark, cursor: 'pointer' }}
-            >
-              ← メールアドレスでログイン
-            </span>
-          </div>
-        </form>
-      )}
-
-      {mode === 'admin' && (
-        <form onSubmit={handleAdminLogin} autoComplete="off">
-          <div style={{ marginBottom: 14 }}>
-            <div style={labelStyle}>
-              メールアドレス<span style={{ color: SHELL_C.errorRed, marginLeft: 2 }}>*</span>
-            </div>
-            <input
-              className="sp-login-input"
-              type="email"
-              value={adminEmail}
-              onChange={e => setAdminEmail(e.target.value)}
-              placeholder="email@example.com"
-              required
-              autoComplete="off"
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={labelStyle}>
-              パスワード<span style={{ color: SHELL_C.errorRed, marginLeft: 2 }}>*</span>
-            </div>
-            <input
-              className="sp-login-input"
-              type="password"
-              value={adminPassword}
-              onChange={e => setAdminPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="off"
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ textAlign: 'right', marginBottom: 16, marginTop: -10 }}>
-            <span
-              onClick={() => { setMode('forgotEmail'); setError(''); setResetEmail('') }}
-              style={{ fontSize: 12, color: SHELL_C.linkOnDark, cursor: 'pointer' }}
-            >
-              パスワードを忘れた方はこちら
-            </span>
-          </div>
-          {errBlock}
-          <button type="submit" className="sp-login-btn" disabled={loading} style={btnStyle}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = SHELL_C.navyHover }}
-            onMouseLeave={e => { e.currentTarget.style.background = SHELL_C.navy }}
-          >
-            {loading ? 'ログイン中...' : 'ログイン'}
-          </button>
-          {new URLSearchParams(window.location.search).has('staff') && (
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <span
-                onClick={() => { setMode('login'); setError(''); setAdminEmail(''); setAdminPassword('') }}
-                style={{ fontSize: 12, color: SHELL_C.textMutedOnDark, cursor: 'pointer' }}
-              >
-                名前でログイン
-              </span>
-            </div>
-          )}
-        </form>
-      )}
-
-      {mode === 'forgot' && (
-        <form onSubmit={handleForgotPassword}>
-          <div style={{ fontSize: 13, color: SHELL_C.textMutedOnDark, marginBottom: 20, lineHeight: 1.8 }}>
-            氏名を選択してください。<br />パスワード再設定のリンクをお送りします。
-          </div>
-          <MemberNameSelect
-            members={members}
-            selected={resetSelected}
-            onSelect={(m) => { setResetSelected(m); setError('') }}
-          />
-          {errBlock}
-          <button type="submit" className="sp-login-btn" disabled={loading} style={btnStyle}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = SHELL_C.navyHover }}
-            onMouseLeave={e => { e.currentTarget.style.background = SHELL_C.navy }}
-          >
-            {loading ? '送信中...' : '再設定メールを送る'}
-          </button>
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <span
-              onClick={() => { setMode('login'); setError('') }}
-              style={{ fontSize: 12, color: SHELL_C.linkOnDark, cursor: 'pointer' }}
-            >
-              ログインに戻る
-            </span>
-          </div>
-        </form>
-      )}
-
-      {mode === 'forgotSent' && (
-        <div style={{ textAlign: 'center', padding: '10px 0' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: SHELL_C.textOnDark, marginBottom: 12 }}>メールを送信しました</div>
-          <div style={{ fontSize: 13, color: SHELL_C.textMutedOnDark, lineHeight: 1.8, marginBottom: 24 }}>
-            {resetSelected?.name} 宛に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
-          </div>
-          <span
-            onClick={() => { setMode('login'); setError('') }}
-            style={{ fontSize: 12, color: SHELL_C.linkOnDark, cursor: 'pointer' }}
-          >
-            ログインに戻る
-          </span>
+    <div className={`lg${done ? ' is-done' : ''}`}>
+      <link href={OUTFIT_URL} rel="stylesheet" />
+      <div className="lg-hero">
+        <HeroLines isMobile={isMobile} />
+        <div className="lg-emblem">
+          <ShieldMark size={isMobile ? 72 : 150} calm uid="login" />
+          <div className="lg-word"><span className="a">Spa</span><span className="b">navi</span></div>
         </div>
-      )}
+      </div>
 
-      {mode === 'forgotEmail' && (
-        <form onSubmit={handleForgotEmail}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: SHELL_C.textOnDark, marginBottom: 4, textAlign: 'center' }}>
-            パスワード再設定
-          </div>
-          <div style={{ fontSize: 13, color: SHELL_C.textMutedOnDark, marginBottom: 20, textAlign: 'center', lineHeight: 1.8 }}>
-            登録済みのメールアドレスを入力してください。<br />パスワード再設定のリンクをお送りします。
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={labelStyle}>
-              メールアドレス<span style={{ color: SHELL_C.errorRed, marginLeft: 2 }}>*</span>
+      <div className="lg-panel">
+        <Watermark />
+        <div className="lg-sheet">
+          <div className="lg-wrap">
+
+            {/* ログイン */}
+            <form className={`lg-view ${pos('login')}`} onSubmit={handleLogin} aria-hidden={view !== 'login'} noValidate>
+              <div key={`s${shakeKey}`} className={shakeKey && view === 'login' ? 'lg-shake' : ''}>
+                <h1 className="lg-title">ログイン</h1>
+                <p className="lg-sub">メールアドレスとパスワードを入れてください</p>
+                <div className="lg-field">
+                  <label className="lg-label" htmlFor="lg-email">メールアドレス</label>
+                  <input id="lg-email" className={`lg-input${badField === 'email' ? ' is-bad' : ''}`} type="email" autoComplete="username"
+                    placeholder="name@example.com" value={email} autoFocus={!isMobile}
+                    onChange={e => { setEmail(e.target.value); if (badField === 'email') setBadField('') }} tabIndex={view === 'login' ? 0 : -1} />
+                </div>
+                <div className="lg-field">
+                  <label className="lg-label" htmlFor="lg-pw"><span>パスワード</span>
+                    <button type="button" className="lg-link" onClick={() => go('forgot')} tabIndex={view === 'login' ? 0 : -1}>お忘れの方</button></label>
+                  <div className="lg-pw">
+                    <input id="lg-pw" className={`lg-input${badField === 'password' ? ' is-bad' : ''}`} type={showPw ? 'text' : 'password'}
+                      autoComplete="current-password" placeholder="••••••••" value={password}
+                      onChange={e => { setPassword(e.target.value); if (badField === 'password') setBadField('') }}
+                      onKeyUp={onCaps} onKeyDown={onCaps} tabIndex={view === 'login' ? 0 : -1} />
+                    <button type="button" className="lg-eye" onClick={() => setShowPw(s => !s)} tabIndex={view === 'login' ? 0 : -1}>{showPw ? '隠す' : '表示'}</button>
+                  </div>
+                  {caps && <div className="lg-caps">Caps Lock がオンになっています</div>}
+                </div>
+                <button type="submit" className={`lg-btn${done ? ' is-done' : ''}`} disabled={loading || done} tabIndex={view === 'login' ? 0 : -1}>
+                  {done ? 'ようこそ' : btnInner('ログイン')}
+                </button>
+                <div className="lg-err" role="alert">{view === 'login' ? error : ''}</div>
+              </div>
+            </form>
+
+            {/* パスワードの再設定 */}
+            <form className={`lg-view ${pos('forgot')}`} onSubmit={handleForgot} aria-hidden={view !== 'forgot'} noValidate>
+              <h1 className="lg-title">パスワードの再設定</h1>
+              <p className="lg-sub">登録しているメールアドレスに、再設定のリンクをお送りします</p>
+              <div className="lg-field">
+                <label className="lg-label" htmlFor="lg-reset">メールアドレス</label>
+                <input id="lg-reset" className={`lg-input${badField === 'reset' ? ' is-bad' : ''}`} type="email" placeholder="name@example.com"
+                  value={resetEmail} onChange={e => { setResetEmail(e.target.value); if (badField === 'reset') setBadField('') }} tabIndex={view === 'forgot' ? 0 : -1} />
+              </div>
+              <button type="submit" className="lg-btn" disabled={loading} tabIndex={view === 'forgot' ? 0 : -1}>{btnInner('再設定メールを送る')}</button>
+              <div className="lg-err" role="alert">{view === 'forgot' ? error : ''}</div>
+              <div className="lg-alt"><button type="button" className="lg-link" onClick={() => go('login')} tabIndex={view === 'forgot' ? 0 : -1}>← ログインに戻る</button></div>
+            </form>
+
+            {/* 送信済み */}
+            <div className={`lg-view ${pos('sent')}`} aria-hidden={view !== 'sent'}>
+              <div className="lg-sent">
+                <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="32" /><path d="M20 33l8 8 16-17" /></svg>
+                <h1 className="lg-title">メールを送りました</h1>
+                <p className="lg-sub">{resetEmail} に再設定のリンクをお送りしました。届かないときは迷惑メールもご確認ください。</p>
+                <div className="lg-alt"><button type="button" className="lg-btn lg-btn-sub" onClick={() => go('login')} tabIndex={view === 'sent' ? 0 : -1}>ログインに戻る</button></div>
+              </div>
             </div>
-            <input
-              className="sp-login-input"
-              type="email"
-              value={resetEmail}
-              onChange={e => setResetEmail(e.target.value)}
-              placeholder="email@example.com"
-              required
-              autoComplete="off"
-              style={inputStyle}
-            />
-          </div>
-          {errBlock}
-          <button type="submit" className="sp-login-btn" disabled={loading} style={btnStyle}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = SHELL_C.navyHover }}
-            onMouseLeave={e => { e.currentTarget.style.background = SHELL_C.navy }}
-          >
-            {loading ? '送信中...' : '再設定メールを送る'}
-          </button>
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <span
-              onClick={() => { setMode('admin'); setError('') }}
-              style={{ fontSize: 12, color: SHELL_C.linkOnDark, cursor: 'pointer' }}
-            >
-              ← ログインに戻る
-            </span>
-          </div>
-        </form>
-      )}
 
-      {mode === 'forgotEmailSent' && (
-        <div style={{ textAlign: 'center', padding: '10px 0' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: SHELL_C.textOnDark, marginBottom: 12 }}>メールを送信しました</div>
-          <div style={{ fontSize: 13, color: SHELL_C.textMutedOnDark, lineHeight: 1.8, marginBottom: 24 }}>
-            {resetEmail} 宛に<br />パスワード再設定のリンクを送りました。<br />メールをご確認ください。
           </div>
-          <span
-            onClick={() => { setMode('admin'); setError('') }}
-            style={{ fontSize: 12, color: SHELL_C.linkOnDark, cursor: 'pointer' }}
-          >
-            ログインに戻る
-          </span>
         </div>
-      )}
-    </LoginShell>
+        <div className="lg-foot">© {new Date().getFullYear()} Spanavi</div>
+      </div>
+    </div>
   )
 }

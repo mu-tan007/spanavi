@@ -64,6 +64,7 @@ import EngagementMembersView from './views/EngagementMembersView';
 import { AVAILABLE_MONTHS } from '../constants/availableMonths';
 import { REWARD_MASTER } from '../constants/rewardMaster';
 import { updateCallList, insertCallList, deleteCallList, archiveCallList, restoreCallList, insertClient, updateClient, deleteClient, updateAppointment, insertAppointment, deleteAppointment, updatePreCheckResult, updateMember, insertMember, deleteMember, updateMemberReward, fetchCallListItems, updateCallListItem, insertCallListItems, fetchCallRecords, insertCallRecord, deleteCallRecord, deleteCallRecordByItemRound, deleteCallRecordsByListId, deleteCallListItemsByListId, fetchAllRecallRecords, updateCallRecordMemo, fetchShifts, insertShift, updateShift, deleteShift, fetchCalledItemCountsByListIds, fetchListIdsByItemCriteria, fetchItemsByCallStatus, fetchAllCallListItemsBasic, fetchCallListItemsByIds, fetchCallRecordsByItemIds, fetchCalledCountForSession, fetchZoomUserId, invokeAppoAiReport, invokeGetZoomRecording, updateCallRecordRecordingUrl, invokeTranscribeRecording, fetchCallRecordsByItemId, updateCallListCount, fetchCallRecordsForRanking, fetchMyCallRecords, insertCallSession, updateCallSession, fetchCallSessions, fetchRecentDuplicateSession, getProfileImageUrl, uploadProfileImage, fetchSetting, saveSetting, fetchLatestSessionPerList, updateAppoCounted, fetchRewardMaster, fetchAppointmentLink, fetchPendingReportCounts } from "../lib/supabaseWrite";
+import { ShieldLoader } from './common/ShieldMark';
 import LiveStatusView from './views/LiveStatusView';
 import IncomingCallBanner from './views/IncomingCallBanner';
 // ZoomPhoneEmbed は Smart Embed 経由での架電が不可のため無効化
@@ -915,15 +916,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // engagement async ロード中は描画しない（タブ誤遷移防止）
   // 背景は index.html の splash と同じ navy グラデーション (ログイン画面とも統一)
   if (engLoading || !engSlug) {
-    return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg,#1456C7 0%,#1E3A8A 30%,#0D2247 60%,#081636 100%)',
-        fontFamily: font.family.sans,
-      }}>
-        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: font.size.sm, letterSpacing: 2 }}>読み込み中...</div>
-      </div>
-    );
+    return <ShieldLoader />;
   }
 
   return (

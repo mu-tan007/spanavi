@@ -1,0 +1,122 @@
+/* ログイン画面（デザインルール v2：文字9段・角丸4種・高さ4種） */
+.lg {
+  --navy: #032D60; --navy-deep: #011226; --royal: #0176D3; --royal-2: #1456C7; --royal-line: #B9D7F3;
+  --gold: #C8A45A; --line: #E3E6EB; --line-2: #EEF0F3; --hover: #F7FAFE;
+  --ink: #0E1B2C; --ink-2: #4B5868; --ink-3: #8692A0;
+  --red: #C8102E; --green: #2E844A; --green-soft: #E8F4EC; --amber: #B7791F;
+  --spring: cubic-bezier(.34,1.56,.64,1); --out: cubic-bezier(.2,.8,.2,1);
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(420px, 1fr); min-height: 100vh;
+  font-family: 'Noto Sans JP', sans-serif; font-size: 13px; line-height: 1.6; color: var(--ink);
+  font-feature-settings: "palt"; -webkit-font-smoothing: antialiased; background: #081636;
+}
+:where(.lg) *, :where(.lg) *::before, :where(.lg) *::after { box-sizing: border-box; }
+:where(.lg) button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+
+/* ── 左：盾の面 ── */
+.lg-hero {
+  position: relative; overflow: hidden; display: grid; place-items: center;
+  background: linear-gradient(135deg, #1456C7 0%, #1E3A8A 30%, #0D2247 60%, #081636 100%);
+}
+.lg-hero::before {
+  content: ""; position: absolute; inset: -20%;
+  background: radial-gradient(circle at 50% 48%, rgba(1,118,211,.30), transparent 42%);
+  animation: lgBreathe 5s ease-in-out infinite;
+}
+@keyframes lgBreathe { 50% { transform: scale(1.08); opacity: .75; } }
+.lg-lines { position: absolute; inset: 0; pointer-events: none; }
+.lg-lines i { position: absolute; }
+.lg-lines .v { top: -30%; width: 1px; height: 60%; background: linear-gradient(180deg, transparent, rgba(255,255,255,.14), transparent); animation: lgFallV 9s linear infinite; }
+.lg-lines .h { left: -30%; height: 1px; width: 60%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent); animation: lgFallH 12s linear infinite; }
+@keyframes lgFallV { to { transform: translateY(260%); } }
+@keyframes lgFallH { to { transform: translateX(260%); } }
+.lg-emblem { position: relative; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+.lg-word { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 40px; letter-spacing: 2px; line-height: 1; }
+.lg-word .a { color: #62A8F0; }
+.lg-word .b { color: var(--gold); }
+.lg.is-done .lg-emblem .sp-shield { animation: lgFin .9s var(--spring) forwards; }
+@keyframes lgFin { 30% { transform: scale(.9); } 100% { transform: scale(1.2); } }
+
+/* ── 右：入力の面 ── */
+.lg-panel {
+  position: relative; overflow: clip; display: flex; flex-direction: column; justify-content: center;
+  padding: 32px clamp(24px, 5vw, 72px); background: #F4F6FA;
+}
+/* 左の陣形の線が薄く続く */
+.lg-panel::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(3,45,96,.05) 1px, transparent 1px) 0 0 / 88px 100%,
+    linear-gradient(180deg, rgba(3,45,96,.04) 1px, transparent 1px) 0 0 / 100% 88px;
+  -webkit-mask: radial-gradient(ellipse at 30% 50%, #000 10%, transparent 70%);
+  mask: radial-gradient(ellipse at 30% 50%, #000 10%, transparent 70%);
+}
+/* ロゴと同じ形の透かし */
+.lg-watermark { position: absolute; right: -170px; bottom: -190px; width: 600px; height: auto; opacity: .07; pointer-events: none; }
+.lg-sheet {
+  position: relative; z-index: 1; width: 100%; max-width: 444px; margin: 0 auto; padding: 32px;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(1,18,38,.04), 0 18px 40px rgba(3,45,96,.08);
+}
+.lg-wrap { position: relative; }
+.lg-view { position: absolute; inset: 0 0 auto 0; transition: opacity .3s var(--out), transform .45s var(--spring); }
+.lg-view.is-on { position: relative; }
+.lg-view.is-left { opacity: 0; transform: translateX(-32px); pointer-events: none; }
+.lg-view.is-right { opacity: 0; transform: translateX(32px); pointer-events: none; }
+.lg-title { font-size: 24px; font-weight: 700; color: var(--navy); line-height: 1.3; margin: 0; }
+.lg-sub { font-size: 12px; color: var(--ink-2); margin: 4px 0 0; }
+.lg-field { margin-top: 16px; }
+.lg-field:first-of-type { margin-top: 24px; }
+.lg-label { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; font-weight: 500; color: var(--ink-2); margin-bottom: 6px; }
+.lg-input {
+  width: 100%; height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  font: inherit; font-size: 14px; color: var(--ink); transition: border-color .15s;
+}
+.lg-input:focus { outline: 2px solid var(--royal-line); border-color: var(--royal); }
+.lg-input.is-bad { border-color: var(--red); outline-color: rgba(200,16,46,.2); }
+.lg-pw { position: relative; }
+.lg-pw .lg-input { padding-right: 56px; }
+.lg .lg-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); height: 28px; padding: 0 8px; border-radius: 6px; font-size: 12px; color: var(--ink-3); }
+.lg .lg-eye:hover { background: var(--line-2); color: var(--navy); }
+.lg-caps { font-size: 11px; color: var(--amber); margin-top: 6px; }
+.lg .lg-link { font-size: 12px; color: var(--royal); }
+.lg .lg-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.lg .lg-btn {
+  width: 100%; height: 44px; margin-top: 24px; border-radius: 6px; background: var(--navy); color: #fff !important;
+  font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center;
+  transition: transform .25s var(--spring), background .15s;
+}
+.lg .lg-btn:hover { background: var(--royal-2); }
+.lg .lg-btn:active { transform: scale(.96); }
+.lg .lg-btn:disabled { cursor: default; }
+.lg .lg-btn.is-done { background: var(--green); }
+.lg .lg-btn-sub { width: auto; height: 36px; margin-top: 0; padding: 0 16px; background: #fff; color: var(--navy) !important; border: 1px solid var(--line) !important; }
+.lg .lg-btn-sub:hover { background: var(--hover); border-color: var(--royal-line) !important; }
+.lg-dots { display: inline-flex; gap: 4px; }
+.lg-dots i { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: lgDot 1s ease-in-out infinite; }
+.lg-dots i:nth-child(2) { animation-delay: .15s; }
+.lg-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes lgDot { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+.lg-err { margin-top: 12px; min-height: 20px; font-size: 12px; color: var(--red); }
+.lg-shake { animation: lgShake .42s cubic-bezier(.36,.07,.19,.97); }
+@keyframes lgShake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+.lg-alt { margin-top: 20px; text-align: center; }
+.lg-sent { text-align: center; padding-top: 8px; }
+.lg-sent svg { width: 64px; height: 64px; }
+.lg-sent circle { fill: var(--green-soft); }
+.lg-sent path { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 40; stroke-dashoffset: 40; }
+.lg-view.is-on .lg-sent path { animation: lgDraw .5s var(--out) .2s forwards; }
+@keyframes lgDraw { to { stroke-dashoffset: 0; } }
+.lg-sent .lg-title { margin-top: 16px; }
+.lg-foot { position: absolute; z-index: 1; left: 0; right: 0; bottom: 20px; text-align: center; font-size: 11px; color: var(--ink-3); }
+
+@media (max-width: 860px) {
+  .lg { grid-template-columns: 1fr; grid-template-rows: 180px 1fr; }
+  .lg-emblem { flex-direction: row; gap: 16px; }
+  .lg-word { font-size: 28px; }
+  .lg-panel { padding: 24px 16px 64px; justify-content: flex-start; }
+  .lg-sheet { padding: 24px 20px; }
+  .lg-watermark { width: 420px; right: -150px; bottom: -150px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lg *, .lg *::before, .lg *::after { animation: none !important; transition: none !important; }
+}

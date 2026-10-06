@@ -1,0 +1,43 @@
+/* 読み込み C「鼓動」：盾が脈打ち、中心から波紋が広がる。 */
+.sp-shield { position: relative; display: inline-block; flex: none; }
+.sp-shield__body {
+  position: absolute; inset: 0; display: block;
+  transform-origin: 50% 50%;
+  animation: spShieldBeat 1.4s cubic-bezier(.2,.8,.2,1) infinite;
+}
+.sp-shield__body > div { display: block !important; }
+.sp-shield__body svg { display: block; width: 100%; height: 100%; }
+/* 波紋の中心はロゴの放射線の中心（26,30）に合わせる */
+.sp-shield__wave {
+  position: absolute; left: 50%; top: 50%;
+  width: 46%; aspect-ratio: 1; margin: -23% 0 0 -23%;
+  border-radius: 50%; border: 1.5px solid #7DB8F0; opacity: 0;
+  animation: spShieldWave 2.1s cubic-bezier(.2,.8,.2,1) infinite;
+}
+.sp-shield__wave:nth-child(2) { animation-delay: .7s; }
+.sp-shield__wave:nth-child(3) { animation-delay: 1.4s; }
+
+.sp-shield--calm .sp-shield__body { animation-duration: 2.8s; }
+.sp-shield--calm .sp-shield__wave { animation-duration: 4.2s; border-width: 1px; }
+.sp-shield--calm .sp-shield__wave:nth-child(2) { animation-delay: 1.4s; }
+.sp-shield--calm .sp-shield__wave:nth-child(3) { animation-delay: 2.8s; }
+
+@keyframes spShieldBeat {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.06); }
+  24% { transform: scale(.99); }
+  36% { transform: scale(1.03); }
+}
+@keyframes spShieldWave {
+  0% { transform: scale(.35); opacity: .9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+.sp-loader {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #1456C7 0%, #1E3A8A 30%, #0D2247 60%, #081636 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-shield__body, .sp-shield__wave { animation: none; }
+}
