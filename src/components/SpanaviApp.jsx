@@ -770,7 +770,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "lists", label: "架電リスト" },
       { id: "scripts", label: "スクリプト" },
       { id: "search", label: "企業検索" },
-      { id: "live", label: "ライブ稼働状況" },
       { id: "recall", label: "再架電" },
       { id: "incoming", label: "着信対応" },
     ]},
