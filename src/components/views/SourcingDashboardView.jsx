@@ -154,9 +154,6 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
   const groups = useMemo(() => buildBehaviorGroups(myRow, bench, { fromDate: range.fromDate, toDate: effectiveTo }), [myRow, bench, range.fromDate, effectiveTo]);
   const nextStep = useMemo(() => pickNextStep(groups), [groups]);
 
-  // 今日かけ直す企業は「再架電」ページで見る（今日の再コール予定などの欄は架電リスト側で回収するため外した 2026-10-07）
-  const goRecall = () => { if (setCurrentTab) setCurrentTab('recall'); };
-
   const periodLabel = period === 'today' ? '今日' : period === 'week' ? '今週' : (monthOptions.find(o => o.value === monthStr)?.label || '');
   const team = rankable.get(activeMember);
   const benchNote = bench?.window_from
@@ -239,7 +236,6 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
                   <div>上位の目安<b className="n">{fmtMetric(nextStep.item.up, nextStep.item.unit)}</b></div>
                   <div>中位<b className="n">{fmtMetric(nextStep.item.mid, nextStep.item.unit)}</b></div>
                 </div>
-                {nextStep.action === 'recalls' && <button type="button" className="go" onClick={goRecall}>再架電を開く →</button>}
               </>
             ) : (
               <>
