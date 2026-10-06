@@ -1,7 +1,7 @@
-/* ページの題名（ルール v2）。上の帯から 20px 下にそろえる */
+/* ページの題名（ルール v2）。上の帯から 16px 下にそろえる */
 .sp-pt {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-  padding-top: 20px; margin-bottom: 16px;
+  padding-top: 16px; margin-bottom: 16px;
   font-family: 'Noto Sans JP', sans-serif; font-feature-settings: "palt";
 }
 .sp-pt__l { min-width: 0; }
@@ -9,7 +9,7 @@
 .sp-pt p { font-size: 12px; color: #4B5868; margin: 4px 0 0; line-height: 1.5; }
 .sp-pt__r { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 /* 題名のないページ（マイページなど）の一番上の段も同じ位置から始める */
-.sp-page-top { padding-top: 20px; }
+.sp-page-top { padding-top: 16px; }
 @media (max-width: 760px) {
-  .sp-pt, .sp-page-top { padding-top: 12px; }
+  .sp-pt, .sp-page-top { padding-top: 10px; }
 }
