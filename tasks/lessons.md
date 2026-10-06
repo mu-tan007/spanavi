@@ -528,3 +528,7 @@ with me as (select org_id from users where id = p_uid)
 
 ## 2026-09-14 tasks/todo.md は追記型のログ
 - `tasks/todo.md` は過去案件の記録が下に積んである。新しい案件は**先頭に追記**し、丸ごと上書きしない（今回221行を消して復元した）
+
+## 2026-10-07 画面専用のCSSファイルでボタンが透明になった（ログイン画面）
+- 起きたこと：`LoginPage.css` の `.lg-btn{background:紺}` が効かず、ログインボタンが白く消えた。Tailwind の初期化 `[type='submit']{background-color:transparent}` が同じ強さで後から効いた。自前の `.lg button{background:none}` も個別の指定より強かった。
+- 型：画面専用CSSの初期化は `:where(.画面) button` で弱くし、部品は `.画面 .部品` と一段強く書く。組み立てたら、ボタンの背景色を画面で必ず確かめる。
