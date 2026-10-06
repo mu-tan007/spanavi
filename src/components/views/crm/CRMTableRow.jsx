@@ -21,68 +21,6 @@ function formatLastMeeting(ts) {
   return { label, color: color.textMid };
 }
 
-// メモのインライン編集 (clients.notes)
-function MemoCell({ client, setClientData, align }) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(client.memo || '');
-  const taRef = useRef(null);
-  useEffect(() => { setVal(client.memo || ''); }, [client.memo]);
-  useEffect(() => {
-    if (editing && taRef.current) { taRef.current.focus(); taRef.current.select(); }
-  }, [editing]);
-
-  const commit = async () => {
-    setEditing(false);
-    if ((val || '') === (client.memo || '')) return;
-    if (!client._supaId) return;
-    const updated = { ...client, memo: val };
-    const error = await updateClient(client._supaId, updated);
-    if (error) { alert('保存失敗: ' + (error.message || '')); return; }
-    if (setClientData) {
-      setClientData(prev => prev.map(x => x._supaId === client._supaId ? updated : x));
-    }
-  };
-
-  if (editing) {
-    return (
-      <textarea
-        ref={taRef}
-        value={val}
-        onChange={e => setVal(e.target.value)}
-        onClick={e => e.stopPropagation()}
-        onBlur={commit}
-        onKeyDown={e => {
-          if (e.key === 'Escape') { setVal(client.memo || ''); setEditing(false); }
-        }}
-        rows={2}
-        style={{
-          width: '100%', padding: '4px 6px',
-          border: `1px solid ${color.navy}`, borderRadius: radius.sm,
-          fontSize: font.size.xs, fontFamily: font.family.sans, color: color.textDark,
-          resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.4,
-          background: color.white,
-        }}
-      />
-    );
-  }
-
-  return (
-    <span
-      onClick={e => { e.stopPropagation(); setEditing(true); }}
-      title="クリックして編集"
-      style={{
-        textAlign: align, fontSize: font.size.xs, color: color.textMid,
-        display: 'inline-block', width: '100%', maxHeight: 36, overflow: 'hidden',
-        whiteSpace: 'pre-wrap', lineHeight: 1.35, cursor: 'pointer',
-        padding: '2px 4px', borderRadius: radius.sm,
-      }}
-      onMouseEnter={e => { e.currentTarget.style.background = GRAY_50; }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-    >
-      {client.memo ? client.memo : <span style={{ color: color.textLight }}>—</span>}
-    </span>
-  );
-}
 
 // 支払いサイトのインライン編集 (clients.payment_site)
 // 経過日数の表示（30日以上は黄、60日以上は赤、記録なしも赤）
@@ -126,7 +64,7 @@ function LastContactCell({ client: c, align }) {
 function NextActionCell({ client: c, align }) {
   const due = c.nextActionDue;
   const overdue = due && due < new Date().toISOString().slice(0, 10);
-  const ownerBg = c.nextActionOwner === 'むー様' ? color.navy : c.nextActionOwner === '先方' ? color.textLight : color.navyLight;
+  const ownerBg = c.nextActionOwner === '当方' ? color.navy : c.nextActionOwner === '先方' ? color.textLight : color.navyLight;
   return (
     <span style={{ textAlign: align, fontSize: font.size.xs, lineHeight: 1.45, overflow: 'hidden', minWidth: 0 }}
       title={[c.nextActionOwner, c.nextAction, due ? `期限 ${due}` : '', c.blocker ? `止まり：${c.blocker}` : ''].filter(Boolean).join(' / ')}>
@@ -174,6 +112,7 @@ export default function CRMTableRow({
   showDragHandle = false,
 }) {
   const c = client;
+  const colAlign = (key) => crmCols.find(x => x.key === key)?.align;
   const sc = statusStyle(c.status);
   // 契約済みで始まっていない先は金色の地で目立たせる（いちばん早く売上になる層）
   const altBg = c.stage === '契約済・未開始' ? color.goldGlow : (rowIndex % 2 === 0 ? color.white : color.gray50);
@@ -225,20 +164,6 @@ export default function CRMTableRow({
         >⋮⋮</span>
       )}
 
-      {/* 0. お気に入り */}
-      <span style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-        <button
-          type="button"
-          onClick={() => onToggleFavorite?.(c)}
-          title={c.isFavorite ? 'お気に入り解除' : 'お気に入りに登録'}
-          style={{
-            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-            fontSize: 18, lineHeight: 1, color: c.isFavorite ? color.gold : color.borderLight,
-            transition: 'color 0.15s, transform 0.15s',
-          }}
-        >{c.isFavorite ? '★' : '☆'}</button>
-      </span>
-
       {/* 1. ステータス */}
       {(() => {
         const cat = statusCategory(c.status);
@@ -247,7 +172,7 @@ export default function CRMTableRow({
           <span style={{
             borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
             display: 'inline-flex', flexDirection: 'column', width: 'fit-content',
-            alignItems: 'flex-start', textAlign: crmCols[3]?.align, lineHeight: 1.15,
+            alignItems: 'flex-start', textAlign: colAlign('status'), lineHeight: 1.15,
           }}>
             {cat && (
               <span style={{
@@ -266,7 +191,7 @@ export default function CRMTableRow({
 
       {/* 2. 企業名（優先度バッジ付き / クリックで詳細ページに移動） */}
       <span style={{
-        textAlign: crmCols[2]?.align,
+        textAlign: colAlign('company'),
         display: 'inline-flex', alignItems: 'center', gap: 6,
         overflow: 'hidden', whiteSpace: 'nowrap',
       }}>
@@ -301,13 +226,13 @@ export default function CRMTableRow({
 
       {/* 3. サービス */}
       <span style={{
-        textAlign: crmCols[3]?.align,
+        textAlign: colAlign('service'),
         fontSize: font.size.xs, color: color.textMid,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{c.service || '—'}</span>
 
       {/* 4. 段階（契約済みで始まっていない先は金色） */}
-      <span style={{ textAlign: crmCols[4]?.align, overflow: 'hidden' }}>
+      <span style={{ textAlign: colAlign('stage'), overflow: 'hidden' }}>
         {c.stage ? (
           <span style={{
             display: 'inline-block', maxWidth: '100%',
@@ -324,7 +249,7 @@ export default function CRMTableRow({
       {/* 5. 主担当 */}
       {primary ? (
         <span style={{
-          fontSize: font.size.xs, color: color.navy, textAlign: crmCols[5]?.align,
+          fontSize: font.size.xs, color: color.navy, textAlign: colAlign('primaryContact'),
           display: 'inline-flex', alignItems: 'center', gap: 4,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -338,17 +263,15 @@ export default function CRMTableRow({
           <span style={{ fontWeight: font.weight.medium }}>{primary.name}</span>
         </span>
       ) : (
-        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: crmCols[5]?.align }}>-</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: colAlign('primaryContact') }}>-</span>
       )}
 
       {/* 6. 最後のやり取り（30日以上は黄、60日以上は赤） */}
-      <LastContactCell client={c} align={crmCols[6]?.align} />
+      <LastContactCell client={c} align={colAlign('lastContact')} />
 
       {/* 7. 次の一手（誰が・期限・止まっている理由） */}
-      <NextActionCell client={c} align={crmCols[7]?.align} />
+      <NextActionCell client={c} align={colAlign('nextAction')} />
 
-      {/* 8. メモ (インライン編集可) */}
-      <MemoCell client={c} setClientData={setClientData} align={crmCols[8]?.align} />
     </div>
   );
 }

@@ -16,7 +16,7 @@ export const STAGE_LIST = ['未接触', '初回接触済', '初回面談予定',
 export const SERVICE_LIST = ['売り手ソーシング', '買い手マッチング', 'IFA向け', 'その他'];
 
 // 次の一手を持つ人
-export const NEXT_ACTION_OWNERS = ['むー様', 'インターン', '先方', 'Claude'];
+export const NEXT_ACTION_OWNERS = ['当方', '先方'];
 
 // ステータスのカテゴリ分類
 // - 取引先: 既に契約・支援関係がある会社 (支援中/準備中/停止中/保留)
@@ -87,7 +87,6 @@ export function lastTouchDisplay(ts) {
 }
 
 export const CRM_COLS_BASE = [
-  { key: 'favorite',       width: 36,  align: 'center' },
   { key: 'status',         width: 100, align: 'center' },
   { key: 'company',        width: 220, align: 'left'   },
   { key: 'service',        width: 110, align: 'left'   },
@@ -95,14 +94,14 @@ export const CRM_COLS_BASE = [
   { key: 'primaryContact', width: 110, align: 'left'   },
   { key: 'lastContact',    width: 260, align: 'left'   },
   { key: 'nextAction',     width: 300, align: 'left'   },
-  { key: 'memo',           width: 180, align: 'left'   },
 ];
 
 // 編集モードでもカラム構成は同じ (右端アイコン群は廃止)
 export const CRM_COLS_EDIT = [...CRM_COLS_BASE];
 
 // メールアドレス・報酬体系・支払いサイトは詳細ページへ移した（2026-10-06）
-export const CRM_COL_LABELS = ['★','ステータス','企業名','サービス','段階','主担当','最後のやり取り','次の一手','メモ'];
+// ☆（お気に入り）とメモの列は外した（2026-10-06）
+export const CRM_COL_LABELS = ['ステータス','企業名','サービス','段階','主担当','最後のやり取り','次の一手'];
 
 // 商材ソート可能なカラムキー一覧 (lastMeeting / targetRatio 削除済み)
 export const CRM_SORTABLE_KEYS = new Set(['company','status','service','stage','lastContact','nextAction']);

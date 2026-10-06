@@ -411,14 +411,10 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     });
   }
 
-  // お気に入りは常にタブ上位 (各タブの中で最上段に並べる)
-  // 列で並べ替えていないときは、契約済みで始まっていない先をその次に出す（いちばん早く売上になる層）
+  // 列で並べ替えていないときは、契約済みで始まっていない先を上に出す（いちばん早く売上になる層）
+  // ☆（お気に入り）で上に寄せる機能は外した（2026-10-06）
   const isKick = (c) => (!sortState.key && c.stage === '契約済・未開始') ? 1 : 0;
-  filtered.sort((a, b) => {
-    const af = a.isFavorite ? 1 : 0;
-    const bf = b.isFavorite ? 1 : 0;
-    return (bf - af) || (isKick(b) - isKick(a));
-  });
+  filtered.sort((a, b) => isKick(b) - isKick(a));
 
   const statusCounts = {};
   displayClientData.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
