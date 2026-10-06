@@ -74,3 +74,6 @@ verify_jwt = true
 
 [functions.client-last-contact]
 verify_jwt = false
+
+[functions.gcal-meetings-import]
+verify_jwt = false

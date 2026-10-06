@@ -4,7 +4,7 @@ import { color, space, radius, font, shadow, alpha } from '../../../constants/de
 import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
-import { updateClientNextContactAt, updateClient, deleteClient } from '../../../lib/supabaseWrite';
+import { updateClient, deleteClient } from '../../../lib/supabaseWrite';
 import { useEngagements } from '../../../hooks/useEngagements';
 import { PAYMENT_SITE_OPTIONS, STAGE_LIST, SERVICE_LIST } from '../crm/utils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -597,41 +597,16 @@ function SectionTitle({ children }) {
   );
 }
 
-function NextContactRow({ client, setClientData }) {
-  const toYmd = (v) => (v ? new Date(v).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : '');
-  const [val, setVal] = useState(toYmd(client.nextContactAt));
-  useEffect(() => { setVal(toYmd(client.nextContactAt)); }, [client.nextContactAt]);
-
-  const handleSave = async () => {
-    const newVal = val ? new Date(val + 'T09:00:00+09:00').toISOString() : null;
-    if ((newVal || null) === (client.nextContactAt || null)) return;
-    if (!client._supaId) return;
-    const { error } = await updateClientNextContactAt(client._supaId, newVal);
-    if (error) { alert('保存に失敗しました'); return; }
-    setClientData?.(prev => prev.map(x => (x._supaId === client._supaId ? { ...x, nextContactAt: newVal } : x)));
-  };
-
-  // 期日を過ぎたら赤（一覧の「予定日超過」と同じ判定）
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
-  const overdue = !!val && val < today;
+// 次の面談（予定の「面談」のうち一番早いもの。client_actions のトリガーが next_contact_at に写す）
+// 日付はここでは直さない。基本情報の「予定」か、Googleカレンダーで直す（2026-10-06）
+function NextContactRow({ client }) {
+  const v = client.nextContactAt;
+  const label = v ? new Date(v).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'なし';
   return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: color.textMid }}>
-      次回接点
-      <input
-        type="date"
-        value={val}
-        onChange={e => setVal(e.target.value)}
-        onBlur={handleSave}
-        disabled={!setClientData}
-        style={{
-          padding: '4px 8px', borderRadius: radius.md,
-          border: `1px solid ${overdue ? color.danger : color.border}`,
-          fontSize: 12, fontFamily: font.family.sans, outline: 'none',
-          background: color.white, color: overdue ? color.danger : color.textDark,
-          fontWeight: overdue ? 700 : 400,
-        }}
-      />
-    </label>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: color.textMid }}>
+      次の面談
+      <span style={{ fontSize: 12, fontWeight: font.weight.semibold, color: v ? color.textDark : color.textLight }}>{label}</span>
+    </span>
   );
 }
 

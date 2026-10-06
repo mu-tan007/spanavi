@@ -19,7 +19,12 @@ export const SERVICE_LIST = ['売り手ソーシング', '買い手マッチン�
 // 次の一手を持つ人
 export const NEXT_ACTION_OWNERS = ['当方', '先方'];
 
-// 予定（次の一手）の種類。状態ごとに出す候補（2026-10-06）
+// 予定は「面談」（先方と会う・時刻あり）と「連絡」（弊社から送る・頼む）の2つ（2026-10-06）
+export const ACTION_CATEGORIES = ['面談', '連絡'];
+export const MEETING_KINDS = ['初回面談', '検討面談', 'キックオフ', '再キックオフ', '定例', '追加提案'];
+// カレンダーでの略し方
+export const MEETING_SHORT = { '初回面談': '初回', '検討面談': '検討', 'キックオフ': 'KO', '再キックオフ': '再KO', '定例': '定例', '追加提案': '提案' };
+// 連絡の種類。状態ごとに出す候補を上に並べる
 export const ACTION_KINDS_BY_STATUS = {
   '支援中':       ['次のリスト依頼', '報告書の提出'],
   '準備中':       ['催促', '支援開始の見込み'],
@@ -29,7 +34,9 @@ export const ACTION_KINDS_BY_STATUS = {
   '失注':         ['再度の切り出し'],
 };
 export const ACTION_KINDS = ['次のリスト依頼', '報告書の提出', '催促', '支援開始の見込み', '再開の打診', '再営業', '再度の切り出し', 'その他'];
-export const actionKindsFor = (status) => [...(ACTION_KINDS_BY_STATUS[status] || []), ...ACTION_KINDS.filter(k => !(ACTION_KINDS_BY_STATUS[status] || []).includes(k))];
+export const actionKindsFor = (status, category = '連絡') => category === '面談'
+  ? MEETING_KINDS
+  : [...(ACTION_KINDS_BY_STATUS[status] || []), ...ACTION_KINDS.filter(k => !(ACTION_KINDS_BY_STATUS[status] || []).includes(k))];
 
 // ステータスのカテゴリ分類
 // - 取引先: 既に契約・支援関係がある会社 (支援中/準備中/停止中/保留)
