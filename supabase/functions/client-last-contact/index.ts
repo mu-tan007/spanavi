@@ -129,8 +129,13 @@ ${f.text}`
     body: JSON.stringify({ model: HAIKU, max_tokens: 120, messages: [{ role: 'user', content: prompt }] }),
   })
   const data = await res.json().catch(() => ({}))
-  const t = String(data?.content?.[0]?.text || '').trim().split('\n')[0]
-  return t.replace(/^[「『"]|[」』"]$/g, '').slice(0, 60)
+  const t = String(data?.content?.[0]?.text || '').trim().split('\n')[0].replace(/^[「『"]|[」』"]$/g, '')
+  // 中身が読み取れないときのAIの断り文句は出さず、件名（なければ本文の冒頭）で代える
+  if (!t || /不明|できません|わかりません|分かりません|情報が(不足|ない)|記入/.test(t)) {
+    const subj = (f.text.match(/件名：(.*)/) || [])[1]
+    return (subj || f.text.replace(/^[^：]*：/, '')).replace(/^(Re|RE|Fwd|FW):\s*/g, '').slice(0, 40)
+  }
+  return t.slice(0, 60)
 }
 
 // ── 本体 ──────────────────────────────────────────────────
