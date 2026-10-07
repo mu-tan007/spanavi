@@ -23,6 +23,7 @@ import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import { useUrlState } from '../../hooks/useUrlState';
 import { useSearchParams } from 'react-router-dom';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
+import RuleAskBar from '../common/RuleAskBar';
 import TravelHint from '../common/TravelHint';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
@@ -2066,6 +2067,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
         </div>
         {scriptPanelOpen && (
           <div style={{ height: 120, overflowY: 'auto', padding: '8px 16px' }}>
+            {scriptTab === 'script' && <RuleAskBar list={list} />}
             {scriptTab === 'script' && (() => {
               // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
               let rdScript = null;
@@ -3000,6 +3002,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           </div>
           {/* タブコンテンツ */}
           <div style={{ flex: 1, overflowY: 'auto', padding: space[5] }}>
+            {scriptTab === 'script' && <RuleAskBar list={list} />}
             {scriptTab === 'script' && (() => {
               // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
               let rdScript = null;

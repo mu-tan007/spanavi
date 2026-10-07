@@ -83,6 +83,8 @@ export function briefModel(appo, dossier) {
     personality: c.masp_memo?.personality || '',
     brief: b,
     getter: appo.getter || '',
+    // クライアントごとの「聞くこと」（アポ報告の最後の【ヒアリング】の段）
+    hearing: ((String(appo.appoReport || '').split('【ヒアリング】')[1] || '').split(/\r?\n/).map(l => l.trim()).filter(l => l && /[：:]/.test(l))),
   };
 }
 
@@ -106,6 +108,11 @@ export function buildNewReportText(m, { phone = '', email = '' } = {}) {
     lines.push('');
     lines.push('■ 面談で聞くとよいこと');
     for (const q of b.questions) lines.push(`・${q}`);
+  }
+  if (m.hearing?.length) {
+    lines.push('');
+    lines.push('■ ヒアリング');
+    for (const h of m.hearing) lines.push(h);
   }
   lines.push('');
   lines.push('■ 会社');

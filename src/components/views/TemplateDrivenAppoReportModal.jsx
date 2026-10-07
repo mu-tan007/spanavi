@@ -1,5 +1,7 @@
 import AppoReportChecks, { canRegister } from '../common/AppoReportChecks';
 import { checkAppoReport } from '../../utils/appoReportChecks';
+import RuleFields from '../common/RuleFields';
+import { fetchReportRules, resolveReportRules, checkRuleFields, ruleReportBlock } from '../../lib/reportRules';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Badge, Select } from '../ui';
@@ -191,9 +193,19 @@ export default function TemplateDrivenAppoReportModal({
   const [recordingUrl, setRecordingUrl] = useState(initialRecordingUrl);
   // 登録前の検査（utils/appoReportChecks）。黄の注意は中身が変わったら確かめ直してもらう
   const [issuesAck, setIssuesAck] = useState(false);
+  // クライアントごとの「聞くこと」と「アポにしない条件」（report_rules）
+  const [rules, setRules] = useState({ items: [], conditions: [] });
+  useEffect(() => {
+    let alive = true;
+    fetchReportRules().then(all => { if (alive) setRules(resolveReportRules(all, list)); });
+    return () => { alive = false; };
+  }, [list]);
   const reportIssues = useMemo(
-    () => (template ? checkAppoReport({ ...form, recordingUrl: form.recordingUrl || recordingUrl }, (template.schema || []).map(f => f.key)) : []),
-    [template, form, recordingUrl],
+    () => (template ? [
+      ...checkAppoReport({ ...form, recordingUrl: form.recordingUrl || recordingUrl }, (template.schema || []).map(f => f.key)),
+      ...checkRuleFields(form, rules),
+    ] : []),
+    [template, form, recordingUrl, rules],
   );
   const warnKey = reportIssues.filter(i => i.level === 'warn').map(i => i.msg).join('|');
   useEffect(() => { setIssuesAck(false); }, [warnKey]);
@@ -449,7 +461,7 @@ export default function TemplateDrivenAppoReportModal({
         acquirer: form.acquirer || currentUser || '',
         ourSales: ourSalesDisplay,
       };
-      const reportNote = renderBody(template.body_template, renderData, template.schema);
+      const reportNote = renderBody(template.body_template, renderData, template.schema) + ruleReportBlock(form, rules);
 
       // クライアント情報（売上計算用）
       const clientInfo = resolveListClient(list, clientData);
@@ -830,6 +842,7 @@ export default function TemplateDrivenAppoReportModal({
         {/* 動的フォーム */}
         <div style={{ padding: `${space[4]}px ${space[5]}px`, overflowY: 'auto', flex: 1 }}>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: space[3] }}>
+            <RuleFields items={rules.items} form={form} onChange={set} />
             {visibleFields.map(field => (
               <FieldRenderer
                 key={field.key}

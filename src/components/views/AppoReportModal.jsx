@@ -17,6 +17,8 @@ import { resolveListClient } from '../../utils/listContacts';
 import { MEET_TIME_OPTIONS } from '../../utils/meetTimeOptions';
 import AppoReportChecks, { canRegister } from '../common/AppoReportChecks';
 import { checkAppoReport } from '../../utils/appoReportChecks';
+import RuleFields from '../common/RuleFields';
+import { fetchReportRules, resolveReportRules, checkRuleFields, ruleReportBlock } from '../../lib/reportRules';
 
 export default function AppoReportModal(props) {
   const { row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '', contactsByClient = {} } = props;
@@ -111,6 +113,13 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
   });
   const [copied, setCopied] = React.useState(false);
   const [issuesAck, setIssuesAck] = React.useState(false);
+  // クライアントごとの「聞くこと」と「アポにしない条件」（report_rules）
+  const [rules, setRules] = React.useState({ items: [], conditions: [] });
+  React.useEffect(() => {
+    let alive = true;
+    fetchReportRules().then(all => { if (alive) setRules(resolveReportRules(all, list)); });
+    return () => { alive = false; };
+  }, [list]);
   const [saving, setSaving] = React.useState(false);
   // 二重押下防止 (saving state の非同期更新を待たず同期的にロック)
   const savingRef = React.useRef(false);
@@ -194,7 +203,7 @@ HP：${form.hp}
 　・将来的な検討可否→${form.futureConsider}
 　・その他→${form.other}
 　・録音URL：${form.recordingUrl}
-　・アポ取得者→${form.acquirer}`;
+　・アポ取得者→${form.acquirer}${ruleReportBlock(form, rules)}`;
 
   const handleCopy = async () => {
     try { await navigator.clipboard.writeText(generateReport()); setCopied(true); setTimeout(() => setCopied(false), 2000); }
@@ -387,7 +396,7 @@ HP：${form.hp}
       placeholder: rewardType ? `タイプ${rewardType}（${rewardRows[0]?.name || ''}）に基づき自動計算` : 'クライアント不明 — 手動入力' },
   ];
 
-  const reportIssues = checkAppoReport(form, [...FIELDS.map(f => f.key), 'appoTime']);
+  const reportIssues = [...checkAppoReport(form, [...FIELDS.map(f => f.key), 'appoTime']), ...checkRuleFields(form, rules)];
   const warnKey = reportIssues.filter(i => i.level === 'warn').map(i => i.msg).join('|');
   const lastWarnKey = React.useRef(warnKey);
   if (lastWarnKey.current !== warnKey) { lastWarnKey.current = warnKey; if (issuesAck) setIssuesAck(false); }
@@ -409,6 +418,7 @@ HP：${form.hp}
         {/* フォーム */}
         <div style={{ padding: `${space[4]}px ${space[5]}px`, overflowY: 'auto', flex: 1 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[2.5] }}>
+            <RuleFields items={rules.items} form={form} onChange={set} />
             {FIELDS.map(f => {
               const isRecUrl = f.key === 'recordingUrl';
               const isLoading = isRecUrl && recordingUrlLoading;

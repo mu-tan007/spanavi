@@ -26,4 +26,9 @@ describe('アポ報告の新しい形と1枚資料の値', () => {
     expect(t).toContain('面談前の1枚資料を添付しております。');
     expect(t).not.toContain('後継者');
   });
+  it('アポ報告の【ヒアリング】の段を本文に載せる', () => {
+    const m = briefModel({ company: 'A社', client: 'B社', meetDate: '2026-10-20', appoReport: '…\n　・アポ取得者→山田\n【ヒアリング】\n売上高：3.5億円\n従業員数：12人' }, { content: { brief: { one_liner: 'x', temperature: 3, quotes: [], questions: [] } } });
+    expect(m.hearing).toEqual(['売上高：3.5億円', '従業員数：12人']);
+    expect(buildNewReportText(m)).toContain('■ ヒアリング\n売上高：3.5億円\n従業員数：12人');
+  });
 });
