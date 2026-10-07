@@ -40,7 +40,7 @@
 .rp-ov b { display: block; color: #032D60; font-size: 12px; margin-bottom: 2px; }
 .rp-sec { font-size: 12px; color: #4B5868; font-weight: 500; margin-bottom: 6px; }
 .rp-iss { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-.rp-is { border: 1px solid #E3E6EB; border-radius: 10px; padding: 12px; font-size: 12.5px; line-height: 1.7; position: relative; animation: rp-in .4s cubic-bezier(.2,.8,.2,1) both; }
+.rp-is { border: 1px solid #E3E6EB; border-radius: 10px; padding: 12px; font-size: 12.5px; line-height: 1.7; position: relative; }
 .rp-no { position: absolute; left: -1px; top: -1px; font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 600; background: #C8102E; color: #fff; border-radius: 10px 0 8px 0; padding: 1px 8px; }
 .rp-is p { margin: 14px 0 0; color: #0E1B2C; }
 .rp-plan { display: grid; gap: 8px; }
