@@ -13,7 +13,8 @@ import { ShiftWeekStrip, ShiftHeatRows, ShiftDayNotes } from './shift/ShiftOverl
 import { headsByHour, gapHours, outsideShiftCalls, inShift } from '../../utils/shiftInsights';
 
 // このビュー独自のレガシーネイビー（既存の見た目を維持するためトークンとは別に保持）
-const NAVY = '#0D2247';
+// 2026-10-08 新しい見た目の紺にそろえる（旧 #0D2247）
+const NAVY = '#032D60';
 const GRAY_200 = color.gray200;
 const GRAY_50 = '#F8F9FA';
 // チーム小計行の地色。sticky 列にも敷くので半透明ではなくベタ塗りにする
@@ -235,10 +236,10 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
       {/* 案内バナー */}
       <div style={{
         padding: `${space[2]}px ${space[4]}px`,
-        background: '#fffbeb', borderBottom: '1px solid #fbd38d',
+        background: '#F3F6FA', borderBottom: '1px solid #E3E6EB',
         display: 'flex', alignItems: 'center', gap: space[2],
       }}>
-        <span style={{ fontSize: font.size.sm, color: '#744210', fontWeight: font.weight.semibold }}>
+        <span style={{ fontSize: font.size.sm, color: '#4B5868' }}>
           シフトの登録・編集は「日別表示」から行ってください
         </span>
         <Button size="sm" onClick={() => setViewMode('day')} style={{ marginLeft: space[2], background: NAVY }}>
@@ -538,8 +539,8 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: space[2],
                   padding: `${space[1.5]}px ${space[3]}px`,
-                  marginBottom: space[2], borderRadius: radius.md,
-                  background: NAVY, color: color.white,
+                  marginBottom: space[2], borderRadius: 10,
+                  background: '#EEF3F9', color: NAVY, borderLeft: '3px solid #C8A45A',
                   fontSize: font.size.sm, fontWeight: font.weight.semibold,
                   letterSpacing: font.letterSpacing.wide,
                 }}>
@@ -590,15 +591,15 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
 
         {/* 同時稼働数フッター */}
         <div style={{
-          position: 'sticky', bottom: 0, background: NAVY,
-          borderTop: `2px solid ${GRAY_200}`, zIndex: 5, marginTop: 4,
+          position: 'sticky', bottom: 0, background: color.white,
+          borderTop: '1px solid #E3E6EB', boxShadow: '0 -6px 16px rgba(3,45,96,.06)', zIndex: 5, marginTop: 4,
         }}>
           <div style={{ overflowX: 'auto' }}>
             <div style={{ minWidth: 700, display: 'flex', alignItems: 'center', padding: `${space[1.5]}px ${space[4]}px` }}>
               <div style={{
                 width: NAME_W, flexShrink: 0,
                 fontSize: font.size.xs - 1, fontWeight: font.weight.bold,
-                color: color.white, paddingRight: space[2],
+                color: '#4B5868', paddingRight: space[2],
               }}>同時稼働数</div>
               <div style={{ flex: 1, display: 'flex' }}>
                 {SLOTS_30.map(slot => {
@@ -608,7 +609,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                       flex: 1, textAlign: 'center',
                       fontSize: count > 0 ? font.size.xs - 1 : 9,
                       fontWeight: font.weight.bold,
-                      color: count > 0 ? color.white : alpha(color.white, 0.25),
+                      color: count > 0 ? NAVY : '#C9D1DB',
                       minWidth: 0, paddingTop: 2, paddingBottom: 2,
                       fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums',
                     }}>
@@ -706,11 +707,11 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
 function TeamHeaderRow({ name, count, hours, colSpan }) {
   return (
     <tr>
-      <td colSpan={colSpan} style={{ padding: 0, background: NAVY, verticalAlign: 'middle' }}>
+      <td colSpan={colSpan} style={{ padding: 0, background: '#EEF3F9', borderLeft: '3px solid #C8A45A', verticalAlign: 'middle' }}>
         <div style={{
           position: 'sticky', left: 0, display: 'inline-flex', alignItems: 'center', gap: space[2],
           padding: `${space[1.5]}px ${space[3]}px`, whiteSpace: 'nowrap',
-          color: color.white, fontSize: font.size.sm, fontWeight: font.weight.semibold,
+          color: NAVY, fontSize: font.size.sm, fontWeight: font.weight.semibold,
           letterSpacing: font.letterSpacing.wide,
         }}>
           <span>{name}</span>

@@ -16,6 +16,7 @@ import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { PAYROLL_SYNCED_EVENT } from '../../lib/payrollAutoSync';
 import PageHeader from '../common/PageHeader';
+import '../../styles/v2.css';
 import PayrollInvoiceGenerator from './PayrollInvoiceGenerator';
 
 const MONO = "'JetBrains Mono'";
@@ -357,7 +358,7 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
   ];
 
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease' }}>
+    <div className="v2" style={{ animation: 'fadeIn 0.3s ease' }}>
       {!embedded && (
         <PageHeader
           title="自分の給与"
@@ -375,25 +376,14 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
       )}
 
       {/* 月切替 */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: space[4], flexWrap: 'wrap' }}>
+      <div className="v2-pills" style={{ marginBottom: space[4] }}>
         {payrollMonths.map(({ label }) => (
-          <button key={label} onClick={() => setMonthTab(label)} style={{
-            padding: '5px 14px', borderRadius: radius.md, fontSize: font.size.xs, fontWeight: font.weight.semibold,
-            cursor: 'pointer', fontFamily: font.family.sans,
-            background: monthTab === label ? color.navy : color.white,
-            color: monthTab === label ? color.white : color.textMid,
-            border: `1px solid ${monthTab === label ? color.navy : color.border}`,
-          }}>{label}</button>
+          <button key={label} type="button" className={monthTab === label ? 'on' : ''} onClick={() => setMonthTab(label)}>{label}</button>
         ))}
       </div>
 
       {isConfirmed && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: space[2],
-          padding: '8px 14px', marginBottom: space[4],
-          borderRadius: radius.md, border: `1px solid ${color.border}`,
-          background: alpha(color.navy, 0.05),
-        }}>
+        <div className="v2-note" style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[4] }}>
           <Badge variant="primary" size="sm">確定済み</Badge>
           <span style={{ fontSize: font.size.xs, color: color.textMid }}>
             {monthTab}分は報酬確定済みです。以下は確定時の金額を表示しています（その後のチーム編成・役職の変更は反映されません）。
@@ -652,10 +642,8 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
       </Card>
 
       {/* アポ明細 */}
-      <div style={{ marginBottom: space[5] }}>
-        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[2] }}>
-          当月対象アポイント明細（{myAppos.length} 件）
-        </div>
+      <div className="v2-card" style={{ marginBottom: space[5] }}>
+        <h4>当月の対象アポ（{myAppos.length}件）</h4>
         <DataTable
           ariaLabel="当月アポイント明細"
           height="auto"

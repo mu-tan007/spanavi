@@ -80,3 +80,9 @@
 .v2-tile { background: #fff; border: 1px solid #E3E6EB; border-radius: 10px; padding: 9px 12px; min-width: 0; }
 .v2-tile-l { font-size: 10.5px; color: #8692A0; margin-bottom: 3px; letter-spacing: .04em; }
 .v2-tile-v { font-size: 13px; font-weight: 600; color: #032D60; overflow-wrap: anywhere; }
+
+/* 月などの切り替え（丸い札） */
+.v2-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.v2-pills button { height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid #D5DAE1; background: #fff; color: #4B5868; font-size: 12px; font-family: inherit; cursor: pointer; transition: all .15s; }
+.v2-pills button:hover { border-color: #0176D3; color: #032D60; }
+.v2-pills button.on { background: #032D60; border-color: #032D60; color: #fff; font-weight: 600; }

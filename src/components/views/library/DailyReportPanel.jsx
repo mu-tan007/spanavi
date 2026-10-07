@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import './DailyReport.css';
+import '../../../styles/v2.css';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { C } from '../../../constants/colors';
@@ -303,7 +304,7 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
   }, [hourly]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div className="v2" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       {/* 1. 4つの数と前日比（2026-10-07 見本どおり） */}
       <div>
         <div className="dr-lbl">{report.team_name}チーム ・ {report.report_date}</div>
@@ -788,7 +789,7 @@ function MemberCard({ m, report, openProfile, currentUser, isAdmin = false }) {
 
 function CardEyebrow({ children }) {
   return (
-    <div style={{ fontSize: 9.5, fontWeight: font.weight.bold, color: color.textMid, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+    <div style={{ fontSize: 10.5, fontWeight: 600, color: '#8692A0', letterSpacing: '.1em', marginBottom: 6 }}>
       {children}
     </div>
   );
@@ -844,9 +845,9 @@ function RecordingRow({ r, accent, memberName, label }) {
 
 function PickList({ title, sub, items }) {
   return (
-    <div style={{ background: '#FEF7E6', border: '1px solid #F4D589', borderRadius: radius.md, padding: space[2.5] }}>
-      <div style={{ fontSize: 10.5, fontWeight: font.weight.bold, color: '#92400E', marginBottom: 4 }}>{title}</div>
-      {sub && <div style={{ fontSize: 9.5, color: '#A16207', marginBottom: 6, fontFamily: font.family.mono }}>{sub}</div>}
+    <div style={{ background: '#fff', border: '1px solid #E3E6EB', borderLeft: '3px solid #C8A45A', borderRadius: 10, padding: '12px 14px' }}>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#032D60', marginBottom: 4 }}>{title}</div>
+      {sub && <div style={{ fontSize: 10.5, color: '#8692A0', marginBottom: 8 }}>{sub}</div>}
       {items.length === 0 ? (
         <div style={{ fontSize: 10.5, color: color.textLight }}>該当なし</div>
       ) : items.map(i => (
@@ -939,14 +940,17 @@ function LegendDot({ color: dotColor, label }) {
 function Section({ title, children }) {
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.textMid, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: space[2] }}>{title}</div>
+      {/* 2026-10-08 新しい見た目の節見出し（金の点＋字間） */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, fontWeight: 600, color: '#032D60', letterSpacing: '.1em', marginBottom: 10 }}>
+        <i style={{ width: 6, height: 6, borderRadius: '50%', background: '#C8A45A', boxShadow: '0 0 0 3px rgba(200,164,90,.18)' }} />{title}
+      </div>
       {children}
     </div>
   );
 }
 function Stat({ label, value, sub }) {
   return (
-    <div style={{ background: color.cream, padding: '6px 8px', borderRadius: radius.sm, textAlign: 'center' }}>
+    <div style={{ background: '#F3F6FA', padding: '6px 8px', borderRadius: 8, textAlign: 'center' }}>
       <div style={{ fontSize: 9, color: color.textMid, fontWeight: font.weight.semibold }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: font.weight.bold, color: color.navy, fontFamily: font.family.mono }}>{value ?? 0}</div>
       {sub && <div style={{ fontSize: 9, color: color.textLight }}>{sub}</div>}
