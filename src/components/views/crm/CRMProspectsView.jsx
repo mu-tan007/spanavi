@@ -64,7 +64,7 @@ export default function CRMProspectsView() {
     .sort((a, b) => STAGES.indexOf(a.contact_stage) - STAGES.indexOf(b.contact_stage));
 
   const chip = (active) => ({
-    padding: '4px 12px', borderRadius: radius.sm, fontSize: 11, fontWeight: font.weight.semibold, cursor: 'pointer',
+    padding: '4px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: font.weight.semibold, cursor: 'pointer',
     fontFamily: font.family.sans, border: '1px solid ' + (active ? color.navy : color.border),
     background: active ? color.navy : color.white, color: active ? color.white : color.textMid,
   });
@@ -93,9 +93,9 @@ export default function CRMProspectsView() {
   ];
 
   return (
-    <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg, padding: space[4] }}>
+    <div style={{ background: color.white, border: '1px solid #E3E6EB', borderRadius: 10, padding: space[4], animation: 'fadeIn .3s ease' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: space[3], marginBottom: space[3], flexWrap: 'wrap' }}>
-        <span style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy }}>潜在顧客</span>
+        <span style={{ fontSize: 16, fontWeight: 700, color: color.navy, paddingBottom: 7, backgroundImage: 'linear-gradient(90deg,#C8A45A,#E5CB8F)', backgroundSize: '22px 3px', backgroundRepeat: 'no-repeat', backgroundPosition: 'left bottom' }}>潜在顧客</span>
         <span style={{ fontSize: font.size.xs, color: color.textMid }}>まだアポを取ったことがない会社（顧客管理に入っている会社は出しません）</span>
         <span style={{ flex: 1 }} />
         <div style={{ width: 240 }}><Input size="sm" placeholder="企業名・都道府県で探す" value={q} onChange={e => setQ(e.target.value)} /></div>

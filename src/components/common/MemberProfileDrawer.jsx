@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import '../../styles/v2.css';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
 import { updateMemberProfile } from '../../lib/supabaseWrite';
@@ -169,10 +170,10 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
   };
 
   return (
-    <aside style={{
+    <aside className="v2" style={{
       position: 'fixed', top: 0, right: 0, height: '100vh', width,
-      background: color.white, borderLeft: `1px solid ${color.border}`,
-      boxShadow: '-2px 0 12px rgba(0,0,0,0.06)', zIndex: 8500,
+      background: color.white, borderLeft: '1px solid #E3E6EB',
+      boxShadow: '-16px 0 48px rgba(1,18,38,0.16)', zIndex: 8500, animation: 'v2-slide .32s cubic-bezier(.2,.8,.2,1) both',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
       fontFamily: font.family.sans,
     }}>
@@ -194,7 +195,7 @@ function MemberProfileDrawer({ memberId, width, onResize, onClose, currentUserId
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space[2.5],
         background: color.white,
       }}>
-        <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, letterSpacing: font.letterSpacing.wide }}>プロフィール</div>
+        <div className="v2-eyebrow" style={{ margin: 0 }}>プロフィール</div>
         <button onClick={onClose} title="閉じる (Esc)"
           style={{ width: 26, height: 26, borderRadius: radius.md, border: 'none', background: 'transparent', cursor: 'pointer', color: color.textMid, fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           ×

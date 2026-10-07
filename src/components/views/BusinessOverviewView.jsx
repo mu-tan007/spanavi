@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { V2Head } from '../common/V2';
 import { color, space, radius, font, alpha, shadow } from '../../constants/design';
 import { Card } from '../ui';
 import PageHeader from '../common/PageHeader';
@@ -1397,30 +1398,13 @@ export function EmailFollowupModal({ modalCtx, callListData, clientData, contact
       position: 'fixed', inset: 0, background: alpha(color.navyDeep || color.navy, 0.5),
       zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: space[4],
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl,
-        width: '100%', maxWidth: 720, maxHeight: '92vh', overflowY: 'auto',
+      <div className="v2" onClick={e => e.stopPropagation()} style={{
+        background: color.white, borderRadius: 14, boxShadow: '0 24px 60px rgba(3,45,96,.3)',
+        width: '100%', maxWidth: 720, maxHeight: '92vh', overflowY: 'auto', animation: 'v2-pop .3s cubic-bezier(.2,.9,.3,1.1) both',
         display: 'flex', flexDirection: 'column',
       }}>
-        {/* ヘッダ */}
-        <div style={{
-          padding: `${space[3]}px ${space[4]}px`, background: color.navy, color: color.white,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
-        }}>
-          <div>
-            <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold }}>
-              {headerTitle}
-            </div>
-            <div style={{ fontSize: font.size.xs, opacity: 0.8, marginTop: 4, whiteSpace: 'pre-line' }}>
-              {headerSubtitle}
-            </div>
-          </div>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', color: color.white, fontSize: 24,
-            cursor: 'pointer', padding: 4,
-          }}>×</button>
-        </div>
+        {/* 見出し（2026-10-08 新しい見た目） */}
+        <V2Head eyebrow="メール" title={headerTitle} sub={<span style={{ whiteSpace: 'pre-line' }}>{headerSubtitle}</span>} onClose={onClose} />
 
         <div style={{ padding: space[4], display: 'flex', flexDirection: 'column', gap: space[3] }}>
           {/* 宛先 To */}

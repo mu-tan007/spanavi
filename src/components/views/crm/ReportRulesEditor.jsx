@@ -10,13 +10,13 @@ import { ITEM_TYPES, CHECK_FIELDS, CHECK_OPS, toStorage, previewReportBlock, sco
 // 必ず聞くこと → アポ報告の画面に出て、空欄は登録前に止まる。報告の本文の【ヒアリング】に入る。
 // アポにしない条件・確認すること → 登録前に警告。数字で判定できるものは売上・従業員の値で当てる。
 
-const box = { border: `1px solid ${color.border}`, borderRadius: radius.lg, padding: '12px 14px' };
-const h4 = { fontSize: 12, color: color.textMid, fontWeight: font.weight.medium, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 };
+const box = { border: '1px solid #E3E6EB', borderRadius: 10, padding: '12px 14px', background: color.white };
+const h4 = { fontSize: 11, letterSpacing: '.14em', color: '#4B5868', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 };
 const hint = { fontSize: 11, color: color.textLight };
 const chip = (on) => ({
   fontSize: 12, padding: '4px 10px', borderRadius: radius.pill, cursor: 'pointer', fontFamily: font.family.sans,
-  border: `1px solid ${on ? color.navyLight : color.border}`, color: on ? color.navyLight : color.textMid,
-  background: on ? color.infoSoft : color.white, fontWeight: on ? font.weight.semibold : font.weight.normal,
+  border: `1px solid ${on ? color.navy : '#D5DAE1'}`, color: on ? color.white : color.textMid,
+  background: on ? color.navy : color.white, fontWeight: on ? font.weight.semibold : font.weight.normal,
 });
 const xBtn = { border: 'none', background: 'transparent', color: color.textLight, cursor: 'pointer', fontSize: 14, padding: 4 };
 

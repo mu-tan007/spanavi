@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import '../../styles/v2.css';
 import { color, space, font } from '../../constants/design';
 import { Button, Input, Badge, DataTable } from '../ui';
 import { supabase } from '../../lib/supabase';
@@ -72,14 +73,14 @@ export default function OnboardingInvitesPanel() {
   const slackAge = cfgSaved?.slack_invite_set_at ? Math.floor((Date.now() - new Date(cfgSaved.slack_invite_set_at)) / 86400000) : null;
 
   return (
-    <div style={{ display: 'grid', gap: space[5] }}>
+    <div className="v2" style={{ display: 'grid', gap: space[4] }}>
       <div style={{ display: 'flex', gap: space[3], alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div style={{ width: 200 }}><Input size="sm" label="誰あてか（メモ）" value={hint} onChange={e => setHint(e.target.value)} placeholder="例：山田さん" /></div>
         <div style={{ width: 170 }}><Input size="sm" type="date" label="入社日＝契約開始日" value={start} onChange={e => setStart(e.target.value)} /></div>
         <Button size="sm" variant="primary" loading={busy} onClick={issue}>招待リンクを発行してコピー</Button>
         {msg && <span style={{ fontSize: font.size.xs, color: color.success, wordBreak: 'break-all' }}>{msg}</span>}
       </div>
-      <div style={{ fontSize: font.size.xs, color: color.textMid, lineHeight: 1.8 }}>
+      <div className="v2-note">
         リンクは14日間・1回だけ使えます。本人が氏名・メール・住所・口座を入れると、パスワード設定のメールが届き、ログインすると業務委託契約書への同意に進みます。入社日が空なら、入力した日が契約開始日になります。
       </div>
 
@@ -107,8 +108,8 @@ export default function OnboardingInvitesPanel() {
         ]}
       />
 
-      <div style={{ display: 'grid', gap: space[2] }}>
-        <b style={{ color: color.navy, fontSize: font.size.sm }}>入社した人に見せる案内のリンク</b>
+      <div className="v2-card" style={{ display: 'grid', gap: space[2], marginBottom: 0 }}>
+        <h4 style={{ margin: 0 }}>入社した人に見せる案内のリンク</h4>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: space[3], alignItems: 'flex-end' }}>
           <Input size="sm" label={`Slackの参加リンク${slackAge != null ? `（貼ってから${slackAge}日・30日で切れます）` : '（30日で切れます）'}`} value={cfg.slack_invite_url} onChange={e => setCfg(c => ({ ...c, slack_invite_url: e.target.value }))} placeholder="https://join.slack.com/t/..." />
           <Input size="sm" label="LINEグループの招待リンク" value={cfg.line_group_url} onChange={e => setCfg(c => ({ ...c, line_group_url: e.target.value }))} placeholder="https://line.me/R/ti/g/..." />
