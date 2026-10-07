@@ -53,8 +53,10 @@ ${representative ? `代表者: ${representative}` : ''}
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-haiku-5-5',
         max_tokens: 1000,
+        // Haiku 5.5 は既定で考えてから答え、その分も max_tokens に数える。4.5 と同じく考えずに答えさせる
+        thinking: { type: 'disabled' },
         messages: [{ role: 'user', content: prompt }],
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
       }),

@@ -63,8 +63,10 @@ ${prefecture ? `都道府県: ${prefecture}\n` : ''}${address ? `住所: ${addre
       body: JSON.stringify({
         // 企業名から公式HPを1件特定するだけの定型処理なので Haiku で足りる。
         // ほぼ同じことをする extract-company-from-url も Haiku で揃えている。
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-haiku-5-5',
         max_tokens: 1536,
+        // Haiku 5.5 は既定で考えてから答え、その分も max_tokens に数える。4.5 と同じく考えずに答えさせる
+        thinking: { type: 'disabled' },
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
         messages: [{ role: 'user', content: userPrompt }],
       }),

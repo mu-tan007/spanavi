@@ -150,8 +150,10 @@ ${report}`
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-haiku-5-5',
       max_tokens: 768,
+      // Haiku 5.5 は既定で考えてから答え、その分も max_tokens に数える。4.5 と同じく考えずに答えさせる
+      thinking: { type: 'disabled' },
       messages: [{ role: 'user', content: prompt }],
     }),
   })

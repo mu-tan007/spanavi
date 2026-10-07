@@ -21,7 +21,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
-const MODEL = "claude-haiku-4-5-20251001";
+const MODEL = "claude-haiku-5-5";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -249,6 +249,8 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 2000,
+        // Haiku 5.5 は既定で考えてから答え、その分も max_tokens に数える。4.5 と同じく考えずに答えさせる
+        thinking: { type: "disabled" },
         messages: [{ role: "user", content: prompt }],
       }),
     });

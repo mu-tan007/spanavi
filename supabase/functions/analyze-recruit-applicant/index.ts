@@ -14,7 +14,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MODEL = 'claude-haiku-4-5-20251001'
+const MODEL = 'claude-haiku-5-5'
 // この文字数未満の自己PRは AI に投げず即「情報不足」扱い
 const MIN_PROFILE_CHARS = 40
 
@@ -131,6 +131,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 800,
+        // Haiku 5.5 は既定で考えてから答え、その分も max_tokens に数える。4.5 と同じく考えずに答えさせる
+        thinking: { type: 'disabled' },
         messages: [{ role: 'user', content: prompt }],
       }),
     })

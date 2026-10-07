@@ -20,7 +20,7 @@ const SELF_NAMES = ['M&Aソーシングパートナーズ株式会社', 'Spartia
 const OUR_DOMAINS = ['ma-sp.co', 'spartia']
 const FREE_MAIL = ['gmail.com', 'yahoo.co.jp', 'icloud.com', 'me.com', 'outlook.jp', 'outlook.com', 'hotmail.com', 'hotmail.co.jp', 'live.jp', 'docomo.ne.jp', 'ezweb.ne.jp', 'softbank.ne.jp', 'i.softbank.jp', 'nifty.com', 'ybb.ne.jp']
 const LOOKBACK_DAYS = 30
-const HAIKU = 'claude-haiku-4-5-20251001'
+const HAIKU = 'claude-haiku-5-5'
 
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json' } })
 
@@ -126,7 +126,7 @@ ${f.text}`
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: HAIKU, max_tokens: 120, messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model: HAIKU, max_tokens: 120, thinking: { type: 'disabled' }, messages: [{ role: 'user', content: prompt }] }),
   })
   const data = await res.json().catch(() => ({}))
   const t = String(data?.content?.[0]?.text || '').trim().split('\n')[0].replace(/^[「『"]|[」』"]$/g, '')
