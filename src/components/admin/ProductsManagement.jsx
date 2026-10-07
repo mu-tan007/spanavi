@@ -194,7 +194,7 @@ function ProductEditModal({ initial, onSave, onCancel }) {
       <div onClick={e => e.stopPropagation()} style={{
         background: color.white, borderRadius: radius.md, width: 500, maxWidth: 'calc(100vw - 24px)', boxShadow: shadow.xl,
       }}>
-        <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
+        <div className="v2-mhead" style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
           {isNew ? '事業を作成' : '事業を編集'}
         </div>
         <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: space[3] }}>

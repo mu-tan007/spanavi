@@ -68,7 +68,7 @@ const PRODUCT_TO_PRIMARY_ENGAGEMENT = {
 function ToastContainer({ toasts }) {
   if (toasts.length === 0) return null;
   return (
-    <div style={{ position: 'fixed', bottom: space[6], right: space[6], zIndex: 9999, display: 'flex', flexDirection: 'column', gap: space[2] }}>
+    <div className="v2" style={{ position: 'fixed', bottom: space[6], right: space[6], zIndex: 9999, display: 'flex', flexDirection: 'column', gap: space[2] }}>
       {toasts.map(t => (
         <div key={t.id} style={{
           padding: `${space[3]}px ${space[5]}px`, borderRadius: radius.md, fontSize: font.size.base, fontWeight: font.weight.semibold,

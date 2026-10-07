@@ -484,7 +484,7 @@ function TemplateEditModal({ initial, engagements, clients, lists, onSave, onCan
         background: color.white, borderRadius: radius.md, width: '100%', maxWidth: 760,
         boxShadow: shadow.xl, display: 'flex', flexDirection: 'column',
       }}>
-        <div style={{
+        <div className="v2-mhead" style={{
           padding: `${space[3]}px ${space[5]}px`, background: color.navy,
           color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`,
           fontWeight: font.weight.semibold, fontSize: font.size.md,

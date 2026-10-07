@@ -458,7 +458,7 @@ function CategoryEditModal({ initial, products, cloneSourceOptions, onSave, onCa
       <div onClick={e => e.stopPropagation()} style={{
         background: color.white, borderRadius: radius.md, width: 520, maxWidth: 'calc(100vw - 24px)', maxHeight: '90vh', overflowY: 'auto', boxShadow: shadow.xl,
       }}>
-        <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
+        <div className="v2-mhead" style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
           {isNew ? '商材を作成' : '商材を編集'}
         </div>
         <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: space[3] }}>
@@ -558,7 +558,7 @@ function EngagementEditModal({ initial, onSave, onCancel }) {
       <div onClick={e => e.stopPropagation()} style={{
         background: color.white, borderRadius: radius.md, width: 500, maxWidth: 'calc(100vw - 24px)', maxHeight: '90vh', overflowY: 'auto', boxShadow: shadow.xl,
       }}>
-        <div style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
+        <div className="v2-mhead" style={{ padding: `${space[3]}px ${space[5]}px`, background: color.navy, color: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, fontWeight: font.weight.semibold }}>
           {isNew ? '業務種別を作成' : '業務種別を編集'}
         </div>
         <div style={{ padding: space[5], display: 'flex', flexDirection: 'column', gap: space[3] }}>

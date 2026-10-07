@@ -191,7 +191,7 @@ export default function GenerateContractModal({ member, onClose, onGenerated }) 
           fontFamily: font.family.sans,
         }}
       >
-        <div style={{ background: color.navy, color: color.white, padding: '14px 22px', borderRadius: `${radius.lg}px ${radius.lg}px 0 0` }}>
+        <div className="v2-mhead" style={{ background: color.navy, color: color.white, padding: '14px 22px', borderRadius: `${radius.lg}px ${radius.lg}px 0 0` }}>
           <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold }}>業務委託契約書を生成</div>
           <div style={{ fontSize: font.size.xs, opacity: 0.85, marginTop: 2 }}>
             対象: {member?.name || '—'}
@@ -204,7 +204,7 @@ export default function GenerateContractModal({ member, onClose, onGenerated }) 
               <div style={{ fontSize: font.size.xs, color: color.textMid }}>読み込み中…</div>
             ) : templates.length === 0 ? (
               <div style={{ fontSize: font.size.xs, color: color.danger }}>
-                テンプレが登録されていません。MASP Members の「業務委託契約書テンプレ」セクションで Word ファイルを追加してください。
+                ひな形が登録されていません。設定の「以前の設定画面を開く」→「メンバー業務委託契約書テンプレ」で Word ファイルを追加してください。
               </div>
             ) : (
               <Select
