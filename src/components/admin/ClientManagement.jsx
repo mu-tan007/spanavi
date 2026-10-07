@@ -20,6 +20,40 @@ function replaceLoanwords(text) {
 const NAVY = color.navy;
 const GOLD = color.gold;
 
+// 顧客管理の詳細「ポータル」タブからも使う（2026-10-07 設定から移した）
+export function suggestPortalUsername(name) {
+  if (!name) return '';
+  const norm = name.normalize('NFKC');
+  const stripped = norm
+    .replace(/株式会社|合同会社|有限会社|合資会社|一般社団法人|公益社団法人|医療法人|学校法人|\(株\)|\(有\)|\(合\)/g, '')
+    .trim();
+  const withEnglish = replaceLoanwords(stripped);
+  const romaji = toRomaji(withEnglish, { IMEMode: false });
+  const ascii = romaji.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (ascii.length < 2) return '';
+  return `${ascii.slice(0, 30)}2026`;
+}
+
+export async function callPortalCredentials(body) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create_client_credentials`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let payload = null;
+  try { payload = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+  if (!res.ok) throw new Error(payload?.error || text || `HTTP ${res.status}`);
+  return payload;
+}
+
+
 export default function ClientManagement({ onToast }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,37 +76,8 @@ export default function ClientManagement({ onToast }) {
   //   4. wanakana で 残った平仮名・片仮名 → ローマ字。漢字は変換不可なので残る。
   //   5. 非 ASCII を除去し、小文字 + 英数に整形
   //   6. 有効な ID が作れなければ空文字 (admin に手入力させる)
-  const suggestUsername = (name) => {
-    if (!name) return '';
-    const norm = name.normalize('NFKC');
-    const stripped = norm
-      .replace(/株式会社|合同会社|有限会社|合資会社|一般社団法人|公益社団法人|医療法人|学校法人|\(株\)|\(有\)|\(合\)/g, '')
-      .trim();
-    const withEnglish = replaceLoanwords(stripped);
-    const romaji = toRomaji(withEnglish, { IMEMode: false });
-    const ascii = romaji.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (ascii.length < 2) return '';
-    return `${ascii.slice(0, 30)}2026`;
-  };
-
-  const callCredsFn = async (body) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create_client_credentials`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-    const text = await res.text();
-    let payload = null;
-    try { payload = text ? JSON.parse(text) : null; } catch { /* ignore */ }
-    if (!res.ok) throw new Error(payload?.error || text || `HTTP ${res.status}`);
-    return payload;
-  };
+  const suggestUsername = suggestPortalUsername;
+  const callCredsFn = callPortalCredentials;
 
   const load = async () => {
     setLoading(true);
@@ -370,7 +375,7 @@ export default function ClientManagement({ onToast }) {
 }
 
 // ─── ポータル認証発行モーダル ──────────────────────────────
-function CredentialsModal({ client, mode, suggestUsername, onClose, onIssue, issued }) {
+export function CredentialsModal({ client, mode, suggestUsername, onClose, onIssue, issued }) {
   const [username, setUsername] = useState(mode === 'create' ? suggestUsername(client.name) : (client.portal_username || ''));
   const [customPw, setCustomPw] = useState('');
   const [submitting, setSubmitting] = useState(false);

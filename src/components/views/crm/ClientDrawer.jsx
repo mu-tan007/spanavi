@@ -4,6 +4,8 @@ import { Button } from '../../ui';
 import ReportRulesEditor from './ReportRulesEditor';
 import { daysSince } from '../../../utils/crmOverview';
 import { formatCurrency } from '../../../utils/formatters';
+import { supabase } from '../../../lib/supabase';
+import { CredentialsModal, suggestPortalUsername, callPortalCredentials } from '../../admin/ClientManagement';
 
 // 顧客管理の詳細（右から出す・2026-10-07 見本どおり）。タブは 基本・担当者・報酬・注意事項・聞くこと・条件
 // 細かい編集（契約・獲得・停止の記録など）は「詳細ページを開く」から。
@@ -13,6 +15,8 @@ const TABS = [
   { key: 'fee', label: '報酬' },
   { key: 'cau', label: '注意事項' },
   { key: 'rule', label: '聞くこと・条件' },
+  // 2026-10-07：設定から移した。その会社を開いて、その場でポータルを発行する
+  { key: 'portal', label: 'ポータル' },
 ];
 const box = { border: `1px solid ${color.border}`, borderRadius: radius.lg, padding: '12px 14px' };
 const h4 = { fontSize: 12, color: color.textMid, fontWeight: font.weight.medium, margin: '0 0 8px', display: 'flex', justifyContent: 'space-between' };
@@ -28,6 +32,17 @@ function Kv({ rows }) {
 
 export default function ClientDrawer({ client: c, today, contacts = [], lists = [], rules = [], reward, engagementRewards = [], monthAppoCount = 0, isAdmin, currentUser, initialTab = 'base', onClose, onOpenPage, onRulesSaved }) {
   const [tab, setTab] = useState(initialTab);
+  const [portal, setPortal] = useState(null); // { auth_user_id, portal_username }
+  const [credModal, setCredModal] = useState(null); // 'create' | 'reset'
+  const [issued, setIssued] = useState(null);
+  const [portalErr, setPortalErr] = useState('');
+  useEffect(() => {
+    if (tab !== 'portal' || !c?._supaId) return undefined;
+    let alive = true;
+    supabase.from('clients').select('auth_user_id, portal_username').eq('id', c._supaId).maybeSingle()
+      .then(({ data }) => { if (alive) setPortal(data || {}); });
+    return () => { alive = false; };
+  }, [tab, c?._supaId, issued]);
   useEffect(() => { setTab(initialTab); }, [c?._supaId, initialTab]);
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -139,6 +154,29 @@ export default function ClientDrawer({ client: c, today, contacts = [], lists = 
             </div>
           )}
 
+          {tab === 'portal' && (
+            <div className="co-pane">
+              <div style={box}>
+                <div style={h4}><span>クライアントポータル</span><span style={hint}>ログイン https://spanavi.jp/client/login</span></div>
+                {portal == null ? <div style={hint}>確認中…</div> : (
+                  <Kv rows={[
+                    ['状態', portal.auth_user_id ? '発行済み' : 'まだ発行していない'],
+                    ['ログインID', portal.portal_username || '—'],
+                  ]} />
+                )}
+                {portalErr && <div style={{ fontSize: 12, color: color.danger, marginTop: 8 }}>{portalErr}</div>}
+                {isAdmin ? (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                    {portal?.auth_user_id
+                      ? <Button size="sm" variant="outline" onClick={() => { setIssued(null); setCredModal('reset'); }}>パスワードを再発行</Button>
+                      : <Button size="sm" variant="primary" disabled={portal == null} onClick={() => { setIssued(null); setCredModal('create'); }}>ポータルを発行</Button>}
+                  </div>
+                ) : <div style={{ ...hint, marginTop: 8 }}>発行は管理者だけができます</div>}
+              </div>
+              <div style={hint}>発行すると、ID・パスワード・案内メールの文案が出ます。メールはその文案を写して送ってください（ここからは送りません）</div>
+            </div>
+          )}
+
           {tab === 'rule' && (
             <div className="co-pane">
               <ReportRulesEditor client={c} contacts={contacts} lists={lists} rules={rules} isAdmin={isAdmin} currentUser={currentUser} onSaved={onRulesSaved} />
@@ -146,6 +184,22 @@ export default function ClientDrawer({ client: c, today, contacts = [], lists = 
           )}
         </div>
 
+        {credModal && (
+          <CredentialsModal
+            client={{ id: c._supaId, name: c.company, portal_username: portal?.portal_username || '' }}
+            mode={credModal}
+            suggestUsername={suggestPortalUsername}
+            onClose={() => { setCredModal(null); setIssued(null); }}
+            onIssue={async (payload) => {
+              setPortalErr('');
+              try {
+                const r = await callPortalCredentials(payload);
+                setIssued({ username: r.username, password: r.password, clientName: c.company, mode: credModal });
+              } catch (e) { setPortalErr(e?.message || '発行に失敗しました'); setCredModal(null); }
+            }}
+            issued={issued}
+          />
+        )}
         <div style={{ padding: '12px 20px', borderTop: `1px solid ${color.borderLight}`, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="outline" size="sm" onClick={onClose}>閉じる</Button>
           <Button variant="secondary" size="sm" onClick={() => onOpenPage(c)}>詳細ページを開く</Button>

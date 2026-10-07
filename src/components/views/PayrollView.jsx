@@ -16,6 +16,8 @@ import PageHeader from '../common/PageHeader';
 import PayrollSelfDetailView from './PayrollSelfDetailView';
 import SpartiaReceiptsModal from './SpartiaReceiptsModal';
 import { useUrlState } from '../../hooks/useUrlState';
+import { PayrollFlow, PayrollKpis, PayBar, PayLegend } from './payroll/PayrollParts';
+import { payrollFlow, defaultPayrollMonth } from '../../utils/payrollFlow';
 
 const PAYROLL_DATA = [];
 
@@ -33,17 +35,13 @@ const RANK_COLORS = {
   'トレーニー':          { color: C.textLight },
 };
 
+// 2026-10-07 見本どおり：メンバー・ランク・今月の売上・支給の内わけ（色の帯）・支給額・請求書
 const PAYROLL_COLS = [
-  { key: 'name', width: 180, align: 'left' },
-  { key: 'team', width: 80, align: 'left' },
-  { key: 'rank', width: 120, align: 'left' },
-  { key: 'rate', width: 70, align: 'right' },
-  { key: 'sales', width: 110, align: 'right' },
-  { key: 'incentive', width: 120, align: 'right' },
-  { key: 'roleBonus', width: 110, align: 'right' },
-  { key: 'referral', width: 80, align: 'right' },
-  { key: 'adjustment', width: 110, align: 'right' },  // 符号付き（+¥134,100）で桁が伸びるため広めに取る
-  { key: 'total', width: 120, align: 'right' },
+  { key: 'name', width: 200, align: 'left' },
+  { key: 'rank', width: 140, align: 'left' },
+  { key: 'sales', width: 120, align: 'right' },
+  { key: 'parts', width: 340, align: 'left' },
+  { key: 'total', width: 130, align: 'right' },
   { key: 'invoice', width: 90, align: 'center' },
 ];
 
@@ -99,12 +97,10 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
     return result;
   })();
   // URL クエリ同期（ハードリロード/共有URL対応）。既存 localStorage は移行のため初期値だけ参照。
-  const defaultMonthTab = (() => {
-    const s = typeof window !== 'undefined' ? localStorage.getItem('spanavi_payroll_month') : null;
-    return (s && payrollMonths.some(x => x.label === s)) ? s : (payrollMonths[payrollMonths.length - 1]?.label || "3月");
-  })();
+  // 開いたときは先月（いま締めている月）。2026-10-07 までは前に開いた月を覚えていて、3月から開いていた
+  const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+  const defaultMonthTab = defaultPayrollMonth(payrollMonths, todayIso) || "3月";
   const [monthTab, setMonthTab] = useUrlState('month', defaultMonthTab);
-  useEffect(() => { try { localStorage.setItem('spanavi_payroll_month', monthTab); } catch (_) { /* noop */ } }, [monthTab]);
   const [teamFilter, setTeamFilter] = useUrlState('team', 'all');
   const [sortKey, setSortKey] = useUrlState('sort', 'total');
   const [syncing, setSyncing] = useState(false);
@@ -445,6 +441,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
   // 更新失敗や同時編集で実績とズレる。ズレたままだとランク（＝適用率）が
   // 正しく上がらないため、管理者に気づける形で常時警告する。
   const [salesAudit, setSalesAudit] = React.useState({ shortfalls: [], mismatches: [] });
+  const [auditOpen, setAuditOpen] = React.useState(false);
   React.useEffect(() => {
     if (!isAdmin) return;
     let cancelled = false;
@@ -539,28 +536,23 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
 
       <PageHeader
         title="報酬"
-        description="月次インセンティブ・支給額の管理"
+        description="月末に締めて、請求書を集め、翌月20日に確定、月末に振り込む"
         style={{ marginBottom: space[6] }}
       />
 
-      {/* ── Summary cards ────────────────────────────────────────── */}
-      {/* 4列固定だとスマホで1枚90px弱になり ¥1,839,368 が4行に割れる。
-          150px を下限に入る分だけ並べる（iPhone 幅なら2列、PCは従来どおり4列） */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: space[5] }}>
-        {[
-          { label: "総支給額",   value: fmt(grandTotal), color: TH_BG },
-          { label: "総売上",     value: fmt(grandSales), color: TH_BG },
-          { label: "支給対象者", value: paidCount + "名", color: TH_BG },
-          { label: "対象月",     value: monthTab,         color: TH_BG },
-        ].map((s, i) => (
-          <Card key={i} variant="default" padding="none" style={{ padding: "14px 18px" }}>
-            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>{s.label}</div>
-            {/* 金額は途中で折らせない。狭い時は文字を縮める */}
-            <div style={{ fontSize: "clamp(15px, 4.6vw, 22px)", fontWeight: font.weight.black, color: s.color, fontFamily: MONO, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.value}</div>
-          </Card>
-        ))}
-      </div>
-
+      {/* ── 上の段：月の流れ・数字4つ（2026-10-07 見本どおり） ── */}
+      {(() => {
+        const mo = payrollMonths.find(x => x.label === monthTab) || payrollMonths[payrollMonths.length - 1];
+        const payees = data.filter(p => p.total + (activeReferralMap[p.name] || 0) + (adjByName[p.name] || 0) > 0);
+        const submitted = payees.filter(p => invoiceMemberIdSet.has(memberIdByName[p.name])).length;
+        const flow = payrollFlow({ year: mo.year, month: mo.month, today: todayIso, isConfirmed, submitted, payees: payees.length });
+        return (
+          <>
+            <PayrollFlow monthLabel={monthTab} flow={flow} />
+            <PayrollKpis total={grandTotal} sales={grandSales} payees={payees.length} submitted={submitted} />
+          </>
+        );
+      })()}
 
       {/* ── Filters + 確定ボタン ──────────────────────────────────── */}
       <div style={{ display: "flex", gap: 8, marginBottom: space[3], alignItems: "center", flexWrap: "wrap" }}>
@@ -588,6 +580,7 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
             }}>{t === "all" ? "全チーム" : t + "チーム"}</button>
           ))}
         </div>
+        <span style={{ marginLeft: 12 }}><PayLegend /></span>
 
         {/* 管理者アクション */}
         {isAdmin && (
@@ -656,6 +649,14 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
 
       {/* ── 累計売上のズレ警告 ────────────────────────────────── */}
       {isAdmin && hasAuditIssue && (
+        <div className="pr-alert">
+          <b>累計売上のずれ {salesAudit.shortfalls.length + salesAudit.mismatches.length}件</b>
+          <span>{[...salesAudit.shortfalls.map(r => `${r.name}さんの累計が面談済アポより ¥${Number(r.diff || 0).toLocaleString()} 少ない`), ...salesAudit.mismatches.map(r => `${r.getter_name}さんの${r.status}分が累計に残っている`)].join(' ／ ')}。ずれたままだとランクが正しく上がらない</span>
+          <Button size="sm" variant="ghost" onClick={() => setAuditOpen(v => !v)}>{auditOpen ? '閉じる' : '中身を見る'}</Button>
+          {!isConfirmed && <Button size="sm" variant="secondary" loading={syncing} onClick={handleSync}>累計同期</Button>}
+        </div>
+      )}
+      {isAdmin && hasAuditIssue && auditOpen && (
         <Card padding="md" style={{ marginBottom: space[4], borderColor: color.warn }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2] }}>
             <Badge variant="warn" dot>要確認</Badge>
@@ -730,94 +731,54 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
           >{col.h}{sortKey === col.sk ? ' ▼' : ''}</span>
         ) : col.h;
 
+        const partsOf = (p) => ({ incentive: p.incentive, teamBonus: p.teamBonus, referral: activeReferralMap[p.name] || 0, adjustment: adjByName[p.name] || 0 });
+        const maxPay = Math.max(1, ...filtered.map(p => p.incentive + p.teamBonus + (activeReferralMap[p.name] || 0) + Math.max(0, adjByName[p.name] || 0)));
         const dataColumns = [
           {
-            key: 'name', label: labelOf(COLS[0]), width: PAYROLL_COLS[0].width, align: PAYROLL_COLS[0].align,
+            key: 'name', label: 'メンバー', width: PAYROLL_COLS[0].width, align: 'left',
             cellStyle: { padding: cellPad },
             render: (p) => (
               <div>
                 <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: TH_BG }}>{p.name}</div>
-                {p.role && <div style={{ fontSize: font.size.xs - 1, color: color.textLight }}>{p.role}</div>}
+                <div style={{ fontSize: font.size.xs - 1, color: color.textLight }}>{[p.team ? p.team + 'チーム' : '', p.role].filter(Boolean).join(' ・ ')}</div>
               </div>
             ),
           },
           {
-            key: 'team', label: labelOf(COLS[1]), width: PAYROLL_COLS[1].width, align: PAYROLL_COLS[1].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.xs, color: color.textMid },
-            render: (p) => p.team,
-          },
-          {
-            key: 'rank', label: labelOf(COLS[2]), width: PAYROLL_COLS[2].width, align: PAYROLL_COLS[2].align,
-            cellStyle: { padding: cellPad, whiteSpace: 'normal', overflow: 'visible' },
+            key: 'rank', label: 'ランク', width: PAYROLL_COLS[1].width, align: 'left',
+            cellStyle: { padding: cellPad, whiteSpace: 'nowrap' },
             render: (p) => {
               const rs = RANK_COLORS[p.rank] || RANK_COLORS['トレーニー'];
               return (
-                <span style={{
-                  fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
-                  borderLeft: `3px solid ${rs.color}`, paddingLeft: 6, color: rs.color,
-                }}>{p.rank || '-'}</span>
-              );
-            },
-          },
-          {
-            key: 'rate', label: labelOf(COLS[3]), width: PAYROLL_COLS[3].width, align: PAYROLL_COLS[3].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: color.textMid },
-            render: (p) => p.rate ? (p.rate * 100).toFixed(0) + '%' : '-',
-          },
-          {
-            key: 'sales', label: labelOf(COLS[4]), width: PAYROLL_COLS[4].width, align: PAYROLL_COLS[4].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.semibold, color: TH_BG },
-            render: (p) => fmt(p.sales),
-          },
-          {
-            key: 'incentive', label: labelOf(COLS[5]), width: PAYROLL_COLS[5].width, align: PAYROLL_COLS[5].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: color.success },
-            render: (p) => fmt(p.incentive),
-          },
-          {
-            key: 'teamBonus', label: labelOf(COLS[6]), width: PAYROLL_COLS[6].width, align: PAYROLL_COLS[6].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' },
-            render: (p) => (
-              <span style={{ color: p.teamBonus > 0 ? TH_BG : color.textMid }}>{fmt(p.teamBonus)}</span>
-            ),
-          },
-          {
-            key: 'referral', label: labelOf(COLS[7]), width: PAYROLL_COLS[7].width, align: PAYROLL_COLS[7].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' },
-            render: (p) => {
-              const refBonus = activeReferralMap[p.name] || 0;
-              return <span style={{ color: refBonus > 0 ? color.success : color.textMid }}>{fmt(refBonus)}</span>;
-            },
-          },
-          {
-            key: 'adjustment', label: labelOf(COLS[8]), width: PAYROLL_COLS[8].width, align: PAYROLL_COLS[8].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums' },
-            render: (p) => {
-              const adj = adjByName[p.name] || 0;
-              if (adj === 0) return <span style={{ color: color.textMid }}>-</span>;
-              return (
-                <span style={{ color: adj < 0 ? color.danger : color.navy }}>
-                  {(adj > 0 ? '+¥' : '-¥') + Math.abs(adj).toLocaleString()}
+                <span style={{ fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, padding: '1px 8px', borderRadius: radius.pill, background: alpha(rs.color, 0.1), color: rs.color }}>
+                  {p.rank || '-'}{p.rate ? ` ${(p.rate * 100).toFixed(0)}%` : ''}
                 </span>
               );
             },
           },
           {
-            key: 'total', label: labelOf(COLS[9]), width: PAYROLL_COLS[9].width, align: PAYROLL_COLS[9].align,
-            cellStyle: { padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG },
-            render: (p) => {
-              const refBonus = activeReferralMap[p.name] || 0;
-              return fmt(p.total + refBonus + (adjByName[p.name] || 0));
-            },
+            key: 'sales', label: labelOf(COLS[4]), width: PAYROLL_COLS[2].width, align: 'right',
+            cellStyle: { padding: cellPad, fontSize: font.size.xs, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.semibold, color: TH_BG },
+            render: (p) => fmt(p.sales),
           },
           {
-            key: 'invoice', label: labelOf(COLS[10]), width: PAYROLL_COLS[10].width, align: PAYROLL_COLS[10].align,
+            key: 'parts', label: '支給の内わけ', width: PAYROLL_COLS[3].width, align: 'left',
+            cellStyle: { padding: cellPad },
+            render: (p) => <PayBar parts={partsOf(p)} max={maxPay} />,
+          },
+          {
+            key: 'total', label: labelOf(COLS[9]), width: PAYROLL_COLS[4].width, align: 'right',
+            cellStyle: { padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG },
+            render: (p) => fmt(p.total + (activeReferralMap[p.name] || 0) + (adjByName[p.name] || 0)),
+          },
+          {
+            key: 'invoice', label: '請求書', width: PAYROLL_COLS[5].width, align: 'center',
             cellStyle: { padding: cellPad },
             render: (p) => {
               const mid = memberIdByName[p.name];
               return mid && invoiceMemberIdSet.has(mid)
-                ? <Badge variant="success" dot>格納済</Badge>
-                : <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>未提出</span>;
+                ? <Badge variant="success" dot>出した</Badge>
+                : <span style={{ fontSize: font.size.xs - 1, color: color.danger }}>まだ</span>;
             },
           },
         ];
@@ -869,26 +830,15 @@ function AdminPayrollList({ members, appoData, isAdmin, setMembers, onDataRefetc
                   display: 'grid', gridTemplateColumns: totalGrid, alignItems: 'center',
                   minWidth: totalMinWidth,
                 }}>
-                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontWeight: font.weight.bold, color: TH_BG, textAlign: PAYROLL_COLS[0].align }}>合計</div>
+                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontWeight: font.weight.bold, color: TH_BG }}>合計 {filtered.length}名</div>
                   <div style={{ padding: cellPad }} />
-                  <div style={{ padding: cellPad }} />
-                  <div style={{ padding: cellPad }} />
-                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: TH_BG, textAlign: PAYROLL_COLS[4].align }}>
+                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: TH_BG, textAlign: 'right' }}>
                     {sumSales > 0 ? '¥' + sumSales.toLocaleString() : '-'}
                   </div>
-                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: color.success, textAlign: PAYROLL_COLS[5].align }}>
-                    {sumIncentive > 0 ? '¥' + sumIncentive.toLocaleString() : '-'}
+                  <div style={{ padding: cellPad, fontSize: font.size.xs, color: color.textMid }}>
+                    インセンティブ ¥{sumIncentive.toLocaleString()} ・ 役職 ¥{sumTeamBonus.toLocaleString()} ・ 紹介 ¥{sumReferral.toLocaleString()} ・ 調整 {sumAdjustment < 0 ? '-' : ''}¥{Math.abs(sumAdjustment).toLocaleString()}
                   </div>
-                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: TH_BG, textAlign: PAYROLL_COLS[6].align }}>
-                    {sumTeamBonus > 0 ? '¥' + sumTeamBonus.toLocaleString() : '-'}
-                  </div>
-                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: color.success, textAlign: PAYROLL_COLS[7].align }}>
-                    {sumReferral > 0 ? '¥' + sumReferral.toLocaleString() : '-'}
-                  </div>
-                  <div style={{ padding: cellPad, fontSize: font.size.sm, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.bold, color: sumAdjustment < 0 ? color.danger : TH_BG, textAlign: PAYROLL_COLS[8].align }}>
-                    {sumAdjustment === 0 ? '-' : (sumAdjustment > 0 ? '+¥' : '-¥') + Math.abs(sumAdjustment).toLocaleString()}
-                  </div>
-                  <div style={{ padding: cellPad, fontSize: font.size.base, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG, textAlign: PAYROLL_COLS[9].align }}>
+                  <div style={{ padding: cellPad, fontSize: font.size.base, fontFamily: MONO, fontVariantNumeric: 'tabular-nums', fontWeight: font.weight.black, color: TH_BG, textAlign: 'right' }}>
                     {'¥' + sumTotal.toLocaleString()}
                   </div>
                   <div style={{ padding: cellPad }} />

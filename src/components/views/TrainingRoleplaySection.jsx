@@ -47,7 +47,8 @@ const SESSION_TYPE_LABEL = {
   weekly:               '週次ロープレ',
 };
 
-export default function TrainingRoleplaySection({ currentUser, userId, members, isAdmin }) {
+// hideTraining：ライブラリーの「ロープレ」の本として出すとき（2026-10-07）。使われていない「研修」タブを出さない
+export default function TrainingRoleplaySection({ currentUser, userId, members, isAdmin, hideTraining = false }) {
   // 対象メンバー切替（全員が閲覧のみ他人のロープレを見られる / アップロード等はisAdmin維持）
   const [targetMemberName, setTargetMemberName] = useState(null);
   if (targetMemberName && members) {
@@ -973,7 +974,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       )}
 
       {/* タブ */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: space[4] }}>
+      {!hideTraining && <div style={{ display: 'flex', gap: 2, marginBottom: space[4] }}>
         {TABS.map(tab => (
           <Button
             key={tab.id}
@@ -993,7 +994,7 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
             {tab.label}
           </Button>
         ))}
-      </div>
+      </div>}
 
       {/* ── Tab 1: 研修進捗 ──────────────────────────────────────────── */}
       {activeTab === 'training' && (

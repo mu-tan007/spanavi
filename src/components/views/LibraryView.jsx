@@ -23,22 +23,27 @@ import {
   fetchWeeklyMeetingViewers, saveWeeklyMeetingViewers, setWeeklyMeetingRestricted,
 } from '../../lib/supabaseWrite';
 import { supabase } from '../../lib/supabase';
+import TrainingRoleplaySection from './TrainingRoleplaySection';
+import { Book, LibraryHero, BOOK_COLORS } from './library/LibraryShelf';
 
 const CF_STREAM_SUBDOMAIN = import.meta.env.VITE_CF_STREAM_CUSTOMER_SUBDOMAIN || '';
 
-const STORAGE_KEY = 'spanavi_library_card_order_v1';
-const DEFAULT_ORDER = ['daily_report', 'bookmarks', 'rules', 'meetings'];
+// 2026-10-07 見本どおり：5冊（ロープレをライブラリーに統合）。並びを見本に戻すため保存の鍵を v2 に
+const STORAGE_KEY = 'spanavi_library_card_order_v2';
+const DEFAULT_ORDER = ['meetings', 'roleplay', 'daily_report', 'bookmarks', 'rules'];
 
 const CARDS = {
-  daily_report: { title: 'Daily Report',         eyebrow: '本日の活動レポート', accent: color.navy },
-  bookmarks:    { title: 'お気に入り録音',        eyebrow: '保存した録音',       accent: color.navy },
-  rules:        { title: '22箇条',               eyebrow: 'インターン心得',     accent: color.navy },
-  meetings:     { title: '週次ミーティング',     eyebrow: 'アーカイブ',         accent: color.navy },
+  meetings:     { title: '週次ミーティング', desc: '毎週の録画と資料。見られる人を限った回もある' },
+  roleplay:     { title: 'ロープレ',         desc: '毎週の篠宮・リーダーとのロープレの録音とAIの講評' },
+  daily_report: { title: '日報',             desc: 'チームごとのその日の架電・アポ' },
+  bookmarks:    { title: 'お気に入り録音',   desc: 'あとで聞き返したい通話' },
+  rules:        { title: '22箇条',           desc: 'インターンの決まりごと' },
 };
+const md = (d) => (d ? `${Number(String(d).slice(5, 7))}/${Number(String(d).slice(8, 10))}` : '');
 
 export default function LibraryView({
   currentUser, userId, members, isAdmin = false,
-  clientData, callListData, setCallListData,
+  clientData, callListData, setCallListData, initialCard = null,
 }) {
   const [order, setOrder] = useState(() => {
     try {
@@ -58,6 +63,7 @@ export default function LibraryView({
 
   const ACTIVE_CARD_KEY = 'spanavi_library_active_card_v1';
   const [activeCardId, _setActiveCardId] = useState(() => {
+    if (initialCard && DEFAULT_ORDER.includes(initialCard)) return initialCard;
     try {
       const saved = localStorage.getItem(ACTIVE_CARD_KEY);
       return saved && DEFAULT_ORDER.includes(saved) ? saved : null;
@@ -72,6 +78,22 @@ export default function LibraryView({
   };
 
   const [bookmarks, setBookmarks] = useState([]);
+  const [shelfStats, setShelfStats] = useState({ roleplay: null, daily: null, today: [] });
+  useEffect(() => {
+    let alive = true;
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+    const since = new Date(Date.now() - 30 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+    Promise.all([
+      supabase.from('roleplay_sessions').select('id', { count: 'exact', head: true }).eq('session_type', 'weekly'),
+      supabase.from('roleplay_sessions').select('session_date').eq('session_type', 'weekly').order('session_date', { ascending: false }).limit(1),
+      supabase.from('daily_reports').select('id', { count: 'exact', head: true }).gte('report_date', since),
+      supabase.from('daily_reports').select('id, team_name, report_date, payload').eq('report_date', today).order('team_name'),
+    ]).then(([rc, rl, dc, td]) => {
+      if (!alive) return;
+      setShelfStats({ roleplay: { count: rc.count ?? 0, latest: rl.data?.[0]?.session_date || '' }, daily: { count: dc.count ?? 0 }, today: td.data || [] });
+    });
+    return () => { alive = false; };
+  }, []);
   const [bookmarkPlayingId, setBookmarkPlayingId] = useState(null);
   const [meetingPlayingId, setMeetingPlayingId] = useState(null);
   const [weeklyMeetings, setWeeklyMeetings] = useState([]);
@@ -224,44 +246,61 @@ export default function LibraryView({
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
-        title="ライブラリ"
-        description="営業ナレッジの統合アーカイブ"
-        style={{ marginBottom: space[5] }}
+        title="ライブラリー"
+        description="見返すものの本棚 ・ 週次ミーティング・ロープレ・日報・お気に入り録音・22箇条"
+        style={{ marginBottom: space[4] }}
       />
 
-      {/* カードグリッド（本棚） */}
-      {!activeCardId && (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={order} strategy={rectSortingStrategy}>
-            <div style={{
-              display: 'grid', gap: space[4],
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-              padding: `4px 0 ${space[6]}px`,
-            }}>
-              {order.map(id => (
-                <BookCard
-                  key={id} id={id} meta={CARDS[id]}
-                  count={counts[id]}
-                  onOpen={() => setActiveCardId(id)}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
+      {(() => {
+        const latest = weeklyMeetings[0] || null;
+        const { members: wMembers = [], stats: wStats = {}, attendedSet } = watchData || {};
+        const watched = latest && wMembers.length
+          ? wMembers.filter(m => (wStats?.[latest.id]?.[m.user_id]?.coveredSec || 0) > 0 || attendedSet?.has?.(`${latest.id}:${m.id}`)).length
+          : null;
+        const open = (id) => { setActiveCardId(id); setTimeout(() => document.getElementById('lb-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); };
+        const stat = {
+          meetings: { count: `${weeklyMeetings.length}回`, latest: md(latest?.meeting_date) },
+          roleplay: { count: shelfStats.roleplay ? `${shelfStats.roleplay.count}件` : '—', latest: md(shelfStats.roleplay?.latest) },
+          daily_report: { count: shelfStats.daily ? `直近30日 ${shelfStats.daily.count}件` : '—', latest: shelfStats.today.length ? md(shelfStats.today[0].report_date) : '' },
+          bookmarks: { count: `${bookmarks.length}件`, latest: md(bookmarks[0]?.created_at) },
+          rules: { count: '22項目', latest: '' },
+        };
+        const recent = (d) => d && (Date.now() - new Date(d).getTime()) < 7 * 86400000;
+        return (
+          <>
+            <LibraryHero meeting={latest} watched={watched} members={wMembers.length} reports={shelfStats.today}
+              onOpenMeetings={() => open('meetings')} onOpenReports={() => open('daily_report')} />
+            <div className="lb-shelf-h"><b>本棚</b><span className="lb-lbl">押すと下に中身 ・ ⋮⋮ で並べ替え</span></div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={order} strategy={rectSortingStrategy}>
+                <div className="lb-shelfbox">
+                  <div className="lb-shelf">
+                    {order.map((id, i) => (
+                      <Book key={id} id={id} meta={CARDS[id]} stat={stat[id]} index={i} active={activeCardId === id}
+                        isNew={(id === 'meetings' && recent(latest?.meeting_date)) || (id === 'roleplay' && recent(shelfStats.roleplay?.latest))}
+                        onOpen={() => (activeCardId === id ? setActiveCardId(null) : open(id))} />
+                    ))}
+                  </div>
+                  <div className="lb-plank" />
+                </div>
+              </SortableContext>
+            </DndContext>
+          </>
+        );
+      })()}
 
-      {/* 詳細ビュー */}
-      {activeCardId && (
-        <Card padding="none" style={{ padding: '14px 18px' }}>
+      {/* 開いた本の中身（本棚の下に出す） */}
+      {activeCardId && CARDS[activeCardId] && (
+        <div id="lb-panel" className="lb-card lb-panel">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: space[2.5], marginBottom: 14 }}>
-              <Button size="sm" variant="outline" onClick={() => setActiveCardId(null)}>
-                ← Library に戻る
-              </Button>
-              <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy }}>
-                {CARDS[activeCardId].title}
-              </div>
+            <div className="lb-panel-h">
+              <b><i style={{ background: (BOOK_COLORS[activeCardId] || [])[0] }} />{CARDS[activeCardId].title}</b>
+              <Button size="sm" variant="ghost" onClick={() => setActiveCardId(null)}>閉じる</Button>
             </div>
+
+            {activeCardId === 'roleplay' && (
+              <TrainingRoleplaySection currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} hideTraining />
+            )}
 
             {activeCardId === 'daily_report' && (
               <DailyReportPanel currentUser={currentUser} userId={userId} isAdmin={isAdmin} members={members} />
@@ -535,7 +574,7 @@ export default function LibraryView({
             )}
 
           </div>
-        </Card>
+        </div>
       )}
 
       {viewerDialogMeeting && (

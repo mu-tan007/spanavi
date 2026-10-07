@@ -21,6 +21,7 @@ import SpacareerSettingsView from '../spacareer/admin/settings/SpacareerSettings
 import MyPageView from './MyPageView';
 import GoalSettingsPanel from '../admin/GoalSettingsPanel';
 import PageHeader from '../common/PageHeader';
+import SettingsOverview from '../admin/SettingsOverview';
 import { useEngagements } from '../../hooks/useEngagements';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
@@ -99,6 +100,8 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
     try { localStorage.setItem('admin_activeTab', tab); } catch {}
   };
   const [viewingMember, setViewingMember] = useState(null); // マイページモーダル用
+  // 2026-10-07：設定は「連携の確認」と「いまの値」だけにした。以前のタブは、ターミナルが使えないときのためだけに残す
+  const [showLegacy, setShowLegacy] = useState(false);
   const [toasts, setToasts] = useState([]);
 
   // 事業セレクタ (各タブの設定は事業ごとに独立)
@@ -207,7 +210,7 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
     <div style={{ paddingBottom: space[12], animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="設定"
-        description="全社共通の設定 — 代表のみアクセス可能"
+        description="画面で押す必要があるものだけ。ほかはClaude Codeのターミナルで"
         style={{ marginBottom: space[6] }}
         right={
           <>
@@ -265,8 +268,17 @@ export default function AdminView({ isAdmin, setCurrentTab, rewardMaster, setRew
         <div style={{ background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}`, padding: isMobile ? `${space[4]}px ${space[3]}px` : `${space[6]}px 28px` }}>
           <SpacareerSettingsView hideHeader />
         </div>
+      ) : !showLegacy ? (
+        <SettingsOverview
+          engagementId={(engagements || []).find(e => e.slug === 'seller_sourcing')?.id}
+          onGo={(tab) => setCurrentTab?.(tab)}
+          onOpenLegacy={() => setShowLegacy(true)}
+        />
       ) : (
       <>
+      <div style={{ marginBottom: space[2], textAlign: 'right' }}>
+        <Button size="sm" variant="ghost" onClick={() => setShowLegacy(false)}>← 新しい設定に戻る</Button>
+      </div>
       {/* タブバー */}
       <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${color.border}`, background: color.white, borderRadius: `${radius.md}px ${radius.md}px 0 0`, overflow: isMobile ? 'auto' : 'hidden', marginBottom: 0 }}>
         {visibleTabs.map(tab => {

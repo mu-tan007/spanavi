@@ -1,0 +1,38 @@
+/* 報酬ページ（ルール v2・2026-10-07 見本どおり） */
+.pr-card { background: #fff; border: 1px solid #E3E6EB; border-radius: 8px; font-family: 'Noto Sans JP', sans-serif; }
+.pr-lbl { font-size: 11px; color: #8692A0; }
+.pr-num { font-family: 'Barlow', 'Noto Sans JP', sans-serif; font-variant-numeric: tabular-nums; }
+.pr-flow { display: flex; align-items: center; padding: 14px 18px; margin-bottom: 12px; }
+.pr-flow-l { width: 190px; flex: none; }
+.pr-flow-l b { display: block; font-size: 15px; color: #032D60; }
+.pr-st { flex: 1; position: relative; text-align: center; font-size: 12px; color: #8692A0; padding-top: 22px; }
+.pr-st::before { content: ""; position: absolute; top: 4px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; border: 2px solid #E3E6EB; z-index: 1; }
+.pr-st::after { content: ""; position: absolute; top: 10px; left: 50%; right: -50%; height: 2px; background: #E3E6EB; }
+.pr-st:last-child::after { display: none; }
+.pr-st b { display: block; font-size: 13px; color: #4B5868; font-weight: 600; }
+.pr-st.done { color: #032D60; } .pr-st.done::before { background: #032D60; border-color: #032D60; } .pr-st.done::after { background: #032D60; }
+.pr-st.cur { color: #032D60; font-weight: 500; } .pr-st.cur::before { background: #C8A45A; border-color: #C8A45A; box-shadow: 0 0 0 5px #F7F0E1; animation: pr-pulse 2s ease-in-out infinite; }
+@keyframes pr-pulse { 50% { box-shadow: 0 0 0 8px rgba(200,164,90,.12); } }
+
+.pr-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.pr-k { padding: 14px 16px; }
+.pr-v { font-size: 28px; font-weight: 600; color: #032D60; line-height: 1.2; margin-top: 2px; }
+.pr-v small { font-family: 'Noto Sans JP', sans-serif; font-size: 12px; color: #4B5868; font-weight: 500; margin-left: 2px; }
+.pr-s { font-size: 11px; color: #8692A0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.pr-barwrap { display: flex; align-items: center; gap: 8px; width: 100%; }
+.pr-stack { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: #EEF0F3; transform-origin: left; animation: pr-grow .7s cubic-bezier(.2,.8,.2,1) both; }
+.pr-stack i { display: block; height: 100%; }
+.c1 { background: #0176D3; } .c2 { background: #032D60; } .c3 { background: #4F8FD6; } .c4 { background: #C8A45A; }
+.pr-neg { font-size: 11px; color: #C8102E; white-space: nowrap; }
+.pr-none { color: #8692A0; }
+@keyframes pr-grow { from { transform: scaleX(0); } }
+.pr-lg { display: inline-flex; gap: 12px; font-size: 11px; color: #8692A0; align-items: center; flex-wrap: wrap; }
+.pr-lg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+
+.pr-alert { display: flex; gap: 12px; align-items: center; padding: 10px 14px; border-left: 3px solid #B7791F; background: #FBF6EC; border-radius: 0 8px 8px 0; margin-bottom: 12px; font-size: 12.5px; flex-wrap: wrap; font-family: 'Noto Sans JP', sans-serif; }
+.pr-alert b { color: #8A5A00; }
+.pr-alert > span { flex: 1; color: #4B5868; min-width: 240px; }
+
+@media (max-width: 900px) { .pr-kpi { grid-template-columns: 1fr 1fr; } .pr-flow { flex-wrap: wrap; } .pr-flow-l { width: 100%; margin-bottom: 8px; } }
+@media (prefers-reduced-motion: reduce) { .pr-stack, .pr-st.cur::before { animation: none !important; } }

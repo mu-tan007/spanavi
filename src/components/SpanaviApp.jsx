@@ -9,7 +9,7 @@ import { calcRankAndRate, getCurrentRecommendation } from '../utils/calculations
 import { getIndustryCategory, parseTimeRange } from '../utils/industry';
 import { dialPhone } from '../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../utils/memo';
-import RoleplayView from './views/RoleplayView';
+import MaNewsView from './views/MaNewsView';
 import CompanySearchView from './views/CompanySearchView';
 import StatsView from './views/StatsView';
 import AnalyticsView from './views/AnalyticsView';
@@ -452,7 +452,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
     });
   }, [supabaseData, switchEngagement]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","acq_deals","acq_firms","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","ma_news","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","acq_deals","acq_firms","admin_settings"];
   // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
   const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
@@ -508,7 +508,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 初回（ロード完了直後）は currentTab を尊重する。タブが現エンゲージメントで
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
-    const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin','admin_settings'];
+    const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','ma_news','edu_performance','ai','manager_admin','admin_settings'];
     const CAREER_TABS = ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout','mypage','admin_settings'];
     if (engSlug === 'seller_sourcing') {
       if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
@@ -789,8 +789,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     ]},
     { id: "g_enablement", label: "Enablement", children: [
       { id: "stats", label: "アナリティクス" },
-      { id: "library", label: "ライブラリ" },
-      { id: "edu_roleplay", label: "ロープレ" },
+      { id: "library", label: "ライブラリー" },
+      // ロープレはライブラリーの1冊に統合（2026-10-07）。下は M&Aニュース
+      { id: "ma_news", label: "M&Aニュース" },
     ]},
     ...(isManagerRole ? [{ id: "manager_admin", label: "管理者設定", children: null }] : []),
     // 「設定」(admin_settings) はスクロールと独立してログアウト直上に固定表示する（navGroups には入れない）。
@@ -1463,7 +1464,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         )}
         {currentTab === "scripts" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
-        {currentTab === "edu_roleplay" && <RoleplayView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} />}
+        {/* 旧「ロープレ」へのリンクは、ライブラリーのロープレの本を開いて出す */}
+        {currentTab === "edu_roleplay" && <LibraryView initialCard="roleplay" currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
+        {currentTab === "ma_news" && <MaNewsView callListData={callListData} />}
         {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
         {currentTab === "manager_admin" && isManagerRole && <ManagerAdminView currentUser={currentUser} members={members} appoData={appoData} now={now} />}
         </>)}

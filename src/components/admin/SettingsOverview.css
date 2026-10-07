@@ -1,0 +1,39 @@
+/* 設定（ルール v2・2026-10-07 見本どおり） */
+.so { font-family: 'Noto Sans JP', sans-serif; font-feature-settings: "palt"; }
+.so-card { background: #fff; border: 1px solid #E3E6EB; border-radius: 8px; }
+.so-pad { padding: 12px 16px; }
+.so-pad h4 { font-size: 12px; color: #4B5868; font-weight: 500; display: flex; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
+.so-pad h4 span:last-child { color: #8692A0; font-size: 11px; font-weight: 400; }
+.so-lead { display: flex; gap: 14px; align-items: center; padding: 14px 18px; margin-bottom: 14px; background: linear-gradient(90deg, rgba(1,118,211,.07), #fff 60%); }
+.so-t { width: 40px; height: 40px; border-radius: 12px; background: #021B40; color: #7FD1A8; font-family: ui-monospace, Consolas, monospace; font-size: 14px; display: flex; align-items: center; justify-content: center; flex: none; }
+.so-lead b { display: block; color: #032D60; font-size: 14px; }
+.so-lead span { font-size: 12px; color: #4B5868; }
+.so-sec { margin: 18px 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
+.so-sec b { font-size: 15px; color: #032D60; } .so-sec span { font-size: 11px; color: #8692A0; }
+.so-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.so-cn { display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #EEF0F3; font-size: 13px; }
+.so-cn:last-child { border: 0; }
+.so-lg { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: #fff; }
+.so-cn small { display: block; font-size: 11px; color: #8692A0; }
+.so-st { font-size: 11px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; background: #EEF0F3; color: #4B5868; }
+.so-st.ok { background: #E6F4EC; color: #1F7A4D; } .so-st.ng { background: #FCEBEE; color: #C8102E; }
+.so-ladder { display: flex; gap: 4px; margin-bottom: 8px; }
+.so-ladder i { flex: 1; font-style: normal; text-align: center; font-size: 11px; padding: 6px 4px; border-radius: 6px; background: #E8F2FC; color: #032D60; }
+.so-ladder i b { display: block; font-family: 'Barlow', sans-serif; font-size: 15px; }
+.so-ladder i:nth-child(3) { background: #FBF6EC; } .so-ladder i:nth-child(4) { background: #F7F0E1; }
+.so-r1 { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed #EEF0F3; gap: 12px; }
+.so-r1 span { color: #4B5868; }
+.so-ask { margin-top: 10px; display: flex; gap: 8px; align-items: center; background: #021B40; color: #CFE3F7; border-radius: 8px; padding: 8px 10px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.so-ask span { flex: 1; }
+.so-ask button { color: #fff; font-size: 11px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; padding: 2px 8px; background: none; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+.so-mv { display: grid; grid-template-columns: 1fr 24px 1fr; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #EEF0F3; font-size: 13px; }
+.so-mv:last-child { border: 0; }
+.so-mv em { font-style: normal; color: #C8A45A; text-align: center; }
+.so-mv small { display: block; font-size: 11px; color: #8692A0; }
+.so-mv button { color: #0176D3; font-weight: 500; background: none; border: 0; padding: 0; cursor: pointer; font-size: 13px; font-family: inherit; }
+.so-gone { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.so-gn { border: 1px solid #EEF0F3; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; background: #FAFBFC; }
+.so-gn b { display: block; color: #4B5868; font-weight: 500; }
+.so-gn span { display: block; font-size: 11px; color: #8692A0; margin-top: 2px; }
+.so-legacy { font-size: 11px; color: #8692A0; background: none; border: 0; cursor: pointer; text-decoration: underline; font-family: inherit; }
+@media (max-width: 1000px) { .so-grid2 { grid-template-columns: 1fr; } .so-gone { grid-template-columns: 1fr 1fr; } }
