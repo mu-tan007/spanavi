@@ -400,7 +400,7 @@ export function CredentialsModal({ client, mode, suggestUsername, onClose, onIss
         background: color.white, borderRadius: radius.md, width: '100%', maxWidth: 480,
         boxShadow: shadow.xl,
       }}>
-        <div style={{ padding: `14px ${space[5]}px`, borderBottom: `1px solid ${color.border}` }}>
+        <div className="v2-mhead" style={{ padding: `14px ${space[5]}px`, borderBottom: `1px solid ${color.border}` }}>
           <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>
             {mode === 'create' ? 'ポータル・アカウント発行' : 'パスワード再発行'}
           </div>

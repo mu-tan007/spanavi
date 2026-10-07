@@ -289,7 +289,7 @@ export default function RewardTypeManager({ isAdmin }) {
             maxHeight: '80vh', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
             display: 'flex', flexDirection: 'column',
           }}>
-            <div style={{
+            <div className="v2-mhead" style={{
               padding: '12px 20px', background: color.navy, color: color.white,
               borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -352,7 +352,7 @@ export default function RewardTypeManager({ isAdmin }) {
             background: color.white, borderRadius: radius.lg, width: 720, maxWidth: '95vw',
             maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
           }}>
-            <div style={{
+            <div className="v2-mhead" style={{
               padding: '12px 20px', background: color.navy, color: color.white,
               borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',

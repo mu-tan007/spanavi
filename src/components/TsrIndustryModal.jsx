@@ -45,7 +45,7 @@ export default function TsrIndustryModal({ onClose }) {
       <div onClick={e => e.stopPropagation()}
         style={{ background: color.white, borderRadius: radius.md, width: 700, maxWidth: 'calc(100vw - 24px)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
         {/* ヘッダー */}
-        <div style={{ padding: `${space[3]}px ${space[6]}px`, background: color.navy, borderRadius: `${radius.md}px ${radius.md}px 0 0`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="v2-mhead" style={{ padding: `${space[3]}px ${space[6]}px`, background: color.navy, borderRadius: `${radius.md}px ${radius.md}px 0 0`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: font.size.md + 1, fontWeight: font.weight.semibold, color: color.white }}>TSR業種分類一覧</div>
             <div style={{ fontSize: font.size.xs - 1, color: '#CBD5E1', marginTop: 2 }}>東京商工リサーチ　大分類20種 / 中分類99種 / 細分類1,217種</div>

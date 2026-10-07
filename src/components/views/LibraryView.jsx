@@ -615,7 +615,7 @@ function MeetingViewersDialog({ meeting, onClose, onSaved }) {
           background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl, overflow: 'hidden',
         }}
       >
-        <div style={{
+        <div className="v2-mhead" style={{
           background: color.navy, color: color.white,
           padding: `${space[2.5]}px ${space[4]}px`,
           fontSize: font.size.sm, fontWeight: font.weight.bold,
@@ -731,7 +731,7 @@ function MeetingDocumentDialog({ meeting, canUpload, onClose, onSaved }) {
           boxShadow: shadow.xl, overflow: 'hidden',
         }}
       >
-        <div style={{
+        <div className="v2-mhead" style={{
           background: color.navy, color: color.white,
           padding: `${space[2.5]}px ${space[4]}px`,
           fontSize: font.size.sm, fontWeight: font.weight.bold,

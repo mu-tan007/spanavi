@@ -21,7 +21,7 @@ export default function RewardDetailModal({ rewardId, rewardMap, onClose }) {
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ padding: '12px 24px', background: NAVY, color: '#fff', fontWeight: 600, fontSize: 15 }}>
+        <div className="v2-mhead" style={{ padding: '12px 24px', background: NAVY, color: '#fff', fontWeight: 600, fontSize: 15 }}>
           報酬体系 {rewardId}: {rm.name}
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', marginTop: 2, fontWeight: 400 }}>
             {rm.timing} ・ {rm.basis} ・ {rm.tax}

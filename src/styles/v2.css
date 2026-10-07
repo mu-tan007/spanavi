@@ -90,3 +90,6 @@
 /* 小窓の見出し（旧い紺の帯の置き換え・1行の題名用）。題名の下に金の短い線 */
 .v2-mhead { background: #fff !important; color: #032D60 !important; border-bottom: 1px solid #E3E6EB; border-radius: 14px 14px 0 0 !important; padding: 16px 22px 18px !important; font-size: 17px !important; font-weight: 700 !important; background-image: linear-gradient(90deg, #C8A45A, #E5CB8F) !important; background-size: 24px 3px !important; background-repeat: no-repeat !important; background-position: 22px calc(100% - 9px) !important; }
 .v2-mhead button { color: #4B5868 !important; }
+.v2-mhead * { color: #032D60 !important; }
+.v2-mhead div + div, .v2-mhead span + div { color: #4B5868 !important; font-weight: 400 !important; font-size: 12px !important; }
+.v2-mhead button { background: transparent !important; color: #4B5868 !important; border-color: #D5DAE1 !important; }

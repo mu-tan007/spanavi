@@ -7,6 +7,7 @@ import { AccessControlProvider } from './hooks/useAccessControl'
 import ErrorBoundary from './components/ErrorBoundary'
 import { handleChunkLoadError } from './utils/chunkReload'
 import './index.css'
+import './styles/v2.css'
 import { stashPrecheckLink } from './utils/precheckLink'
 
 // 通知のリンク（?precheck=）はログインや画面の移動で消えるので、描画より前に控える

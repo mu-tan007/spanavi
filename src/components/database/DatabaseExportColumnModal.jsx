@@ -49,7 +49,7 @@ export default function DatabaseExportColumnModal({ columns, totalCount, onCance
         }}
       >
         {/* Header */}
-        <div style={{
+        <div className="v2-mhead" style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: `${space[4]}px ${space[5]}px`,
           borderBottom: `1px solid ${color.border}`,

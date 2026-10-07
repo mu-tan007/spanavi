@@ -682,7 +682,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
                   padding: '8px 18px', fontSize: font.size.sm, fontWeight: font.weight.semibold,
                   background: 'transparent', border: 'none',
                   color: active ? NAVY : color.textLight,
-                  borderBottom: `2px solid ${active ? NAVY : 'transparent'}`,
+                  borderBottom: `3px solid ${active ? '#C8A45A' : 'transparent'}`, // 2026-10-08 選択中の下線は金（新しい見た目）
                   cursor: 'pointer', fontFamily: font.family.sans,
                   marginBottom: -1,
                 }}
