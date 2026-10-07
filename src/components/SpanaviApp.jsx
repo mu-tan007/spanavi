@@ -80,7 +80,7 @@ import LibraryView from './views/LibraryView';
 import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
 import ManagerAdminView from './views/ManagerAdminView';
-import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Users, Bot, Bell, Sparkles } from 'lucide-react';
+import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Users, Bot, Bell, Sparkles, Building2, LayoutDashboard } from 'lucide-react';
 import { useBranding } from '../hooks/useBranding';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { supabase } from '../lib/supabase';
@@ -764,31 +764,32 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // Sourcing サイドバーのナビ定義。canViewPage('seller_sourcing', ...) でフィルタ。
   // 単独項目 (children=null) は本体 id を、グループは children の各 id を権限判定する。
   // children が 0 になったグループは表示しない。
+  // 2026-10-07 組み換え：仕事の流れ順（かける→アポ・クライアント→企業→チーム→学ぶ）。ダッシュボードは単独で一番上
   const _rawNavGroups = [
+    { id: "dashboard", label: "ダッシュボード", children: null },
     { id: "g_call", label: "Call", children: [
-      { id: "dashboard", label: "ダッシュボード" },
       { id: "lists", label: "架電リスト" },
-      { id: "scripts", label: "スクリプト" },
-      { id: "search", label: "企業検索" },
       { id: "recall", label: "再架電" },
+      { id: "search", label: "企業検索" },
       { id: "incoming", label: "着信対応" },
+      { id: "scripts", label: "スクリプト" },
     ]},
     { id: "g_sfa", label: "SFA", children: [
-      // 企業DB は管理者のみ（canViewPage が非admin を自動で弾く）
-      { id: "database", label: "企業DB" },
       { id: "appo", label: "アポ一覧" },
       { id: "deals", label: "案件" },
-    ]},
-    { id: "g_crm", label: "CRM", children: [
       { id: "crm", label: "顧客管理" },
+    ]},
+    { id: "g_company", label: "Company", children: [
+      // 企業DB は管理者のみ（canViewPage が非admin を自動で弾く）
+      { id: "database", label: "企業DB" },
     ]},
     { id: "g_member", label: "Member", children: [
       { id: "members", label: "メンバー" },
       { id: "shift", label: "シフト" },
       { id: "payroll", label: "報酬" },
+      { id: "stats", label: "アナリティクス" },
     ]},
     { id: "g_enablement", label: "Enablement", children: [
-      { id: "stats", label: "アナリティクス" },
       { id: "library", label: "ライブラリー" },
       // ロープレはライブラリーの1冊に統合（2026-10-07）。下は M&Aニュース
       { id: "ma_news", label: "M&Aニュース" },
@@ -1013,7 +1014,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* Navigation */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
           {navGroups.map(group => {
-            const _sbIconMap = { g_call: Phone, g_sfa: Calendar, g_crm: User, g_member: Users, g_enablement: GraduationCap, mypage: User, ai: Bot };
+            const _sbIconMap = { dashboard: LayoutDashboard, g_call: Phone, g_sfa: Calendar, g_company: Building2, g_member: Users, g_enablement: GraduationCap, mypage: User, ai: Bot };
             const SbIconComp = _sbIconMap[group.id];
             if (!group.children) {
               const _sbActive = currentTab === group.id;
