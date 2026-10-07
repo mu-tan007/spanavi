@@ -94,7 +94,8 @@ Deno.serve(async (req) => {
       const address = s(body.address, 200)
       const bank = {
         bank_name: s(body.bank_name, 60), branch_name: s(body.branch_name, 60),
-        account_type: ['ordinary', 'checking', 'savings'].includes(body.account_type) ? body.account_type : 'ordinary',
+        // member_invoice_profiles は「普通」「当座」だけ受ける（check 制約）
+        account_type: body.account_type === 'checking' || body.account_type === '当座' ? '当座' : '普通',
         account_number: s(body.account_number, 10), account_holder: s(body.account_holder, 60),
       }
       const missing = [!last && '姓', !first && '名', !email && 'メールアドレス', !address && '住所', !bank.bank_name && '銀行名', !bank.branch_name && '支店名', !bank.account_number && '口座番号', !bank.account_holder && '口座名義'].filter(Boolean)
@@ -127,17 +128,45 @@ Deno.serve(async (req) => {
         await admin.from('onboarding_invites').update({ status: 'sent' }).eq('id', inv.id)
         return json(400, { error: `登録できませんでした：${memErr.message}` })
       }
-      await admin.from('member_invoice_profiles').upsert({
+      const rollback = async () => {
+        await admin.from('member_page_permissions').delete().eq('member_id', mem.id)
+        await admin.from('member_engagements').delete().eq('member_id', mem.id)
+        await admin.from('member_invoice_profiles').delete().eq('member_id', mem.id)
+        await admin.from('members').delete().eq('id', mem.id)
+        await admin.from('onboarding_invites').update({ status: 'sent' }).eq('id', inv.id)
+      }
+      const { error: ipErr } = await admin.from('member_invoice_profiles').upsert({
         member_id: mem.id, org_id: inv.org_id, address,
         bank_name: bank.bank_name, branch_name: bank.branch_name, account_type: bank.account_type,
         account_number: bank.account_number, account_holder_kana: bank.account_holder,
       }, { onConflict: 'member_id' })
+      if (ipErr) { await rollback(); return json(400, { error: `口座を保存できませんでした：${ipErr.message}` }) }
+
+      // 営業代行に所属させ、ランクはトレーニー。見られるページは直近に入った人と同じにする
+      const { data: eng } = await admin.from('engagements').select('id').eq('org_id', inv.org_id).eq('slug', 'seller_sourcing').maybeSingle()
+      if (eng) {
+        const { data: rk } = await admin.from('engagement_ranks').select('id').eq('engagement_id', eng.id).eq('name', 'トレーニー').maybeSingle()
+        const { error: meErr } = await admin.from('member_engagements').insert({ org_id: inv.org_id, member_id: mem.id, engagement_id: eng.id, rank_id: rk?.id || null })
+        if (meErr) { await rollback(); return json(400, { error: `所属を登録できませんでした：${meErr.message}` }) }
+      }
+      const { data: model } = await admin.from('member_page_permissions')
+        .select('member_id, members!inner(start_date, is_active, rank, position)')
+        .eq('org_id', inv.org_id).eq('engagement_slug', 'seller_sourcing')
+        .eq('members.is_active', true).eq('members.rank', 'トレーニー').is('members.position', null)
+        .order('start_date', { referencedTable: 'members', ascending: false }).limit(1)
+      const modelId = model?.[0]?.member_id
+      if (modelId) {
+        const { data: keys } = await admin.from('member_page_permissions').select('engagement_slug, page_key').eq('member_id', modelId)
+        if (keys?.length) {
+          // 所属を作ると既定のページが自動で付く（DBのトリガ）。足りない分だけ足す
+          const { error: ppErr } = await admin.from('member_page_permissions').upsert(keys.map(k => ({ org_id: inv.org_id, member_id: mem.id, engagement_slug: k.engagement_slug, page_key: k.page_key })), { onConflict: 'member_id,engagement_slug,page_key', ignoreDuplicates: true })
+          if (ppErr) { await rollback(); return json(400, { error: `見られるページを登録できませんでした：${ppErr.message}` }) }
+        }
+      }
 
       const { error: invErr } = await admin.auth.admin.inviteUserByEmail(email, { data: { name } })
       if (invErr) {
-        await admin.from('member_invoice_profiles').delete().eq('member_id', mem.id)
-        await admin.from('members').delete().eq('id', mem.id)
-        await admin.from('onboarding_invites').update({ status: 'sent' }).eq('id', inv.id)
+        await rollback()
         return json(400, { error: `メールを送れませんでした。アドレスを確かめてください（${invErr.message}）` })
       }
       await admin.from('onboarding_invites').update({

@@ -105,7 +105,6 @@ export default function JoinPage() {
                   <select value={f.account_type} onChange={set('account_type')}>
                     <option value="ordinary">普通</option>
                     <option value="checking">当座</option>
-                    <option value="savings">貯蓄</option>
                   </select>
                 </div>
                 {Field({ k: 'account_number', label: '口座番号', ph: '1234567', inputMode: 'numeric', maxLength: 7, bad: numBad && '7桁の数字で入れてください' })}
