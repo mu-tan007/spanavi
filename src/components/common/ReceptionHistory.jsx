@@ -34,9 +34,9 @@ export default function ReceptionHistory({ itemId }) {
   const d = s => { const t = new Date(s); return `${t.getMonth() + 1}/${t.getDate()}`; };
 
   return (
-    <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg, padding: '10px 12px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: font.size.sm, fontWeight: font.weight.bold, color: color.navy }}>この会社の受付</span>
+    <div style={{ background: color.white, border: '1px solid #E3E6EB', borderRadius: 10, padding: '12px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 11, letterSpacing: '.14em', fontWeight: 600, color: '#4B5868' }}>この会社の受付</span>
         <span style={{ fontSize: 10, color: color.textLight }}>{rows.length}回の記録{lists.size > 1 ? `（${lists.size}つのリストから）` : ''}</span>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6, fontSize: 11 }}>

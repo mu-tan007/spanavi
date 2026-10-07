@@ -44,6 +44,7 @@ export default function Card({
 
   return (
     <div
+      data-ui="card"
       onClick={onClick}
       style={{
         background: v.bg,
@@ -81,7 +82,7 @@ export default function Card({
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             {title && (
-              <div style={{
+              <div data-ui="card-title" style={{
                 fontSize: font.size.md,
                 fontWeight: font.weight.semibold,
                 color: color.textDark,

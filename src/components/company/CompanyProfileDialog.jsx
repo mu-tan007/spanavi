@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Building2, History, Files, Pencil } from 'lucide-react';
+import { Building2, Pencil } from 'lucide-react';
 import { Button, Input, Select, Card, Badge, DataTable } from '../ui';
-import { color, space, font, radius, shadow, alpha } from '../../constants/design';
+import { color, space, font, radius } from '../../constants/design';
 import { COMPANY_CRM_STAGES, COMPANY_REGISTRY_STATUSES } from '../../utils/companyProfileIdentity';
 import { fetchCompanyProfile, saveCompanyProfile, resolveCompanyReview, mergeCompanyReview } from '../../lib/companyProfileApi';
 import CompanyImportedFields from './CompanyImportedFields';
 import CompanyDirectoryValues from './CompanyDirectoryValues';
 import { callMemoText } from '../../utils/callMemoText';
 import './DirectoryInsights.css';
+import { V2Drawer, V2Head, V2Tabs } from '../common/V2';
 
 // 対応履歴の結果ごとの色（再コールは黄土・除外は赤・社長と話せたら青・アポは金）
 const resClass = (st = '') => st === 'アポ獲得' ? 'ap' : st.includes('再コール') ? 'rc' : st.includes('除外') || st.includes('断り') ? 'ex' : st.includes('キーマン') ? 'km' : '';
@@ -87,10 +88,8 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
   const input = (field, props = {}) => <Input key={field} label={fieldLabels[field]} aria-label={fieldLabels[field]}
     value={form[field] || ''} onChange={e => change(field, e.target.value)} {...props} />;
   return (
-    <div onClick={() => { if (!saving && !editing) onClose(); }} style={{ position: 'fixed', inset: 0, zIndex: 20000, background: alpha(color.navyDeep, 0.25), display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="企業カルテ" tabIndex={-1} className="cp-drawer"
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => {
+    <V2Drawer width={880} zIndex={20000} ariaLabel="企業カルテ" dialogRef={dialogRef} closeDisabled={saving || editing} onClose={onClose}
+      onKeyDown={e => {
           // Keep shortcuts in the underlying call screen from receiving keystrokes.
           e.stopPropagation();
           if (e.key === 'Escape' && !saving && !editing) onClose();
@@ -100,24 +99,15 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
             if (e.shiftKey && (document.activeElement === first || document.activeElement === e.currentTarget)) { e.preventDefault(); last?.focus(); }
             else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
           }
-        }}
-        style={{ width: '100%', maxWidth: 880, height: '100vh', background: color.offWhite, boxShadow: '-12px 0 40px rgba(1,18,38,0.18)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: space[4], background: color.navy, color: color.white, display: 'flex', alignItems: 'center', gap: space[3] }}>
-          <Building2 size={24} /><div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: font.size.xs, marginBottom: space[1] }}>企業カルテ</div>
-            <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, overflowWrap: 'anywhere' }}>{profile?.company_name || '読み込み中…'}</div>
-          </div>
-          <Button variant="ghost" size="sm" aria-label="企業カルテを閉じる" disabled={saving} onClick={onClose} style={{ color: color.white }}><X size={20} /></Button>
-        </div>
-        {profile && <div style={{ display: 'flex', gap: space[2], flexWrap: 'wrap', padding: `${space[3]}px ${space[4]}px`, background: color.white, borderBottom: `1px solid ${color.border}` }}>
-          {[['overview', '基本情報・対応', Building2], ['history', `対応履歴（${data.history_count}）`, History], ['sources', '出典・名寄せ', Files]].map(([key, label, Icon]) => (
-            <Button key={key} variant={tab === key ? 'primary' : 'ghost'} size="sm" iconLeft={<Icon size={16} />} onClick={() => setTab(key)}>{label}</Button>
-          ))}
-          <span style={{ marginLeft: 'auto', alignSelf: 'center', color: color.textMid, fontSize: font.size.sm }}>
-            {profile.list_count}リストに登録
-          </span>
-        </div>}
-        <div style={{ flex: 1, overflow: 'auto', padding: space[4] }}>
+        }}>
+        <V2Head eyebrow="企業カルテ" icon={<Building2 size={20} />} title={profile?.company_name || '読み込み中…'}
+          sub={profile ? `${profile.list_count}リストに登録` : null} onClose={onClose} closeDisabled={saving} />
+        {profile && <V2Tabs value={tab} onChange={setTab} tabs={[
+          { key: 'overview', label: '基本情報・対応' },
+          { key: 'history', label: '対応履歴', count: data.history_count },
+          { key: 'sources', label: '出典・名寄せ' },
+        ]} />}
+        <div className="v2-body">
           {error && <Card style={{ marginBottom: space[3], background: color.dangerSoft }}><div role="alert" style={{ color: color.danger }}>{error}</div>
             <Button variant="outline" size="sm" onClick={() => setAttempt(n => n + 1)}>再読み込み</Button></Card>}
           {loading && <div role="status">企業情報を読み込んでいます…</div>}
@@ -231,7 +221,6 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
             </Card>)}
           </>}
         </div>
-      </div>
-    </div>
+    </V2Drawer>
   );
 }

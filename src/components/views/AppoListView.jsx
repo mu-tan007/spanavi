@@ -1,4 +1,5 @@
 import { briefModel, buildNewReportText } from '../../utils/appoBrief';
+import '../../styles/v2.css';
 import { renderBriefPdf } from './appoBrief/briefPdf';
 import { fetchDossierByAppointment } from '../../lib/dossierApi';
 import { fetchReportTemplates } from '../../lib/supabaseWrite';
@@ -340,9 +341,9 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   const iStyle = { width: '100%', padding: '6px 10px', borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: 'none', background: color.white, boxSizing: 'border-box' };
 
   return (
-    <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: radius.md, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+    <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: '#fff', border: '1px solid #E3E6EB' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: '#92400E' }}>{channelIcon} {channelLabel}で送信</div>
+        <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: '#4B5868' }}>{channelIcon} {channelLabel}で送信</div>
         <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 3, background: es.bg, color: es.color, fontWeight: font.weight.semibold }}>{es.label}</span>
       </div>
 
@@ -366,7 +367,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
           {/* メール送信の場合のみ: 宛先・CC・件名 */}
           {!isChat && (<>
             <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>宛先</label>
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>宛先</label>
               {emailOptions.length > 0 ? (
                 <select value={emailTo} onChange={e => {
                   const newEmail = e.target.value;
@@ -385,7 +386,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
               )}
             </div>
             <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>CC（複数選択可）</label>
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>CC（複数選択可）</label>
               {ccOptions.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
                   {ccOptions.map((opt, i) => {
@@ -412,7 +413,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
               <input value={emailCcExtra} onChange={e => setEmailCcExtra(e.target.value)} placeholder="他のCCをカンマ区切りで追加（任意）" style={iStyle} />
             </div>
             <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>件名</label>
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>件名</label>
               <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} style={iStyle} />
             </div>
           </>)}
@@ -430,14 +431,14 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
           )}
 
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>本文</label>
+            <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>本文</label>
             <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={18}
               style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
           {/* 添付ファイル */}
           {!isChat && (
             <div style={{ marginBottom: 8 }}>
-              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#92400E', display: 'block', marginBottom: 2 }}>添付ファイル</label>
+              <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>添付ファイル</label>
               <input ref={fileInputRef} type="file" multiple onChange={handleFilePick} style={{ display: 'none' }} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                 <button type="button" onClick={() => fileInputRef.current?.click()}
@@ -448,7 +449,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
                 {briefState === 'error' && <span style={{ fontSize: 9, color: color.danger }}>面談前の1枚資料を作れませんでした（本文だけで送れます）</span>}
                 {briefState === 'attached' && briefUrl && <a href={briefUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: color.navy }}>1枚資料を確認</a>}
                 {attachedFiles.map((f, i) => (
-                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', borderRadius: radius.md, padding: '2px 8px', fontSize: 9, color: '#92400E' }}>
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', borderRadius: radius.md, padding: '2px 8px', fontSize: 9, color: '#4B5868' }}>
                     {f.name}（{fmtMB(f.size)}）
                     <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: font.size.xs, color: '#999', padding: 0, lineHeight: 1 }}>&times;</button>
@@ -2902,17 +2903,17 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           display: "flex", alignItems: "stretch", justifyContent: "flex-end",
           zIndex: 200, animation: "fadeIn 0.2s ease",
         }}>
-          <div className="ao-drawer" onClick={e => e.stopPropagation()} style={{
-            background: color.white, width: 560, maxWidth: '100vw', height: '100vh', overflow: "auto",
-            boxShadow: "-12px 0 40px rgba(1,18,38,0.18)",
+          <div className="ao-drawer v2" onClick={e => e.stopPropagation()} style={{
+            background: '#F3F2F2', width: 560, maxWidth: '100vw', height: '100vh', overflow: "auto",
+            boxShadow: "-16px 0 48px rgba(1,18,38,0.2)",
           }}>
-            <div style={{
-              background: color.navy, position: 'sticky', top: 0, zIndex: 2,
-              padding: "12px 24px",
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-            }}>
-              <span style={{ fontSize: 15, fontWeight: font.weight.semibold, color: color.white }}>アポイント詳細</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* 2026-10-08 新しい見た目の見出し（紺の帯をやめる） */}
+            <div className="v2-head sticky">
+              <div className="v2-tt">
+                <div className="v2-eyebrow">アポイント詳細</div>
+                <h2>{reportDetail.company || '—'}</h2>
+              </div>
+              <div className="v2-right">
                 {!detailEditing && setCallFlowScreen && (
                   <button disabled={detailNavigating} onClick={async () => {
                     setDetailNavigating(true);
@@ -2928,7 +2929,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       alert('遷移に失敗しました');
                     } finally { setDetailNavigating(false); }
                   }}
-                    style={{ padding: "4px 12px", borderRadius: radius.md, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: color.white, cursor: detailNavigating ? "default" : "pointer", opacity: detailNavigating ? 0.6 : 1, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'" }}>
+                    className="v2-hbtn">
                     {detailNavigating ? '検索中...' : '架電ページへ'}
                   </button>
                 )}
@@ -2949,13 +2950,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       } catch (e) { console.warn('[detail edit] keyman_mobile load error:', e); }
                     }
                   }}
-                    style={{ padding: "4px 12px", borderRadius: radius.md, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: color.white, cursor: "pointer", fontSize: font.size.xs, fontFamily: "'Noto Sans JP'" }}>
+                    className="v2-hbtn">
                     編集
                   </button>
                 ) : (
                   <>
                     <button onClick={() => { setDetailEditing(false); setDetailEditForm(null); }}
-                      style={{ padding: "4px 12px", borderRadius: radius.md, border: "1px solid rgba(255,255,255,0.4)", background: "transparent", color: 'rgba(255,255,255,0.8)', cursor: "pointer", fontSize: font.size.xs, fontFamily: "'Noto Sans JP'" }}>
+                      className="v2-hbtn">
                       キャンセル
                     </button>
                     <button disabled={detailSaving} onClick={async () => {
@@ -2998,12 +2999,12 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       else if (onDataRefetch) onDataRefetch();
                       setReportDetail(updated);
                       setDetailEditing(false); setDetailEditForm(null);
-                    }} style={{ padding: "4px 14px", borderRadius: radius.md, border: "none", background: detailSaving ? color.border : '#1E40AF', color: color.white, cursor: detailSaving ? "default" : "pointer", fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: "'Noto Sans JP'" }}>
+                    }} className="v2-hbtn pri">
                       {detailSaving ? '保存中…' : '保存'}
                     </button>
                   </>
                 )}
-                <button onClick={() => setReportDetail(null)} style={{ width: 28, height: 28, borderRadius: radius.md, background: 'rgba(255,255,255,0.15)', border: "none", color: color.white, cursor: "pointer", fontSize: 14 }}>✕</button>
+                <button type="button" className="v2-x" aria-label="閉じる" onClick={() => setReportDetail(null)}>×</button>
               </div>
             </div>
             <div style={{ padding: 20 }}>
@@ -3028,65 +3029,65 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   <>
                     {adminEdit
                       ? <input value={ef.company} onChange={e => u("company", e.target.value)} style={{ ...iS, fontSize: 16, fontWeight: font.weight.bold, marginBottom: 12, padding: "6px 10px" }} />
-                      : <div style={{ fontSize: 18, fontWeight: font.weight.black, color: color.navy, marginBottom: 12 }}>{reportDetail.company}</div>
+                      : null /* 会社名は見出しに出す */
                     }
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
                       {/* クライアント */}
-                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
-                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>クライアント</div>
+                      <div className="v2-tile">
+                        <div className="v2-tile-l">クライアント</div>
                         {adminEdit
                           ? <select value={ef.client} onChange={e => { const name = e.target.value; const cl = findClientByName(clientOptions, name); const rr = cl?.rewardType ? rewardMaster.find(r => r.id === cl.rewardType) : null; u("client", name); if (name && rr) u("sales", initialSalesForReward(rr)); }} style={iS}>
                               <option value="">選択...</option>
                               {clientOptions.map(c => <option key={c._supaId || c.company} value={c.company}>{c.company}{c.status === "停止中" ? "（停止中）" : ""}</option>)}
                             </select>
-                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.client}</div>}
+                          : <div className="v2-tile-v">{reportDetail.client}</div>}
                       </div>
                       {/* 取得者 */}
-                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
-                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>取得者</div>
+                      <div className="v2-tile">
+                        <div className="v2-tile-l">取得者</div>
                         {adminEdit
                           ? <MemberSuggestInput value={ef.getter} onChange={v => u("getter", v)} members={members} style={iS} />
-                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.getter}</div>}
+                          : <div className="v2-tile-v">{reportDetail.getter}</div>}
                       </div>
                       {/* 取得日 */}
-                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
-                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>取得日</div>
+                      <div className="v2-tile">
+                        <div className="v2-tile-l">取得日</div>
                         {adminEdit
                           ? <input type="date" value={ef.getDate} onChange={e => u("getDate", e.target.value)} style={iS} />
-                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.getDate}</div>}
+                          : <div className="v2-tile-v">{reportDetail.getDate}</div>}
                       </div>
                       {/* 面談日 */}
-                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
-                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>面談日</div>
+                      <div className="v2-tile">
+                        <div className="v2-tile-l">面談日</div>
                         {adminEdit
                           ? <input type="date" value={ef.meetDate} onChange={e => u("meetDate", e.target.value)} style={iS} />
-                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.meetDate}</div>}
+                          : <div className="v2-tile-v">{reportDetail.meetDate}</div>}
                       </div>
                       {/* ステータス */}
-                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
-                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>ステータス</div>
+                      <div className="v2-tile">
+                        <div className="v2-tile-l">ステータス</div>
                         {detailEditing
                           ? <select value={ef.status} onChange={e => u("status", e.target.value)} style={iS}>
                               <option value="面談済">面談済</option><option value="事前確認済">事前確認済</option><option value="アポ取得">アポ取得</option><option value="リスケ中">リスケ中</option><option value="キャンセル">キャンセル</option>
                             </select>
-                          : <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>{reportDetail.status}</div>}
+                          : <div className="v2-tile-v">{reportDetail.status}</div>}
                       </div>
                       {/* 月（読み取り専用） */}
-                      <div style={{ padding: "8px 12px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
-                        <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 2 }}>月</div>
-                        <div style={{ fontSize: font.size.sm, fontWeight: font.weight.semibold, color: color.navy }}>
+                      <div className="v2-tile">
+                        <div className="v2-tile-l">月</div>
+                        <div className="v2-tile-v">
                           {(detailEditing ? ef.meetDate : reportDetail.meetDate) ? (parseInt((detailEditing ? ef.meetDate : reportDetail.meetDate).slice(5, 7), 10) + "月") : null}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-                      <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                      <div style={{ padding: "10px 14px", borderRadius: 10, background: '#fff', border: '1px solid #E3E6EB' }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>当社売上</div>
                         {adminEdit
                           ? <input type="number" value={ef.sales} onChange={e => u("sales", Number(e.target.value))} style={iS} />
                           : <div style={{ fontSize: 20, fontWeight: font.weight.black, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{reportDetail.sales > 0 ? "¥" + reportDetail.sales.toLocaleString() : "-"}</div>}
                       </div>
-                      <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}` }}>
+                      <div style={{ padding: "10px 14px", borderRadius: 10, background: '#fff', border: '1px solid #E3E6EB' }}>
                         <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>インターン報酬</div>
                         {adminEdit
                           ? <input type="number" value={ef.reward} onChange={e => u("reward", Number(e.target.value))} style={iS} />
@@ -3111,7 +3112,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 );
               })()}
               {/* ── 備考 ── */}
-              <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}`, marginBottom: 12 }}>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: '#fff', border: '1px solid #E3E6EB', marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>備考</div>
                 {detailEditing ? (
                   <textarea
@@ -3129,7 +3130,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 )}
               </div>
               {/* ── アポ取得報告 ── */}
-              <div style={{ padding: "10px 14px", borderRadius: radius.md, background: '#F8F9FA', border: `1px solid ${color.border}`, borderLeft: `3px solid ${color.navy}`, marginBottom: 8 }}>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: '#fff', border: '1px solid #E3E6EB', borderLeft: `3px solid ${color.navy}`, marginBottom: 8 }}>
                 <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6 }}>アポ取得報告</div>
                 {detailEditing ? (
                   <textarea
@@ -3211,7 +3212,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 const recUrl = reportDetail.recordingUrl || m?.[1]?.trim() || '';
                 return (
                   <div style={{ marginTop: 8 }}>
-                    <div style={{ padding: '5px 8px', borderRadius: radius.md, background: '#F8F9FA',
+                    <div style={{ padding: '5px 8px', borderRadius: 10, background: '#F7F9FC',
                       display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 10, fontWeight: font.weight.semibold, color: color.navy, whiteSpace: 'nowrap' }}>録音</span>
                       {recUrl
