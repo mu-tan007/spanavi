@@ -14,7 +14,8 @@ import InlineAudioPlayer from '../common/InlineAudioPlayer';
 import PageHeader from '../common/PageHeader';
 import DailyReportPanel from './library/DailyReportPanel';
 import MeetingStreamPlayer from './library/MeetingStreamPlayer';
-import { MeetingWatchOverview, MeetingWatchPanel, useMeetingWatchData } from './library/MeetingWatchStats';
+import { MeetingWatchPanel, MeetingWatchGrid, meetingWatchSummary, useMeetingWatchData } from './library/MeetingWatchStats';
+import './library/LibraryInner.css';
 import {
   fetchRecordingBookmarks, deleteRecordingBookmark,
   fetchWeeklyMeetingVideos, uploadWeeklyMeetingVideo, deleteWeeklyMeetingVideo, updateWeeklyMeetingVideo,
@@ -238,6 +239,29 @@ export default function LibraryView({
     setOrder(arrayMove(order, oldIdx, newIdx));
   };
 
+  // 週次ミーティング（2026-10-07 見本どおり）：選んだ回を大きく、右に回の一覧、管理は ⋯ に
+  const [selMeetingId, setSelMeetingId] = useState(null);
+  const [showUploader, setShowUploader] = useState(false);
+  const [mgmtOpen, setMgmtOpen] = useState(false);
+  const renderMeetingPlayer = (m) => {
+    const isLocked = lockedIds.has(m.id) || playbackErrors[m.id] === 'forbidden';
+    const streamId = m.access_restricted ? playbackIds[m.id] : m.stream_uid;
+    const box = (children) => <div className="li-video li-video-msg">{children}</div>;
+    if (isLocked) return <div style={{ padding: 16 }}><MeetingLockedNotice /></div>;
+    if (m.stream_uid && CF_STREAM_SUBDOMAIN) {
+      if (!m.stream_ready) return box(<><b>処理中…</b><span>Cloudflare Stream でストリーミング変換中です（通常 1〜2分で完了）</span></>);
+      if (!streamId) return box(<b>{playbackErrors[m.id] === 'error' ? '再生の準備に失敗しました。もう一度お試しください' : '読み込み中…'}</b>);
+      return (
+        <div className="li-video" style={{ position: 'relative' }}>
+          <MeetingStreamPlayer videoId={m.id} title={m.title}
+            src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${streamId}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${streamId}%2Fthumbnails%2Fthumbnail.jpg`} />
+        </div>
+      );
+    }
+    if (m.drive_file_id) return <div className="li-video"><iframe src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`} title={m.title} allow="autoplay; fullscreen" allowFullScreen style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} /></div>;
+    return <div className="li-video"><video src={m.public_url} controls style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#000' }} /></div>;
+  };
+
   const counts = useMemo(() => ({
     bookmarks: bookmarks.length,
     meetings: weeklyMeetings.length,
@@ -352,226 +376,119 @@ export default function LibraryView({
               })
             )}
 
-            {activeCardId === 'meetings' && (
-              <>
-                {isAdmin && <MeetingUploader currentUser={currentUser} onUploaded={refreshMeetings} />}
-                {!wmLoading && weeklyMeetings.length > 0 && <MeetingWatchOverview meetings={weeklyMeetings} data={watchData} />}
-                {wmLoading ? <Empty>読み込み中…</Empty>
-                  : weeklyMeetings.length === 0 ? <Empty>動画はまだアップロードされていません。</Empty>
-                  : weeklyMeetings.map((m, idx) => {
-                    const isPlaying = meetingPlayingId === m.id;
-                    const isEditing = editingMeetingId === m.id;
-                    const isDocOpen = docViewingId === m.id && !!m.document_url;
-                    const isWatchOpen = watchPanelId === m.id;
-                    const isLocked = lockedIds.has(m.id) || playbackErrors[m.id] === 'forbidden';
-                    const streamId = m.access_restricted ? playbackIds[m.id] : m.stream_uid;
-                    return (
-                      <div key={m.id} style={{
-                        borderTop: idx === 0 && !isAdmin ? 'none' : `1px solid ${color.borderLight}`,
-                        padding: `${space[3]}px 0`,
-                      }}>
-                        {/* スマホ幅ではボタン群がタイトルの下に回り込む */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: space[3], flexWrap: 'wrap', rowGap: space[2] }}>
-                          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+            {activeCardId === 'meetings' && (() => {
+              if (wmLoading) return <Empty>読み込み中…</Empty>;
+              const sel = weeklyMeetings.find(m => m.id === selMeetingId) || weeklyMeetings[0];
+              const isEditing = sel && editingMeetingId === sel.id;
+              const isPlaying = sel && meetingPlayingId === sel.id;
+              const isDocOpen = sel && docViewingId === sel.id && !!sel.document_url;
+              const isWatchOpen = sel && watchPanelId === sel.id;
+              const sum = sel ? meetingWatchSummary(sel, watchData) : null;
+              const mins = (v) => (v?.duration_sec ? `${Math.round(v.duration_sec / 60)}分` : '');
+              const thumb = (v) => (v?.stream_thumbnail ? { backgroundImage: `linear-gradient(0deg, rgba(2,27,64,.3), rgba(2,27,64,.3)), url(${v.stream_thumbnail})` } : undefined);
+              return (
+                <>
+                  {isAdmin && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                      <Button size="sm" variant={showUploader ? 'primary' : 'outline'} onClick={() => setShowUploader(v => !v)}>{showUploader ? '閉じる' : '＋ 回を上げる'}</Button>
+                    </div>
+                  )}
+                  {isAdmin && showUploader && <MeetingUploader currentUser={currentUser} onUploaded={() => { setShowUploader(false); refreshMeetings(); }} />}
+                  {!sel ? <Empty>動画はまだアップロードされていません。</Empty> : (
+                    <div className="li-stage">
+                      <div className="lb-card li-player">
+                        {isPlaying ? renderMeetingPlayer(sel) : (
+                          <div className="li-video li-poster" style={thumb(sel)} onClick={() => handlePlayMeeting(sel)} role="button" tabIndex={0}>
+                            <span className="li-play" />
+                            {mins(sel) && <span className="li-dur">{mins(sel)}</span>}
+                          </div>
+                        )}
+                        <div className="li-ph">
+                          <div style={{ minWidth: 0, flex: 1 }}>
                             {isEditing ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: space[1.5] }}>
-                                <Input
-                                  size="sm"
-                                  value={editTitle}
-                                  onChange={e => setEditTitle(e.target.value)}
-                                  placeholder="タイトル"
-                                  style={{ fontWeight: font.weight.bold, color: color.navy }}
-                                />
-                                <Input
-                                  size="sm"
-                                  type="date"
-                                  value={editDate}
-                                  onChange={e => setEditDate(e.target.value)}
-                                  containerStyle={{ width: 160 }}
-                                />
-                                <EditDocumentField
-                                  meeting={m}
-                                  file={editDocFile}
-                                  removed={editDocRemoved}
-                                  disabled={editSaving}
-                                  onPick={pickEditDoc}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <Input size="sm" value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="タイトル" />
+                                <Input size="sm" type="date" value={editDate} onChange={e => setEditDate(e.target.value)} containerStyle={{ width: 160 }} />
+                                <EditDocumentField meeting={sel} file={editDocFile} removed={editDocRemoved} disabled={editSaving} onPick={pickEditDoc}
                                   onUndo={() => { setEditDocFile(null); setEditDocRemoved(false); setEditDocError(''); }}
-                                  onRemove={() => { setEditDocFile(null); setEditDocRemoved(true); setEditDocError(''); }}
-                                />
-                                {editDocError && (
-                                  <div style={{ fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.semibold }}>
-                                    {editDocError}
-                                  </div>
-                                )}
+                                  onRemove={() => { setEditDocFile(null); setEditDocRemoved(true); setEditDocError(''); }} />
+                                {editDocError && <div style={{ fontSize: font.size.xs, color: color.danger }}>{editDocError}</div>}
+                                <div style={{ display: 'flex', gap: 6 }}><Button size="sm" onClick={saveEdit} loading={editSaving}>保存</Button><Button size="sm" variant="outline" onClick={cancelEdit} disabled={editSaving}>キャンセル</Button></div>
                               </div>
                             ) : (
                               <>
-                                <div style={{
-                                  fontWeight: font.weight.bold, color: color.navy,
-                                  fontSize: font.size.base,
-                                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                }}>{m.title}</div>
-                                <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
-                                  {m.meeting_date || m.created_at?.slice(0, 10) || ''}
-                                  {m.uploaded_by_name ? ` ・ ${m.uploaded_by_name}` : ''}
-                                  {m.size_bytes ? ` ・ ${Math.round(m.size_bytes / 1024 / 1024)}MB` : ''}
-                                  {m.document_url ? ' ・ 資料あり' : ''}
-                                  {m.access_restricted ? ' ・ 出席者のみ' : ''}
-                                </div>
+                                <span className="lb-lbl">{[sel.meeting_date ? md(sel.meeting_date) : '', mins(sel), sel.uploaded_by_name].filter(Boolean).join(' ・ ')}</span>
+                                <h2 className="li-title">{sel.title}</h2>
                               </>
                             )}
                           </div>
-                          {isEditing ? (
-                            <>
-                              <Button size="sm" onClick={saveEdit} loading={editSaving}>保存</Button>
-                              <Button size="sm" variant="outline" onClick={cancelEdit} disabled={editSaving}>キャンセル</Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                size="sm"
-                                variant={isPlaying ? 'primary' : 'outline'}
-                                onClick={() => handlePlayMeeting(m)}
-                                style={{ borderColor: color.navy, color: isPlaying ? color.white : color.navy, background: isPlaying ? color.navy : color.white }}
-                              >
-                                {isPlaying ? '■ 停止' : '▶ 再生'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={isDocOpen ? 'primary' : 'outline'}
-                                onClick={() => handleOpenDocument(m)}
-                                title={m.document_name || 'PDF資料を開く'}
-                                style={isDocOpen ? { borderColor: color.navy, color: color.white, background: color.navy } : undefined}
-                              >{isDocOpen ? '■ 資料を閉じる' : '資料'}</Button>
-                              {m.public_url && (
-                                <a href={m.public_url} target="_blank" rel="noopener noreferrer" title="Google Driveで開く"
-                                  style={{
-                                    padding: `${space[1.5]}px ${space[2.5]}px`,
-                                    borderRadius: radius.md, border: `1px solid ${color.border}`,
-                                    background: color.white, color: color.navy, cursor: 'pointer',
-                                    fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                                    fontFamily: font.family.sans, textDecoration: 'none',
-                                    display: 'inline-flex', alignItems: 'center',
-                                  }}>↗ Drive</a>
+                          {!isEditing && (
+                            <div className="li-acts">
+                              {sel.access_restricted && <span className="li-chip lock">見られる人を限った回</span>}
+                              {sel.document_url && <Button size="sm" variant={isDocOpen ? 'primary' : 'outline'} onClick={() => handleOpenDocument(sel)}>{isDocOpen ? '資料を閉じる' : '資料'}</Button>}
+                              {isPlaying && <Button size="sm" variant="outline" onClick={() => handlePlayMeeting(sel)}>■ 止める</Button>}
+                              <Button size="sm" variant={isWatchOpen ? 'primary' : 'outline'} onClick={() => toggleWatchPanel(sel)}>誰が見たか</Button>
+                              {(isAdmin || sel.public_url) && (
+                                <span style={{ position: 'relative' }}>
+                                  <Button size="sm" variant="ghost" onClick={() => setMgmtOpen(v => !v)}>⋯ 管理</Button>
+                                  {mgmtOpen && (
+                                    <div className="li-menu" onMouseLeave={() => setMgmtOpen(false)}>
+                                      {sel.public_url && <a href={sel.public_url} target="_blank" rel="noopener noreferrer">Google Driveで開く</a>}
+                                      {isAdmin && <button type="button" onClick={() => { setMgmtOpen(false); startEdit(sel); }}>題名・日付・資料を直す</button>}
+                                      {isAdmin && sel.access_restricted && <button type="button" onClick={() => { setMgmtOpen(false); setViewerDialogMeeting(sel); }}>見られる人</button>}
+                                      {isAdmin && !sel.document_url && <button type="button" onClick={() => { setMgmtOpen(false); handleOpenDocument(sel); }}>資料を足す</button>}
+                                      {isAdmin && <button type="button" className="danger" onClick={() => { setMgmtOpen(false); handleDeleteMeeting(sel); }}>この回を消す</button>}
+                                    </div>
+                                  )}
+                                </span>
                               )}
-                              <Button
-                                size="sm"
-                                variant={isWatchOpen ? 'primary' : 'outline'}
-                                onClick={() => toggleWatchPanel(m)}
-                                title="誰が何分見たか"
-                                style={isWatchOpen ? { borderColor: color.navy, color: color.white, background: color.navy } : undefined}
-                              >{isWatchOpen ? '■ 視聴状況' : '視聴状況'}</Button>
-                              {isAdmin && m.access_restricted && (
-                                <Button size="sm" variant="outline" onClick={() => setViewerDialogMeeting(m)} title="この回を見られる人">視聴者</Button>
-                              )}
-                              {isAdmin && <Button size="sm" variant="outline" onClick={() => startEdit(m)} title="編集">✎ 編集</Button>}
-                              {isAdmin && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDeleteMeeting(m)}
-                                  title="削除"
-                                  style={{ color: color.danger }}
-                                >削除</Button>
-                              )}
-                            </>
+                            </div>
                           )}
                         </div>
-                        {isWatchOpen && (
-                          <div style={{ marginTop: space[2.5] }}>
-                            <MeetingWatchPanel meeting={m} data={watchData} />
-                          </div>
-                        )}
-                        {isDocOpen && (
-                          <div style={{ marginTop: space[2.5] }}>
-                            <div style={{
-                              display: 'flex', alignItems: 'center', gap: space[2],
-                              marginBottom: space[2], flexWrap: 'wrap',
-                            }}>
-                              <span style={{
-                                flex: 1, minWidth: 0, fontSize: font.size.xs, color: color.textMid,
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                              }}>{m.document_name || '資料'}</span>
-                              {/* download 属性はクロスオリジンだと効かないので ?download= を使う */}
-                              <a
-                                href={weeklyMeetingDocumentDownloadUrl(m)}
-                                style={{
-                                  padding: `${space[1.5]}px ${space[2.5]}px`,
-                                  borderRadius: radius.md, border: `1px solid ${color.navy}`,
-                                  background: color.navy, color: color.white,
-                                  fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                                  fontFamily: font.family.sans, textDecoration: 'none',
-                                  display: 'inline-flex', alignItems: 'center',
-                                }}>↓ ダウンロード</a>
-                              <a
-                                href={m.document_url} target="_blank" rel="noopener noreferrer"
-                                style={{
-                                  padding: `${space[1.5]}px ${space[2.5]}px`,
-                                  borderRadius: radius.md, border: `1px solid ${color.border}`,
-                                  background: color.white, color: color.navy,
-                                  fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                                  fontFamily: font.family.sans, textDecoration: 'none',
-                                  display: 'inline-flex', alignItems: 'center',
-                                }}>↗ 別タブで開く</a>
-                            </div>
-                            {/* スマホのブラウザは iframe 内のPDFを描けないことがあるので、上の2つを逃げ道に残す */}
-                            <iframe
-                              src={m.document_url}
-                              title={m.document_name || m.title}
-                              style={{
-                                width: '100%', height: 640, border: `1px solid ${color.borderLight}`,
-                                borderRadius: radius.md, background: color.gray50,
-                              }} />
-                          </div>
-                        )}
-                        {isPlaying && (
-                          <div style={{ marginTop: space[2.5] }}>
-                            {isLocked ? (
-                              <MeetingLockedNotice />
-                            ) : m.stream_uid && CF_STREAM_SUBDOMAIN ? (
-                              m.stream_ready ? (!streamId ? (
-                                <div style={{
-                                  width: '100%', height: 240, borderRadius: radius.md, background: color.navy,
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  color: color.white, fontSize: font.size.sm, fontWeight: font.weight.bold,
-                                }}>{playbackErrors[m.id] === 'error' ? '再生の準備に失敗しました。もう一度お試しください' : '読み込み中…'}</div>
-                              ) : (
-                                <div style={{ maxWidth: 960, margin: '0 auto' }}>
-                                  <div style={{
-                                    position: 'relative', width: '100%', paddingTop: '56.25%',
-                                    borderRadius: radius.md, overflow: 'hidden', background: '#000',
-                                  }}>
-                                    <MeetingStreamPlayer
-                                      videoId={m.id}
-                                      title={m.title}
-                                      src={`https://${CF_STREAM_SUBDOMAIN}.cloudflarestream.com/${streamId}/iframe?poster=https%3A%2F%2F${CF_STREAM_SUBDOMAIN}.cloudflarestream.com%2F${streamId}%2Fthumbnails%2Fthumbnail.jpg`} />
-                                  </div>
-                                </div>
-                              )) : (
-                                <div style={{
-                                  width: '100%', height: 240, borderRadius: radius.md,
-                                  background: color.navy,
-                                  display: 'flex', flexDirection: 'column',
-                                  alignItems: 'center', justifyContent: 'center',
-                                  color: color.white, gap: space[1.5],
-                                }}>
-                                  <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold }}>処理中…</div>
-                                  <div style={{ fontSize: font.size.xs, color: color.goldLight }}>Cloudflare Stream でストリーミング変換中です（通常 1〜2分で完了）</div>
-                                </div>
-                              )
-                            ) : m.drive_file_id ? (
-                              <iframe src={`https://drive.google.com/file/d/${m.drive_file_id}/preview`} title={m.title} allow="autoplay; fullscreen" allowFullScreen
-                                style={{ width: '100%', height: 480, borderRadius: radius.md, background: '#000', border: 'none' }} />
-                            ) : (
-                              <video src={m.public_url} controls style={{ width: '100%', maxHeight: 480, borderRadius: radius.md, background: '#000' }} />
-                            )}
+                        {sum && sum.total > 0 && (
+                          <div className="li-watch">
+                            <span>この回を見た人</span>
+                            <span className="li-wb"><i style={{ width: `${(sum.att / sum.total) * 100}%`, background: color.navy }} /><i style={{ width: `${(sum.rec / sum.total) * 100}%`, background: '#0176D3' }} /></span>
+                            <span className="lb-num">出席 {sum.att} ・ 録画で {sum.rec} ・ まだ {sum.rest} / {sum.total}人</span>
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-              </>
-            )}
+                      <div className="lb-card li-list">
+                        <h4><span>回の一覧</span><span className="lb-num">{weeklyMeetings.length}回</span></h4>
+                        <div className="li-eps">
+                          {weeklyMeetings.map((v, i) => (
+                            <button key={v.id} type="button" className={`li-ep${v.id === sel.id ? ' is-on' : ''}`} style={{ animationDelay: `${Math.min(i, 12) * 0.03}s` }}
+                              onClick={() => { if (meetingPlayingId && meetingPlayingId !== v.id) handlePlayMeeting(weeklyMeetings.find(x => x.id === meetingPlayingId)); setSelMeetingId(v.id); setMgmtOpen(false); }}>
+                              <span className="li-th" style={thumb(v)}>{mins(v) && <span>{mins(v)}</span>}</span>
+                              <span style={{ minWidth: 0 }}><b>{v.title}</b><small>{[md(v.meeting_date), v.document_url ? '資料あり' : '', v.access_restricted ? '限定' : ''].filter(Boolean).join(' ・ ')}</small></span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {sel && isWatchOpen && <div style={{ marginTop: 12 }}><MeetingWatchPanel meeting={sel} data={watchData} /></div>}
+                  {sel && isDocOpen && (
+                    <div className="lb-card" style={{ marginTop: 12, padding: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: font.size.xs, color: color.textMid, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sel.document_name || '資料'}</span>
+                        <a className="li-link pri" href={weeklyMeetingDocumentDownloadUrl(sel)}>↓ ダウンロード</a>
+                        <a className="li-link" href={sel.document_url} target="_blank" rel="noopener noreferrer">↗ 別タブで開く</a>
+                      </div>
+                      <iframe src={sel.document_url} title={sel.document_name || sel.title} style={{ width: '100%', height: 640, border: `1px solid ${color.borderLight}`, borderRadius: radius.md, background: color.gray50 }} />
+                    </div>
+                  )}
+                  {weeklyMeetings.length > 0 && (
+                    <div className="lb-card" style={{ marginTop: 12, padding: '14px 18px' }}>
+                      <div className="li-att-h"><b>出席と視聴</b>
+                        <span className="li-lg"><span><i style={{ background: color.navy }} />出席</span><span><i style={{ background: '#0176D3' }} />録画を見た（長いほど濃い）</span><span><i style={{ background: '#fff', border: '1.5px solid #E8A0AB' }} />欠席・未視聴</span><span>— 入社前・記録なし</span></span></div>
+                      <MeetingWatchGrid meetings={weeklyMeetings} data={watchData} />
+                      <div className="lb-lbl" style={{ marginTop: 6 }}>出席・欠席は第23回以降（Zoomの参加者記録から）。直近14回を表示</div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
           </div>
         </div>

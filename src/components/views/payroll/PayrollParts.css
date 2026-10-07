@@ -36,3 +36,23 @@
 
 @media (max-width: 900px) { .pr-kpi { grid-template-columns: 1fr 1fr; } .pr-flow { flex-wrap: wrap; } .pr-flow-l { width: 100%; margin-bottom: 8px; } }
 @media (prefers-reduced-motion: reduce) { .pr-stack, .pr-st.cur::before { animation: none !important; } }
+
+/* 報酬の明細（2026-10-07 見本どおり） */
+.pr-tot { padding: 16px 18px; margin-bottom: 16px; display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: center; }
+.pr-big { font-size: 36px; font-weight: 600; color: #032D60; line-height: 1.1; }
+.pr-big small { font-family: 'Noto Sans JP', sans-serif; font-size: 12px; color: #4B5868; margin-left: 4px; }
+.pr-stack-lg { height: 22px; }
+.pr-stack-lg i { animation: pr-grow .8s cubic-bezier(.2,.8,.2,1) both; transform-origin: left; }
+.pr-parts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.pr-parts b { display: block; font-size: 16px; color: #032D60; font-weight: 600; }
+.pr-parts i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+.pr-eq { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; margin-top: 8px; }
+.pr-eq span { padding: 6px 10px; border-radius: 8px; background: #F3F6FA; color: #0E1B2C; }
+.pr-eq span small { display: block; font-size: 10px; color: #8692A0; }
+.pr-eq span b { color: #032D60; }
+.pr-eq em { font-style: normal; color: #C8A45A; font-weight: 700; }
+.pr-eq .pr-res { background: #032D60; } .pr-eq .pr-res b { color: #fff; } .pr-eq .pr-res small { color: rgba(255,255,255,.7); }
+.pr-rank { display: flex; gap: 4px; margin-top: 10px; }
+.pr-rank i { flex: 1; text-align: center; font-style: normal; font-size: 10.5px; padding: 5px 2px; border-radius: 6px; background: #EEF0F3; color: #8692A0; }
+.pr-rank i.on { background: #F7F0E1; color: #8A6A2A; font-weight: 600; box-shadow: 0 0 0 2px #C8A45A; }
+@media (max-width: 900px) { .pr-tot { grid-template-columns: 1fr; } .pr-parts { grid-template-columns: 1fr 1fr; } }

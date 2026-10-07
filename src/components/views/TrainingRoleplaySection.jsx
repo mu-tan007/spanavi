@@ -3,6 +3,8 @@ import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { prepareAudioForWhisper, needsConversion, isVideoFile } from '../../lib/convertAudio';
+import { supabase } from '../../lib/supabase';
+import './library/RoleplayLibrary.css';
 import {
   fetchTrainingProgress,
   upsertTrainingStage,
@@ -62,6 +64,21 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
   // Slack 通知は analyze-roleplay Edge Function 側で発火（クライアントが
   // ポーリング途中で離脱しても通知が落ちないようサーバー側で完結させる）
   const [activeTab, setActiveTab] = useState('weekly');
+  // 2026-10-07 見本どおり：人を顔で選ぶ（回数と直近6週）・左に回の一覧・右に選んだ回の中身
+  const [roster, setRoster] = useState([]); // [{ user_id, dates: [] }]
+  const [selSessId, setSelSessId] = useState(null);
+  const [planDone, setPlanDone] = useState(() => { try { return JSON.parse(localStorage.getItem('spanavi_rp_plan_done') || '{}'); } catch { return {}; } });
+  useEffect(() => {
+    let alive = true;
+    supabase.from('roleplay_sessions').select('user_id, session_date').eq('session_type', 'weekly')
+      .then(({ data }) => {
+        if (!alive) return;
+        const by = {};
+        for (const r of data || []) { (by[r.user_id] = by[r.user_id] || []).push(r.session_date); }
+        setRoster(Object.entries(by).map(([user_id, dates]) => ({ user_id, dates })));
+      });
+    return () => { alive = false; };
+  }, []);
   const [progress, setProgress]   = useState([]);   // training_progress rows
   const [sessions, setSessions]   = useState([]);   // roleplay_sessions rows
   const [loading, setLoading]     = useState(true);
@@ -554,6 +571,72 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
     );
   };
 
+  const SessionDetail = ({ session }) => {
+    const isUploading = uploadingId === session.id;
+    const isAnalyzing = analyzingId === session.id;
+    const isDeleting = deletingId === session.id;
+    const fb = session.ai_feedback;
+    const driveId = extractDriveId(session.video_url);
+    const showDriveInput = driveInputId === session.id;
+    const plan = fb?.actionPlan?.length ? fb.actionPlan.map(it => (typeof it === 'string' ? { drill: it, principle: '' } : it))
+      : [...(fb?.practice || []).map(t => ({ drill: t, principle: '' })), ...(fb?.solutions || []).map(t => ({ drill: t, principle: '' }))];
+    return (
+      <div className="rp-det">
+        <div className="rp-dh">
+          <div><span className="rp-lbl">{session.session_date || '日付未設定'}</span>
+            <h3>{(targetMemberName || currentUser)}{session.partner_name ? ` ・ 相手 ${session.partner_name}` : ''}</h3>
+            <p>{SESSION_TYPE_LABEL[session.session_type] || session.session_type}{session.passed === true ? ' ・ 合格' : session.passed === false ? ' ・ 不合格' : ''}</p></div>
+          <span className={`rp-st ${session.ai_status === 'done' ? 'ok' : session.ai_status === 'error' ? 'ng' : ''}`}>{session.ai_status === 'done' ? 'AIの分析済み' : session.ai_status === 'processing' ? '分析中…' : session.ai_status === 'error' ? '分析に失敗' : '分析前'}</span>
+        </div>
+        <div className="rp-media">
+          {driveId && (
+            <button type="button" className="rp-thumb" onClick={() => setVideoModal(driveId)} style={{ backgroundImage: `url(https://drive.google.com/thumbnail?id=${driveId}&sz=w400)` }}><span /></button>
+          )}
+          {session.recording_url && <a className="rp-link" href={session.recording_url} target="_blank" rel="noopener noreferrer">録音を開く</a>}
+          {!session.recording_url && (
+            <Button size="sm" variant="outline" loading={isUploading} disabled={isUploading}
+              onClick={() => { fileTargetSessionId.current = session.id; fileInputRef.current?.click(); }}>録音を上げる</Button>
+          )}
+          {!driveId && (showDriveInput ? (
+            <span style={{ display: 'flex', gap: 4, flex: 1, minWidth: 220 }}>
+              <Input size="sm" autoFocus value={driveInputVal} onChange={e => setDriveInputVal(e.target.value)} placeholder="Google Drive 共有URL" />
+              <Button size="sm" onClick={() => handleSaveDriveUrl(session.id)}>保存</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setDriveInputId(null); setDriveInputVal(''); }}>やめる</Button>
+            </span>
+          ) : <Button size="sm" variant="outline" onClick={() => { setDriveInputId(session.id); setDriveInputVal(''); }}>動画のURLを足す</Button>)}
+          {(session.recording_url || session.recording_path) && session.ai_status !== 'done' && (
+            <Button size="sm" variant="primary" disabled={isAnalyzing || session.ai_status === 'processing'} onClick={() => handleAnalyze(session)}>
+              {session.ai_status === 'processing' || isAnalyzing ? '分析中…' : session.ai_status === 'error' ? 'もう一度分析' : 'AIで分析'}
+            </Button>
+          )}
+          {isAdmin && <Button size="sm" variant="ghost" disabled={isDeleting} onClick={() => handleDeleteSession(session.id)} style={{ color: color.danger, marginLeft: 'auto' }}>この回を消す</Button>}
+        </div>
+        {session.ai_status === 'error' && <div className="rp-err">{analyzeErrors[session.id] || 'AIの分析でエラーが起きました'}</div>}
+        {fb && fb.overall && <div className="rp-ov"><b>総評</b>{fb.overall}</div>}
+        {fb && fb.issues?.length > 0 && (
+          <div><div className="rp-sec">直すところ {fb.issues.length}つ</div>
+            <div className="rp-iss">{fb.issues.map((t, i) => <div key={i} className="rp-is" style={{ animationDelay: `${i * 0.06}s` }}><span className="rp-no">{i + 1}</span><p>{t}</p></div>)}</div></div>
+        )}
+        {plan.length > 0 && (
+          <div><div className="rp-sec">練習の計画 ・ できたら印（この端末に残る）</div>
+            <div className="rp-plan">{plan.map((it, i) => {
+              const k = `${session.id}:${i}`;
+              return (
+                <label key={i} className={`rp-pl${planDone[k] ? ' done' : ''}`}>
+                  <input type="checkbox" checked={!!planDone[k]} onChange={() => setPlanDone(prev => { const next = { ...prev, [k]: !prev[k] }; try { localStorage.setItem('spanavi_rp_plan_done', JSON.stringify(next)); } catch { /* 残せなくても画面は変える */ } return next; })} />
+                  <span><b>{it.drill || it.principle}</b>{it.drill && it.principle && <span>{it.principle}</span>}</span>
+                </label>
+              );
+            })}</div></div>
+        )}
+        {!fb && session.ai_status !== 'processing' && <div className="rp-lbl">録音を上げてAIで分析すると、総評・直すところ・練習の計画が出ます</div>}
+        {session.transcript && (
+          <details className="rp-tr"><summary>文字起こし</summary><div>{session.transcript}</div></details>
+        )}
+      </div>
+    );
+  };
+
   const SessionRow = ({ session }) => {
     const isExpanded = expandedIds.has(session.id);
     const isUploading = uploadingId === session.id;
@@ -964,7 +1047,30 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
       />
 
       {/* 対象メンバー切替（閲覧用。非adminでも他メンバー選択可） */}
-      {members && members.length > 0 && (
+      {members && members.length > 0 && (() => {
+        const mon = (d) => { const t = new Date(d + 'T00:00:00'); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t.toISOString().slice(0, 10); };
+        const weeks = Array.from({ length: 6 }, (_, i) => { const t = new Date(); t.setDate(t.getDate() - ((t.getDay() + 6) % 7) - (5 - i) * 7); return t.toISOString().slice(0, 10); });
+        const byUser = Object.fromEntries(roster.map(r => [r.user_id, r.dates]));
+        const people = members.filter(m => typeof m === 'object' && m.user_id && (byUser[m.user_id] || m.team))
+          .map(m => { const ds = byUser[m.user_id] || []; const set = new Set(ds.map(mon)); return { m, n: ds.length, w: weeks.map(w => set.has(w)), last: ds.slice().sort().pop() || '' }; })
+          .sort((a, b) => (b.last || '').localeCompare(a.last || '') || b.n - a.n);
+        const cur = targetMemberName || currentUser;
+        return (
+          <div className="rp-who">
+            <div className="rp-who-h"><span>人を選ぶ ・ 右上の数字は回数、下の6マスは直近6週にロープレをしたか</span></div>
+            <div className="rp-people">
+              {people.map(({ m, n, w }) => (
+                <button key={m.user_id} type="button" className={`rp-pp${m.name === cur ? ' is-on' : ''}`} onClick={() => { setTargetMemberName(m.name); setSelSessId(null); }}>
+                  <span className="rp-av">{(m.name || '?')[0]}{n > 0 && <b>{n}</b>}</span>
+                  <span className="rp-nm">{(m.name || '').split(/\s/)[0]}</span>
+                  <span className="rp-weeks">{w.map((x, i) => <i key={i} className={x ? 'on' : ''} />)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+      {members && members.length > 0 && !hideTraining && (
         <TargetMemberPicker
           members={members}
           value={targetMemberName}
@@ -1200,11 +1306,25 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
 
           {weeklySessions.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '20px 0', color: color.textLight, fontSize: font.size.sm }}>
-              まだセッションの記録がありません
+              まだロープレの記録がありません
             </div>
-          ) : (
-            weeklySessions.map(s => <SessionRow key={s.id} session={s} />)
-          )}
+          ) : (() => {
+            const sel = weeklySessions.find(x => x.id === selSessId) || weeklySessions[0];
+            return (
+              <div className="rp-cols">
+                <div className="rp-list">
+                  {weeklySessions.map((x, i) => (
+                    <button key={x.id} type="button" className={`rp-ss${x.id === sel.id ? ' is-on' : ''}`} style={{ animationDelay: `${Math.min(i, 12) * 0.03}s` }} onClick={() => setSelSessId(x.id)}>
+                      <span className="rp-d">{x.session_date ? `${Number(x.session_date.slice(5, 7))}/${Number(x.session_date.slice(8, 10))}` : '—'}</span>
+                      <span style={{ minWidth: 0 }}>{SESSION_TYPE_LABEL[x.session_type] || x.session_type}<small>{x.partner_name ? `相手 ${x.partner_name}` : ''}</small></span>
+                      <span className={`rp-st ${x.ai_status === 'done' ? 'ok' : x.ai_status === 'error' ? 'ng' : ''}`}>{x.ai_status === 'done' ? '分析済み' : x.ai_status === 'processing' ? '分析中' : x.ai_status === 'error' ? '分析に失敗' : '分析前'}</span>
+                    </button>
+                  ))}
+                </div>
+                <SessionDetail key={sel.id} session={sel} />
+              </div>
+            );
+          })()}
         </div>
       )}
 

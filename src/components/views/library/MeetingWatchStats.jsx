@@ -262,3 +262,56 @@ function fmtDateTime(iso) {
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+
+// 出席と視聴を色のマスで（2026-10-07 見本どおり）：出席＝紺、録画を見た＝青（長いほど濃い）、欠席・未視聴＝赤い枠、— 入社前・記録なし
+export function MeetingWatchGrid({ meetings, data, max = 14 }) {
+  const { loading, members, stats, attendedSet, isAbsent } = data;
+  if (loading) return <div style={{ fontSize: font.size.xs, color: color.textLight }}>読み込み中…</div>;
+  const cols = meetings.slice(0, max);
+  const rows = members.map(m => {
+    const cells = cols.map(v => {
+      const sec = watchedSec(stats[v.id]?.[m.user_id], v);
+      const att = attendedSet.has(`${v.id}:${m.id}`);
+      if (att) return { k: 'a' };
+      if (sec > 0) return { k: 'w', min: Math.max(1, Math.round(sec / 60)) };
+      if (isAbsent(v, m)) return { k: 'x' };
+      return { k: 'n' };
+    });
+    const seen = cells.filter(c => c.k === 'a' || c.k === 'w').length;
+    const eligible = cells.filter(c => c.k !== 'n').length;
+    return { m, cells, seen, eligible };
+  }).sort((a, b) => (b.seen / Math.max(1, b.eligible)) - (a.seen / Math.max(1, a.eligible)) || b.seen - a.seen);
+  const cell = (c, i, j) => {
+    const base = { height: 24, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: font.family.mono, animation: `lbCell .35s cubic-bezier(.34,1.56,.64,1) ${(i + j) * 10}ms both` };
+    if (c.k === 'a') return <span key={j} style={{ ...base, background: color.navy, color: color.white }}>出</span>;
+    if (c.k === 'w') return <span key={j} title={`${c.min}分`} style={{ ...base, background: c.min >= 40 ? '#0176D3' : c.min >= 15 ? '#4F8FD6' : '#9CC3EC', color: c.min >= 15 ? color.white : color.navy }}>{c.min}</span>;
+    if (c.k === 'x') return <span key={j} style={{ ...base, background: color.white, border: '1.5px solid #E8A0AB', color: color.danger }}>×</span>;
+    return <span key={j} style={{ ...base, color: color.gray300 }}>—</span>;
+  };
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <style>{'@keyframes lbCell{from{opacity:0;transform:scale(.7)}}'}</style>
+      <div style={{ display: 'grid', gridTemplateColumns: `150px repeat(${cols.length}, minmax(34px, 1fr))`, gap: 3, minWidth: 150 + cols.length * 38, fontSize: 11 }}>
+        <span />
+        {cols.map(v => <span key={v.id} title={v.title} style={{ fontSize: 10, color: color.textLight, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }}>{shortTitle(v.title).replace('第', '').replace('回', '')}</span>)}
+        {rows.map((r, i) => [
+          <span key={`n${r.m.id}`} style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden', color: color.textDark }}>
+            {r.m.name}<small style={{ color: color.textLight, fontFamily: font.family.mono }}>{r.seen}/{r.eligible}</small>
+          </span>,
+          ...r.cells.map((c, j) => cell(c, i, j)),
+        ])}
+      </div>
+    </div>
+  );
+}
+
+/** その回を見た人の数（出席・録画・まだ） */
+export function meetingWatchSummary(meeting, data) {
+  const { members = [], stats = {}, attendedSet } = data || {};
+  let att = 0, rec = 0;
+  for (const m of members) {
+    if (attendedSet?.has(`${meeting.id}:${m.id}`)) att += 1;
+    else if (watchedSec(stats[meeting.id]?.[m.user_id], meeting) > 0) rec += 1;
+  }
+  return { att, rec, total: members.length, rest: Math.max(0, members.length - att - rec) };
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import './payroll/PayrollParts.css';
 import { color, space, radius, font, alpha } from '../../constants/design';
 import { Button, Card, Badge, DataTable } from '../ui';
 import { calcRankAndRate } from '../../utils/calculations';
@@ -400,33 +401,30 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
         </div>
       )}
 
-      {/* サマリーカード */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: space[5] }}>
-        {[
-          { label: '①インセンティブ', value: fmtYen(incentive), tone: color.success },
-          { label: '②役職ボーナス', value: fmtYen(roleBonus), tone: color.navy },
-          { label: '③紹介料', value: fmtYen(referralTotal), tone: color.success },
-          {
-            label: '④調整',
-            value: adjustmentTotal === 0
-              ? '-'
-              : (adjustmentTotal > 0 ? '+' : '-') + '¥' + Math.abs(adjustmentTotal).toLocaleString(),
-            tone: adjustmentTotal < 0 ? color.danger : color.navy,
-          },
-          { label: '合計支給額', value: fmtYen(totalPayout), tone: color.navy, emphasis: true },
-        ].map((s, i) => (
-          <Card key={i} variant="default" padding="none" style={{ padding: '14px 18px' }}>
-            <div style={{ fontSize: font.size.xs - 1, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>{s.label}</div>
-            <div style={{
-              fontSize: s.emphasis ? 26 : 22,
-              fontWeight: font.weight.black,
-              color: s.tone,
-              fontFamily: MONO,
-              fontVariantNumeric: 'tabular-nums',
-            }}>{s.value}</div>
-          </Card>
-        ))}
-      </div>
+      {/* 上の段：支給額と4つの内わけを1本の帯に（2026-10-07 見本どおり） */}
+      {(() => {
+        const parts = [
+          { k: 'c1', label: 'インセンティブ', v: incentive },
+          { k: 'c2', label: '役職ボーナス', v: roleBonus },
+          { k: 'c3', label: '紹介', v: referralTotal },
+          { k: 'c4', label: '調整', v: adjustmentTotal },
+        ];
+        const pos = parts.filter(x => x.v > 0);
+        const sum = pos.reduce((t, x) => t + x.v, 0) || 1;
+        return (
+          <div className="pr-card pr-tot">
+            <div><span className="pr-lbl">{monthTab}分の支給額</span><div className="pr-big pr-num">{(totalPayout || 0).toLocaleString()}<small>円</small></div>
+              <span className="pr-lbl">{isConfirmed ? '確定済み' : '未確定（いまの計算）'}</span></div>
+            <div>
+              <div className="pr-stack pr-stack-lg">{pos.map(x => <i key={x.k} className={x.k} style={{ width: `${(x.v / sum) * 100}%` }} />)}</div>
+              <div className="pr-parts">{parts.map(x => (
+                <div key={x.k}><span className="pr-lbl"><i className={x.k} />{x.label}</span>
+                  <b className="pr-num" style={{ color: x.v < 0 ? color.danger : undefined }}>{x.v === 0 ? '—' : `${x.k === 'c4' && x.v > 0 ? '+' : x.v < 0 ? '−' : ''}¥${Math.abs(x.v).toLocaleString()}`}</b></div>
+              ))}</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 計算ロジック */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: space[5] }}>
@@ -455,13 +453,14 @@ export default function PayrollSelfDetailView({ targetMember, members, appoData,
                 </span>
               )}
             </div>
-            <div style={{
-              padding: space[2], borderRadius: radius.md,
-              background: alpha(color.success, 0.08),
-              fontFamily: MONO, color: color.success, fontWeight: font.weight.bold,
-            }}>
-              インセンティブ = Σ(各アポのインターン報酬) = {fmtYen(incentive)}
+            <div className="pr-eq">
+              <span><small>当月の売上（{myAppos.length}件）</small><b className="pr-num">{fmtYen(monthlySales)}</b></span>
+              <em>→</em>
+              <span><small>各アポの報酬を足す</small><b className="pr-num">平均 {monthlySales > 0 ? `${(Math.round((incentive / monthlySales) * 1000) / 10).toFixed(1)}%` : '—'}</b></span>
+              <em>＝</em>
+              <span className="pr-res"><small>インセンティブ</small><b className="pr-num">{fmtYen(incentive)}</b></span>
             </div>
+            <div className="pr-rank">{['トレーニー', 'プレイヤー', 'スパルタン', 'スーパースパルタン'].map(r => <i key={r} className={r === shownRank ? 'on' : ''}>{r}{r === shownRank ? ` ${shownRate}` : ''}</i>)}</div>
             <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 6 }}>
               ※ インターン報酬の単価はクライアントごとの報酬マスター設定に基づきます
             </div>
