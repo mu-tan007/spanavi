@@ -139,15 +139,21 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
     const dst = findLocation(overId, localGroups);
     if (!dst) return;
     if (src.teamId === dst.teamId && src.index === dst.index) return;
+    // 相手の行の下半分に落としたら、その行の後ろに入れる（一番下の人の下に置けなかった・2026-10-08）
+    const r = active.rect.current.translated;
+    const below = r && over.rect ? r.top + r.height / 2 > over.rect.top + over.rect.height / 2 : false;
     const next = localGroups.map(g => ({ ...g, members: [...g.members] }));
     if (src.teamId === dst.teamId) {
       const g = next.find(g => g.id === src.teamId);
-      g.members = arrayMove(g.members, src.index, dst.index);
+      let to = dst.index + (below ? 1 : 0);
+      if (src.index < to) to -= 1;
+      if (to === src.index) return;
+      g.members = arrayMove(g.members, src.index, to);
     } else {
       const srcGroup = next.find(g => g.id === src.teamId);
       const dstGroup = next.find(g => g.id === dst.teamId);
       const [m] = srcGroup.members.splice(src.index, 1);
-      dstGroup.members.splice(dst.index, 0, m);
+      dstGroup.members.splice(dst.index + (below ? 1 : 0), 0, m);
     }
     setLocalGroups(next);
   };
