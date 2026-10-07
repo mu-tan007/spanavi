@@ -767,6 +767,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
   // 2026-10-07 組み換え：仕事の流れ順（かける→アポ・クライアント→企業→チーム→学ぶ）。ダッシュボードは単独で一番上
   const _rawNavGroups = [
     { id: "dashboard", label: "ダッシュボード", children: null },
+    // アナリティクスは全社・クライアント別・リスト別の数字なので、ダッシュボードと並べて単独で置く
+    { id: "stats", label: "アナリティクス", children: null },
     { id: "g_call", label: "Call", children: [
       { id: "lists", label: "架電リスト" },
       { id: "recall", label: "再架電" },
@@ -787,7 +789,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       { id: "members", label: "メンバー" },
       { id: "shift", label: "シフト" },
       { id: "payroll", label: "報酬" },
-      { id: "stats", label: "アナリティクス" },
     ]},
     { id: "g_enablement", label: "Enablement", children: [
       { id: "library", label: "ライブラリー" },
@@ -1014,7 +1015,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* Navigation */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
           {navGroups.map(group => {
-            const _sbIconMap = { dashboard: LayoutDashboard, g_call: Phone, g_sfa: Calendar, g_company: Building2, g_member: Users, g_enablement: GraduationCap, mypage: User, ai: Bot };
+            const _sbIconMap = { dashboard: LayoutDashboard, stats: BarChart2, g_call: Phone, g_sfa: Calendar, g_company: Building2, g_member: Users, g_enablement: GraduationCap, mypage: User, ai: Bot };
             const SbIconComp = _sbIconMap[group.id];
             if (!group.children) {
               const _sbActive = currentTab === group.id;
