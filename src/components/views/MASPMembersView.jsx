@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import './MASPMembers.css';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag, ActionMenu } from '../ui';
@@ -49,7 +50,7 @@ const PRODUCT_TO_PRIMARY_ENG_SLUG = {
 
 // MASP タブの「Members」ページ。全社の従業員一覧を編集する。
 // onlyEngagementId：その事業に所属する人だけ出す（営業代行のメンバーのページから開いたとき・2026-10-08）
-export default function MASPMembersView({ isAdmin, onlyEngagementId = null }) {
+export default function MASPMembersView({ isAdmin, onlyEngagementId = null, onOpenInvite = null }) {
   const { engagements, products } = useEngagements();
   const { openProfile } = useMemberProfile();
   const { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam, refresh } = useAllMembersWithEngagements();
@@ -483,321 +484,164 @@ export default function MASPMembersView({ isAdmin, onlyEngagementId = null }) {
     ...positionOptions.map(p => ({ value: p, label: p })),
   ];
 
+  const initialOf = (m) => (m?.name || '?').trim().charAt(0);
+  const toggleProduct = async (m, p, on) => {
+    if (!isAdmin) return;
+    const set = assignments[m.id] || new Set();
+    if (on) {
+      await toggleAssignment(m.id, p.primaryEngagementId, true);
+    } else {
+      // 配下の全 engagement から外す（チーム割当も解除）
+      for (const engId of p.engagementIds) {
+        if (set.has(engId)) {
+          await toggleAssignment(m.id, engId, false);
+          await assignMemberToTeam(m.id, engId, null);
+        }
+      }
+    }
+  };
+  const f = (k) => (e) => setAddForm(s => ({ ...s, [k]: e.target.value }));
+
+  // 2026-10-08 新しい見た目（MASPMembers.css）。題名はシートの見出しが持つので、ここでは道具の段だけ
   return (
-    <div style={{ background: color.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
-      <PageHeader
-        title="メンバー"
-        description={`${onlyEngagementId ? 'この事業のメンバー' : '全従業員'} ${onlyEngagementId ? visible.length : members.length} 名 (入社日順)。${isAdmin ? '編集ボタンで個別編集' : '閲覧のみ'}`}
-        right={isAdmin ? (
-          <Button size="sm" onClick={openAddModal}>+ 新規追加</Button>
-        ) : null}
-      >
-        <Input
-          size="sm"
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          placeholder="氏名 / メール / 役職 / チームで検索"
-          fullWidth={false}
-          containerStyle={{ width: 320, marginTop: 12 }}
-        />
-      </PageHeader>
-
-
-      <div style={{ padding: '8px 16px 16px', overflowX: 'auto' }}>
-        <table style={{
-          width: '100%', borderCollapse: 'collapse', minWidth: 1100,
-          background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md,
-          fontSize: font.size.sm,
-        }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${color.border}`, background: color.cream }}>
-              <th style={th}>入社日</th>
-              <th style={{ ...th, textAlign: 'left' }}>氏名</th>
-              <th style={{ ...th, textAlign: 'left' }}>役職</th>
-              <th style={{ ...th, textAlign: 'left' }}>メール</th>
-              <th style={{ ...th, textAlign: 'left' }}>携帯</th>
-              {productCols.map(p => (
-                <th key={p.productId} style={{ ...th, minWidth: 110 }}>{p.name}</th>
-              ))}
-              {isAdmin && <th style={{ ...th, width: 36, padding: 0 }} aria-label="操作"></th>}
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map(m => {
-              const set = assignments[m.id] || new Set();
-              const isEditing = editingId === m.id;
-              return (
-                <tr key={m.id} style={{ borderBottom: `1px solid ${color.borderLight}`, background: isEditing ? '#FFFBEA' : 'transparent' }}>
-                  <td style={{ ...td, fontFamily: font.family.mono, color: color.textMid, whiteSpace: 'nowrap' }}>
-                    {isEditing ? (
-                      <Input size="sm" type="date" value={editForm.start_date || ''} onChange={e => setEditForm(s => ({ ...s, start_date: e.target.value }))} />
-                    ) : (m.start_date ? formatDate(m.start_date) : '—')}
-                  </td>
-                  <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.medium, color: color.navy }}>
-                    {isEditing
-                      ? <Input size="sm" value={editForm.name} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} />
-                      : <span onClick={() => openProfile(m.id)} style={{ cursor: 'pointer' }} title="プロフィールを開く">{m.name}</span>}
-                  </td>
-                  <td style={{ ...td, textAlign: 'left', color: color.textDark, fontWeight: m.position ? font.weight.semibold : font.weight.normal }}>
-                    {isEditing ? (
-                      <Select
-                        size="sm"
-                        value={editForm.position}
-                        onChange={e => setEditForm(s => ({ ...s, position: e.target.value }))}
-                        options={positionSelectOptions}
-                      />
-                    ) : (m.position || '—')}
-                  </td>
-                  <td style={{ ...td, textAlign: 'left', fontFamily: font.family.mono, color: color.textMid }}>
-                    {isEditing
-                      ? <Input size="sm" type="email" value={editForm.email} onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))} />
-                      : (m.email || '—')}
-                  </td>
-                  <td style={{ ...td, textAlign: 'left', fontFamily: font.family.mono, color: color.textMid }}>
-                    {isEditing
-                      ? <Input size="sm" type="tel" value={editForm.phone_number} onChange={e => setEditForm(s => ({ ...s, phone_number: e.target.value }))} />
-                      : (m.phone_number || '—')}
-                  </td>
-                  {productCols.map(p => {
-                    const checked = p.engagementIds.some(id => set.has(id));
-                    return (
-                      <td key={p.productId} style={{ ...td, textAlign: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={!isAdmin}
-                          onChange={async ev => {
-                            if (!isAdmin) return;
-                            if (ev.target.checked) {
-                              // 代表 engagement に紐付け
-                              await toggleAssignment(m.id, p.primaryEngagementId, true);
-                            } else {
-                              // 配下の全 engagement から外す（チーム割当も解除）
-                              for (const engId of p.engagementIds) {
-                                if (set.has(engId)) {
-                                  await toggleAssignment(m.id, engId, false);
-                                  await assignMemberToTeam(m.id, engId, null);
-                                }
-                              }
-                            }
-                          }}
-                          style={{ width: 16, height: 16, cursor: isAdmin ? 'pointer' : 'not-allowed' }}
-                        />
-                      </td>
-                    );
-                  })}
-                  {isAdmin && (
-                    <td style={{ ...td, textAlign: 'center', width: 36, padding: '4px 4px' }}>
-                      {isEditing ? (
-                        <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <Button size="sm" loading={saving} onClick={saveEdit}>{saving ? '…' : '保存'}</Button>
-                          <Button size="sm" variant="secondary" disabled={saving} onClick={cancelEdit}>取消</Button>
-                        </div>
-                      ) : (
-                        <ActionMenu
-                          icon="✎"
-                          title="編集メニュー"
-                          items={[
-                            { key: 'edit', label: '編集', onClick: () => startEdit(m) },
-                            { key: 'contract', label: '契約書を生成', title: '業務委託契約書を差し込み生成', onClick: () => setContractTarget(m) },
-                            m.email && {
-                              key: 'resend',
-                              label: resendingId === m.id ? '送信中…' : '招待を再送',
-                              title: '招待メールを再送（パスワード未設定者向け）',
-                              disabled: resendingId === m.id,
-                              onClick: () => handleResendInvite(m),
-                            },
-                            { key: 'delete', label: '削除', danger: true, onClick: () => setDeleteTarget(m) },
-                          ]}
-                        />
-                      )}
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-            {visible.length === 0 && (
-              <tr>
-                <td colSpan={5 + productCols.length + (isAdmin ? 1 : 0)} style={{ padding: '40px 12px', textAlign: 'center', color: color.textLight }}>
-                  該当するメンバーがいません
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        {saveError && <div style={{ marginTop: 8, fontSize: font.size.xs, color: color.danger }}>{saveError}</div>}
-        {resendResult && (
-          <div style={{
-            position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
-            padding: '10px 18px', borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
-            background: resendResult.type === 'error' ? alpha(color.danger, 0.06) : alpha(color.success, 0.08),
-            color: resendResult.type === 'error' ? color.danger : '#065F46',
-            border: `1px solid ${resendResult.type === 'error' ? alpha(color.danger, 0.25) : alpha(color.success, 0.3)}`,
-          }}>{resendResult.message}</div>
-        )}
+    <div className="mm">
+      <div className="mm-bar">
+        <input className="mm-search" value={filter} onChange={e => setFilter(e.target.value)} placeholder="氏名・メール・役職・チームで探す" />
+        <span className="mm-count"><b>{onlyEngagementId ? visible.length : members.length}</b>名{onlyEngagementId ? '（この事業）' : '（全社）'}・入社日順</span>
+        <span className="grow" />
+        {isAdmin && onOpenInvite && <Button size="sm" variant="primary" onClick={onOpenInvite}>招待リンクで追加</Button>}
+        {isAdmin && <Button size="sm" variant="outline" onClick={openAddModal}>直接追加</Button>}
       </div>
+      {isAdmin && onOpenInvite && (
+        <div className="mm-hint">新しく入る人は<b>「招待リンクで追加」</b>がおすすめです。本人が氏名・メール・住所・口座を入れ、契約まで進みます。「直接追加」は手で全部入れるときに使います。</div>
+      )}
 
-      {addModal && (
-        <div
-          onClick={() => !adding && setAddModal(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', padding: 28, fontFamily: font.family.sans, boxShadow: shadow.xl }}
-          >
-            <div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: color.navy, marginBottom: 18 }}>新規メンバーを追加</div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <FormRow label="氏名 *">
-                <Input size="sm" value={addForm.name} onChange={e => setAddForm(s => ({ ...s, name: e.target.value }))} />
-              </FormRow>
-              <FormRow label="メールアドレス">
-                <Input
-                  size="sm"
-                  type="email"
-                  value={addForm.email}
-                  onChange={e => setAddForm(s => ({ ...s, email: e.target.value }))}
-                  placeholder="例: example@ma-sp.co"
-                  style={{ fontFamily: font.family.mono }}
-                />
-              </FormRow>
-              <FormRow label="携帯番号">
-                <Input
-                  size="sm"
-                  type="tel"
-                  value={addForm.phone_number}
-                  onChange={e => setAddForm(s => ({ ...s, phone_number: e.target.value }))}
-                  placeholder="090-1234-5678"
-                  style={{ fontFamily: font.family.mono }}
-                />
-              </FormRow>
-              <FormRow label="役職">
-                <Select
-                  size="sm"
-                  value={addForm.position}
-                  onChange={e => setAddForm(s => ({ ...s, position: e.target.value }))}
-                  options={positionSelectOptions}
-                />
-              </FormRow>
-              <FormRow label="契約開始日">
-                <Input
-                  size="sm"
-                  type="date"
-                  value={addForm.start_date}
-                  onChange={e => onAddStartDateChange(e.target.value)}
-                  style={{ fontFamily: font.family.mono }}
-                />
-              </FormRow>
-              <FormRow label="契約終了日">
-                <Input
-                  size="sm"
-                  type="date"
-                  value={addForm.contract_end_date}
-                  onChange={e => setAddForm(s => ({ ...s, contract_end_date: e.target.value }))}
-                  style={{ fontFamily: font.family.mono }}
-                />
-                <div style={{ fontSize: 10, color: color.textLight, marginTop: 3 }}>
-                  契約開始日 + 1年 - 1日 で自動算出（1年自動更新）。必要に応じて変更可。
-                </div>
-              </FormRow>
-
-              <FormRow label="住所">
-                <Input
-                  size="sm"
-                  value={addForm.address}
-                  onChange={e => setAddForm(s => ({ ...s, address: e.target.value }))}
-                  placeholder="例: 東京都港区六本木1-2-3 マンション101"
-                />
-              </FormRow>
-
-              <div style={{ marginTop: 8, padding: '12px 14px', background: color.gray50, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
-                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 8 }}>口座情報</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <FormRow label="銀行名">
-                    <Input size="sm" value={addForm.bank_name} onChange={e => setAddForm(s => ({ ...s, bank_name: e.target.value }))} placeholder="例: 三井住友銀行 / みずほ信用金庫" />
-                  </FormRow>
-                  <FormRow label="支店名">
-                    <Input size="sm" value={addForm.branch_name} onChange={e => setAddForm(s => ({ ...s, branch_name: e.target.value }))} placeholder="例: 六本木支店 / 本店営業部" />
-                  </FormRow>
-                  <FormRow label="口座種別">
-                    <Select
-                      size="sm"
-                      value={addForm.account_type}
-                      onChange={e => setAddForm(s => ({ ...s, account_type: e.target.value }))}
-                      options={[
-                        { value: '', label: '（選択）' },
-                        { value: 'ordinary', label: '普通' },
-                        { value: 'checking', label: '当座' },
-                        { value: 'savings', label: '貯蓄' },
+      <div style={{ overflowX: 'auto' }}>
+        <div className="mm-list" style={{ minWidth: 900 }}>
+          <div className="mm-head">
+            <span /><span>氏名</span><span style={{ textAlign: 'right' }}>入社日</span><span>役職</span><span>メール</span><span>携帯</span><span>所属する事業</span><span />
+          </div>
+          {visible.length === 0 && <div className="mm-empty">該当するメンバーがいません</div>}
+          {visible.map((m, i) => {
+            const set = assignments[m.id] || new Set();
+            const isEditing = editingId === m.id;
+            return (
+              <div key={m.id} className={`mm-row${isEditing ? ' edit' : ''}`} style={{ animationDelay: `${Math.min(i, 16) * 0.02}s` }}>
+                <span className="mm-av">{m.avatar_url ? <img src={m.avatar_url} alt="" /> : initialOf(m)}</span>
+                {isEditing
+                  ? <Input size="sm" value={editForm.name} onChange={e => setEditForm(s => ({ ...s, name: e.target.value }))} />
+                  : <span className="mm-nm" onClick={() => openProfile(m.id)} title="プロフィールを開く">{m.name}</span>}
+                {isEditing
+                  ? <Input size="sm" type="date" value={editForm.start_date || ''} onChange={e => setEditForm(s => ({ ...s, start_date: e.target.value }))} />
+                  : <span className="mm-num">{m.start_date ? formatDate(m.start_date) : '—'}</span>}
+                {isEditing
+                  ? <Select size="sm" value={editForm.position} onChange={e => setEditForm(s => ({ ...s, position: e.target.value }))} options={positionSelectOptions} />
+                  : <span>{m.position ? <span className="mm-pos">{m.position}</span> : <span className="mm-mut">—</span>}</span>}
+                {isEditing
+                  ? <Input size="sm" type="email" value={editForm.email} onChange={e => setEditForm(s => ({ ...s, email: e.target.value }))} />
+                  : <span className="mm-mail" title={m.email || ''}>{m.email || '—'}</span>}
+                {isEditing
+                  ? <Input size="sm" type="tel" value={editForm.phone_number} onChange={e => setEditForm(s => ({ ...s, phone_number: e.target.value }))} />
+                  : <span className="mm-mut">{m.phone_number || '—'}</span>}
+                <span className="mm-chips">
+                  {productCols.map(p => {
+                    const on = p.engagementIds.some(id => set.has(id));
+                    return <button key={p.productId} type="button" className={`mm-chip${on ? ' on' : ''}`} disabled={!isAdmin} onClick={() => toggleProduct(m, p, !on)} title={isAdmin ? (on ? '押すと外す' : '押すと所属させる') : ''}>{p.name}</button>;
+                  })}
+                </span>
+                <span style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
+                  {isAdmin && (isEditing ? (
+                    <>
+                      <Button size="sm" loading={saving} onClick={saveEdit}>保存</Button>
+                      <Button size="sm" variant="ghost" disabled={saving} onClick={cancelEdit}>取消</Button>
+                    </>
+                  ) : (
+                    <ActionMenu
+                      icon="⋯"
+                      title="操作"
+                      items={[
+                        { key: 'edit', label: '編集', onClick: () => startEdit(m) },
+                        { key: 'contract', label: '契約書を生成', title: '業務委託契約書を差し込み生成', onClick: () => setContractTarget(m) },
+                        m.email && {
+                          key: 'resend',
+                          label: resendingId === m.id ? '送信中…' : '招待を再送',
+                          title: '招待メールを再送（パスワード未設定者向け）',
+                          disabled: resendingId === m.id,
+                          onClick: () => handleResendInvite(m),
+                        },
+                        { key: 'delete', label: '削除', danger: true, onClick: () => setDeleteTarget(m) },
                       ]}
                     />
-                  </FormRow>
-                  <FormRow label="口座番号">
-                    <Input size="sm" value={addForm.account_number} onChange={e => setAddForm(s => ({ ...s, account_number: e.target.value }))} placeholder="数字のみ" style={{ fontFamily: font.family.mono }} />
-                  </FormRow>
-                  <FormRow label="口座名義">
-                    <Input size="sm" value={addForm.account_holder_kana} onChange={e => setAddForm(s => ({ ...s, account_holder_kana: e.target.value }))} placeholder="例: ヤマダ タロウ" />
-                  </FormRow>
-                </div>
-              </div>
-
-              <FormRow label="契約書テンプレ">
-                {addContractTemplates.length === 0 ? (
-                  <div style={{ fontSize: font.size.xs, color: color.textLight }}>
-                    テンプレ未登録。先に「業務委託契約書テンプレ」セクションでアップロードすると、メンバー追加と同時に契約書が自動生成されます。
-                  </div>
-                ) : (
-                  <Select
-                    size="sm"
-                    value={addTemplateId}
-                    onChange={e => setAddTemplateId(e.target.value)}
-                    options={[
-                      { value: '', label: '生成しない' },
-                      ...addContractTemplates.map(t => ({ value: t.id, label: t.name })),
-                    ]}
-                  />
-                )}
-                <div style={{ fontSize: 10, color: color.textLight, marginTop: 3 }}>
-                  テンプレを選ぶと、メンバー追加と同時に契約書 (.docx) がダウンロードされます。
-                </div>
-              </FormRow>
-
-              <div style={{ marginTop: 8, padding: '12px 14px', background: color.gray50, border: `1px solid ${color.border}`, borderRadius: radius.md }}>
-                <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 8 }}>所属事業</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {productCols.map(p => (
-                    <label key={p.productId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: font.size.sm, color: color.textDark, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={addEngagementIds.has(p.primaryEngagementId)}
-                        onChange={() => toggleAddEngagement(p.primaryEngagementId)}
-                      />
-                      {p.name}
-                    </label>
                   ))}
-                </div>
+                </span>
               </div>
+            );
+          })}
+        </div>
+      </div>
+      {saveError && <div className="mm-err">{saveError}</div>}
+      {resendResult && <div className={`mm-toast${resendResult.type === 'error' ? ' bad' : ''}`}>{resendResult.message}</div>}
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: font.size.sm, color: color.textDark, cursor: 'pointer', marginTop: 6 }}>
-                <input type="checkbox" checked={addSendInvite} onChange={e => setAddSendInvite(e.target.checked)} />
-                招待メールを送信する（推奨）
-              </label>
-              <div style={{ fontSize: 10, color: color.textLight, marginLeft: 22, marginTop: -4, lineHeight: 1.5 }}>
-                ON: メールに招待リンクを送信、本人がパスワード設定して初回ログイン<br />
-                OFF: メンバー追加のみ。後でログインさせる場合は別途招待が必要
-              </div>
-
-              {addError && (
-                <div style={{ fontSize: font.size.xs, color: color.danger, background: alpha(color.danger, 0.06), border: `1px solid ${alpha(color.danger, 0.3)}`, padding: '8px 10px', borderRadius: radius.sm }}>
-                  {addError}
-                </div>
-              )}
+      {addModal && (
+        <div className="mm-ov" onClick={() => !adding && setAddModal(false)}>
+          <div className="mm-dlg" onClick={e => e.stopPropagation()}>
+            <div className="mm-dlg-h">
+              <h3>メンバーを直接追加</h3>
+              <p>本人に入れてもらう場合は「招待リンクで追加」を使ってください。ここでは管理者が全部入れます。</p>
             </div>
-
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 24 }}>
-              <Button variant="secondary" disabled={adding} onClick={() => setAddModal(false)}>キャンセル</Button>
-              <Button loading={adding} onClick={handleAdd}>{adding ? '追加中…' : '追加する'}</Button>
+            <div className="mm-dlg-b">
+              <section className="mm-sec">
+                <h4>本人</h4>
+                <div className="mm-grid">
+                  <div className="mm-f"><label>氏名（必須・姓と名の間に半角スペース）</label><Input size="sm" value={addForm.name} onChange={f('name')} placeholder="例: 山田 太郎" /></div>
+                  <div className="mm-f"><label>役職</label><Select size="sm" value={addForm.position} onChange={f('position')} options={positionSelectOptions} /></div>
+                  <div className="mm-f"><label>メールアドレス</label><Input size="sm" type="email" value={addForm.email} onChange={f('email')} placeholder="例: name@example.com" /></div>
+                  <div className="mm-f"><label>携帯番号</label><Input size="sm" type="tel" value={addForm.phone_number} onChange={f('phone_number')} placeholder="090-1234-5678" /></div>
+                  <div className="mm-f full"><label>住所</label><Input size="sm" value={addForm.address} onChange={f('address')} placeholder="例: 東京都港区六本木1-2-3 マンション101" /></div>
+                </div>
+              </section>
+              <section className="mm-sec">
+                <h4>報酬の振込口座</h4>
+                <div className="mm-grid">
+                  <div className="mm-f"><label>銀行名</label><Input size="sm" value={addForm.bank_name} onChange={f('bank_name')} placeholder="例: 三井住友銀行" /></div>
+                  <div className="mm-f"><label>支店名</label><Input size="sm" value={addForm.branch_name} onChange={f('branch_name')} placeholder="例: 六本木支店" /></div>
+                  <div className="mm-f"><label>種別</label><Select size="sm" value={addForm.account_type} onChange={f('account_type')} options={[{ value: '', label: '（選ぶ）' }, { value: '普通', label: '普通' }, { value: '当座', label: '当座' }]} /></div>
+                  <div className="mm-f"><label>口座番号</label><Input size="sm" value={addForm.account_number} onChange={f('account_number')} placeholder="数字7桁" /></div>
+                  <div className="mm-f full"><label>口座名義（カタカナ）</label><Input size="sm" value={addForm.account_holder_kana} onChange={f('account_holder_kana')} placeholder="例: ヤマダ タロウ" /></div>
+                </div>
+              </section>
+              <section className="mm-sec">
+                <h4>契約</h4>
+                <div className="mm-grid">
+                  <div className="mm-f"><label>契約開始日（入社日）</label><Input size="sm" type="date" value={addForm.start_date} onChange={e => onAddStartDateChange(e.target.value)} /></div>
+                  <div className="mm-f"><label>契約終了日</label><Input size="sm" type="date" value={addForm.contract_end_date} onChange={f('contract_end_date')} /><small>開始日＋1年−1日で自動で入ります</small></div>
+                  <div className="mm-f full">
+                    <label>契約書のひな形</label>
+                    {addContractTemplates.length === 0
+                      ? <div className="mm-note">ひな形がまだ登録されていません。</div>
+                      : <Select size="sm" value={addTemplateId} onChange={e => setAddTemplateId(e.target.value)} options={[{ value: '', label: '作らない' }, ...addContractTemplates.map(t => ({ value: t.id, label: t.name }))]} />}
+                    <small>選ぶと、追加と同時に契約書（.docx）を作って保存します</small>
+                  </div>
+                </div>
+              </section>
+              <section className="mm-sec">
+                <h4>所属する事業</h4>
+                <div className="mm-chips" style={{ gap: 6 }}>
+                  {productCols.map(p => {
+                    const on = addEngagementIds.has(p.primaryEngagementId);
+                    return <button key={p.productId} type="button" className={`mm-chip${on ? ' on' : ''}`} onClick={() => toggleAddEngagement(p.primaryEngagementId)} style={{ fontSize: 12, padding: '4px 12px' }}>{p.name}</button>;
+                  })}
+                </div>
+                <label className="mm-check" style={{ marginTop: 12 }}>
+                  <input type="checkbox" checked={addSendInvite} onChange={e => setAddSendInvite(e.target.checked)} />
+                  ログインの招待メールを送る（おすすめ）
+                </label>
+              </section>
+              {addError && <div className="mm-err" style={{ marginTop: 0 }}>{addError}</div>}
+            </div>
+            <div className="mm-dlg-f">
+              <Button variant="outline" disabled={adding} onClick={() => setAddModal(false)}>やめる</Button>
+              <Button variant="primary" loading={adding} onClick={handleAdd}>{adding ? '追加しています…' : '追加する'}</Button>
             </div>
           </div>
         </div>
@@ -816,27 +660,15 @@ export default function MASPMembersView({ isAdmin, onlyEngagementId = null }) {
       )}
 
       {deleteTarget && (
-        <div
-          onClick={() => !deleting && setDeleteTarget(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.lg, width: '100%', maxWidth: 480, padding: 24, fontFamily: font.family.sans, boxShadow: shadow.xl }}
-          >
-            <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: 12 }}>メンバーを削除しますか？</div>
-            <div style={{ fontSize: font.size.base, color: color.textDark, marginBottom: 8, lineHeight: font.lineHeight.relaxed }}>
-              <b>{deleteTarget.name}</b> さんを削除します。
+        <div className="mm-ov" style={{ alignItems: 'center' }} onClick={() => !deleting && setDeleteTarget(null)}>
+          <div className="mm-dlg sm" onClick={e => e.stopPropagation()}>
+            <div className="mm-dlg-h">
+              <h3>{deleteTarget.name}さんを外しますか</h3>
+              <p>過去の架電・アポ・売上の記録は残ります。ログインと、各画面のメンバー一覧からは見えなくなります。</p>
             </div>
-            <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 18, lineHeight: font.lineHeight.relaxed, padding: '10px 12px', background: color.gray50, borderRadius: radius.sm, border: `1px solid ${color.border}` }}>
-              ・過去の架電履歴・アポ・売上データは <b>保持</b> されます<br />
-              ・本人ログイン・各画面のメンバー一覧から非表示になります
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <Button size="sm" variant="secondary" disabled={deleting} onClick={() => setDeleteTarget(null)}>キャンセル</Button>
-              <Button size="sm" variant="danger" loading={deleting} onClick={handleConfirmDelete}>
-                {deleting ? '削除中…' : '削除する'}
-              </Button>
+            <div className="mm-dlg-f">
+              <Button size="sm" variant="outline" disabled={deleting} onClick={() => setDeleteTarget(null)}>やめる</Button>
+              <Button size="sm" variant="danger" loading={deleting} onClick={handleConfirmDelete}>{deleting ? '外しています…' : '外す'}</Button>
             </div>
           </div>
         </div>

@@ -18,9 +18,9 @@ import { autoEndDate, generateAndDownloadContract, buildPlaceholders } from '../
 
 const ACCOUNT_TYPES = [
   { value: '', label: '（選択）' },
-  { value: 'ordinary', label: '普通' },
-  { value: 'checking', label: '当座' },
-  { value: 'savings', label: '貯蓄' },
+  // 保存先（member_invoice_profiles）は「普通」「当座」だけ受ける（2026-10-08：英字の値で保存が落ちていた）
+  { value: '普通', label: '普通' },
+  { value: '当座', label: '当座' },
 ];
 
 export default function GenerateContractModal({ member, onClose, onGenerated }) {

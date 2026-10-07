@@ -1,0 +1,62 @@
+/* メンバーの追加・名簿（2026-10-08 新しい見た目にそろえる）。紺 #032D60・ロイヤル #0176D3・金 #C8A45A */
+.mm { font-family: 'Noto Sans JP', sans-serif; font-feature-settings: "palt"; color: #1B2533; }
+.mm-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.mm-bar .grow { flex: 1; }
+.mm-search { height: 36px; width: 280px; max-width: 100%; border: 1px solid #D5DAE1; border-radius: 8px; padding: 0 12px; font-size: 13px; font-family: inherit; }
+.mm-search:focus { outline: none; border-color: #0176D3; box-shadow: 0 0 0 3px rgba(1,118,211,.15); }
+.mm-count { font-size: 12px; color: #4B5868; }
+.mm-count b { font-family: 'Barlow', sans-serif; font-size: 18px; color: #032D60; margin-right: 2px; }
+.mm-hint { background: #F3F6FA; border-radius: 8px; padding: 9px 14px; font-size: 12px; color: #4B5868; margin-bottom: 12px; }
+.mm-hint b { color: #032D60; }
+.mm-list { background: #fff; border: 1px solid #E3E6EB; border-radius: 10px; overflow: hidden; }
+.mm-head, .mm-row { display: grid; grid-template-columns: 36px minmax(130px, 1.1fr) 90px 100px minmax(170px, 1.4fr) 120px minmax(150px, 1fr) 40px; gap: 12px; align-items: center; padding: 9px 14px; }
+.mm-head { background: #F7F9FC; border-bottom: 1px solid #E3E6EB; font-size: 10.5px; letter-spacing: .1em; color: #8692A0; font-weight: 600; padding-top: 8px; padding-bottom: 8px; }
+.mm-row { border-bottom: 1px solid #EEF0F3; font-size: 13px; transition: background .15s; animation: mm-in .3s cubic-bezier(.2,.8,.2,1) both; }
+.mm-row:last-child { border-bottom: 0; }
+.mm-row:hover { background: #F7FAFD; }
+.mm-row.edit { background: #FFFBEF; }
+@keyframes mm-in { from { opacity: 0; transform: translateY(4px); } }
+.mm-av { width: 32px; height: 32px; border-radius: 50%; background: #032D60; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.mm-av img { width: 100%; height: 100%; object-fit: cover; }
+.mm-nm { font-weight: 600; color: #032D60; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-nm:hover { color: #0176D3; }
+.mm-mut { color: #4B5868; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-num { font-family: 'Barlow', sans-serif; font-size: 12.5px; color: #4B5868; text-align: right; }
+.mm-mail { font-size: 12px; color: #4B5868; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.mm-chip { border: 1px solid #D5DAE1; background: #fff; color: #8692A0; font-size: 11px; border-radius: 999px; padding: 2px 9px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.mm-chip.on { background: #032D60; border-color: #032D60; color: #fff; }
+.mm-chip:disabled { cursor: default; }
+.mm-pos { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #F7F0E1; color: #7A5A1E; white-space: nowrap; }
+.mm-empty { padding: 40px; text-align: center; color: #8692A0; font-size: 13px; }
+.mm-err { margin-top: 8px; font-size: 12px; color: #C8102E; }
+.mm-toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; background: #032D60; color: #fff; box-shadow: 0 8px 24px rgba(3,45,96,.25); animation: mm-in .3s both; }
+.mm-toast.bad { background: #C8102E; }
+/* 小窓 */
+.mm-ov { position: fixed; inset: 0; background: rgba(1,23,51,.45); z-index: 9000; display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; animation: mm-fade .2s both; }
+@keyframes mm-fade { from { opacity: 0; } }
+.mm-dlg { width: 100%; max-width: 720px; background: #F3F2F2; border-radius: 14px; box-shadow: 0 24px 60px rgba(3,45,96,.3); overflow: hidden; animation: mm-pop .3s cubic-bezier(.2,.9,.3,1.1) both; }
+.mm-dlg.sm { max-width: 460px; }
+@keyframes mm-pop { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.mm-dlg-h { background: #fff; padding: 18px 22px 14px; border-bottom: 1px solid #E3E6EB; }
+.mm-dlg-h h3 { position: relative; margin: 0; font-size: 18px; color: #032D60; padding-bottom: 8px; }
+.mm-dlg-h h3::after { content: ""; position: absolute; left: 0; bottom: 0; width: 24px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, #C8A45A, #E5CB8F); }
+.mm-dlg-h p { margin: 8px 0 0; font-size: 12px; color: #4B5868; line-height: 1.7; }
+.mm-dlg-b { padding: 16px 22px; display: grid; gap: 12px; }
+.mm-sec { background: #fff; border: 1px solid #E3E6EB; border-radius: 10px; padding: 14px 16px; }
+.mm-sec h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: .14em; color: #4B5868; font-weight: 600; }
+.mm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.mm-grid .full { grid-column: 1 / -1; }
+.mm-f label { display: block; font-size: 11.5px; color: #4B5868; margin-bottom: 4px; }
+.mm-f small { display: block; font-size: 10.5px; color: #8692A0; margin-top: 3px; }
+.mm-check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.mm-check input { width: 16px; height: 16px; accent-color: #032D60; }
+.mm-dlg-f { background: #fff; border-top: 1px solid #E3E6EB; padding: 12px 22px; display: flex; justify-content: flex-end; gap: 8px; }
+.mm-note { font-size: 12px; color: #4B5868; background: #F7F9FC; border-radius: 8px; padding: 10px 12px; line-height: 1.8; }
+@media (max-width: 900px) {
+  .mm-head { display: none; }
+  .mm-row { grid-template-columns: 32px 1fr auto; }
+  .mm-row > .mm-hide-sp { display: none; }
+  .mm-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .mm *, .mm-ov, .mm-dlg { animation: none !important; } }
