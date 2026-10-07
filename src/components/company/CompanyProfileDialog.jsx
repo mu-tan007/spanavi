@@ -6,6 +6,11 @@ import { COMPANY_CRM_STAGES, COMPANY_REGISTRY_STATUSES } from '../../utils/compa
 import { fetchCompanyProfile, saveCompanyProfile, resolveCompanyReview, mergeCompanyReview } from '../../lib/companyProfileApi';
 import CompanyImportedFields from './CompanyImportedFields';
 import CompanyDirectoryValues from './CompanyDirectoryValues';
+import { callMemoText } from '../../utils/callMemoText';
+import './DirectoryInsights.css';
+
+// 対応履歴の結果ごとの色（再コールは黄土・除外は赤・社長と話せたら青・アポは金）
+const resClass = (st = '') => st === 'アポ獲得' ? 'ap' : st.includes('再コール') ? 'rc' : st.includes('除外') || st.includes('断り') ? 'ex' : st.includes('キーマン') ? 'km' : '';
 
 const homeLabels = { available: '住所あり', unknown: '住所未確認', conflict: '住所の相違あり' };
 const fieldLabels = { company_name: '企業名', representative: '代表者', phone: '会社電話番号', address: '会社住所',
@@ -82,8 +87,9 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
   const input = (field, props = {}) => <Input key={field} label={fieldLabels[field]} aria-label={fieldLabels[field]}
     value={form[field] || ''} onChange={e => change(field, e.target.value)} {...props} />;
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 20000, background: alpha(color.navyDeep, 0.5), padding: space[4], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="企業カルテ" tabIndex={-1}
+    <div onClick={() => { if (!saving && !editing) onClose(); }} style={{ position: 'fixed', inset: 0, zIndex: 20000, background: alpha(color.navyDeep, 0.25), display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="企業カルテ" tabIndex={-1} className="cp-drawer"
+        onClick={e => e.stopPropagation()}
         onKeyDown={e => {
           // Keep shortcuts in the underlying call screen from receiving keystrokes.
           e.stopPropagation();
@@ -95,7 +101,7 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
             else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
           }
         }}
-        style={{ width: '100%', maxWidth: 1120, height: '92vh', background: color.offWhite, borderRadius: radius.lg, boxShadow: shadow.xl, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        style={{ width: '100%', maxWidth: 880, height: '100vh', background: color.offWhite, boxShadow: '-12px 0 40px rgba(1,18,38,0.18)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: space[4], background: color.navy, color: color.white, display: 'flex', alignItems: 'center', gap: space[3] }}>
           <Building2 size={24} /><div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: font.size.xs, marginBottom: space[1] }}>企業カルテ</div>
@@ -158,13 +164,16 @@ export default function CompanyProfileDialog({ target, onClose, onChanged, onSel
           {profile && tab === 'overview' && <><CompanyDirectoryValues companyId={profile.id} onChanged={() => { setAttempt(n => n + 1); onChanged?.(); }} /><CompanyImportedFields companyId={profile.id} supplementalOnly /></>}
           {profile && tab === 'history' && <>
             <Card title="リストをまたぐ架電履歴" style={{ marginBottom: space[3] }}>
-              <DataTable ariaLabel="企業の架電履歴" columns={[
-                { key: 'called_at', label: '架電日時', width: 165, align: 'right', render: r => dateText(r.called_at) },
-                { key: 'list_name', label: '架電リスト', width: 240, align: 'left' },
-                { key: 'status', label: '結果', width: 120, align: 'center', render: r => <Badge>{r.status || '—'}</Badge> },
-                { key: 'getter_name', label: '担当者', width: 100, align: 'left' },
-                { key: 'memo', label: '対応内容', width: 320, align: 'left' },
-              ]} rows={data.history} rowKey="id" height={360} emptyMessage="架電履歴はまだありません" />
+              {data.history.length === 0 ? <div style={{ color: color.textMid, fontSize: font.size.sm }}>架電履歴はまだありません</div> : (
+                <div className="di-tl" aria-label="企業の架電履歴">
+                  {data.history.map((r, i) => (
+                    <div key={r.id} className={`di-ev ${resClass(r.status)}`} style={{ animationDelay: `${Math.min(i, 12) * 0.03}s` }}>
+                      <div className="di-h"><b>{dateText(r.called_at)}</b><span className={`di-res ${resClass(r.status)}`}>{r.status || '—'}</span><span>{[r.list_name, r.getter_name].filter(Boolean).join(' ・ ')}</span></div>
+                      {callMemoText(r.memo) && <p>{callMemoText(r.memo)}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
               {data.history.length < data.history_count && <Button variant="outline" loading={historyBusy} onClick={moreHistory}>続きの履歴を表示（全{data.history_count.toLocaleString()}件）</Button>}
             </Card>
             <Card title="アポイント・商談（直近50件）" style={{ marginBottom: space[3] }}>

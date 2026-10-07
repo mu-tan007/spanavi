@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
   closestCenter, useSensor, useSensors,
@@ -16,6 +16,9 @@ import { useEngagementMembers } from '../../hooks/useMemberEngagements';
 import { invokeSyncZoomUsers } from '../../lib/supabaseWrite';
 import PageHeader from '../common/PageHeader';
 import { useMemberProfile } from '../common/MemberProfileDrawer';
+import { supabase } from '../../lib/supabase';
+import { memberStatus, memberKpis, monthStartIso, nowJst } from '../../utils/memberStatus';
+import { MembersKpis, RankLadder, MemberLine, MemberDrawer } from './members/MembersParts';
 
 // 各事業タブの「Members」ページ。
 // admin はドラッグ&ドロップでチーム間移動/チーム内並び替えが可能。
@@ -29,6 +32,26 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
   const [localGroups, setLocalGroups] = useState(null); // DnD 最中のオーバーレイ状態
   const [zoomSyncing, setZoomSyncing] = useState(false);
   const [zoomResult, setZoomResult] = useState(null);
+  // 今月の架電（人ごと）・今日以降2週間のシフト・今月のアポ。5分ごとに取り直す（2026-10-07 見本どおり）
+  const [extra, setExtra] = useState({ stats: [], shifts: [], appos: [] });
+  const [tick, setTick] = useState(0);
+  const [openId, setOpenId] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const today = nowJst().date;
+    const until = new Date(Date.parse(today + 'T00:00:00Z') + 14 * 86400000).toISOString().slice(0, 10);
+    Promise.all([
+      supabase.rpc('member_call_stats', { p_from: monthStartIso() }),
+      supabase.from('shifts').select('member_id, shift_date, start_time, end_time').gte('shift_date', today).lte('shift_date', until),
+      supabase.from('appointments').select('getter_name, intern_reward, status').gte('created_at', monthStartIso()).neq('status', 'キャンセル'),
+    ]).then(([st, sh, ap]) => {
+      if (!alive) return;
+      setExtra({ stats: st.data || [], shifts: sh.data || [], appos: ap.data || [] });
+    });
+    const t = setInterval(() => setTick(n => n + 1), 5 * 60 * 1000);
+    return () => { alive = false; clearInterval(t); };
+  }, [tick]);
+  const { openProfile } = useMemberProfileSafe();
 
   const handleZoomSync = async () => {
     setZoomSyncing(true);
@@ -149,14 +172,22 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
     ? (workingGroups || []).flatMap(g => g.members).find(m => m.id === activeId)
     : null;
 
+  const statByName = Object.fromEntries(extra.stats.map(r => [r.getter_name, r]));
+  const apposByName = extra.appos.reduce((m, a) => { m[a.getter_name] = (m[a.getter_name] || 0) + 1; return m; }, {});
+  const statOf = (m) => ({ ...(statByName[m.name] || {}), appos: apposByName[m.name] || 0 });
+  const statusOf = (m) => memberStatus({ lastCalledAt: statByName[m.name]?.last_called_at, shifts: extra.shifts.filter(s => s.member_id === m.id) });
+  const kpis = memberKpis({ members, stats: extra.stats, shifts: extra.shifts, appos: extra.appos });
+  const callingSet = new Set(kpis.calling);
+  const openMember = openId ? members.find(m => m.id === openId) : null;
+  const sortedRanks = [...(ranks || [])].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  const lineProps = { ranks: sortedRanks, statOf, statusOf, onOpen: (m) => setOpenId(m.id) };
+
   return (
-    <div style={{ background: color.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
+    <div className="mb" style={{ background: color.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         bleed={bleed}
         title="メンバー"
-        description={canDrag
-          ? `${members.length} 名。行をドラッグしてチーム間の移動・チーム内の並び替えができます`
-          : `${members.length} 名 (入社日順)${isAdmin && filter.trim() ? ' — 検索中はドラッグ不可' : ''}`}
+        description={`${visibleGroups.length}チーム ・ ${members.length}名 ・ ${canDrag ? '⋮⋮ をつかんでチームの移動・並べ替え' : '入社日順'}${isAdmin && filter.trim() ? '（検索中は並べ替え不可）' : ''}`}
         right={isAdmin ? (
           <Button
             size="sm"
@@ -195,7 +226,10 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
         )}
       </PageHeader>
 
-      <div style={{ padding: '24px 16px 16px', overflowX: 'auto' }}>
+      <div style={{ padding: '16px 16px 24px' }}>
+        <MembersKpis k={kpis} />
+        {sortedRanks.length > 0 && <RankLadder ranks={sortedRanks} members={members} callingSet={callingSet} onOpen={(m) => setOpenId(m.id)} />}
+
         {visibleGroups.length === 0 ? (
           <Card padding="lg" style={{ textAlign: 'center', color: color.textLight }}>
             {members.length === 0 ? 'この事業に所属するメンバーはいません' : '該当するメンバーがいません'}
@@ -209,232 +243,76 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >
-            {visibleGroups.map(g => (
-              <TeamBlock key={g.id} group={g} draggable
-                ranks={ranks} roles={roles} editable={isAdmin}
-                onRankChange={updateMemberRank}
-                onRoleChange={updateMemberRole}
-                onOverrideChange={updateMemberOverride}
-              />
-            ))}
+            <div className="mb-teams">
+              {visibleGroups.map(g => <TeamCard key={g.id} group={g} draggable {...lineProps} />)}
+            </div>
             <DragOverlay>
               {activeMember ? <MemberRowContent m={activeMember} dragging /> : null}
             </DragOverlay>
           </DndContext>
         ) : (
-          visibleGroups.map(g => (
-            <TeamBlock key={g.id} group={g} draggable={false}
-              ranks={ranks} roles={roles} editable={isAdmin}
-              onRankChange={updateMemberRank}
-              onRoleChange={updateMemberRole}
-              onOverrideChange={updateMemberOverride}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── チーム 1 ブロック ────────────────────────────────
-function TeamBlock({ group, draggable, ranks, roles, editable, onRankChange, onRoleChange, onOverrideChange }) {
-  const items = group.members.map(m => m.id);
-  return (
-    <div key={group.id} style={{ marginBottom: 16 }}>
-      <div style={{
-        padding: '8px 14px', background: color.navy, color: color.white,
-        borderRadius: `${radius.md}px ${radius.md}px 0 0`,
-        display: 'flex', alignItems: 'center', gap: 10,
-        fontSize: font.size.sm, fontWeight: font.weight.semibold,
-        letterSpacing: font.letterSpacing.wide,
-      }}>
-        <span>{group.name}</span>
-        <span style={{ fontSize: 10, opacity: 0.8, fontWeight: font.weight.normal }}>({group.members.length}名)</span>
-      </div>
-      <table style={{
-        width: '100%', borderCollapse: 'collapse',
-        background: color.white, border: `1px solid ${color.border}`, borderTop: 'none',
-        borderRadius: `0 0 ${radius.md}px ${radius.md}px`,
-        fontSize: font.size.sm,
-      }}>
-        <thead>
-          <tr style={{ borderBottom: `1px solid ${color.border}`, background: color.cream }}>
-            {draggable && <th style={{ ...th, width: 18, padding: '10px 2px' }}></th>}
-            <th style={{ ...th, padding: '10px 4px' }}>入社日</th>
-            <th style={{ ...th, textAlign: 'left' }}>氏名</th>
-            <th style={{ ...th, textAlign: 'left' }}>ポジション</th>
-            <th style={th}>ランク</th>
-            <th style={th}>インセンティブ率</th>
-            <th style={th}>累計売上</th>
-          </tr>
-        </thead>
-        <tbody>
-          {draggable ? (
-            <SortableContext items={items} strategy={verticalListSortingStrategy} id={group.id}>
-              {group.members.length === 0 ? (
-                <EmptyTeamDropZone teamId={group.id} />
-              ) : (
-                group.members.map(m => <SortableMemberRow key={m.id} m={m} ranks={ranks} roles={roles} editable={editable} onRankChange={onRankChange} onRoleChange={onRoleChange} onOverrideChange={onOverrideChange} />)
-              )}
-            </SortableContext>
-          ) : (
-            group.members.map(m => <StaticMemberRow key={m.id} m={m} ranks={ranks} roles={roles} editable={editable} onRankChange={onRankChange} onRoleChange={onRoleChange} onOverrideChange={onOverrideChange} />)
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ─── 並び替え可能な行 ─────────────────────────────────
-function SortableMemberRow({ m, ranks, roles, editable, onRankChange, onRoleChange, onOverrideChange }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    background: isDragging ? color.cream : undefined,
-  };
-  return (
-    <tr ref={setNodeRef} style={{ ...style, borderBottom: `1px solid ${color.borderLight}` }} {...attributes}>
-      <td style={{ ...td, textAlign: 'center', width: 18, padding: '8px 2px', cursor: 'grab', color: color.textLight, userSelect: 'none' }} {...listeners}>
-        ⋮⋮
-      </td>
-      <MemberRowCells m={m} ranks={ranks} roles={roles} editable={editable} onRankChange={onRankChange} onRoleChange={onRoleChange} onOverrideChange={onOverrideChange} />
-    </tr>
-  );
-}
-
-// DnD 無し時の静的な行
-function StaticMemberRow({ m, ranks, roles, editable, onRankChange, onRoleChange, onOverrideChange }) {
-  return (
-    <tr style={{ borderBottom: `1px solid ${color.borderLight}` }}>
-      <MemberRowCells m={m} ranks={ranks} roles={roles} editable={editable} onRankChange={onRankChange} onRoleChange={onRoleChange} onOverrideChange={onOverrideChange} />
-    </tr>
-  );
-}
-
-function MemberRowCells({ m, ranks = [], roles = [], editable, onRankChange, onRoleChange, onOverrideChange }) {
-  const { openProfile } = useMemberProfile();
-  const [overrideInput, setOverrideInput] = useState('');
-  const [overrideEditing, setOverrideEditing] = useState(false);
-
-  // 現在のランク情報
-  const currentRank = ranks.find(r => r.id === m.rank_id);
-  const defaultRate = currentRank?.default_incentive_rate ?? null;
-  const override = m.incentive_rate_override;
-  const effectiveRate = override != null ? Number(override) : (defaultRate != null ? Number(defaultRate) : null);
-
-  const handleRankSelect = (e) => {
-    const newRankId = e.target.value || null;
-    onRankChange?.(m.id, newRankId);
-  };
-
-  const startOverrideEdit = () => {
-    setOverrideInput(override != null ? String(Number(override) * 100) : '');
-    setOverrideEditing(true);
-  };
-
-  const commitOverride = async () => {
-    setOverrideEditing(false);
-    const trimmed = overrideInput.trim();
-    if (trimmed === '') {
-      // 空入力 → override 解除（ランクのデフォルトに戻す）
-      if (override != null) await onOverrideChange?.(m.id, null);
-      return;
-    }
-    const num = parseFloat(trimmed);
-    if (isNaN(num) || num < 0 || num > 100) return;
-    const newOverride = num / 100;
-    if (newOverride !== Number(override || 0)) {
-      await onOverrideChange?.(m.id, newOverride);
-    }
-  };
-
-  return (
-    <>
-      <td style={{ ...td, padding: '8px 4px', fontFamily: font.family.mono, color: color.textMid, whiteSpace: 'nowrap', textAlign: 'center' }}>
-        {m.start_date || '—'}
-      </td>
-      <td style={{ ...td, textAlign: 'left', fontWeight: font.weight.medium, color: color.navy }}>
-        <div onClick={() => openProfile?.(m.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: openProfile ? 'pointer' : 'default' }} title={openProfile ? 'プロフィールを開く' : undefined}>
-          <div style={{
-            width: 26, height: 26, borderRadius: '50%',
-            background: color.navy, color: color.white,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: font.size.xs, fontWeight: font.weight.semibold, overflow: 'hidden', flexShrink: 0,
-          }}>
-            {m.avatar_url
-              ? <img src={m.avatar_url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: '-webkit-optimize-contrast' }} />
-              : (m.name || '?')[0]}
+          <div className="mb-teams">
+            {visibleGroups.map(g => <TeamCard key={g.id} group={g} draggable={false} {...lineProps} />)}
           </div>
-          {m.name}
-        </div>
-      </td>
-      <td style={{ ...td, textAlign: 'left', color: color.textDark }}>
-        {editable ? (
-          <Select
-            size="sm"
-            value={m.role_id || ''}
-            onChange={e => onRoleChange?.(m.id, e.target.value || null)}
-            fullWidth={false}
-            containerStyle={{ minWidth: 120 }}
-            options={[
-              { value: '', label: '（なし）' },
-              ...roles.map(r => ({ value: r.id, label: r.name })),
-            ]}
-          />
-        ) : (roles.find(r => r.id === m.role_id)?.name || '—')}
-      </td>
-      <td style={{ ...td, color: color.textDark, textAlign: 'center' }}>
-        {editable ? (
-          <Select
-            size="sm"
-            value={m.rank_id || ''}
-            onChange={handleRankSelect}
-            fullWidth={false}
-            containerStyle={{ minWidth: 130 }}
-            options={[
-              { value: '', label: '（未設定）' },
-              ...ranks.map(r => ({ value: r.id, label: r.name })),
-            ]}
-          />
-        ) : (currentRank?.name || '—')}
-      </td>
-      <td style={{ ...td, textAlign: 'right', color: color.textDark, fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums' }}>
-        {overrideEditing && editable ? (
-          <Input
-            size="sm"
-            type="number" step="0.1" min="0" max="100" autoFocus
-            value={overrideInput}
-            onChange={e => setOverrideInput(e.target.value)}
-            onBlur={commitOverride}
-            onKeyDown={e => { if (e.key === 'Enter') commitOverride(); if (e.key === 'Escape') setOverrideEditing(false); }}
-            placeholder="例 24"
-            fullWidth={false}
-            containerStyle={{ width: 70 }}
-            style={{ fontFamily: font.family.mono, textAlign: 'right' }}
-          />
-        ) : (
-          <span
-            onClick={editable ? startOverrideEdit : undefined}
-            title={editable ? 'クリックで個別率を編集（空欄でランクのデフォルトに戻す）' : ''}
-            style={{ cursor: editable ? 'pointer' : 'default', color: override != null ? color.navy : color.textMid, fontWeight: override != null ? font.weight.bold : font.weight.normal }}>
-            {effectiveRate != null
-              ? `${(effectiveRate * 100).toFixed(1).replace(/\.0$/, '')}%`
-              : '—'}
-            {override != null && <span style={{ fontSize: 9, color: color.gold, marginLeft: 4 }}>個別</span>}
-          </span>
         )}
-      </td>
-      <td style={{ ...td, textAlign: 'right', color: color.textDark, fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums' }}>
-        {m.cumulative_sales ? `¥${Number(m.cumulative_sales).toLocaleString()}` : '—'}
-      </td>
-    </>
+      </div>
+
+      {openMember && (
+        <MemberDrawer
+          m={openMember}
+          ranks={sortedRanks}
+          roles={roles || []}
+          stat={statOf(openMember)}
+          status={statusOf(openMember)}
+          editable={isAdmin}
+          onClose={() => setOpenId(null)}
+          onRankChange={updateMemberRank}
+          onRoleChange={updateMemberRole}
+          onOverrideChange={updateMemberOverride}
+          onOpenProfile={openProfile ? (id) => { setOpenId(null); openProfile(id); } : null}
+        />
+      )}
+    </div>
   );
 }
 
-// DragOverlay 用のコンテンツ (tr の中身でなく div で別レンダ)
+// プロフィールの引き出しが無い画面でも落ちないように
+function useMemberProfileSafe() {
+  try { return useMemberProfile() || {}; } catch { return {}; }
+}
+
+// ─── チーム 1 枚（2026-10-07 見本どおり） ─────────────────────
+function TeamCard({ group, draggable, ranks, statOf, statusOf, onOpen }) {
+  const items = group.members.map(m => m.id);
+  const calls = group.members.reduce((t, m) => t + Number(statOf(m).calls || 0), 0);
+  const appos = group.members.reduce((t, m) => t + Number(statOf(m).appos || 0), 0);
+  const line = (m) => ({ m, ranks, stat: statOf(m), status: statusOf(m), onOpen });
+  return (
+    <div className="mb-card mb-team">
+      <div className="mb-team-h">
+        <b>{group.name}{group.id === '__unassigned' ? '' : 'チーム'}</b>
+        <span>{group.members.length}名 ・ 今月 架電 <span className="mb-num">{calls.toLocaleString()}</span> ・ アポ <span className="mb-num">{appos}</span></span>
+      </div>
+      {draggable ? (
+        <SortableContext items={items} strategy={verticalListSortingStrategy} id={group.id}>
+          {group.members.length === 0
+            ? <EmptyTeamDropZone teamId={group.id} />
+            : group.members.map(m => <SortableMemberLine key={m.id} {...line(m)} />)}
+        </SortableContext>
+      ) : group.members.map(m => <MemberLine key={m.id} {...line(m)} />)}
+    </div>
+  );
+}
+
+function SortableMemberLine(props) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.m.id });
+  return (
+    <MemberLine {...props} grip={listeners} rowRef={setNodeRef} rowProps={attributes}
+      rowStyle={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }} />
+  );
+}
+
+// DragOverlay 用（つかんでいる間に見える札）
 function MemberRowContent({ m }) {
   return (
     <div style={{
@@ -457,24 +335,8 @@ function MemberRowContent({ m }) {
   );
 }
 
-// 空チームのドロップゾーン
+// 空チームのドロップ先
 function EmptyTeamDropZone({ teamId }) {
-  // SortableContext の空配列でもドロップできるように、専用の dummy row を置く。
-  // collisionDetection は closestCenter なので tr でも当たる。
   const { setNodeRef, isOver } = useSortable({ id: `__empty:${teamId}` });
-  return (
-    <tr ref={setNodeRef}>
-      <td colSpan={6} style={{
-        padding: '18px 12px', textAlign: 'center', fontSize: font.size.xs,
-        color: color.textLight,
-        background: isOver ? color.cream : 'transparent',
-        border: isOver ? `1px dashed ${color.gold}` : 'none',
-      }}>
-        ここにドロップしてチームに追加
-      </td>
-    </tr>
-  );
+  return <div ref={setNodeRef} className={`mb-drop${isOver ? ' over' : ''}`}>ここにドロップしてチームに追加</div>;
 }
-
-const th = { padding: '10px 12px', textAlign: 'center', fontWeight: font.weight.semibold, color: color.navy, fontSize: font.size.xs, letterSpacing: font.letterSpacing.wide };
-const td = { padding: '8px 12px', fontSize: font.size.sm, color: color.textDark };

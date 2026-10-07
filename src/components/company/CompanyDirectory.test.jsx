@@ -7,6 +7,8 @@ vi.mock('../../lib/companyDirectoryApi',()=>({searchCompanyDirectory:vi.fn(),bui
 vi.mock('./CompanyDirectoryFilters',()=>({default:props=><div data-testid="filters" {...props}/>}));
 vi.mock('./CompanyProfileDialog',()=>({default:props=><div data-testid="profile" {...props}/>}));
 vi.mock('../database/DatabaseChatPanel',()=>({default:()=>null}));
+// 地図・段の件数・リストに入れる小窓は別に数えるので、ここでは置き換える（検索の呼び出し回数に混ざらないように）
+vi.mock('./DirectoryInsights',()=>({PrefectureMap:()=>null,NarrowingBars:()=>null,AddToCallListModal:()=>null}));
 vi.mock('../database/DatabaseExportColumnModal',()=>({default:props=><div data-testid="export" {...props}/>}));
 vi.mock('../../hooks/useDirectoryFilterOptions',()=>({useDirectoryFilterOptions:()=>({options:{categories:[],prefectures:[],categoriesCall:[],engagements:[],lists:[]},names:{},error:'',retry:()=>{}})}));
 import { fetchCompanyProfileStats } from '../../lib/companyProfileApi';

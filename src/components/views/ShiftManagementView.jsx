@@ -8,6 +8,9 @@ import PageHeader from '../common/PageHeader';
 import { useUrlState } from '../../hooks/useUrlState';
 import { useEngagements } from '../../hooks/useEngagements';
 import { useEngagementMembers } from '../../hooks/useMemberEngagements';
+import { supabase } from '../../lib/supabase';
+import { ShiftWeekStrip, ShiftHeatRows, ShiftDayNotes } from './shift/ShiftOverlays';
+import { headsByHour, gapHours, outsideShiftCalls, inShift } from '../../utils/shiftInsights';
 
 // このビュー独自のレガシーネイビー（既存の見た目を維持するためトークンとは別に保持）
 const NAVY = '#0D2247';
@@ -69,7 +72,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const [monthStr, setMonthStr] = useUrlState('month', String(today.getMonth() + 1));
   // 許可リストに 'week' が無く、週間表示ボタンを押しても月間表示に戻されていた。
   // スマホは月間表示だと名前列と合計列で幅を取られ2〜3日分しか見えないため、週間表示から始める。
-  const [viewMode, setViewMode] = useUrlState('view', isMobile ? 'week' : 'month', { allowed: ['month', 'week', 'day'] });
+  const [viewMode, setViewMode] = useUrlState('view', isMobile ? 'week' : 'day', { allowed: ['month', 'week', 'day'] });
   const [selectedDayStr, setSelectedDayStr] = useUrlState('day', String(today.getDate()));
   const year = parseInt(yearStr, 10) || today.getFullYear();
   const month = parseInt(monthStr, 10) || (today.getMonth() + 1);
@@ -80,6 +83,9 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
 
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
+  // 線表に重ねる数字：その日の人ごと・時間ごとの架電件数／時間ごとの社長につながる割合（直近60日・平日）
+  const [hourCalls, setHourCalls] = useState({});
+  const [rates, setRates] = useState({});
 
   // 表示対象・並び順ともにメンバーページ (EngagementMembersView) と同じ teamGroups に揃える。
   // = この事業 (member_engagements) に所属している人だけを出す。
@@ -118,6 +124,30 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
   const weekDays = Array.from({ length: weekBlockEnd - weekBlockStart + 1 }, (_, i) => weekBlockStart + i);
 
   useEffect(() => { loadShifts(); }, [year, month]); // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedDateStr = `${year}-${String(month).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+  useEffect(() => {
+    let alive = true;
+    supabase.rpc('keyman_rate_by_hour', { p_days: 60 }).then(({ data }) => {
+      if (!alive || !data) return;
+      setRates(Object.fromEntries(data.map(r => [r.hour, { rate: Number(r.keyman_rate), calls: Number(r.calls) }])));
+    });
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (viewMode !== 'day') return undefined;
+    let alive = true;
+    supabase.rpc('member_calls_by_hour', { p_day: selectedDateStr }).then(({ data }) => {
+      if (!alive) return;
+      const m = {};
+      for (const r of data || []) { m[r.getter_name] = m[r.getter_name] || {}; m[r.getter_name][r.hour] = Number(r.calls); }
+      setHourCalls(m);
+    });
+    return () => { alive = false; };
+  }, [selectedDateStr, viewMode]);
+  const pickDate = (iso) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    setYear(y); setMonth(m); setSelectedDay(d); setViewMode('day');
+  };
 
   const loadShifts = async () => {
     setLoading(true);
@@ -430,9 +460,24 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     const TOTAL_W = 72;
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
     const { isSun, isSat } = getDayMeta(selectedDay);
+    const dayAll = shifts.filter(s => s.shift_date === dateStr);
+    const heads = headsByHour(dayAll, Array.from({ length: 14 }, (_, i) => 8 + i));
+    const gaps = gapHours(rates, heads);
+    const names = new Set(sortedMembers.map(m => m.name));
+    const shiftsByName = {};
+    for (const m of sortedMembers) {
+      const id = m._supaId || m.id;
+      shiftsByName[m.name] = dayAll.filter(s => s.member_id === id);
+    }
+    const ownCalls = Object.fromEntries(Object.entries(hourCalls).filter(([n]) => names.has(n)));
+    const outside = outsideShiftCalls(ownCalls, shiftsByName);
+    const totalCalls = Object.values(ownCalls).reduce((t, byH) => t + Object.values(byH).reduce((a, b) => a + b, 0), 0);
+    const todayIso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
 
     return (
       <div style={{ animation: 'fadeIn 0.3s ease' }}>
+        <ShiftWeekStrip shifts={shifts} selectedDate={dateStr} todayDate={todayIso} onPick={pickDate} />
+        <ShiftDayNotes gaps={gaps} rates={rates} heads={heads} outside={outside} totalCalls={totalCalls} />
         {/* 日付ピッカー */}
         <div style={{
           padding: `${space[3]}px ${space[4]}px`, background: color.white,
@@ -476,6 +521,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
           </div>
           <div style={{ overflowX: 'auto' }}>
             <div style={{ minWidth: 700, padding: `${space[3]}px ${space[4]}px` }}>
+              <ShiftHeatRows rates={rates} heads={heads} gaps={gaps} NAME_W={NAME_W} TOTAL_W={TOTAL_W} />
               {/* 時間軸ヘッダー */}
               <div style={{ display: 'flex', marginBottom: space[2], paddingLeft: NAME_W, paddingRight: TOTAL_W + 8 }}>
                 {HOURS.map(h => (
@@ -529,6 +575,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
                     year={year}
                     month={month}
                     onReload={loadShifts}
+                    hourCalls={hourCalls[member.name] || null}
                     NAME_W={NAME_W}
                     TOTAL_W={TOTAL_W}
                     HOURS={HOURS}
@@ -583,7 +630,7 @@ export default function ShiftManagementView({ members, currentUser, isAdmin }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="シフト"
-        description="シフト・勤怠管理"
+        description="入れたシフトと、実際に架電した時間を重ねて見る"
         style={{ marginBottom: isMobile ? space[4] : space[6], flexShrink: 0 }}
       />
 
@@ -681,7 +728,7 @@ function TeamHeaderRow({ name, count, hours, colSpan }) {
 }
 
 // ── ドラッグ対応タイムライン行 ────────────────────────────────
-function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, dateStr, year, month, onReload, NAME_W, TOTAL_W, HOURS }) {
+function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, dateStr, year, month, onReload, hourCalls, NAME_W, TOTAL_W, HOURS }) {
   const [drag, setDrag]   = useState(null);
   const dragRef           = useRef(null);
   const commitRef         = useRef(null);
@@ -819,6 +866,11 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }}>
         {member.name}
+        {hourCalls && (
+          <span style={{ display: 'block', fontSize: 10, fontWeight: font.weight.normal, color: color.textLight }}>
+            架電 {Object.values(hourCalls).reduce((a, b) => a + b, 0)}件
+          </span>
+        )}
       </div>
 
       {/* タイムライントラック */}
@@ -921,6 +973,16 @@ function DraggableTimeline({ member, memId, isMe, isEditable, dayShifts, dayH, d
                 >×</button>
               )}
             </div>
+          );
+        })}
+
+        {/* その時間に実際に架電した件数（紺）。シフトの外は黄土 */}
+        {hourCalls && Object.entries(hourCalls).map(([h, n]) => {
+          const hr = Number(h);
+          if (hr < 8 || hr >= 22) return null;
+          return (
+            <span key={`c${h}`} className={`sw-call${inShift(dayShifts, hr) ? '' : ' out'}`} title={`${hr}時台 ${n}件${inShift(dayShifts, hr) ? '' : '（シフトの外）'}`}
+              style={{ left: `calc(${minToPct(hr * 60)}% + 2px)`, width: `calc(${(60 / TL_TOTAL) * 100}% - 4px)`, height: Math.max(3, Math.min(n, 70) / 70 * 18) }} />
           );
         })}
 

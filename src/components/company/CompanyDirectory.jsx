@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, ChevronDown, Download, RefreshCw, Columns3 } from 'lucide-react';
 import { Button, Card, Badge, DataTable, Pager } from '../ui';
 import { color, space, font, radius, shadow } from '../../constants/design';
@@ -14,6 +14,7 @@ import CompanyDirectoryFilters from './CompanyDirectoryFilters';
 import CompanyProfileDialog from './CompanyProfileDialog';
 import DatabaseChatPanel from '../database/DatabaseChatPanel';
 import DatabaseExportColumnModal from '../database/DatabaseExportColumnModal';
+import { PrefectureMap, NarrowingBars, AddToCallListModal } from './DirectoryInsights';
 
 // =====================================================================
 // 企業DB（Phalanx の企業DBにならう・2026-10-05）
@@ -122,6 +123,9 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
   const [columnPicker, setColumnPicker] = useState(false), [exporting, setExporting] = useState(false), [exportProgress, setExportProgress] = useState(0), [exportError, setExportError] = useState('');
   const exportController = useRef(null), active = useRef(true);
   const cardRef = useRef(null), draftRef = useRef(draft);
+  // 行の左の□で選んだ会社（ページをまたいで持つ）。下から「架電リストに入れる」
+  const [picked, setPicked] = useState(() => new Map());
+  const [addOpen, setAddOpen] = useState(false);
   draftRef.current = draft;
   const { options, names, error: optionError, retry: retryOptions } = useDirectoryFilterOptions();
 
@@ -210,10 +214,21 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
   const strip = (f) => JSON.stringify({ ...f, page: 0, pageSize: PAGE_SIZE });
   // 比べる相手は「最後に検索を頼んだ条件」。結果がまだ届いていない（失敗した）ときに未反映と出さない。
   const draftChanged = !!request && strip(normalizeDirectoryFilters(draft)) !== strip(request.filters);
+  const togglePick = (row) => setPicked(prev => { const next = new Map(prev); if (next.has(row.id)) next.delete(row.id); else next.set(row.id, row); return next; });
   const columns = useMemo(() => [
+    { key: '__pick', label: '', width: 40, align: 'center', render: (r) => (
+      <input type="checkbox" aria-label={r.company_name + 'を選ぶ'} checked={picked.has(r.id)} onClick={e => e.stopPropagation()} onChange={() => togglePick(r)}
+        style={{ width: 16, height: 16, accentColor: color.navyLight, cursor: 'pointer' }} />
+    ) },
     { key: 'company_name', label: '企業名', width: 230, align: 'left', mobilePrimary: true, sortable: true, sortType: 'string', render: (r) => <span style={{ fontWeight: font.weight.bold, color: color.textDark }}>{r.company_name}</span> },
     ...PICKABLE.filter((c) => visibleColumns.includes(c.key)).map(columnDef),
-  ], [visibleColumns]);
+  ], [visibleColumns, picked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chipsOf = useCallback((f) => directoryConditionChips(f, names), [names]);
+  // 地図：押した県を条件に足して（もう一度押すと外して）検索する
+  const pickPrefecture = (name) => {
+    const cur = draftRef.current.prefecture || [];
+    apply({ ...draftRef.current, prefecture: cur.includes(name) ? cur.filter(p => p !== name) : [...cur, name] });
+  };
 
   const card = {
     background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.xl,
@@ -221,8 +236,9 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
   };
 
   return <>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) 320px', gap: space[3], alignItems: 'start', marginBottom: space[4] }}>
     {/* ── 検索カード ── */}
-    <div ref={cardRef} style={card}>
+    <div ref={cardRef} style={{ ...card, marginBottom: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', marginBottom: expanded || chips.length ? 16 : 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 'auto' }}>
           <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: color.navy, color: color.white }}><Search size={19} /></span>
@@ -263,6 +279,11 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
           ))}
         </div>
       )}
+
+      {/* 条件を足すごとに何社まで減ったか（適用した条件で数える） */}
+      {request && !expanded && !loading && count != null && <NarrowingBars applied={request.filters} chipsOf={chipsOf} finalCount={count} />}
+    </div>
+    {!isMobile && <PrefectureMap selected={draft.prefecture || []} onPick={pickPrefecture} />}
     </div>
 
     {exporting && <Card><span role="status">CSV出力用に {exportProgress.toLocaleString()} 社を取得しました。</span><Button size="sm" variant="ghost" onClick={() => exportController.current?.abort()}>出力を中断</Button></Card>}
@@ -282,6 +303,11 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
       <span role="status" style={{ fontSize: font.size.base, color: color.textMid }}>
         {loading ? '検索中…' : count == null ? '—' : <><strong style={{ fontSize: font.size.xl, color: color.navy, fontFamily: font.family.mono }}>{count.toLocaleString()}</strong> 社</>}
       </span>
+      {result.rows.length > 0 && (
+        <Button size="sm" variant="ghost" onClick={() => setPicked(prev => { const next = new Map(prev); const all = result.rows.every(r => next.has(r.id)); result.rows.forEach(r => (all ? next.delete(r.id) : next.set(r.id, r))); return next; })}>
+          {result.rows.every(r => picked.has(r.id)) ? 'このページの選択を外す' : 'このページを全部選ぶ'}
+        </Button>
+      )}
       <div style={{ flex: 1 }} />
       <ColumnPicker value={visibleColumns} onChange={setVisibleColumns} />
       <Button size="sm" variant="ghost" aria-label="企業一覧を再読み込み" iconLeft={<RefreshCw size={15} />} onClick={() => setAttempt((n) => n + 1)} disabled={loading}>再読み込み</Button>
@@ -296,6 +322,14 @@ export default function CompanyDirectory({ revision = 0, isAdmin = false }) {
     </div>
     </>}
 
+    {picked.size > 0 && (
+      <div className="di-selbar" role="status">
+        <span><b>{picked.size.toLocaleString()}</b>社を選択中</span>
+        <Button size="sm" variant="ghost" style={{ color: color.white }} onClick={() => setPicked(new Map())}>外す</Button>
+        <Button size="sm" style={{ background: color.gold, borderColor: color.gold, color: color.white }} onClick={() => setAddOpen(true)}>架電リストに入れる</Button>
+      </div>
+    )}
+    {addOpen && <AddToCallListModal rows={[...picked.values()]} onClose={() => setAddOpen(false)} onDone={() => { setPicked(new Map()); setAttempt((n) => n + 1); }} />}
     {target && <CompanyProfileDialog target={target} onClose={() => setTarget(null)} onChanged={() => setAttempt((n) => n + 1)} onSelectCompany={(companyId) => setTarget({ companyId })} />}
     {columnPicker && <DatabaseExportColumnModal columns={DIRECTORY_EXPORT_COLUMNS} totalCount={count} onCancel={() => setColumnPicker(false)} onConfirm={exportCsv} />}
     <DatabaseChatPanel open={aiOpen} onClose={() => setAiOpen(false)} baseFilters={draft} onApplyFilters={(filters) => { apply(filters); if (advancedDirectoryConditionCount(normalizeDirectoryFilters(filters)) > 0) setDetailsOpen(true); setAiOpen(false); }} />
