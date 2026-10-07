@@ -48,6 +48,7 @@ interface EventRow {
   slack_status: string; draft_status: string; draft_channel: string | null; draft_text: string | null
   draft_error: string | null; gmail_thread_id: string | null; gmail_draft_id: string | null
   recording_added: string | null; slack_ts: string | null; slack_post_channel: string | null
+  slack_reply_channel?: string | null; slack_reply_ts?: string | null
   auto_registered_channel?: string  // この回に共有チャンネルを自動で登録した（#事前確認 への返信で知らせる）
 }
 
@@ -677,6 +678,17 @@ async function orgSetting(sb: SupabaseClient, orgId: string, key: string): Promi
 }
 
 /** #事前確認 への返信の本文と返信先（朝の通知のスレッド） */
+// スレッドへのリンク（ワークスペースの住所付き）。取れなければ出さない
+async function slackPermalink(channel: string, ts: string): Promise<string | null> {
+  const token = Deno.env.get('SLACK_BOT_TOKEN')?.trim()
+  if (!token) return null
+  try {
+    const r = await fetch(`https://slack.com/api/chat.getPermalink?channel=${encodeURIComponent(channel)}&message_ts=${encodeURIComponent(ts)}`, { headers: { Authorization: `Bearer ${token}` } })
+    const j = await r.json()
+    return j?.ok ? j.permalink : null
+  } catch { return null }
+}
+
 async function composeSlack(sb: SupabaseClient, ev: EventRow, channel: string): Promise<{ text: string; threadTs: string | null }> {
   const mention = await orgSetting(sb, ev.org_id, 'slack_precheck_mention_user')
   const { data: appo } = await sb.from('appointments').select('company_name, client_id').eq('id', ev.appointment_id).maybeSingle()
@@ -701,7 +713,12 @@ async function composeSlack(sb: SupabaseClient, ev: EventRow, channel: string): 
     // 下書きを直接開くURL（#all?compose=thread-f:…）は Gmail が新規作成に置き換えてしまうため、スレッドを開く
     lines.push(`・顧客への報告：アポ取得報告のスレッドにGmailの返信下書きを作りました${recNote} → <https://mail.google.com/mail/u/${FROM_EMAIL}/#all/${ev.gmail_thread_id}|スレッドを開く>`)
   } else if (ev.draft_status === 'ready') {
-    lines.push(`・顧客への報告：${ev.draft_channel === 'slack' ? 'Slack' : 'Chatwork'}用の文面を用意しました${recNote} → <${SPANAVI_URL}/?tab=precheck|Spanaviの事前確認で送信>`)
+    // Slack の顧客は、文面そのものと先方のスレッドへのリンクもここに出す（2026-10-07 むー様「楽で正確な形」）。
+    // Slack には外から人の下書きを作る仕組みがないため、読んで確かめ、Spanavi で1回押して送る形にする
+    const thread = ev.draft_channel === 'slack' && ev.slack_reply_channel && ev.slack_reply_ts
+      ? await slackPermalink(ev.slack_reply_channel, ev.slack_reply_ts) : null
+    lines.push(`・顧客への報告：${ev.draft_channel === 'slack' ? 'Slack' : 'Chatwork'}用の文面を用意しました${recNote} → <${SPANAVI_URL}/?tab=precheck|Spanaviの事前確認で送信>${thread ? ` ／ <${thread}|先方のスレッドを開く>` : ''}`)
+    if (ev.draft_text) lines.push(ev.draft_text.trim().split(/\r?\n/).map(l => `> ${l}`).join('\n'))
     if (ev.auto_registered_channel) lines.push(`・このクライアントの共有チャンネル <#${ev.auto_registered_channel}> を新しく登録しました（メールが見つからず、Slackのアポ取得報告が見つかったため）`)
   } else if (ev.draft_status === 'failed') {
     lines.push(`・顧客への報告：下書きを作れませんでした（${ev.draft_error || '原因不明'}）`)
