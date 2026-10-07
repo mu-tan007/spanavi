@@ -53,7 +53,6 @@ import ZoomGuardNotice from './views/ZoomGuardNotice';
 import { subscribeToPush } from '../lib/pushNotification';
 import SourcingDashboardView from './views/SourcingDashboardView';
 import CRMView from './views/CRMView';
-import EmailMarketingView from './views/EmailMarketingView';
 import AppoListView, { MembersView } from './views/AppoListView';
 import PayrollView from './views/PayrollView';
 import ListView from './views/ListView';
@@ -452,7 +451,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
     });
   }, [supabaseData, switchEngagement]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","email_marketing","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","acq_deals","acq_firms","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","acq_deals","acq_firms","admin_settings"];
   // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
   const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
@@ -508,7 +507,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 初回（ロード完了直後）は currentTab を尊重する。タブが現エンゲージメントで
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
-    const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','email_marketing','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin','admin_settings'];
+    const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','edu_performance','ai','manager_admin','admin_settings'];
     const CAREER_TABS = ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout','mypage','admin_settings'];
     if (engSlug === 'seller_sourcing') {
       if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
@@ -781,7 +780,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     ]},
     { id: "g_crm", label: "CRM", children: [
       { id: "crm", label: "顧客管理" },
-      { id: "email_marketing", label: "メルマガ" },
     ]},
     { id: "g_member", label: "Member", children: [
       { id: "members", label: "メンバー" },
@@ -1473,7 +1471,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "appo" && <AppoListView appoData={appoData} setAppoData={isAdmin ? setAppoData : null} members={members} setMembers={isAdmin ? setMembers : null} clientData={clientData} rewardMaster={rewardMaster} setCallFlowScreen={setCallFlowScreen} callListData={callListData} contactsByClient={contactsByClient} onDataRefetch={onDataRefetch} isAdmin={isAdmin} currentUser={currentUser} />}
         {currentTab === "deals" && <DealsView isAdmin={isAdmin} currentUser={currentUser} clientData={clientData} callListData={callListData} onReportCountsChanged={refreshPendingReports} />}
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} callListData={callListData} currentUser={currentUser} members={members} clientEngagementRewards={supabaseData?.clientEngagementRewards || []} />}
-        {currentTab === "email_marketing" && <EmailMarketingView orgId={orgId} currentUser={currentUser} isAdmin={isAdmin} />}
 
         {currentTab === "members" && <EngagementMembersView isAdmin={isAdmin} />}
         {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
