@@ -289,7 +289,7 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
                 ? <OnboardingInvitesPanel />
                 : adminSheet === 'add'
                 ? <MASPMembersView isAdmin={isAdmin} onlyEngagementId={engagement?.id || null} />
-                : <PermissionSettings onToast={(t) => { setSheetMsg(t?.message || ''); setTimeout(() => setSheetMsg(''), 3000); }} />}
+                : <PermissionSettings engagementId={engagement?.id || null} onToast={(t) => { setSheetMsg(t?.message || ''); setTimeout(() => setSheetMsg(''), 3000); }} />}
             </div>
           </div>
         </div>

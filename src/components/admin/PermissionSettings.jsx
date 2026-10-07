@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getOrgId } from '../../lib/orgContext';
-import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Input, Card, Badge, DataTable } from '../ui';
+import { Button } from '../ui';
 import { PAGE_REGISTRY, ENGAGEMENT_LABELS } from '../../constants/pageRegistry';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import './PermissionSettings.css';
 
 // 一括権限管理: メンバーごとに「事業タブ内の閲覧可能ページ」をホワイトリスト方式で編集する。
 //
@@ -16,8 +15,8 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 // - admin (users.role='admin') は権限テーブル無視で全閲覧可。UIでは編集不可・バッジ表示
 // - 未設定メンバー（行が無い）は「現状見えているもの＝所属事業の全ページ」を pre-check で表示
 
-export default function PermissionSettings({ onToast }) {
-  const isMobile = useIsMobile();
+// engagementId を渡すと、その事業に所属する人とその事業のページだけを出す（メンバーのページから開くとき・2026-10-08）
+export default function PermissionSettings({ onToast, engagementId = null }) {
   const orgId = getOrgId();
   const [members, setMembers] = useState([]);
   const [adminUserIds, setAdminUserIds] = useState(new Set()); // role='admin' なメンバーの user_id
@@ -60,7 +59,7 @@ export default function PermissionSettings({ onToast }) {
           .select('member_id, engagement_id')
           .eq('org_id', orgId),
         supabase.from('member_page_permissions')
-          .select('member_id')
+          .select('member_id, engagement_slug')
           .eq('org_id', orgId),
       ]);
       if (cancelled) return;
@@ -76,7 +75,10 @@ export default function PermissionSettings({ onToast }) {
       setMemberEngagementMap(meMap);
 
       const counts = {};
-      (mpp.data || []).forEach(r => { counts[r.member_id] = (counts[r.member_id] || 0) + 1; });
+      (mpp.data || []).forEach(r => {
+        const c = counts[r.member_id] || (counts[r.member_id] = {});
+        c[r.engagement_slug] = (c[r.engagement_slug] || 0) + 1;
+      });
       setPermissionCounts(counts);
       setLoading(false);
     })();
@@ -86,12 +88,15 @@ export default function PermissionSettings({ onToast }) {
   // 検索フィルタ
   const filteredMembers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return members;
-    return members.filter(m =>
+    const inScope = engagementId
+      ? members.filter(m => (memberEngagementMap.get(m.id) || new Set()).has(engagementId) && m.rank !== 'student')
+      : members;
+    if (!q) return inScope;
+    return inScope.filter(m =>
       (m.name || '').toLowerCase().includes(q) ||
       (m.email || '').toLowerCase().includes(q)
     );
-  }, [members, search]);
+  }, [members, search, engagementId, memberEngagementMap]);
 
   const selectedMember = useMemo(
     () => members.find(m => m.id === selectedMemberId) || null,
@@ -116,8 +121,9 @@ export default function PermissionSettings({ onToast }) {
       .filter(e => e.slug !== 'masp')
       .filter(e => PAGE_REGISTRY[e.slug])
       .filter(e => memberEngs.has(e.id))
+      .filter(e => !engagementId || e.id === engagementId)
       .map(e => e.slug);
-  }, [selectedMemberId, memberEngagementMap, engagementsByDb]);
+  }, [selectedMemberId, memberEngagementMap, engagementsByDb, engagementId]);
 
   // 表示用ラベル: DB engagements.name を優先、無ければ ENGAGEMENT_LABELS フォールバック
   const labelFor = useCallback((slug) => {
@@ -195,9 +201,12 @@ export default function PermissionSettings({ onToast }) {
     setSaving(true);
     try {
       // 全削除 → insert（差分計算をシンプルに）
+      // 画面に出している事業の分だけ消して入れ直す（他の事業の権限は触らない・2026-10-08）
+      if (displayedSlugs.length === 0) { setSaving(false); return; }
       const { error: delErr } = await supabase.from('member_page_permissions')
         .delete()
-        .eq('member_id', selectedMemberId);
+        .eq('member_id', selectedMemberId)
+        .in('engagement_slug', displayedSlugs);
       if (delErr) throw delErr;
 
       const ppRows = [];
@@ -214,7 +223,7 @@ export default function PermissionSettings({ onToast }) {
 
       // ステート更新
       setOrigPages(Object.fromEntries(Object.entries(selectedPages).map(([k, v]) => [k, new Set(v)])));
-      setPermissionCounts(prev => ({ ...prev, [selectedMemberId]: ppRows.length }));
+      setPermissionCounts(prev => ({ ...prev, [selectedMemberId]: { ...(prev[selectedMemberId] || {}), ...Object.fromEntries(displayedSlugs.map(sl => [sl, (selectedPages[sl] || new Set()).size])) } }));
       onToast?.({ type: 'success', message: '権限を保存しました' });
     } catch (err) {
       console.error('[PermissionSettings] save error', err);
@@ -240,263 +249,123 @@ export default function PermissionSettings({ onToast }) {
     return false;
   }, [selectedMemberId, selectedIsAdmin, selectedPages, origPages, displayedSlugs]);
 
-  // ─── DataTable 用の列定義（揃え: 名前/役職=left, ロール=center, 権限ページ数=right）
-  const memberColumns = useMemo(() => [
-    {
-      key: 'name', label: 'メンバー', width: 140, align: 'left',
-      render: (m) => (
-        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: font.weight.semibold, color: color.textDark }}>
-          {m.name}
-        </div>
-      ),
-    },
-    {
-      key: 'position', label: '役職', width: 100, align: 'left',
-      render: (m) => (
-        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: color.textMid }}>
-          {m.position || '-'}
-        </div>
-      ),
-    },
-    {
-      key: 'role', label: 'ロール', width: 80, align: 'center',
-      render: (m) => {
-        const isAdminMember = m.user_id && adminUserIds.has(m.user_id);
-        return isAdminMember
-          ? <Badge variant="primary">admin</Badge>
-          : <span style={{ fontSize: font.size.xs, color: color.textLight }}>member</span>;
-      },
-    },
-    {
-      key: 'permCount', label: '権限ページ', width: 110, align: 'right',
-      render: (m) => {
-        const isAdminMember = m.user_id && adminUserIds.has(m.user_id);
-        if (isAdminMember) {
-          return <span style={{ fontSize: font.size.sm, color: color.textLight, fontFamily: font.family.mono }}>—</span>;
-        }
-        // 分母: そのメンバーが所属している事業の合計ページ数
-        const memberEngs = memberEngagementMap.get(m.id) || new Set();
-        const denom = engagementsByDb
-          .filter(e => e.slug !== 'masp' && PAGE_REGISTRY[e.slug] && memberEngs.has(e.id))
-          .reduce((sum, e) => sum + PAGE_REGISTRY[e.slug].length, 0);
-        const count = permissionCounts[m.id] || 0;
-        if (denom === 0) {
-          // 所属事業ゼロ
-          return <Badge variant="neutral">所属なし</Badge>;
-        }
-        if (count === 0) {
-          // 行が無い = 未設定 = 所属事業の全ページ見える状態
-          return <Badge variant="neutral">未設定</Badge>;
-        }
-        return (
-          <span style={{
-            fontFamily: font.family.mono,
-            fontSize: font.size.sm,
-            color: color.textDark,
-            fontWeight: font.weight.medium,
-          }}>
-            {count} / {denom}
-          </span>
-        );
-      },
-    },
-  ], [adminUserIds, permissionCounts, memberEngagementMap, engagementsByDb]);
+  // その人の「見られるページ数 / 全ページ数」（画面に出す事業の分だけ）
+  const meterOf = (m) => {
+    const memberEngs = memberEngagementMap.get(m.id) || new Set();
+    const slugs = engagementsByDb
+      .filter(e => e.slug !== 'masp' && PAGE_REGISTRY[e.slug] && memberEngs.has(e.id) && (!engagementId || e.id === engagementId))
+      .map(e => e.slug);
+    const denom = slugs.reduce((n, sl) => n + PAGE_REGISTRY[sl].length, 0);
+    const c = permissionCounts[m.id] || {};
+    const count = slugs.reduce((n, sl) => n + Math.min(c[sl] || 0, PAGE_REGISTRY[sl].length), 0);
+    return { count, denom };
+  };
+  const initial = (m) => (m?.name || '?').trim().charAt(0);
+  const avatar = (m) => <span className="ps-av">{m?.avatar_url ? <img src={m.avatar_url} alt="" /> : initial(m)}</span>;
+
+  // 区分ごとに並べる（PAGE_REGISTRY の group）
+  const groupsOf = (slug) => {
+    const out = [];
+    (PAGE_REGISTRY[slug] || []).forEach(pg => {
+      let g = out.find(x => x.name === pg.group);
+      if (!g) { g = { name: pg.group, pages: [] }; out.push(g); }
+      g.pages.push(pg);
+    });
+    return out;
+  };
+  const setGroup = (slug, keys, on) => {
+    if (selectedIsAdmin) return;
+    setSelectedPages(prev => {
+      const set = new Set(prev[slug] || []);
+      keys.forEach(k => (on ? set.add(k) : set.delete(k)));
+      return { ...prev, [slug]: set };
+    });
+  };
+  const totalOn = displayedSlugs.reduce((n, sl) => n + (selectedPages[sl]?.size || 0), 0);
+  const totalAll = displayedSlugs.reduce((n, sl) => n + PAGE_REGISTRY[sl].length, 0);
+  let changed = 0;
+  displayedSlugs.forEach(sl => {
+    const cur = selectedPages[sl] || new Set();
+    const orig = origPages[sl] || new Set();
+    cur.forEach(k => { if (!orig.has(k)) changed++; });
+    orig.forEach(k => { if (!cur.has(k)) changed++; });
+  });
 
   return (
-    // スマホでは一覧と詳細を縦に積む（左 460px 固定のままだと画面幅を越える）
-    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: space[5], minHeight: 600 }}>
-      {/* 左: メンバー一覧 (DataTable) */}
-      <div style={{ width: isMobile ? '100%' : 460, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ marginBottom: space[3] }}>
-          <Input
-            placeholder="メンバー検索"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+    <div className="ps">
+      <div className="ps-l">
+        <input className="ps-search" placeholder="名前・メールで探す" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="ps-list">
+          {loading && <div className="ps-empty" style={{ border: 0 }}>読み込み中…</div>}
+          {!loading && filteredMembers.length === 0 && <div className="ps-empty" style={{ border: 0 }}>該当する人がいません</div>}
+          {!loading && filteredMembers.map((m, i) => {
+            const isAdminMember = m.user_id && adminUserIds.has(m.user_id);
+            const { count, denom } = meterOf(m);
+            return (
+              <div key={m.id} className={`ps-p${m.id === selectedMemberId ? ' on' : ''}`} style={{ animationDelay: `${Math.min(i, 14) * 0.02}s` }} onClick={() => setSelectedMemberId(m.id)}>
+                {avatar(m)}
+                <span style={{ minWidth: 0 }}><b>{m.name}</b><small>{m.position || m.rank || 'メンバー'}</small></span>
+                {isAdminMember
+                  ? <span className="ps-meter admin">管理者</span>
+                  : <span className="ps-meter">{denom ? `${count}/${denom}` : '—'}<i><span style={{ width: denom ? `${(count / denom) * 100}%` : 0 }} /></i></span>}
+              </div>
+            );
+          })}
         </div>
-        <DataTable
-          ariaLabel="権限管理メンバー一覧"
-          columns={memberColumns}
-          rows={filteredMembers}
-          rowKey="id"
-          loading={loading}
-          emptyMessage="メンバーがいません"
-          onRowClick={(m) => setSelectedMemberId(m.id)}
-          rowAccent={(m) => m.id === selectedMemberId ? 'primary' : null}
-          rowBackground={(m) => m.id === selectedMemberId ? alpha(color.navyLight, 0.08) : null}
-          height="calc(100vh - 320px)"
-          showCount
-        />
       </div>
 
-      {/* 右: 権限編集 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="ps-r">
         {!selectedMemberId ? (
-          <div style={{
-            padding: space[10], textAlign: 'center', color: color.textMid, fontSize: font.size.base,
-            background: color.cream, border: `1px solid ${color.borderLight}`, borderRadius: radius.md,
-          }}>
-            左のメンバー一覧から編集対象を選択してください
-          </div>
+          <div className="ps-empty">左から人を選ぶと、見られるページを切り替えられます</div>
         ) : memberLoading ? (
-          <div style={{ padding: space[10], textAlign: 'center', color: color.textMid, fontSize: font.size.base }}>
-            読み込み中...
-          </div>
+          <div className="ps-empty">読み込み中…</div>
         ) : (
-          <div>
-            {/* ヘッダー Card */}
-            <Card
-              padding="md"
-              title={selectedMember?.name || ''}
-              description={selectedMember?.position || ''}
-              action={selectedIsAdmin ? <Badge variant="primary">管理者：全権限保有（編集不可）</Badge> : null}
-              style={{ marginBottom: space[4] }}
-            >
-              {selectedIsAdmin ? (
-                <div style={{
-                  fontSize: font.size.sm,
-                  color: color.textMid,
-                  lineHeight: font.lineHeight.relaxed,
-                }}>
-                  管理者ロール（users.role = 'admin'）のメンバーは権限テーブルを無視して全画面を閲覧できます。権限を制限したい場合は、まずロールを admin から変更してください。
-                </div>
-              ) : (
-                <div style={{
-                  fontSize: font.size.sm,
-                  color: color.textMid,
-                  lineHeight: font.lineHeight.relaxed,
-                }}>
-                  この画面で操作するのは <strong>ページ単位の閲覧権限</strong>のみ。事業タブ自体のON/OFFは <strong>MASP &gt; Members の所属事業チェックボックス</strong> で管理されています（このメンバーが所属している事業だけが下に表示されます）。MASP（全社）は admin 専用のため設定対象外です。
-                </div>
-              )}
-            </Card>
-
-            {/* 所属事業ゼロの空状態 */}
-            {!selectedIsAdmin && displayedSlugs.length === 0 && (
-              <div style={{
-                padding: space[8], textAlign: 'center',
-                background: color.cream, border: `1px solid ${color.borderLight}`, borderRadius: radius.md,
-                color: color.textMid, fontSize: font.size.base, lineHeight: font.lineHeight.relaxed,
-              }}>
-                このメンバーはまだ事業に所属していません。<br />
-                <span style={{ fontSize: font.size.sm, color: color.textLight }}>
-                  MASP &gt; Members 画面で所属事業をチェックすると、ここに事業ごとのページ権限が表示されます。
-                </span>
+          <>
+            <div className="ps-head" key={selectedMemberId}>
+              {avatar(selectedMember)}
+              <div className="grow">
+                <h3>{selectedMember?.name}</h3>
+                <p>{selectedIsAdmin ? '管理者はすべてのページを見られます' : `${displayedSlugs.map(labelFor).join('・') || '所属している事業がありません'}${displayedSlugs.length ? 'のページ' : ''}`}</p>
               </div>
-            )}
-
-            {/* 事業ごとのカード — メンバーが所属している事業のみ */}
+              {!selectedIsAdmin && totalAll > 0 && <span className="ps-big">{totalOn}<small>/ {totalAll}</small></span>}
+            </div>
+            {selectedIsAdmin && <div className="ps-lock">管理者の権限は、この画面では変えられません。</div>}
+            {!selectedIsAdmin && displayedSlugs.length === 0 && <div className="ps-empty">この人はまだ事業に所属していません。メンバーの追加・名簿で所属を付けると、ここに出ます。</div>}
             {displayedSlugs.map(slug => {
-              const pages = PAGE_REGISTRY[slug];
               const set = selectedPages[slug] || new Set();
-              const allOn = pages.length > 0 && pages.every(p => set.has(p.key));
-              const anyOn = set.size > 0;
               return (
-                <Card
-                  key={slug}
-                  padding="md"
-                  title={labelFor(slug)}
-                  action={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
-                      <Badge variant={anyOn ? 'success' : 'neutral'} dot>
-                        {anyOn ? '閲覧可' : '非表示'}
-                      </Badge>
-                      <span style={{
-                        fontSize: font.size.xs,
-                        color: color.textLight,
-                        fontFamily: font.family.mono,
-                      }}>
-                        {set.size} / {pages.length}
-                      </span>
-                    </div>
-                  }
-                  style={{ marginBottom: space[4] }}
-                >
-                  <div style={{ display: 'flex', gap: space[2], marginBottom: space[3] }}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={selectedIsAdmin || allOn}
-                      onClick={() => setEngagementAll(slug, true)}
-                    >全選択</Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={selectedIsAdmin || !anyOn}
-                      onClick={() => setEngagementAll(slug, false)}
-                    >全解除</Button>
-                  </div>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                    gap: space[2],
-                  }}>
-                    {pages.map(p => {
-                      const checked = set.has(p.key);
-                      return (
-                        <label
-                          key={p.key}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: space[2],
-                            padding: `${space[2]}px ${space[3]}px`,
-                            border: `1px solid ${checked ? color.navy : color.border}`,
-                            borderRadius: radius.md,
-                            background: checked ? alpha(color.navyLight, 0.06) : color.white,
-                            cursor: selectedIsAdmin ? 'not-allowed' : 'pointer',
-                            opacity: selectedIsAdmin ? 0.6 : 1,
-                            fontSize: font.size.sm,
-                            color: color.textDark,
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={selectedIsAdmin}
-                            onChange={() => togglePage(slug, p.key)}
-                            style={{ cursor: selectedIsAdmin ? 'not-allowed' : 'pointer' }}
-                          />
-                          <span style={{ flex: 1 }}>{p.label}</span>
-                          {p.group && (
-                            <span style={{ fontSize: font.size.xs, color: color.textLight, fontFamily: font.family.mono }}>
-                              {p.group}
-                            </span>
-                          )}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </Card>
+                <div key={slug} className="ps-groups">
+                  {groupsOf(slug).map((g, gi) => {
+                    const keys = g.pages.map(pg => pg.key);
+                    const allOn = keys.every(k => set.has(k));
+                    return (
+                      <section key={g.name} className="ps-g" style={{ animationDelay: `${gi * 0.04}s` }}>
+                        <header>
+                          <b>{g.name}</b>
+                          <button type="button" disabled={selectedIsAdmin} onClick={() => setGroup(slug, keys, !allOn)}>{allOn ? 'すべて外す' : 'すべて見せる'}</button>
+                        </header>
+                        {g.pages.map(pg => {
+                          const on = selectedIsAdmin || set.has(pg.key);
+                          return (
+                            <div key={pg.key} className={`ps-row${on ? '' : ' off'}${selectedIsAdmin ? ' lock' : ''}`} onClick={() => togglePage(slug, pg.key)} role="switch" aria-checked={on}>
+                              <span>{pg.label}</span><i className="ps-sw" />
+                            </div>
+                          );
+                        })}
+                      </section>
+                    );
+                  })}
+                </div>
               );
             })}
-
-            {/* 保存ボタン */}
-            <div style={{
-              position: 'sticky',
-              bottom: 0,
-              background: color.white,
-              padding: space[3],
-              marginTop: space[4],
-              borderTop: `1px solid ${color.border}`,
-              display: 'flex',
-              gap: space[2],
-              justifyContent: 'flex-end',
-              boxShadow: shadow.sm,
-            }}>
-              <Button
-                variant="outline"
-                onClick={onCancel}
-                disabled={selectedIsAdmin || !isDirty || saving}
-              >キャンセル</Button>
-              <Button
-                variant="primary"
-                onClick={onSave}
-                disabled={selectedIsAdmin || !isDirty || saving}
-                loading={saving}
-              >保存</Button>
-            </div>
-          </div>
+            {isDirty && (
+              <div className="ps-save">
+                <span><b>{changed}</b> か所を変えました</span>
+                <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving} style={{ color: '#fff' }}>元に戻す</Button>
+                <Button size="sm" variant="primary" onClick={onSave} loading={saving}>保存</Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
