@@ -64,7 +64,6 @@ ${JSON.stringify({ business: input.dossier.business, strengths: input.dossier.st
  "temperature":1〜5の整数（1=ほぼ興味なし 3=条件次第 5=積極的）,
  "temperature_label":"温度感を6字以内の言葉で（例：前向き・条件次第・様子見）",
  "quotes":[{"text":"社長の発言","context":"どんな質問への答えか（15字以内）"}],
- "questions":["面談で聞くとよいこと（3〜4個・各30字以内）"],
  "cautions":["面談で気をつけること（0〜2個・各30字以内）"],
  "successor":"あり・なし・未確認 のどれか"}
 
@@ -120,7 +119,8 @@ async function buildOne(appointmentId: string, force = false): Promise<{ id: str
     temperature: t,
     temperature_label: String(raw.temperature_label || '').slice(0, 10),
     quotes: quotes as Brief['quotes'],
-    questions: (Array.isArray(raw.questions) ? raw.questions : []).map(String).slice(0, 4),
+    // 「面談で聞くとよいこと」は作らない（2026-10-08 むー様：クライアントに釈迦に説法）
+    questions: [],
     cautions: (Array.isArray(raw.cautions) ? raw.cautions : []).map(String).slice(0, 2),
     successor: ['あり', 'なし', '未確認'].includes(String(raw.successor)) ? String(raw.successor) : '未確認',
     generated_at: new Date().toISOString(),

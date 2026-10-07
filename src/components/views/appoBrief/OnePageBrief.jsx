@@ -36,6 +36,16 @@ export default function OnePageBrief({ m, createdOn }) {
       {b.one_liner && <div className="ob-one"><b>ひとことで：</b>{b.one_liner}</div>}
       <div className="ob-grid">
         <div className="ob-col">
+          {/* 東京商工リサーチ（企業DB）の概要（2026-10-08） */}
+          <div className="ob-box"><h3>会社の概要（東京商工リサーチ）</h3>
+            <dl className="ob-kv">
+              {(m.industry || m.businessDesc) && <><dt>業種</dt><dd>{m.industry}{m.businessDesc ? `（${m.businessDesc}）` : ''}</dd></>}
+              {m.established && <><dt>設立</dt><dd>{m.established}年</dd></>}
+              {m.employees && <><dt>従業員</dt><dd>{m.employees}名</dd></>}
+              {m.rep && <><dt>代表</dt><dd>{m.rep} 様{m.repAge ? `（${m.repAge}歳）` : ''}</dd></>}
+              {m.shareholders && <><dt>大株主</dt><dd>{String(m.shareholders).replace(/[，,]/g, '、')}</dd></>}
+            </dl>
+          </div>
           {(m.revenueShort || m.netIncomeShort || m.years != null) && (
             <div className="ob-box"><h3>数字</h3>
               <div className="ob-nums">
@@ -45,7 +55,7 @@ export default function OnePageBrief({ m, createdOn }) {
               </div>
             </div>
           )}
-          {m.business.length > 0 && <div className="ob-box"><h3>事業</h3><ul>{m.business.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
+          {m.business.length > 0 && <div className="ob-box"><h3>事業の詳細（公開情報より）</h3><ul>{m.business.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
           {m.strengths.length > 0 && <div className="ob-box"><h3>強み</h3><ul>{m.strengths.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
           {m.history.length > 0 && (
             <div className="ob-box"><h3>沿革</h3>
@@ -65,13 +75,12 @@ export default function OnePageBrief({ m, createdOn }) {
             ))}
             {m.personality && <p>{m.personality.slice(0, 140)}{m.personality.length > 140 ? '…' : ''}</p>}
           </div>
-          {(b.questions || []).length > 0 && <div className="ob-box"><h3>面談で聞くとよいこと</h3><ul>{b.questions.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
           {(b.cautions || []).length > 0 && <div className="ob-box"><h3>気をつけること</h3><ul>{b.cautions.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
           {b.successor && <div className="ob-box"><h3>後継者</h3><p>{b.successor}</p></div>}
         </div>
       </div>
       <div className="ob-foot">
-        <span>出典：会社HP・通話録音・リストの財務値<br />{createdOn} 作成{m.getter ? ` ・ 取得 ${m.getter.split(/\s/)[0]}` : ''}</span>
+        <span>出典：東京商工リサーチ（弊社の企業DB）・会社HPなどの公開情報・通話録音<br />{createdOn} 作成{m.getter ? ` ・ 取得 ${m.getter.split(/\s/)[0]}` : ''}</span>
         <SpartiaLogo />
       </div>
     </div>
