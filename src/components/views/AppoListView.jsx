@@ -32,6 +32,8 @@ import { todayJst, isStale, staleFirst, TODO_RULES } from '../../utils/appoOverv
 // 2026-10-07 見本どおり：面談・企業・クライアント・取得者・状態・報告・温度感（金額は右端に残す）
 const APPO_COLS = [
   { key: 'meet', width: 120, align: 'left' },
+  // 取得日（2026-10-08 むー様：取得日の並べ替えで最新のアポを上に出して報告を送るので戻す）
+  { key: 'got', width: 70, align: 'right' },
   { key: 'company', width: 250, align: 'left' },
   { key: 'client', width: 200, align: 'left' },
   { key: 'getter', width: 100, align: 'left' },
@@ -897,6 +899,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   // ── 請求書PDF生成 ──────────────────────────────────────
   // 明細行の備考: 対象クライアントのみ、そのアポの担当者（クライアント側）名を「〇〇様」で自動付与。
   // 担当者は「そのアポが載っている架電リストに紐付いたクライアント担当者」で決まる。
+  // そのアポのクライアント側の担当者（架電リストに紐付いた担当者。複数なら「・」でつなぐ）
+  const clientContactFor = (appo) => {
+    const list = callListData.find(l => l._supaId === appo.list_id);
+    const ids = list?.contactIds || [];
+    if (!ids.length) return '';
+    const client = findClientByName(clientData, appo.client);
+    const all = client?._supaId ? (contactsByClient[client._supaId] || []) : [];
+    return ids.map(id => all.find(ct => ct.id === id)?.name).filter(Boolean).map(n => `${n.split(/[\s　]/)[0]}様`).join('・');
+  };
+
   const invoiceNoteFor = (clientName, appo) => {
     if (!INVOICE_NOTE_CONTACT_CLIENTS.includes(clientName)) return '';
     const list = callListData.find(l => l._supaId === appo.list_id);
@@ -1706,6 +1718,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           )}
           {[
             { label: '面談', key: 'meetDate' },
+            { label: '取得日', key: 'getDate' },
             { label: '企業', key: null },
             { label: 'クライアント', key: 'client' },
             { label: '取得者', key: 'getter' },
@@ -1762,6 +1775,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 <span style={{ display: 'block', fontFamily: "'Barlow', 'JetBrains Mono'", fontWeight: font.weight.semibold, color: isStale(a, today) ? color.textLight : color.textDark, whiteSpace: 'nowrap' }}>{a.meetDate ? `${Number(a.meetDate.slice(5, 7))}/${Number(a.meetDate.slice(8, 10))}（${'日月火水木金土'[new Date(a.meetDate + 'T00:00:00+09:00').getDay()]}）` : '—'}</span>
                 <span style={{ display: 'block', fontSize: 10, color: color.textLight, whiteSpace: 'nowrap' }}>{(a.meetTime || '').slice(0, 5) || '時刻なし'} ・ {a.isOnline ? 'オンライン' : '対面'}</span>
               </span>
+              <span style={{ textAlign: 'right', fontFamily: "'Barlow', 'JetBrains Mono'", color: color.textMid, whiteSpace: 'nowrap' }}>{a.getDate ? `${Number(a.getDate.slice(5, 7))}/${Number(a.getDate.slice(8, 10))}` : '—'}</span>
               <span style={{ minWidth: 0, lineHeight: 1.35 }}>
                 <span style={{ display: 'block', fontWeight: font.weight.semibold, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {a.company}
@@ -1771,7 +1785,11 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 </span>
                 {isStale(a, today) && <span style={{ display: 'block', fontSize: 10, color: color.goldDim }}>面談日を過ぎています。面談済にしますか</span>}
               </span>
-              <span style={{ color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.client}</span>
+              <span style={{ minWidth: 0, lineHeight: 1.35 }}>
+                <span style={{ display: 'block', color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.client}</span>
+                {/* クライアント側の担当者（そのアポが載っている架電リストの担当者・2026-10-08） */}
+                {clientContactFor(a) && <span style={{ display: 'block', fontSize: 10, color: color.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>担当 {clientContactFor(a)}</span>}
+              </span>
               <span style={{ color: color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.getter}</span>
               <span style={{ textAlign: 'center' }}>
                 <span style={{ display: 'inline-block', fontSize: 10, padding: '1px 8px', borderRadius: radius.pill, background: sc.bg, color: sc.color, fontWeight: font.weight.semibold, whiteSpace: 'nowrap' }}>{a.status}</span>
@@ -3032,7 +3050,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                               <option value="">選択...</option>
                               {clientOptions.map(c => <option key={c._supaId || c.company} value={c.company}>{c.company}{c.status === "停止中" ? "（停止中）" : ""}</option>)}
                             </select>
-                          : <div className="v2-tile-v">{reportDetail.client}</div>}
+                          : <div className="v2-tile-v">{reportDetail.client}{clientContactFor(reportDetail) && <div style={{ fontSize: 11, fontWeight: 400, color: '#4B5868', marginTop: 2 }}>担当 {clientContactFor(reportDetail)}</div>}</div>}
                       </div>
                       {/* 取得者 */}
                       <div className="v2-tile">
