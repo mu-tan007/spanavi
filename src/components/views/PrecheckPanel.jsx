@@ -58,6 +58,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   const [memo, setMemo] = useState('');
   const [recallAt, setRecallAt] = useState('');
   const [rescheduledAt, setRescheduledAt] = useState('');
+  const [cancelType, setCancelType] = useState(''); // キャンセルの区分（2026-10-08）
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [savedMsg, setSavedMsg] = useState('');
@@ -73,7 +74,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   }, [itemId]);
 
   useEffect(() => {
-    setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt(''); setError(''); setSavedMsg('');
+    setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt(''); setCancelType(''); setError(''); setSavedMsg('');
     load();
   }, [load]);
 
@@ -90,6 +91,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   const save = async () => {
     if (!result) { setError('結果を選んでください'); return; }
     if (['リスケ', 'キャンセル'].includes(result) && !memo.trim()) { setError('リスケ・キャンセルは先方のご事情をメモに書いてください（報告の文面に使います）'); return; }
+    if (result === 'キャンセル' && !cancelType) { setError('キャンセルは「先方都合」か「クライアント都合」かを選んでください'); return; }
     setSaving(true); setError(''); setSavedMsg('');
     try {
       onBeforeSave?.();
@@ -113,7 +115,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
         const nextCancelReason = result === 'キャンセル' ? memo.trim() : appo.cancel_reason;
         const updErr = await updatePreCheckResult(appo.id, {
           preCheckStatus: result, preCheckMemo: memoText, status: nextStatus,
-          rescheduledAt: nextRescheduledAt, cancelReason: nextCancelReason,
+          rescheduledAt: nextRescheduledAt, cancelReason: nextCancelReason, cancelType: result === 'キャンセル' ? cancelType : null,
         });
         if (updErr) throw updErr;
         setAppoData?.(prev => prev.map(a => a._supaId === appo.id ? {
@@ -122,7 +124,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
         } : a));
       }
       setSavedMsg(`「${result}」を記録しました。録音とSlackへの返信は1〜3分ほどで自動で付きます。`);
-      setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt('');
+      setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt(''); setCancelType('');
       await load();
     } catch (e) {
       setError('保存に失敗しました：' + (e?.message || '不明なエラー'));
@@ -202,6 +204,17 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
           {result === 'リスケ' && (
             <div style={{ marginBottom: space[2] }}>
               <Input label="新しい面談日時（決まっていれば）" type="datetime-local" size="sm" value={rescheduledAt} onChange={e => setRescheduledAt(e.target.value)} />
+            </div>
+          )}
+          {result === 'キャンセル' && (
+            <div style={{ marginBottom: space[2] }}>
+              <div style={{ fontSize: font.size.xs, color: color.textMid, marginBottom: 4 }}>どちらの都合か（必須）</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[['prospect', '先方（アポ先）都合'], ['client', 'クライアント都合']].map(([k, l]) => (
+                  <Button key={k} size="sm" variant={cancelType === k ? 'primary' : 'outline'} onClick={() => setCancelType(k)}>{l}</Button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: color.textLight, marginTop: 4 }}>先方都合なら、面談日から30日たつと誰でもかけ直せるようにリストへ戻ります。クライアント都合は戻しません。</div>
             </div>
           )}
           {['リスケ', 'キャンセル'].includes(result) && (

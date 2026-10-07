@@ -3062,7 +3062,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                           ? <select value={ef.status} onChange={e => u("status", e.target.value)} style={iS}>
                               <option value="面談済">面談済</option><option value="事前確認済">事前確認済</option><option value="アポ取得">アポ取得</option><option value="リスケ中">リスケ中</option><option value="キャンセル">キャンセル</option>
                             </select>
-                          : <div className="v2-tile-v">{reportDetail.status}</div>}
+                          : <div className="v2-tile-v">{reportDetail.status}{reportDetail.status === 'キャンセル' && reportDetail.cancelType ? `（${reportDetail.cancelType === 'client' ? 'クライアント都合' : '先方都合'}）` : ''}</div>}
+                        {/* キャンセルの区分（2026-10-08）：先方都合は面談日から30日でリストに戻る */}
+                        {detailEditing && ef.status === 'キャンセル' && (
+                          <select value={ef.cancelType || ''} onChange={e => u("cancelType", e.target.value)} style={{ ...iS, marginTop: 4 }}>
+                            <option value="">どちらの都合か（選ぶ）</option>
+                            <option value="prospect">先方（アポ先）都合</option>
+                            <option value="client">クライアント都合</option>
+                          </select>
+                        )}
                       </div>
                       {/* 月（読み取り専用） */}
                       <div className="v2-tile">

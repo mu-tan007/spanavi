@@ -332,6 +332,7 @@ export function useSpanaviData(authOrgId) {
         preCheckMemo: a.pre_check_memo || '',
         rescheduledAt: a.rescheduled_at ? a.rescheduled_at.slice(0, 16).replace(' ', 'T') : '',
         cancelReason: a.cancel_reason || '',
+        cancelType: a.cancel_type || '',
         phone: a.phone || '',
         recordingUrl: a.recording_url || '',
         appoReport: (a.appo_report || '').replace(/\\n/g, '\n'),

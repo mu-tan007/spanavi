@@ -821,12 +821,23 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   // 架電記録由来の除外（アポ獲得・除外）に加え、call_list_items.is_excluded も尊重する。
   // AI断り分析で温度感LOWと判定された企業はDBトリガで is_excluded が立つため、
   // ここで拾わないと架電可能一覧に残り続ける。
+  // 再アプローチ（キャンセル先方都合・リスケ中から30日で戻した行）は、戻した時より前の「アポ獲得」では除外しない（2026-10-08）
+  const reapproachAt = useMemo(() => {
+    const m = new Map();
+    for (const i of items) if (i.reapproach_at) m.set(i.id, i.reapproach_at);
+    return m;
+  }, [items]);
   const excludedItemSet = useMemo(() => {
     const s = new Set();
-    for (const r of callRecords) if (EXCLUDED_STATUSES.has(r.status)) s.add(r.item_id);
+    for (const r of callRecords) {
+      if (!EXCLUDED_STATUSES.has(r.status)) continue;
+      const ra = reapproachAt.get(r.item_id);
+      if (ra && (!r.called_at || r.called_at <= ra)) continue;
+      s.add(r.item_id);
+    }
     for (const i of items) if (i.is_excluded === true) s.add(i.id);
     return s;
-  }, [callRecords, EXCLUDED_STATUSES, items]);
+  }, [callRecords, EXCLUDED_STATUSES, items, reapproachAt]);
 
   const getRecordsForItem = (itemId) => recordsByItem.get(itemId) || [];
   const getNextRound = (itemId) => {
@@ -2602,6 +2613,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             <td style={{ padding: '7px 8px', fontWeight: font.weight.semibold, color: color.navyDeep, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: space[1] }}>
                                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company}</span>
+                                {item.reapproach_at && <span title={item.reapproach_note || '再アプローチ'} style={{ flexShrink: 0, fontSize: 10, padding: '1px 7px', borderRadius: 999, background: '#F7F0E1', color: '#7A5A1E', fontWeight: 600 }}>再アプローチ</span>}
                                 <Button variant="ghost" size="sm" aria-label={`${item.company}の企業カルテ`} title="共有情報・全リストの対応履歴を開く"
                                   onClick={e => { e.stopPropagation(); setProfileTarget({ itemId: item.id }); }} style={{ flexShrink: 0, padding: space[1], fontSize: font.size.xs }}>カルテ</Button>
                               </div>
@@ -2680,7 +2692,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 return (
                   <div style={{ padding: space[5], background: color.white, borderRadius: radius.md, border: `1px solid ${color.gray200}` }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: space[3] }}>
-                      <div style={{ fontSize: font.size.xl + 2, fontWeight: font.weight.bold, color: color.navyDeep, flex: 1, lineHeight: 1.3 }}>{selectedRow.company}{docViewBadge ? <div style={{ marginTop: space[1] }}>{docViewBadge}</div> : null}</div>
+                      <div style={{ fontSize: font.size.xl + 2, fontWeight: font.weight.bold, color: color.navyDeep, flex: 1, lineHeight: 1.3 }}>{selectedRow.company}{docViewBadge ? <div style={{ marginTop: space[1] }}>{docViewBadge}</div> : null}
+                        {selectedRow.reapproach_at && <div style={{ marginTop: space[1], fontSize: 12, fontWeight: 500, color: '#7A5A1E', background: '#F7F0E1', borderRadius: 8, padding: '4px 10px', display: 'inline-block' }}>再アプローチ ・ {selectedRow.reapproach_note || '元のアポから30日'}</div>}</div>
                       <Button variant="outline" size="sm" onClick={() => setProfileTarget({ itemId: selectedRow.id })}>企業カルテ</Button>
                       <span style={{ fontSize: font.size.xs, padding: '1px 6px', borderRadius: radius.sm, fontWeight: font.weight.semibold, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
                         {lastResult}

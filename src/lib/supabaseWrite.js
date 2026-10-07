@@ -743,6 +743,8 @@ export async function updateAppointment(supaId, data) {
     .update({
       company_name: data.company,
       status: data.status,
+      // キャンセルの区分（2026-10-08）。キャンセル以外は消す
+      cancel_type: data.status === 'キャンセル' ? (data.cancelType || null) : null,
       getter_name: data.getter,
       appointment_date: data.getDate || null,
       meeting_date: data.meetDate || null,
@@ -1076,6 +1078,8 @@ export async function updatePreCheckResult(supaId, data) {
       pre_check_memo: data.preCheckMemo || null,
       rescheduled_at: data.rescheduledAt || null,
       cancel_reason: data.cancelReason || null,
+      // キャンセルの区分（client＝クライアント都合／prospect＝先方都合）。キャンセル以外は消す（2026-10-08）
+      cancel_type: data.status === 'キャンセル' ? (data.cancelType || null) : null,
       status: data.status,
     })
     .eq('id', supaId)
