@@ -1,0 +1,22 @@
+/* 22箇条（ライブラリーの本・2026-10-07 見本どおり） */
+.rb { font-family: 'Noto Sans JP', sans-serif; }
+.rb-prog { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #4B5868; margin-bottom: 10px; }
+.rb-pb { flex: 1; height: 8px; border-radius: 999px; background: #EEF0F3; overflow: hidden; }
+.rb-pb i { display: block; height: 100%; background: #1F7A4D; transition: width .4s cubic-bezier(.2,.8,.2,1); }
+.rb-n { font-family: 'Barlow', sans-serif; font-weight: 600; color: #032D60; }
+.rb-list { display: grid; gap: 8px; }
+.rb-ru { border: 1px solid #E3E6EB; border-radius: 10px; background: #fff; overflow: hidden; animation: rb-in .35s cubic-bezier(.2,.8,.2,1) both; }
+.rb-ru summary { list-style: none; display: grid; grid-template-columns: 44px 1fr 22px; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; }
+.rb-ru summary::-webkit-details-marker { display: none; }
+.rb-ru summary:hover { background: #F5F9FE; }
+.rb-no { font-family: 'Outfit', 'Barlow', sans-serif; font-weight: 800; font-size: 20px; color: #C8A45A; text-align: center; }
+.rb-ru b { font-size: 14px; color: #032D60; }
+.rb-ck { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #E3E6EB; position: relative; }
+.rb-ru.read .rb-ck { background: #1F7A4D; border-color: #1F7A4D; }
+.rb-ru.read .rb-ck::after { content: ""; position: absolute; left: 6px; top: 3px; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.rb-ru p { padding: 0 16px 14px 70px; margin: 0; font-size: 13px; line-height: 1.95; color: #0E1B2C; }
+.rb-end { text-align: center; padding: 22px 0 6px; }
+.rb-end b { display: block; color: #032D60; font-size: 18px; }
+.rb-end span { font-size: 12px; color: #8692A0; }
+@keyframes rb-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .rb-ru { animation: none !important; } }

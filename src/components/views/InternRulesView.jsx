@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import './library/RulesBook.css';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge } from '../ui';
 import PageHeader from '../common/PageHeader';
@@ -180,6 +181,33 @@ function RuleCard({ rule, refCallback }) {
   );
 }
 
+// ライブラリーの本として開いたとき（2026-10-07 見本どおり）：番号と題名を並べ、押すと本文。読んだら印と上の帯
+const READ_KEY = 'spanavi_rules_read_v1';
+function RulesBook() {
+  const [read, setRead] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); } catch { return new Set(); } });
+  const mark = (no) => setRead(prev => {
+    if (prev.has(no)) return prev;
+    const next = new Set(prev); next.add(no);
+    try { localStorage.setItem(READ_KEY, JSON.stringify([...next])); } catch { /* 残せなくても画面は変える */ }
+    return next;
+  });
+  return (
+    <div className="rb">
+      <div className="rb-prog"><span>読んだ</span><span className="rb-pb"><i style={{ width: `${(read.size / RULES.length) * 100}%` }} /></span><span className="rb-n">{read.size} / {RULES.length}</span></div>
+      <div className="rb-list">
+        {RULES.map((r, i) => (
+          <details key={r.no} className={`rb-ru${read.has(r.no) ? ' read' : ''}`} style={{ animationDelay: `${Math.min(i, 10) * 0.03}s` }}
+            onToggle={(e) => { if (e.currentTarget.open) mark(r.no); }}>
+            <summary><span className="rb-no">{String(r.no).padStart(2, '0')}</span><b>{r.title}</b><span className="rb-ck" /></summary>
+            <p>{r.body}</p>
+          </details>
+        ))}
+      </div>
+      <div className="rb-end"><b>以上、22箇条。</b><span>これを胸に刻み、圧倒的な結果を出せ。 ・ 代表取締役 篠宮 拓武</span></div>
+    </div>
+  );
+}
+
 export default function InternRulesView({ embedded = false }) {
   const headerRef = useRef(null);
   const cardRefs = useRef([]);
@@ -234,6 +262,7 @@ export default function InternRulesView({ embedded = false }) {
     return () => observer.disconnect();
   }, []);
 
+  if (embedded) return <RulesBook />;
   return (
     <div style={{ paddingBottom: 64, animation: 'fadeIn 0.3s ease' }}>
 

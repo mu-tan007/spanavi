@@ -118,6 +118,13 @@ export default function LibraryView({
     if (!currentUser) return;
     fetchRecordingBookmarks(currentUser).then(({ data }) => setBookmarks(data || []));
   }, [currentUser]);
+  // お気に入り録音：みんなの保存と自分の保存（2026-10-07 見本どおり）
+  const [bmScope, setBmScope] = useState('all');
+  const [allBookmarks, setAllBookmarks] = useState([]);
+  useEffect(() => {
+    supabase.from('recording_bookmarks').select('*').order('created_at', { ascending: false }).limit(300)
+      .then(({ data }) => setAllBookmarks(data || []));
+  }, [bookmarks.length]);
 
   const refreshMeetings = async () => {
     setWmLoading(true);
@@ -332,49 +339,41 @@ export default function LibraryView({
 
             {activeCardId === 'rules' && <InternRulesView embedded />}
 
-            {activeCardId === 'bookmarks' && (
-              bookmarks.length === 0 ? (
-                <Empty>ブックマークはまだありません。Search → 録音一覧 から追加できます。</Empty>
-              ) : bookmarks.map((b, idx) => {
-                const isPlaying = bookmarkPlayingId === b.id;
-                return (
-                  <div key={b.id} style={{
-                    borderTop: idx === 0 ? 'none' : `1px solid ${color.borderLight}`,
-                    padding: `${space[2.5]}px 0`,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: space[3], fontSize: font.size.sm }}>
-                      <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-                        <div style={{
-                          fontWeight: font.weight.bold, color: color.navy,
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }}>
-                          {b.company_name || '—'}
-                        </div>
-                        <div style={{ fontSize: font.size.xs - 1, color: color.textLight, marginTop: 2 }}>
-                          {b.getter_name || '—'} ・ {(b.created_at || '').slice(0, 10)}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant={isPlaying ? 'primary' : 'outline'}
-                        onClick={() => setBookmarkPlayingId(isPlaying ? null : b.id)}
-                        style={{ borderColor: color.navy, color: isPlaying ? color.white : color.navy, background: isPlaying ? color.navy : color.white }}
-                      >
-                        {isPlaying ? '■ 停止' : '▶ 再生'}
-                      </Button>
-                      <button onClick={() => handleRemoveBookmark(b.id)} title="ブックマーク解除"
-                        style={{
-                          padding: `${space[1.5]}px ${space[2.5]}px`,
-                          borderRadius: radius.md, border: `1px solid ${color.gray200}`,
-                          background: color.white, cursor: 'pointer',
-                          fontSize: font.size.md, color: '#F59E0B',
-                        }}>★</button>
-                    </div>
-                    {isPlaying && <InlineAudioPlayer url={b.recording_url} onClose={() => setBookmarkPlayingId(null)} />}
+            {activeCardId === 'bookmarks' && (() => {
+              const rows = bmScope === 'mine' ? bookmarks : allBookmarks;
+              return (
+                <>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                    {[['all', 'みんなの保存'], ['mine', '自分の保存']].map(([k, l]) => (
+                      <Button key={k} size="sm" variant={bmScope === k ? 'primary' : 'outline'} onClick={() => setBmScope(k)}>{l}{k === 'mine' ? `（${bookmarks.length}）` : `（${allBookmarks.length}）`}</Button>
+                    ))}
                   </div>
-                );
-              })
-            )}
+                  {rows.length === 0 ? (
+                    <Empty>{bmScope === 'mine' ? '保存した録音はまだありません。架電の録音一覧の ☆ から保存できます。' : '保存された録音はまだありません。'}</Empty>
+                  ) : (
+                    <div className="lb-card" style={{ overflow: 'hidden' }}>
+                      {rows.map((b, idx) => {
+                        const isPlaying = bookmarkPlayingId === b.id;
+                        const mine = b.user_name === currentUser;
+                        return (
+                          <div key={b.id} className="li-bmr" style={{ animationDelay: `${Math.min(idx, 12) * 0.03}s` }}>
+                            <button type="button" className={`li-bplay${isPlaying ? ' on' : ''}`} onClick={() => setBookmarkPlayingId(isPlaying ? null : b.id)} title={isPlaying ? '止める' : '聞く'} />
+                            <span style={{ minWidth: 0 }}>
+                              <b>{b.company_name || '—'}</b>
+                              <small>{[b.getter_name ? `架電 ${b.getter_name}` : '', b.user_name ? `保存 ${b.user_name}` : '', md((b.created_at || '').slice(0, 10))].filter(Boolean).join(' ・ ')}{b.note ? ` ・ ${b.note}` : ''}</small>
+                            </span>
+                            {mine
+                              ? <button type="button" className="li-star" onClick={() => handleRemoveBookmark(b.id)} title="保存をやめる">★</button>
+                              : <span className="li-star off">★</span>}
+                            {isPlaying && <div style={{ gridColumn: '1 / -1' }}><InlineAudioPlayer url={b.recording_url} onClose={() => setBookmarkPlayingId(null)} /></div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {activeCardId === 'meetings' && (() => {
               if (wmLoading) return <Empty>読み込み中…</Empty>;

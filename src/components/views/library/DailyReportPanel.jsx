@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import './DailyReport.css';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 import { C } from '../../../constants/colors';
@@ -303,52 +304,29 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-      {/* 1. ヘッダー（前日比 delta 付き） */}
+      {/* 1. 4つの数と前日比（2026-10-07 見本どおり） */}
       <div>
-        <div style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, letterSpacing: '0.06em' }}>
-          {report.team_name} ・ {report.report_date}
-        </div>
-        <div style={{ fontSize: 18, fontWeight: font.weight.bold, color: color.navy, marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
-          <SummaryNum label="架電" cur={kpi.calls} prev={ykpi?.calls} />
-          <SummaryNum label="接続" cur={kpi.keyman_connects} prev={ykpi?.keyman_connects} />
-          <SummaryNum label="アポ" cur={kpi.appointments} prev={ykpi?.appointments} suffix="件" />
-          <SummaryNum label="売上" cur={kpi.sales} prev={ykpi?.sales} prefix="¥" formatter={v => v.toLocaleString()} />
+        <div className="dr-lbl">{report.team_name}チーム ・ {report.report_date}</div>
+        <div className="dr-kp4">
+          <DailyKpi label="架電" cur={kpi.calls} prev={ykpi?.calls} unit="件" />
+          <DailyKpi label="社長につながった" cur={kpi.keyman_connects} prev={ykpi?.keyman_connects} unit="件" />
+          <DailyKpi label="アポ" cur={kpi.appointments} prev={ykpi?.appointments} unit="件" />
+          <DailyKpi label="売上" cur={Math.round((kpi.sales || 0) / 1000) / 10} prev={ykpi ? Math.round((ykpi.sales || 0) / 1000) / 10 : null} unit="万円" />
         </div>
       </div>
 
-      {/* 2. KPI スコアボード（チーム比較に ▲/▼ delta） */}
-      <Section title="KPI スコアボード（他チーム比較）">
-        <div style={{ overflowX: 'auto', borderRadius: radius.md, border: `1px solid ${color.border}` }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, minWidth: 520 }}>
-            <thead>
-              <tr style={{ background: '#0D2247' }}>
-                <th style={{ ...thNavy, textAlign: 'left' }}>指標</th>
-                <th style={thNavy}>{report.team_name}</th>
-                {otherTeams.map(t => <th key={t.team_id} style={thNavy}>{t.team_name}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              <KpiRow label="出勤者 / 稼働者" value={`${kpi.active_members ?? '-'} / ${kpi.active_members ?? '-'}`}
-                others={otherTeams.map(t => `${t.payload?.kpi?.active_members ?? '-'} / ${t.payload?.kpi?.active_members ?? '-'}`)} compare={false} />
-              <KpiRow label="架電件数" value={kpi.calls} others={otherTeams.map(t => t.payload?.kpi?.calls ?? 0)} />
-              <KpiRow label="キーマン接続数" value={kpi.keyman_connects} others={otherTeams.map(t => t.payload?.kpi?.keyman_connects ?? 0)} />
-              <KpiRow label="アポ獲得数" value={kpi.appointments} others={otherTeams.map(t => t.payload?.kpi?.appointments ?? 0)} />
-              <KpiRow label="キーマン接続率" value={kpi.keyman_connect_rate} others={otherTeams.map(t => t.payload?.kpi?.keyman_connect_rate ?? 0)} suffix="%" />
-              <KpiRow label="アポ獲得率" value={kpi.appointment_rate} others={otherTeams.map(t => t.payload?.kpi?.appointment_rate ?? 0)} suffix="%" />
-              <KpiRow label="売上 (¥)" value={kpi.sales || 0} others={otherTeams.map(t => t.payload?.kpi?.sales ?? 0)}
-                formatter={v => v.toLocaleString()} />
-            </tbody>
-          </table>
-        </div>
-      </Section>
+      {/* 2. チームを比べる（左右の棒・勝っている方を金） */}
+      {otherTeams.length > 0 && (
+        <TeamVersus mine={report} others={otherTeams} />
+      )}
 
       {/* 3. メンバー別ボード（ソート付き） */}
-      <Section title={`メンバー別ボード（稼働 ${members.length}名）`}>
+      <Section title={`人ごと（稼働 ${members.length}名）`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[2], fontSize: font.size.xs }}>
           <span style={{ color: color.textMid, fontWeight: font.weight.semibold }}>並び替え:</span>
           {[
-            { k: 'appointments', label: 'アポ獲得' },
-            { k: 'connect_rate', label: '接続率' },
+            { k: 'appointments', label: 'アポ順' },
+            { k: 'connect_rate', label: 'つながった率' },
             { k: 'calls', label: '架電数' },
             { k: 'sales', label: '売上' },
           ].map(({ k, label }) => (
@@ -375,7 +353,7 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
       </Section>
 
       {/* 4. コーチングピック（チーム平均値の根拠を表示） */}
-      <Section title="コーチングピック（自動抽出）">
+      <Section title="声をかける人（自動で拾う）">
         <div style={{ display: 'grid', gap: space[2.5], gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
           <PickList
             title="① 時間あたり架電数 < 平均 70%"
@@ -415,6 +393,52 @@ function ReportBody({ report, allTeamsForDate, yesterdayReports, isAdmin, curren
       <Section title="時間別 架電 / キーマン接続 / アポ">
         <HourlyChart data={hourly} peakHour={peakHour} />
       </Section>
+    </div>
+  );
+}
+
+function DailyKpi({ label, cur = 0, prev = null, unit = '' }) {
+  const c = cur || 0;
+  const d = prev != null ? Math.round((c - prev) * 10) / 10 : null;
+  const pct = prev ? ((c - prev) / prev) * 100 : null;
+  return (
+    <div className="dr-card dr-kq">
+      <span className="dr-lbl">{label}</span>
+      <div className="dr-v">{c.toLocaleString()}<small>{unit}</small></div>
+      {d != null && d !== 0 && <span className={`dr-dl ${d > 0 ? 'up' : 'dn'}`}>{d > 0 ? '▲' : '▼'}{Math.abs(d).toLocaleString()}<small>前日比{pct != null ? ` ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : ''}</small></span>}
+      {d === 0 && <span className="dr-dl"><small>前日と同じ</small></span>}
+    </div>
+  );
+}
+
+function TeamVersus({ mine, others }) {
+  const k = mine.payload?.kpi || {};
+  const o = others[0];
+  const ok = o.payload?.kpi || {};
+  const rows = [
+    ['稼働', k.active_members ?? 0, ok.active_members ?? 0, '人'],
+    ['架電', k.calls ?? 0, ok.calls ?? 0, ''],
+    ['社長につながった', k.keyman_connects ?? 0, ok.keyman_connects ?? 0, ''],
+    ['アポ', k.appointments ?? 0, ok.appointments ?? 0, ''],
+    ['つながった率', k.keyman_connect_rate ?? 0, ok.keyman_connect_rate ?? 0, '%'],
+    ['アポ率', k.appointment_rate ?? 0, ok.appointment_rate ?? 0, '%'],
+    ['売上（万円）', Math.round((k.sales || 0) / 1000) / 10, Math.round((ok.sales || 0) / 1000) / 10, ''],
+  ];
+  return (
+    <div className="dr-card dr-vs">
+      <h4><span>チームを比べる（この日）</span><span><i className="a" />{mine.team_name}　<i className="b" />{o.team_name}{others.length > 1 ? `（ほか${others.length - 1}チームは省略）` : ''}</span></h4>
+      {rows.map(([l, a, b, u], i) => {
+        const m = Math.max(a, b, 1);
+        return (
+          <div key={l} className="dr-vr">
+            <span className="dr-l">{l}</span>
+            <span className="dr-ba"><i style={{ width: `${(a / m) * 100}%`, animationDelay: `${i * 0.05}s` }} /></span>
+            <span className={`dr-n1${a > b ? ' win' : ''}`}>{a}{u}</span>
+            <span className="dr-bb"><i style={{ width: `${(b / m) * 100}%`, animationDelay: `${i * 0.05}s` }} /></span>
+            <span className={`dr-n2${b > a ? ' win' : ''}`}>{b}{u}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -666,12 +690,13 @@ function MemberCard({ m, report, openProfile, currentUser, isAdmin = false }) {
         </div>
       </div>
 
-      {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-        <Stat label="架電" value={m.calls} />
-        <Stat label="接続" value={m.connects} sub={`${m.connect_rate}%`} />
-        <Stat label="アポ" value={m.appointments} sub={`${m.appointment_rate}%`} />
+      {/* 数字（2026-10-07 見本どおり） */}
+      <div className="dr-st3">
+        <div><b>{(m.calls || 0).toLocaleString()}</b><span>架電</span></div>
+        <div><b>{m.connects || 0}</b><span>つながった {m.connect_rate}%</span></div>
+        <div className={m.appointments > 0 ? 'win' : ''}><b>{m.appointments || 0}</b><span>アポ {m.appointment_rate}%</span></div>
       </div>
+      <div className="dr-flow"><i style={{ width: '100%' }} /><i className="k" style={{ width: `${Math.max(2, Math.min(100, (m.connect_rate || 0) * 4))}%` }} /></div>
 
       {/* 架電したリスト（コンパクト 2 列レイアウト） */}
       {m.call_ranges?.length > 0 && (

@@ -43,3 +43,16 @@
 .li-lg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -2px; }
 @media (max-width: 1180px) { .li-stage { grid-template-columns: 1fr; } .li-list { max-height: 360px; } }
 @media (prefers-reduced-motion: reduce) { .li-ep, .li-wb i { animation: none !important; } }
+
+/* お気に入り録音（2026-10-07 見本どおり） */
+.li-bmr { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #EEF0F3; animation: li-in .35s cubic-bezier(.2,.8,.2,1) both; }
+.li-bmr:last-child { border-bottom: 0; }
+.li-bmr b { display: block; font-size: 13.5px; color: #032D60; font-weight: 500; }
+.li-bmr small { display: block; font-size: 11px; color: #8692A0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.li-bplay { width: 36px; height: 36px; border-radius: 50%; background: #032D60; position: relative; border: 0; cursor: pointer; transition: transform .2s cubic-bezier(.34,1.56,.64,1); }
+.li-bplay:hover { transform: scale(1.08); }
+.li-bplay::after { content: ""; position: absolute; left: 14px; top: 11px; border-left: 11px solid #fff; border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
+.li-bplay.on { background: #C8A45A; }
+.li-bplay.on::after { left: 12px; top: 12px; border: 0; width: 12px; height: 12px; background: #fff; border-radius: 2px; }
+.li-star { color: #C8A45A; font-size: 18px; background: none; border: 0; cursor: pointer; }
+.li-star.off { color: #E3E6EB; cursor: default; }
