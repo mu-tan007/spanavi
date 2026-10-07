@@ -12,6 +12,7 @@
 //   4) needsClarification: true の場合はボタンを出さず聞き返し文だけ表示
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import '../../styles/v2.css';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Badge } from '../ui';
 import { MessageSquare, Send, Save, BookmarkCheck, Trash2, RotateCcw, Sparkles, X } from 'lucide-react';
@@ -166,26 +167,24 @@ export default function DatabaseChatPanel({ baseFilters, onApplyFilters, open, o
         }}
       />
       {/* ドロワー */}
-      <div style={{
+      <div className="v2" style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, maxWidth: '100vw',
-        background: color.white, boxShadow: shadow.xl, zIndex: 91,
+        background: '#F3F2F2', boxShadow: '-16px 0 48px rgba(1,18,38,0.2)', zIndex: 91,
         display: 'flex', flexDirection: 'column',
-        animation: 'slideInRight 0.25s ease',
+        animation: 'v2-slide .32s cubic-bezier(.2,.8,.2,1) both',
       }}>
         {/* ヘッダー */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: `${space[4]}px ${space[5]}px`,
-          borderBottom: `1px solid ${color.border}`,
+          borderBottom: '1px solid #E3E6EB', background: color.white,
           gap: space[2],
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: space[2] }}>
             <Sparkles size={18} color={color.navy} />
             <div>
-              <div style={{ fontSize: font.size.xs, color: color.textMid, letterSpacing: 1, textTransform: 'uppercase' }}>
-                Database · AI Search
-              </div>
-              <div style={{ fontSize: font.size.md, fontWeight: font.weight.semibold, color: color.navy, marginTop: 2 }}>
+              <div className="v2-eyebrow">企業DB ・ AIで探す</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: color.navy, marginTop: 2 }}>
                 自然言語で企業を検索
                 <Badge variant="primary" size="sm" style={{ marginLeft: space[2] }}>Beta</Badge>
               </div>

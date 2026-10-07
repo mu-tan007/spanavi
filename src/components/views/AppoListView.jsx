@@ -1840,7 +1840,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 840, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
-              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15, flexShrink: 0 }}>
+              <div className="v2-mhead" style={{ flexShrink: 0 }}>
                 請求書一括作成（ZIP）
               </div>
               <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
@@ -1987,7 +1987,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 880, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
-              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15, flexShrink: 0 }}>
+              <div className="v2-mhead" style={{ flexShrink: 0 }}>
                 請求書一斉送信
               </div>
               <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
@@ -2185,9 +2185,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
             fontFamily: font.family.sans,
           }}>
-            <div style={{
-              padding: '12px 20px', background: color.navy, color: color.white,
-              borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
+            <div className="v2-mhead" style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <span style={{ fontSize: font.size.md, fontWeight: font.weight.semibold }}>
@@ -2503,7 +2501,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 640, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
-              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15, flexShrink: 0 }}>
+              <div className="v2-mhead" style={{ flexShrink: 0 }}>
                 {isBulkEdit ? `請求書を編集 — ${bulkInvoiceEditingClient}` : '請求書作成'}
               </div>
               <div style={{ padding: "20px 24px", overflowY: 'auto', flex: 1 }}>
@@ -2678,7 +2676,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 520, maxWidth: '95vw', maxHeight: "90vh", overflow: "auto", boxShadow: shadow.xl }}>
-              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15 }}>
+              <div className="v2-mhead" style={{ flexShrink: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: font.weight.semibold }}>アポ情報を編集</div>
                 <div style={{ fontSize: font.size.xs, color: '#CBD5E1', marginTop: 2 }}>{editForm.company}</div>
               </div>
@@ -2824,7 +2822,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         return (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 520, maxWidth: '95vw', maxHeight: "90vh", overflow: "auto", boxShadow: shadow.xl }}>
-              <div style={{ padding: "12px 24px", background: color.navy, borderRadius: '4px 4px 0 0', color: color.white, fontWeight: font.weight.semibold, fontSize: 15 }}>
+              <div className="v2-mhead" style={{ flexShrink: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: font.weight.semibold }}>アポを追加</div>
                 <div style={{ fontSize: font.size.xs, color: '#CBD5E1', marginTop: 2 }}>新規アポイント登録</div>
               </div>

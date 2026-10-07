@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { V2Head } from '../common/V2';
 import { X, Upload, Settings } from 'lucide-react';
 import { Button, Input, Select, Card, Badge, DataTable } from '../ui';
 import { color, space, font, radius, shadow, alpha } from '../../constants/design';
@@ -108,11 +109,9 @@ export default function CompanyImportDialog({ initialFile = null, listId = null,
         if (e.shiftKey && document.activeElement === nodes[0]) { e.preventDefault(); nodes.at(-1)?.focus(); }
         else if (!e.shiftKey && document.activeElement === nodes.at(-1)) { e.preventDefault(); nodes[0]?.focus(); }
       }
-    }} style={{ width: 'min(1100px,98vw)', maxHeight: '94vh', display: 'flex', flexDirection: 'column', background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl, overflow: 'hidden' }}>
-      <div style={{ padding: space[4], background: color.navy, color: color.white, display: 'flex', alignItems: 'center', gap: space[3] }}>
-        <div style={{ flex: 1 }}><div style={{ fontSize: font.size.lg, fontWeight: font.weight.bold }}>企業リストの取り込み</div><div style={{ fontSize: font.size.sm, marginTop: space[1] }}>{listId ? `${listName || '架電リスト'} ・ 企業DBへ自動登録` : '企業DBへ登録'}</div></div>
-        <Button variant="ghost" aria-label="取込画面を閉じる" disabled={busy} onClick={onClose} iconLeft={<X size={20} />} style={{ color: color.white }}>閉じる</Button>
-      </div>
+    }} className="v2" style={{ width: 'min(1100px,98vw)', maxHeight: '94vh', display: 'flex', flexDirection: 'column', background: color.white, borderRadius: 14, boxShadow: '0 24px 60px rgba(3,45,96,.3)', overflow: 'hidden', animation: 'v2-pop .3s cubic-bezier(.2,.9,.3,1.1) both' }}>
+      <V2Head eyebrow="企業DB" title="企業リストの取り込み" sub={listId ? `${listName || '架電リスト'} ・ 企業DBへ自動登録` : '企業DBへ登録'}
+        right={<Button variant="outline" size="sm" aria-label="取込画面を閉じる" disabled={busy} onClick={onClose} iconLeft={<X size={16} />}>閉じる</Button>} />
       <div style={{ padding: space[4], overflow: 'auto' }}>
         <div style={{ display: 'flex', gap: space[2], marginBottom: space[4], flexWrap: 'wrap' }}>
           <Button variant={tab === 'import' ? 'primary' : 'outline'} disabled={busy} onClick={() => setTab('import')} iconLeft={<Upload size={16} />}>ファイル取込</Button>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import '../../styles/v2.css';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
@@ -1340,8 +1341,8 @@ export default function TrainingRoleplaySection({ currentUser, userId, members, 
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: color.white, borderRadius: radius.md, padding: '24px 28px',
-              width: 360, boxShadow: shadow.lg,
+              background: color.white, borderRadius: 14, padding: '22px 26px',
+              width: 380, boxShadow: '0 24px 60px rgba(3,45,96,.3)', animation: 'v2-pop .3s cubic-bezier(.2,.9,.3,1.1) both',
             }}
           >
             <div style={{ fontSize: font.size.md, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[4] }}>

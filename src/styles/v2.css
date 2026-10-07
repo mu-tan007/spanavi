@@ -86,3 +86,7 @@
 .v2-pills button { height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid #D5DAE1; background: #fff; color: #4B5868; font-size: 12px; font-family: inherit; cursor: pointer; transition: all .15s; }
 .v2-pills button:hover { border-color: #0176D3; color: #032D60; }
 .v2-pills button.on { background: #032D60; border-color: #032D60; color: #fff; font-weight: 600; }
+
+/* 小窓の見出し（旧い紺の帯の置き換え・1行の題名用）。題名の下に金の短い線 */
+.v2-mhead { background: #fff !important; color: #032D60 !important; border-bottom: 1px solid #E3E6EB; border-radius: 14px 14px 0 0 !important; padding: 16px 22px 18px !important; font-size: 17px !important; font-weight: 700 !important; background-image: linear-gradient(90deg, #C8A45A, #E5CB8F) !important; background-size: 24px 3px !important; background-repeat: no-repeat !important; background-position: 22px calc(100% - 9px) !important; }
+.v2-mhead button { color: #4B5868 !important; }

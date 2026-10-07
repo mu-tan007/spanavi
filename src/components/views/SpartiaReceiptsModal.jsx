@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { V2Head } from '../common/V2';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Select, Badge, DataTable } from '../ui';
 import {
@@ -142,19 +143,7 @@ export default function SpartiaReceiptsModal({ open, onClose }) {
           overflow: 'hidden',
         }}
       >
-        <div style={{
-          background: color.navy, color: color.white,
-          padding: `${space[3]}px ${space[4]}px`,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <div>
-            <div style={{ fontSize: font.size.base, fontWeight: font.weight.bold }}>Spartia AI 入金</div>
-            <div style={{ fontSize: font.size.xs, color: color.gray400, marginTop: 2 }}>
-              税別入金額の5%を、入金月の翌月に架電者へ支給
-            </div>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>閉じる</Button>
-        </div>
+        <V2Head eyebrow="報酬" title="Spartia AI 入金" sub="税別入金額の5%を、入金月の翌月に架電者へ支給" onClose={onClose} />
 
         <div style={{ padding: space[4], overflowY: 'auto' }}>
           {/* 入力行 */}
