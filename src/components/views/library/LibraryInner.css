@@ -4,7 +4,7 @@
 .li-video { position: relative; width: 100%; padding-top: 56.25%; background: #000; overflow: hidden; }
 .li-video > * { position: absolute; inset: 0; }
 .li-poster { cursor: pointer; background: radial-gradient(120% 90% at 0% 0%, rgba(1,118,211,.45), transparent 60%), linear-gradient(135deg, #032D60, #021B40); background-size: cover; background-position: center; }
-.li-play { position: absolute; left: 50%; top: 50%; inset: auto; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(255,255,255,.94); display: flex; align-items: center; justify-content: center; transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
+.li-play { position: absolute; inset: auto; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(255,255,255,.94); display: flex; align-items: center; justify-content: center; transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
 .li-play::after { content: ""; margin-left: 5px; border-left: 18px solid #032D60; border-top: 11px solid transparent; border-bottom: 11px solid transparent; }
 .li-poster:hover .li-play { transform: scale(1.1); }
 .li-dur { position: absolute; inset: auto 10px 8px auto; font-family: 'Barlow', sans-serif; font-size: 12px; color: #fff; background: rgba(0,0,0,.5); padding: 0 6px; border-radius: 4px; }
