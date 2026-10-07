@@ -50,7 +50,9 @@ const PRODUCT_TO_PRIMARY_ENG_SLUG = {
 
 // MASP タブの「Members」ページ。全社の従業員一覧を編集する。
 // onlyEngagementId：その事業に所属する人だけ出す（営業代行のメンバーのページから開いたとき・2026-10-08）
-export default function MASPMembersView({ isAdmin, onlyEngagementId = null, onOpenInvite = null }) {
+// companyMode：全社タブの「メンバー」から開くとき。事業ごとに絞る札を出す（2026-10-08）
+export default function MASPMembersView({ isAdmin, onlyEngagementId = null, onOpenInvite = null, companyMode = false }) {
+  const [productFilter, setProductFilter] = useState('all');
   const { engagements, products } = useEngagements();
   const { openProfile } = useMemberProfile();
   const { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam, refresh } = useAllMembersWithEngagements();
@@ -121,7 +123,12 @@ export default function MASPMembersView({ isAdmin, onlyEngagementId = null, onOp
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    const inScope = onlyEngagementId ? members.filter(m => (assignments[m.id] || new Set()).has(onlyEngagementId)) : members;
+    const inProduct = (m, pc) => pc.engagementIds.some(id => (assignments[m.id] || new Set()).has(id));
+    const pf = productCols.find(pc => pc.productId === productFilter);
+    const inScope = onlyEngagementId ? members.filter(m => (assignments[m.id] || new Set()).has(onlyEngagementId))
+      : pf ? members.filter(m => inProduct(m, pf))
+      : productFilter === 'none' ? members.filter(m => !(assignments[m.id] || new Set()).size)
+      : members;
     if (!q) return inScope;
     return inScope.filter(m =>
       (m.name || '').toLowerCase().includes(q)
@@ -129,7 +136,7 @@ export default function MASPMembersView({ isAdmin, onlyEngagementId = null, onOp
       || (m.position || '').toLowerCase().includes(q)
       || (m.team || '').toLowerCase().includes(q)
     );
-  }, [members, filter, onlyEngagementId, assignments]);
+  }, [members, filter, onlyEngagementId, assignments, productFilter, productCols]);
 
   const startEdit = (m) => {
     setEditingId(m.id);
@@ -507,11 +514,21 @@ export default function MASPMembersView({ isAdmin, onlyEngagementId = null, onOp
     <div className="mm">
       <div className="mm-bar">
         <input className="mm-search" value={filter} onChange={e => setFilter(e.target.value)} placeholder="氏名・メール・役職・チームで探す" />
-        <span className="mm-count"><b>{onlyEngagementId ? visible.length : members.length}</b>名{onlyEngagementId ? '（この事業）' : '（全社）'}・入社日順</span>
+        <span className="mm-count"><b>{visible.length}</b>名{onlyEngagementId ? '（この事業）' : productFilter === 'all' ? '（全社）' : ''}・入社日順</span>
         <span className="grow" />
         {isAdmin && onOpenInvite && <Button size="sm" variant="primary" onClick={onOpenInvite}>招待リンクで追加</Button>}
         {isAdmin && <Button size="sm" variant="outline" onClick={openAddModal}>直接追加</Button>}
       </div>
+      {companyMode && (
+        <div className="v2-pills" style={{ marginBottom: 12 }}>
+          <button type="button" className={productFilter === 'all' ? 'on' : ''} onClick={() => setProductFilter('all')}>すべて {members.length}</button>
+          {productCols.map(pc => {
+            const n = members.filter(m => pc.engagementIds.some(id => (assignments[m.id] || new Set()).has(id))).length;
+            return <button key={pc.productId} type="button" className={productFilter === pc.productId ? 'on' : ''} onClick={() => setProductFilter(pc.productId)}>{pc.name} {n}</button>;
+          })}
+          <button type="button" className={productFilter === 'none' ? 'on' : ''} onClick={() => setProductFilter('none')}>所属なし {members.filter(m => !(assignments[m.id] || new Set()).size).length}</button>
+        </div>
+      )}
       {isAdmin && onOpenInvite && (
         <div className="mm-hint">新しく入る人は<b>「招待リンクで追加」</b>がおすすめです。本人が氏名・メール・住所・口座を入れ、契約まで進みます。「直接追加」は手で全部入れるときに使います。</div>
       )}

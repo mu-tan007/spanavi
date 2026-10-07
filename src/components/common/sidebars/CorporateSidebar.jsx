@@ -7,6 +7,9 @@ export const CORPORATE_SECTIONS = [
   { label: 'BUSINESS', items: [
     { id: 'business_metrics', label: '業績' },
   ]},
+  { label: 'MEMBER', items: [
+    { id: 'company_members', label: 'メンバー' },
+  ]},
   { label: 'MARKETING', items: [
     { id: 'site_analytics', label: 'サイト分析' },
   ]},

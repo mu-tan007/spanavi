@@ -76,6 +76,7 @@ import RulesView from './views/RulesView';
 import PlaceholderView from './views/PlaceholderView';
 import PerformanceView from './views/PerformanceView';
 import InternRulesView from './views/InternRulesView';
+import CompanyMembersView from './views/CompanyMembersView';
 import LibraryView from './views/LibraryView';
 import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
@@ -452,7 +453,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
     });
   }, [supabaseData, switchEngagement]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","ma_news","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","acq_deals","acq_firms","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","ma_news","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","company_members","acq_deals","acq_firms","admin_settings"];
   // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
   const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
@@ -1425,6 +1426,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_capital' && currentTab !== 'admin_settings' && <CapitalApp isAdmin={isAdmin} />}
         {engSlug === 'corporate' && isAdmin && currentTab === 'business_metrics' && <BusinessMetricsView />}
         {engSlug === 'corporate' && isAdmin && currentTab === 'site_analytics' && <SiteAnalyticsView />}
+        {engSlug === 'corporate' && isAdmin && currentTab === 'company_members' && <CompanyMembersView isAdmin={isAdmin} />}
         {engSlug === 'acquisition' && isAdmin && ACQUISITION_TABS.includes(currentTab) && <AcquisitionView currentTab={currentTab} setCurrentTab={setCurrentTab} />}
         {engSlug !== 'seller_sourcing' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && engSlug !== 'corporate' && engSlug !== 'acquisition' && currentTab !== 'admin_settings' && (
           <EngagementPlaceholder engagement={currentEngagement} />
