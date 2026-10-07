@@ -23,6 +23,7 @@ import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import { useUrlState } from '../../hooks/useUrlState';
 import { useSearchParams } from 'react-router-dom';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
+import ReceptionHistory from '../common/ReceptionHistory';
 import RuleAskBar from '../common/RuleAskBar';
 import TravelHint from '../common/TravelHint';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
@@ -1969,6 +1970,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   style={{ width: '100%', minHeight: 72, padding: '8px', borderRadius: 6, border: '1px solid ' + C.border, fontSize: 11, fontFamily: "'Noto Sans JP'", outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: C.offWhite }} />
               </div>
 
+              {/* この会社の受付（リストをまたいだ受付の対応の記録） */}
+              <ReceptionHistory itemId={selectedRow.id} />
+
               {/* 架電履歴 */}
               {(() => {
                 const recs = getRecordsForItem(selectedRow.id).slice().sort((a, b) => a.round - b.round);
@@ -2885,6 +2889,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   </div>
                 );
               })()}
+
+              {/* この会社の受付（リストをまたいだ受付の対応の記録） */}
+              <ReceptionHistory itemId={selectedRow.id} />
 
               {/* 架電履歴 */}
               {(() => {
