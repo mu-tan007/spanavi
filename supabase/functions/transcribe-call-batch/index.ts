@@ -71,7 +71,11 @@ async function transcribeOne(id: string): Promise<{ id: string; ok: boolean; sec
 
 Deno.serve(async (req) => {
   // 費用のかかる処理なので service role だけ受ける（署名はゲートウェイの verify_jwt で検証済み）
-  if (jwtRole(req) !== 'service_role') return json({ error: 'forbidden' }, 403)
+  // 他の関数から呼ぶときは SUPABASE_SERVICE_ROLE_KEY をそのまま付けてくる。新しい形式の鍵は JWT ではないので、
+  // 中身の role ではなく鍵そのものの一致でも通す（generate-appo-brief がアポの通話を書き起こすため・2026-10-07）
+  const bearer = (req.headers.get('Authorization') || '').replace(/^Bearer /, '')
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+  if (jwtRole(req) !== 'service_role' && !(serviceKey && bearer === serviceKey)) return json({ error: 'forbidden' }, 403)
   try {
     const { record_ids } = await req.json()
     if (!Array.isArray(record_ids) || record_ids.length === 0) return json({ error: 'record_ids is required' }, 400)
