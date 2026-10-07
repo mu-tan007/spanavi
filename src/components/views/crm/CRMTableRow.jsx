@@ -7,6 +7,7 @@ import {
   priorityScore, priorityRank,
 } from './utils';
 import { updateClient } from '../../../lib/supabaseWrite';
+import { daysSince, ageClass } from '../../../utils/crmOverview';
 
 function formatLastMeeting(ts) {
   if (!ts) return { label: '—', color: color.textLight };
@@ -110,6 +111,10 @@ export default function CRMTableRow({
   dragListeners,
   isDragging = false,
   showDragHandle = false,
+  ruleCount = 0,
+  today,
+  onRowHover,
+  onOpenRules,
 }) {
   const c = client;
   const colAlign = (key) => crmCols.find(x => x.key === key)?.align;
@@ -139,15 +144,17 @@ export default function CRMTableRow({
       style={{
         position: 'relative',
         display: 'grid', gridTemplateColumns: crmGrid,
-        padding: '8px 16px', fontSize: font.size.sm, alignItems: 'center',
+        padding: '10px 16px', fontSize: font.size.sm, alignItems: 'center', cursor: 'pointer',
         borderBottom: `1px solid ${color.border}`,
         background: isDragging ? color.cream : altBg,
         opacity: isDragging ? 0.5 : 1,
         transition: 'background 0.15s',
         ...dragStyle,
       }}
-      onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = '#F5F8FC'; }}
-      onMouseLeave={e => { if (!isDragging) e.currentTarget.style.background = altBg; }}
+      data-client-id={c._supaId}
+      onClick={() => onRowClick(c)}
+      onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = '#F5F8FC'; onRowHover?.(c._supaId); }}
+      onMouseLeave={e => { if (!isDragging) e.currentTarget.style.background = altBg; onRowHover?.(null); }}
     >
       {/* ドラッグつまみ (左パディング内に配置、並び替え可能時のみ) */}
       {showDragHandle && (
@@ -164,75 +171,33 @@ export default function CRMTableRow({
         >⋮⋮</span>
       )}
 
-      {/* 1. ステータス */}
+      {/* 1. 企業（左の色はステータス）・サービス・主担当 */}
+      <span style={{ borderLeft: `3px solid ${sc.color}`, paddingLeft: 8, minWidth: 0, lineHeight: 1.4 }} title={`${c.status}・優先度スコア ${score}`}>
+        <span style={{ display: 'block', fontWeight: font.weight.bold, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.company}</span>
+        <span style={{ display: 'block', fontSize: 11, color: color.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {[c.service, primary ? `${primary.name} 様` : '', c.status !== '支援中' ? c.status : ''].filter(Boolean).join(' ・ ') || '—'}
+        </span>
+      </span>
+
+      {/* 2. 最後から（14日から黄土、30日から赤。記録なしは赤） */}
       {(() => {
-        const cat = statusCategory(c.status);
-        const catStyle = statusCategoryStyle(cat);
+        const d = daysSince(c.lastContactAt, today || new Date().toISOString().slice(0, 10));
         return (
-          <span style={{
-            borderLeft: `3px solid ${sc.color}`, paddingLeft: 8,
-            display: 'inline-flex', flexDirection: 'column', width: 'fit-content',
-            alignItems: 'flex-start', textAlign: colAlign('status'), lineHeight: 1.15,
-          }}>
-            {cat && (
-              <span style={{
-                fontSize: 9, fontWeight: font.weight.bold, letterSpacing: 0.5,
-                color: catStyle.color, background: catStyle.bg,
-                padding: '1px 5px', borderRadius: 2,
-                marginBottom: 2,
-              }}>{cat}</span>
-            )}
-            <span style={{ color: sc.color, fontSize: font.size.sm, fontWeight: font.weight.medium }}>
-              {c.status}
-            </span>
+          <span className={`co-age ${ageClass(d)}`}>
+            <b>{d == null ? '記録なし' : d === 0 ? '今日' : <>{d}<small>日</small></>}</b>
+            <span className="co-bar"><i style={{ width: `${d == null ? 100 : Math.min(d / 120 * 100, 100)}%` }} /></span>
           </span>
         );
       })()}
 
-      {/* 2. 企業名（優先度バッジ付き / クリックで詳細ページに移動） */}
-      <span style={{
-        textAlign: colAlign('company'),
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        overflow: 'hidden', whiteSpace: 'nowrap',
-      }}>
-        <span
-          title={`優先度スコア ${score}（高80+ / 中50+ / 低<50）`}
-          style={{
-            fontSize: 8, fontWeight: font.weight.bold,
-            color: rank.color,
-            border: `1px solid ${rank.color}`,
-            borderRadius: 2, padding: '1px 4px',
-            flexShrink: 0,
-            fontFamily: font.family.mono,
-            fontVariantNumeric: 'tabular-nums',
-            minWidth: 22, textAlign: 'center',
-          }}
-        >
-          {score}
-        </span>
-        <span
-          onClick={(e) => { e.stopPropagation(); onRowClick(c); }}
-          title="クリックで詳細ページを開く"
-          style={{
-            fontWeight: font.weight.semibold, color: color.navy,
-            overflow: 'hidden', textOverflow: 'ellipsis',
-            cursor: 'pointer',
-            textDecoration: 'none',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
-        >{c.company}</span>
-      </span>
+      {/* 3. 次の一手（誰が・期限・止まっている理由） */}
+      <NextActionCell client={c} align={colAlign('nextAction')} />
 
-      {/* 3. サービス */}
-      <span style={{
-        textAlign: colAlign('service'),
-        fontSize: font.size.xs, color: color.textMid,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>{c.service || '—'}</span>
+      {/* 4. 最後のやり取り */}
+      <LastContactCell client={c} align={colAlign('lastContact')} />
 
-      {/* 4. 段階（契約済みで始まっていない先は金色） */}
-      <span style={{ textAlign: colAlign('stage'), overflow: 'hidden' }}>
+      {/* 5. 段階（契約済みで始まっていない先は金色） */}
+      <span style={{ textAlign: 'center', overflow: 'hidden' }}>
         {c.stage ? (
           <span style={{
             display: 'inline-block', maxWidth: '100%',
@@ -241,36 +206,20 @@ export default function CRMTableRow({
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             ...(c.stage === '契約済・未開始'
               ? { background: color.gold, color: color.white, border: `1px solid ${color.gold}` }
-              : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
+              : c.stage === '一時停止（先方都合）'
+                ? { background: color.warnSoft, color: color.warn, border: `1px solid ${color.warnSoft}` }
+                : { background: alpha(color.navyLight, 0.08), color: color.navyLight, border: `1px solid ${alpha(color.navyLight, 0.15)}` }),
           }}>{c.stage}</span>
         ) : <span style={{ color: color.textLight, fontSize: font.size.xs }}>—</span>}
       </span>
 
-      {/* 5. 主担当 */}
-      {primary ? (
-        <span style={{
-          fontSize: font.size.xs, color: color.navy, textAlign: colAlign('primaryContact'),
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {primary.isPrimary && (
-            <span style={{
-              fontSize: 8, fontWeight: font.weight.bold, letterSpacing: 1,
-              color: color.navy, border: `1px solid ${color.navy}`,
-              borderRadius: 2, padding: '1px 3px', flexShrink: 0,
-            }}>主</span>
-          )}
-          <span style={{ fontWeight: font.weight.medium }}>{primary.name}</span>
+      {/* 6. 聞くこと・条件（押すと詳細のそのタブを開く） */}
+      <span style={{ textAlign: 'center' }}>
+        <span onClick={(e) => { e.stopPropagation(); onOpenRules?.(c); }}
+          style={{ fontSize: 11, cursor: 'pointer', color: ruleCount ? color.navyLight : color.textLight, fontWeight: ruleCount ? font.weight.semibold : font.weight.normal, whiteSpace: 'nowrap' }}>
+          {ruleCount ? `${ruleCount}項目` : '未設定'}
         </span>
-      ) : (
-        <span style={{ fontSize: font.size.xs, color: color.textLight, textAlign: colAlign('primaryContact') }}>-</span>
-      )}
-
-      {/* 6. 最後のやり取り（30日以上は黄、60日以上は赤） */}
-      <LastContactCell client={c} align={colAlign('lastContact')} />
-
-      {/* 7. 次の一手（誰が・期限・止まっている理由） */}
-      <NextActionCell client={c} align={colAlign('nextAction')} />
+      </span>
 
     </div>
   );

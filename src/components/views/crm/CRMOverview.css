@@ -1,0 +1,68 @@
+/* 顧客管理の上の段（ルール v2・2026-10-07 見本どおり）。点が落ちてきて、30日以上は波紋。表の行と連動 */
+.co { --co-navy: #032D60; --co-royal: #0176D3; --co-amber: #B7791F; --co-red: #C8102E; --co-ink2: #4B5868; --co-ink3: #8692A0; --co-line: #E3E6EB;
+  --co-spring: cubic-bezier(.34,1.56,.64,1); --co-out: cubic-bezier(.2,.8,.2,1); font-family: 'Noto Sans JP', sans-serif; font-feature-settings: "palt"; margin-bottom: 12px; }
+.co-card { background: #fff; border: 1px solid var(--co-line); border-radius: 8px; }
+.co-lbl { font-size: 11px; color: var(--co-ink3); }
+.co-cnts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.co-cnt { padding: 12px 14px; display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; cursor: pointer; text-align: left; border-left: 3px solid transparent; font-family: inherit;
+  transition: transform .2s var(--co-spring), box-shadow .15s; }
+.co-cnt:active { transform: scale(.98); }
+.co-cnt.is-on { box-shadow: 0 0 0 3px #E8F2FC; }
+.co-cnt b { font-family: 'Barlow', 'Noto Sans JP', sans-serif; font-size: 28px; font-weight: 600; line-height: 1; }
+.co-cnt .co-t { font-size: 13px; font-weight: 500; color: #0E1B2C; }
+.co-cnt .co-d { font-size: 11px; color: var(--co-ink3); margin-top: 3px; }
+.co-cnt.red { border-left-color: var(--co-red); } .co-cnt.red b { color: var(--co-red); }
+.co-cnt.amb { border-left-color: var(--co-amber); } .co-cnt.amb b { color: var(--co-amber); }
+.co-cnt.blu { border-left-color: var(--co-royal); } .co-cnt.blu b { color: var(--co-royal); }
+.co-cnt.nav { border-left-color: var(--co-navy); } .co-cnt.nav b { color: var(--co-navy); }
+
+.co-health { padding: 14px 18px 10px; }
+.co-hh { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; gap: 12px; flex-wrap: wrap; }
+.co-hh b { font-size: 14px; color: var(--co-navy); }
+.co-axis { position: relative; height: 132px; margin: 4px 6px 0; }
+.co-zone { position: absolute; top: 0; bottom: 22px; border-radius: 6px; }
+.co-z1 { background: linear-gradient(90deg, #EEF5FC, #F6F9FD); } .co-z2 { background: #FBF6EC; } .co-z3 { background: #FCEFF1; }
+.co-zt { position: absolute; top: 6px; font-size: 11px; font-weight: 500; }
+.co-tick { position: absolute; bottom: 0; font-size: 11px; color: var(--co-ink3); transform: translateX(-50%); font-family: 'Barlow', sans-serif; }
+.co-dot { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; background: none; border: 0; padding: 0; font-family: inherit;
+  animation: co-drop .7s var(--co-spring) both; }
+.co-dot i { position: relative; width: 12px; height: 12px; border-radius: 50%; background: var(--co-royal); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--co-royal); transition: transform .3s var(--co-spring); }
+.co-dot.w i { background: var(--co-amber); box-shadow: 0 0 0 1px var(--co-amber); }
+.co-dot.d i { background: var(--co-red); box-shadow: 0 0 0 1px var(--co-red); }
+.co-dot.d i::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 1.5px solid var(--co-red); opacity: 0; animation: co-ring 2.4s ease-out infinite; }
+.co-dot span { font-size: 11px; color: var(--co-ink2); background: rgba(255,255,255,.9); padding: 0 3px; border-radius: 4px; }
+.co-dot:hover i, .co-dot.is-hl i { transform: scale(1.5); }
+.co-dot:hover span { color: var(--co-navy); font-weight: 700; }
+.co-dot.ok:hover::after { content: attr(data-t); position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: #021B40; color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 4px; z-index: 3; }
+@keyframes co-drop { from { opacity: 0; margin-top: -26px; } to { opacity: 1; margin-top: 0; } }
+@keyframes co-ring { 0% { transform: scale(.5); opacity: .7; } 100% { transform: scale(1.5); opacity: 0; } }
+
+/* 表の行（点を押したときに光らせる） */
+.co-flash { animation: co-flash 1.2s var(--co-out, ease); }
+@keyframes co-flash { 0% { background: #FFF4D6; } 100% { background: inherit; } }
+.co-age { display: flex; flex-direction: column; gap: 3px; white-space: nowrap; }
+.co-age b { font-family: 'Barlow', 'Noto Sans JP', sans-serif; font-size: 16px; font-weight: 600; line-height: 1; }
+.co-age b small { font-size: 11px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; margin-left: 1px; }
+.co-age .co-bar { width: 64px; height: 4px; background: #EEF0F3; border-radius: 999px; overflow: hidden; }
+.co-age .co-bar i { display: block; height: 100%; transform-origin: left; animation: co-grow .9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes co-grow { from { transform: scaleX(0); } }
+.co-age.ok b { color: #0176D3; } .co-age.ok .co-bar i { background: #0176D3; }
+.co-age.w b { color: #B7791F; } .co-age.w .co-bar i { background: #B7791F; }
+.co-age.d b { color: #C8102E; } .co-age.d .co-bar i { background: #C8102E; }
+
+/* 詳細（右から出す） */
+.co-drawer { animation: co-slide .32s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes co-slide { from { transform: translateX(40px); opacity: 0; } }
+.co-tabs { display: flex; gap: 2px; margin-top: 10px; overflow-x: auto; }
+.co-tabs button { position: relative; padding: 8px 12px; font-size: 13px; color: #4B5868; background: none; border: 0; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.co-tabs button.is-on { color: #032D60; font-weight: 500; }
+.co-tabs button.is-on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: #C8A45A; }
+.co-tabs button .co-c { font-family: 'Barlow', sans-serif; font-size: 11px; color: #0176D3; margin-left: 4px; }
+.co-pane { display: grid; gap: 12px; align-content: start; animation: co-in .3s cubic-bezier(.2,.8,.2,1); }
+@keyframes co-in { from { opacity: 0; transform: translateY(4px); } }
+.co-kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; margin: 0; }
+.co-kv dt { color: #8692A0; font-size: 12px; } .co-kv dd { margin: 0; white-space: pre-wrap; word-break: break-word; }
+
+@media (max-width: 1180px) { .co-cnts { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .co-cnts { grid-template-columns: 1fr; } .co-kv { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .co *, .co-drawer, .co-pane, .co-flash { animation: none !important; transition: none !important; } }

@@ -167,6 +167,10 @@ export default function CRMTable({
   onToggleFavorite,
   canDrag = false,
   onReorder,
+  ruleCount = {},
+  today,
+  onRowHover,
+  onOpenRules,
 }) {
   const isMobile = useIsMobile();
 
@@ -237,6 +241,10 @@ export default function CRMTable({
     onRowClick,
     onComposeEmail,
     onToggleFavorite,
+    ruleCount: ruleCount?.[c._supaId] || 0,
+    today,
+    onRowHover,
+    onOpenRules,
   });
 
   return (

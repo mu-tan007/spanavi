@@ -102,14 +102,14 @@ export function lastTouchDisplay(ts) {
   return { label: `${days}日前`, stale: false };
 }
 
+// 2026-10-07 見本どおり：企業（サービス・主担当）・最後から・次の一手・最後のやり取り・段階・聞くこと・条件
 export const CRM_COLS_BASE = [
-  { key: 'status',         width: 100, align: 'center' },
-  { key: 'company',        width: 220, align: 'left'   },
-  { key: 'service',        width: 110, align: 'left'   },
-  { key: 'stage',          width: 130, align: 'left'   },
-  { key: 'primaryContact', width: 110, align: 'left'   },
-  { key: 'lastContact',    width: 260, align: 'left'   },
-  { key: 'nextAction',     width: 300, align: 'left'   },
+  { key: 'company',        width: 240, align: 'left'   },
+  { key: 'age',            width: 96,  align: 'left'   },
+  { key: 'nextAction',     width: 320, align: 'left'   },
+  { key: 'lastContact',    width: 280, align: 'left'   },
+  { key: 'stage',          width: 130, align: 'center' },
+  { key: 'rules',          width: 110, align: 'center' },
 ];
 
 // 編集モードでもカラム構成は同じ (右端アイコン群は廃止)
@@ -117,10 +117,10 @@ export const CRM_COLS_EDIT = [...CRM_COLS_BASE];
 
 // メールアドレス・報酬体系・支払いサイトは詳細ページへ移した（2026-10-06）
 // ☆（お気に入り）とメモの列は外した（2026-10-06）
-export const CRM_COL_LABELS = ['ステータス','企業名','サービス','段階','主担当','最後のやり取り','次の一手'];
+export const CRM_COL_LABELS = ['企業', '最後から', '次の一手 ／ 止まっている理由', '最後のやり取り', '段階', '聞くこと・条件'];
 
 // 商材ソート可能なカラムキー一覧 (lastMeeting / targetRatio 削除済み)
-export const CRM_SORTABLE_KEYS = new Set(['company','status','service','stage','lastContact','nextAction']);
+export const CRM_SORTABLE_KEYS = new Set(['company','age','stage','lastContact','nextAction','rules']);
 
 // 支払サイトの一般的な選択肢 (datalist 候補。手入力もできる)
 export const PAYMENT_SITE_OPTIONS = [

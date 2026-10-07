@@ -1,0 +1,77 @@
+import './AppoOverview.css';
+import { todoCounts, weekDays, weekMeetings, shortCompany } from '../../../utils/appoOverview';
+
+// アポ一覧の上の段（2026-10-07 むー様確認の見本どおり）
+//   数字3つ＋月ごとの有効アポの棒 ／ やること4つ（押すと表を絞る） ／ 今週の面談（押すとそのアポを開く）
+const TODOS = [
+  { key: 'unsent', cls: 'red', label: '報告を送っていない', desc: '面談前でクライアントに未送信' },
+  { key: 'stale', cls: 'amb', label: '面談日を過ぎて状態がそのまま', desc: '面談済にするか確認' },
+  { key: 'pre', cls: 'blu', label: '事前確認がまだ', desc: '状態がアポ取得のまま' },
+  { key: 'res', cls: 'nv', label: 'リスケ中', desc: '新しい日程を追う' },
+];
+const CHIP = { '事前確認済': 'ok', 'アポ取得': 'wait', 'リスケ中': 'res', 'キャンセル': 'can', '面談済': 'done' };
+const man = (yen) => {
+  const v = (yen || 0) / 10000;
+  return v >= 100 ? Math.round(v).toLocaleString() : (Math.round(v * 10) / 10).toLocaleString();
+};
+
+export default function AppoOverview({ appoData, today, countable, totalSales, totalReward, periodLabel, monthStats, activeMonth, onPickMonth, todo, onTodo, onOpen }) {
+  const counts = todoCounts(appoData, today);
+  const days = weekDays(today);
+  const byDay = weekMeetings(appoData, days);
+  // 先の月（まだ始まっていない月）は出さない。古い月が左
+  const months = monthStats.filter(m => m.yyyymm <= today.slice(0, 7));
+  const mx = Math.max(1, ...months.map(m => m.count));
+
+  return (
+    <div className="ao">
+      <div className="ao-kpi">
+        <div className="ao-card ao-k"><span className="ao-lbl">{periodLabel}の有効アポ</span><div className="ao-v ao-num">{countable}<small>件</small></div><div className="ao-s">キャンセル・リスケ中を除く</div></div>
+        <div className="ao-card ao-k"><span className="ao-lbl">当社売上</span><div className="ao-v ao-num">{man(totalSales)}<small>万円</small></div><div className="ao-s">{periodLabel}の有効アポ分</div></div>
+        <div className="ao-card ao-k"><span className="ao-lbl">インターン報酬</span><div className="ao-v ao-num">{man(totalReward)}<small>万円</small></div><div className="ao-s">{periodLabel}の有効アポ分</div></div>
+        <div className="ao-card ao-k">
+          <span className="ao-lbl">月ごとの有効アポ ・ 押すとその月</span>
+          <div className="ao-months">
+            {months.map((m, i) => (
+              <button key={m.yyyymm} type="button" className={`ao-m${m.yyyymm === activeMonth ? ' is-on' : ''}`} onClick={() => onPickMonth(m.yyyymm)} title={`${m.month} ${m.count}件`}>
+                <b className="ao-num">{m.count}</b>
+                <i style={{ height: Math.max(2, (m.count / mx) * 40), animationDelay: `${i * 0.04}s` }} />
+                <span>{m.month}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="ao-todo">
+        {TODOS.map(t => (
+          <button key={t.key} type="button" className={`ao-card ao-td ${t.cls}${todo === t.key ? ' is-on' : ''}${counts[t.key] ? '' : ' is-zero'}`} onClick={() => onTodo(todo === t.key ? '' : t.key)}>
+            <span className="ao-n ao-num">{counts[t.key]}</span>
+            <span><span className="ao-t">{t.label}</span><span className="ao-d">{t.desc}</span></span>
+          </button>
+        ))}
+      </div>
+
+      <div className="ao-card ao-week">
+        <div className="ao-wh"><b>今週の面談</b><span className="ao-lbl">押すとそのアポを開く ・ 緑＝事前確認済　青＝確認前　黄＝リスケ中　赤線＝キャンセル</span></div>
+        <div className="ao-days">
+          {days.map(d => {
+            const its = byDay[d.date] || [];
+            const isToday = d.date === today;
+            return (
+              <div key={d.date} className={`ao-day${isToday ? ' is-today' : ''}`}>
+                <h5><span>{d.label}（{d.dow}）{isToday ? ' 今日' : ''}</span><span className="ao-num">{its.length}件</span></h5>
+                {its.length === 0 && <span className="ao-empty">なし</span>}
+                {its.map((a, i) => (
+                  <button key={a._supaId || i} type="button" className={`ao-chip ${CHIP[a.status] || ''}`} style={{ animationDelay: `${i * 0.04}s` }} onClick={() => onOpen(a)} title={`${a.company} ・ ${a.client} ・ ${a.status}`}>
+                    <b className="ao-num">{(a.meetTime || '').slice(0, 5) || '—'}</b>{shortCompany(a.company)}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

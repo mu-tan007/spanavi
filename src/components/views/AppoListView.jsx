@@ -24,16 +24,21 @@ import PageHeader from '../common/PageHeader';
 import { useUrlState } from '../../hooks/useUrlState';
 import { useSearchParams } from 'react-router-dom';
 import { resolveClient, findClientByName } from '../../utils/listContacts';
+import AppoOverview from './appoList/AppoOverview';
+import ReceptionHistory from '../common/ReceptionHistory';
+import { todayJst, isStale, staleFirst, TODO_RULES } from '../../utils/appoOverview';
 
+// 2026-10-07 見本どおり：面談・企業・クライアント・取得者・状態・報告・温度感（金額は右端に残す）
 const APPO_COLS = [
-  { key: 'client', width: 240, align: 'left' },
-  { key: 'company', width: 230, align: 'left' },
-  { key: 'getter', width: 60, align: 'left' },
-  { key: 'getDate', width: 105, align: 'right' },
-  { key: 'meetDate', width: 110, align: 'right' },
-  { key: 'status', width: 200, align: 'center' },
+  { key: 'meet', width: 120, align: 'left' },
+  { key: 'company', width: 250, align: 'left' },
+  { key: 'client', width: 200, align: 'left' },
+  { key: 'getter', width: 100, align: 'left' },
+  { key: 'status', width: 100, align: 'center' },
+  { key: 'report', width: 100, align: 'center' },
+  { key: 'temp', width: 80, align: 'center' },
   { key: 'revenue', width: 90, align: 'right' },
-  { key: 'incentive', width: 110, align: 'right' },
+  { key: 'incentive', width: 90, align: 'right' },
 ];
 
 const EMAIL_STATUS_LABELS = {
@@ -724,9 +729,13 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   }, [productFilter, typeFilter, engsByCategory, setTypeFilter]);
 
   const statuses = [...new Set(appoData.map(a => a.status))];
+  const today = todayJst();
+  // やること4つ（押すと表をその件だけに絞る。期間・状態の絞り込みより優先）
+  const [todoFilter, setTodoFilter] = useState('');
 
   const statusOrder = { "面談済": 0, "事前確認済": 1, "アポ取得": 2, "リスケ中": 3, "キャンセル": 4 };
-  const filtered = appoData.filter(a => {
+  const passSearch = (a) => !search || a.company.includes(search) || a.client.includes(search) || a.getter.includes(search);
+  const passPeriod = (a) => {
     const dm = a.meetDate ? a.meetDate.slice(0, 7) : "";
     if (apPeriod === "month") { if (dm !== apSelectedMonth) return false; }
     else if (apPeriod === "custom") {
@@ -742,7 +751,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       if (typeFilter !== 'all' && eng?.id !== typeFilter) return false;
     }
     return true;
-  }).sort((a, b) => {
+  };
+  const filteredBase = appoData.filter(a => (todoFilter ? TODO_RULES[todoFilter](a, today) && passSearch(a) : passPeriod(a))).sort((a, b) => {
     if (sortKey === 'status') {
       const sa = statusOrder[a.status] ?? 99;
       const sb = statusOrder[b.status] ?? 99;
@@ -758,9 +768,34 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const cmp = valA.localeCompare(valB);
     return sortDir === 'asc' ? cmp : -cmp;
   });
+  // 面談日を過ぎて状態がそのままのものは先頭へ
+  const filtered = staleFirst(filteredBase, today);
+
+  // 温度感（面談前の1枚資料の要点。company_dossiers.content.brief.temperature）
+  const [tempById, setTempById] = useState({});
+  const tempKey = filtered.map(a => a._supaId).filter(Boolean).slice(0, 400).join(',');
+  useEffect(() => {
+    const ids = tempKey ? tempKey.split(',').filter(id => !(id in tempById)) : [];
+    if (ids.length === 0) return undefined;
+    let alive = true;
+    (async () => {
+      const next = {};
+      for (let i = 0; i < ids.length; i += 150) {
+        const { data } = await supabase.from('company_dossiers')
+          .select('appointment_id, temp:content->brief->temperature')
+          .in('appointment_id', ids.slice(i, i + 150));
+        for (const r of data || []) next[r.appointment_id] = typeof r.temp === 'number' ? r.temp : null;
+      }
+      for (const id of ids) if (!(id in next)) next[id] = undefined;
+      if (alive) setTempById(prev => ({ ...prev, ...next }));
+    })();
+    return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tempKey]);
 
   const countableStatuses = ["面談済", "事前確認済", "アポ取得"];
-  const countable = filtered.filter(a => countableStatuses.includes(a.status));
+  const kpiRows = todoFilter ? appoData.filter(passPeriod) : filtered;
+  const countable = kpiRows.filter(a => countableStatuses.includes(a.status));
   // クライアント開拓リスト由来のアポは売上集計から除外（件数とインターン報酬は残す）
   const totalSales = countable.reduce((s, a) => s + salesAmountOf(a), 0);
   const totalReward = countable.reduce((s, a) => s + (a.reward || 0), 0);
@@ -769,7 +804,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const items = appoData.filter(a =>
       a.meetDate && a.meetDate.slice(0, 7) === yyyymm && countableStatuses.includes(a.status)
     );
-    return { month: label, count: items.length,
+    return { month: label, yyyymm, count: items.length,
       sales: items.reduce((s, a) => s + salesAmountOf(a), 0),
       reward: items.reduce((s, a) => s + (a.reward || 0), 0) };
   });
@@ -1452,7 +1487,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <PageHeader
         title="アポ一覧"
-        description="獲得アポイント一覧・進行管理"
+        description="取れたアポの進み具合と、クライアントへの報告"
         style={{ marginBottom: 24 }}
       />
 
@@ -1590,63 +1625,27 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         );
       })()}
 
-      {/* Summary */}
-      <div style={{ marginBottom: 16 }}>
-        {/* Total row */}
-        {/* スマホで3列のままだと1枚120px弱しか取れず、¥29,258,000 が折り返して読めなくなる。
-            150px を下限にして入る分だけ並べる（iPhone 幅なら2列） */}
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(auto-fit, minmax(150px, 1fr))" : "repeat(3, 1fr)", gap: isMobile ? 8 : 12, marginBottom: 10 }}>
-          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
-            <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>アポ件数 <span style={{ fontSize: 9, color: color.textLight + "90" }}>（有効）</span></div>
-            <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: font.weight.black, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{countable.length}<span style={{ fontSize: font.size.xs, fontWeight: font.weight.medium, color: color.textLight, marginLeft: 4 }}>/ {filtered.length}件</span></div>
-          </div>
-          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
-            <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>当社売上合計</div>
-            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: font.weight.black, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalSales)}</div>
-          </div>
-          <div style={{ padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md, border: `1px solid ${color.border}` }}>
-            <div style={{ fontSize: 10, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>インターン報酬合計</div>
-            <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: font.weight.black, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(totalReward)}</div>
-          </div>
+      {/* 上の段：数字・月ごとの棒・やること4つ・今週の面談（2026-10-07 見本どおり） */}
+      <AppoOverview
+        appoData={appoData}
+        today={today}
+        countable={countable.length}
+        totalSales={totalSales}
+        totalReward={totalReward}
+        periodLabel={apPeriod === 'month' ? (AVAILABLE_MONTHS.find(m => m.yyyymm === apSelectedMonth)?.label || '今月') : apPeriod === 'custom' ? '期間内' : '全期間'}
+        monthStats={monthStats}
+        activeMonth={apPeriod === 'month' ? apSelectedMonth : ''}
+        onPickMonth={(m) => { setTodoFilter(''); setSearchParams(prev => { const np = new URLSearchParams(prev); np.set('apo_period', 'month'); np.set('apo_month', m); return np; }); }}
+        todo={todoFilter}
+        onTodo={setTodoFilter}
+        onOpen={(appo) => setReportDetail(appo)}
+      />
+      {todoFilter && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-4px 0 10px', fontSize: font.size.xs, color: color.textMid }}>
+          <span>やることで絞り込み中（期間・ステータスの絞り込みは外しています） ・ {filtered.length}件</span>
+          <Button variant="ghost" size="sm" onClick={() => setTodoFilter('')}>解除</Button>
         </div>
-        {/* Monthly breakdown */}
-        {/* 月別。スマホで 1fr のまま並べると1枚40px程度に潰れて
-            「有効アポ」「売上」が1文字ずつ縦に積まれる。
-            1枚の幅を固定して横スクロールで送る形にする。 */}
-        <div
-          className={isMobile ? 'spa-scroll-x' : undefined}
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? `repeat(${AVAILABLE_MONTHS.length}, 150px)`
-              : "repeat(" + AVAILABLE_MONTHS.length + ", 1fr)",
-            gap: isMobile ? 8 : 10,
-            overflowX: isMobile ? 'auto' : 'visible',
-            paddingBottom: isMobile ? 6 : 0,
-          }}
-        >
-          {monthStats.map(ms => (
-            <div key={ms.month} style={{
-              padding: "10px 14px", background: color.white, borderRadius: radius.md,
-              border: `1px solid ${color.border}`,
-            }}>
-              <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6, borderBottom: `1px solid ${color.border}`, paddingBottom: 4 }}>{ms.month}</div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 2 }}>
-                <span style={{ color: color.textLight }}>有効アポ</span>
-                <span style={{ fontWeight: font.weight.bold, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{ms.count}件</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 2 }}>
-                <span style={{ color: color.textLight }}>売上</span>
-                <span style={{ fontWeight: font.weight.bold, color: color.navy, fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.sales)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
-                <span style={{ color: color.textLight }}>報酬</span>
-                <span style={{ fontWeight: font.weight.bold, color: '#1E40AF', fontFamily: "'JetBrains Mono'" }}>{formatCurrency(ms.reward)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* Bulk Action Bar */}
       {setAppoData && selectedIds.size > 0 && (
@@ -1706,14 +1705,15 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             </span>
           )}
           {[
+            { label: '面談', key: 'meetDate' },
+            { label: '企業', key: null },
             { label: 'クライアント', key: 'client' },
-            { label: '企業名', key: null },
             { label: '取得者', key: 'getter' },
-            { label: '取得日', key: 'getDate' },
-            { label: '面談日', key: 'meetDate' },
-            { label: 'ステータス', key: null },
+            { label: '状態', key: null },
+            { label: '報告', key: null },
+            { label: '温度感', key: null },
             { label: '当社売上', key: null },
-            { label: 'インセンティブ', key: null },
+            { label: '報酬', key: null },
           ].map(({ label, key }, i) => (
             <span key={label}
               onClick={key ? () => toggleSort(key) : undefined}
@@ -1740,12 +1740,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               padding: "8px 6px 8px 16px", columnGap: 2, fontSize: font.size.xs, alignItems: "center",
               borderBottom: `1px solid ${color.border}`,
               background: isSelected ? '#EAF4FF' : (i % 2 === 0 ? color.white : '#F8F9FA'),
-              transition: "background 0.15s",
+              boxShadow: isStale(a, today) ? `inset 3px 0 0 ${color.goldDim}` : 'none',
+              transition: "background 0.15s", cursor: 'pointer',
             }}
+            onClick={() => setReportDetail(a)}
             onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#EAF4FF"; }}
             onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = i % 2 === 0 ? color.white : '#F8F9FA'; }}>
               {setAppoData && (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {a._supaId ? (
                     <input type="checkbox" checked={isSelected}
                       onChange={() => setSelectedIds(prev => {
@@ -1757,23 +1759,36 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   ) : <span style={{ width: 13 }} />}
                 </span>
               )}
-              <span style={{ color: color.textMid, fontSize: 10, textAlign: appoCols[0]?.align || 'left' }}>{a.client}</span>
-              <span style={{ fontWeight: font.weight.semibold, color: color.navy, cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: 2, textAlign: appoCols[1]?.align || 'left' }} onClick={() => setReportDetail(a)}>
-                {a.company}
-                {a.isProspecting && (
-                  <span style={{ marginLeft: 6, fontSize: 9, fontWeight: font.weight.semibold, color: color.info, background: alpha(color.info, 0.1), padding: '1px 5px', borderRadius: radius.sm }}>クライアント開拓</span>
-                )}
+              <span style={{ minWidth: 0, lineHeight: 1.35 }}>
+                <span style={{ display: 'block', fontFamily: "'Barlow', 'JetBrains Mono'", fontWeight: font.weight.semibold, color: isStale(a, today) ? color.textLight : color.textDark, whiteSpace: 'nowrap' }}>{a.meetDate ? `${Number(a.meetDate.slice(5, 7))}/${Number(a.meetDate.slice(8, 10))}（${'日月火水木金土'[new Date(a.meetDate + 'T00:00:00+09:00').getDay()]}）` : '—'}</span>
+                <span style={{ display: 'block', fontSize: 10, color: color.textLight, whiteSpace: 'nowrap' }}>{(a.meetTime || '').slice(0, 5) || '時刻なし'} ・ {a.isOnline ? 'オンライン' : '対面'}</span>
               </span>
-              <span style={{ color: color.textDark, textAlign: appoCols[2]?.align || 'left' }}>{a.getter}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textLight, textAlign: appoCols[3]?.align || 'right', display: 'block' }}>{a.getDate.slice(5)}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textLight, textAlign: appoCols[4]?.align || 'right', display: 'block' }}>{a.meetDate.slice(5)}</span>
-              <span style={{
-                display: 'block', textAlign: appoCols[5]?.align || 'center', fontSize: 10, padding: "2px 6px",
-                color: sc.color,
-                whiteSpace: 'nowrap',
-              }}>{a.status}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: font.weight.semibold, color: a.isProspecting ? color.textLight : color.navy, textAlign: appoCols[6]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.isProspecting ? "-" : (a.sales > 0 ? formatCurrency(a.sales) : "-")}</span>
-              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textMid, textAlign: appoCols[7]?.align || 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
+              <span style={{ minWidth: 0, lineHeight: 1.35 }}>
+                <span style={{ display: 'block', fontWeight: font.weight.semibold, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {a.company}
+                  {a.isProspecting && (
+                    <span style={{ marginLeft: 6, fontSize: 9, fontWeight: font.weight.semibold, color: color.info, background: alpha(color.info, 0.1), padding: '1px 5px', borderRadius: radius.sm }}>クライアント開拓</span>
+                  )}
+                </span>
+                {isStale(a, today) && <span style={{ display: 'block', fontSize: 10, color: color.goldDim }}>面談日を過ぎています。面談済にしますか</span>}
+              </span>
+              <span style={{ color: color.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.client}</span>
+              <span style={{ color: color.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.getter}</span>
+              <span style={{ textAlign: 'center' }}>
+                <span style={{ display: 'inline-block', fontSize: 10, padding: '1px 8px', borderRadius: radius.pill, background: sc.bg, color: sc.color, fontWeight: font.weight.semibold, whiteSpace: 'nowrap' }}>{a.status}</span>
+              </span>
+              <span style={{ textAlign: 'center' }}>
+                {a.status === 'キャンセル' ? <span style={{ fontSize: 10, color: color.textLight }}>—</span>
+                  : a.emailStatus === 'sent' ? <span className="ao-rep yes">送信済</span>
+                  : <span className="ao-rep no">未送信</span>}
+              </span>
+              <span style={{ textAlign: 'center' }}>
+                {typeof tempById[a._supaId] === 'number'
+                  ? <span className="ao-dots" title={`温度感 ${tempById[a._supaId]} / 5`}>{[1, 2, 3, 4, 5].map(k => <i key={k} className={k <= tempById[a._supaId] ? 'on' : ''} />)}</span>
+                  : <span style={{ fontSize: 10, color: color.textLight }}>{a._supaId in tempById ? '—' : ''}</span>}
+              </span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, fontWeight: font.weight.semibold, color: a.isProspecting ? color.textLight : color.navy, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.isProspecting ? "-" : (a.sales > 0 ? formatCurrency(a.sales) : "-")}</span>
+              <span style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: color.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{a.reward > 0 ? formatCurrency(a.reward) : "-"}</span>
             </div>
           );
         })}
@@ -2883,17 +2898,17 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       {reportDetail && (
         <div onClick={() => setReportDetail(null)} style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(10,25,41,0.6)", backdropFilter: "blur(4px)",
-          display: "flex", alignItems: "center", justifyContent: "center",
+          background: alpha(color.navyDeep, 0.25),
+          display: "flex", alignItems: "stretch", justifyContent: "flex-end",
           zIndex: 200, animation: "fadeIn 0.2s ease",
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.md, width: 520, maxWidth: '95vw', maxHeight: "80vh", overflow: "auto",
-            boxShadow: "0 20px 60px rgba(10,25,41,0.3)",
+          <div className="ao-drawer" onClick={e => e.stopPropagation()} style={{
+            background: color.white, width: 560, maxWidth: '100vw', height: '100vh', overflow: "auto",
+            boxShadow: "-12px 0 40px rgba(1,18,38,0.18)",
           }}>
             <div style={{
-              background: color.navy,
-              padding: "12px 24px", borderRadius: "4px 4px 0 0",
+              background: color.navy, position: 'sticky', top: 0, zIndex: 2,
+              padding: "12px 24px",
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
               <span style={{ fontSize: 15, fontWeight: font.weight.semibold, color: color.white }}>アポイント詳細</span>
@@ -2992,6 +3007,16 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               </div>
             </div>
             <div style={{ padding: 20 }}>
+              {(() => {
+                const order = ['アポ取得', '事前確認済', '面談済'];
+                const k = order.indexOf(reportDetail.status);
+                if (k < 0) return <div style={{ fontSize: font.size.xs, color: color.danger, marginBottom: 10 }}>状態：{reportDetail.status}{reportDetail.cancelReason ? `（${reportDetail.cancelReason}）` : ''}</div>;
+                return (
+                  <div className="ao-steps">
+                    {order.map((st, j) => <div key={st} className={`${j <= k ? 'done' : ''} ${j === k + 1 ? 'cur' : ''}`}>{st}</div>)}
+                  </div>
+                );
+              })()}
               {(() => {
                 const ef = detailEditForm;
                 const iS = { width: "100%", padding: "4px 8px", borderRadius: radius.md, border: `1px solid ${color.border}`, fontSize: font.size.xs, fontFamily: "'Noto Sans JP'", outline: "none", background: color.white, boxSizing: "border-box" };
@@ -3270,6 +3295,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   </div>
                 );
               })()}
+              {reportDetail.item_id && (
+                <div style={{ marginBottom: 12 }}><ReceptionHistory itemId={reportDetail.item_id} /></div>
+              )}
               {/* ── メール承認・送信 ── */}
               <EmailApprovalSection
                 appo={reportDetail}

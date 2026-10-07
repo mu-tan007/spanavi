@@ -26,6 +26,10 @@ import MonthlyTargetsView from './crm/MonthlyTargetsView';
 import CRMKPIDashboard from './crm/CRMKPIDashboard';
 import CRMPipelineView from './crm/CRMPipelineView';
 import { useEngagements } from '../../hooks/useEngagements';
+import CRMOverview from './crm/CRMOverview';
+import ClientDrawer from './crm/ClientDrawer';
+import { fetchReportRules } from '../../lib/reportRules';
+import { todayJst, QUICK_RULES, ruleCountByClient } from '../../utils/crmOverview';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -360,7 +364,31 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
     return (Date.now() - new Date(c.lastContactAt + 'T00:00:00').getTime()) / 86400000 >= 30;
   };
 
+  // 上の段（数字4つ・日数の軸・2026-10-07 見本どおり）。対象は支援中の会社
+  const crmToday = todayJst();
+  const [quick, setQuick] = useState('');
+  const [reportRules, setReportRules] = useState([]);
+  const loadRules = useCallback(async (force = false) => { setReportRules(await fetchReportRules({ force })); }, []);
+  useEffect(() => { loadRules(); }, [loadRules]);
+  const ruleCount = useMemo(() => ruleCountByClient(reportRules), [reportRules]);
+  const activeClients = useMemo(() => displayClientData.filter(c => c.status === '支援中'), [displayClientData]);
+  const [drawerId, setDrawerId] = useState(null);
+  const [drawerTab, setDrawerTab] = useState('base');
+  const [hoverId, setHoverId] = useState(null);
+  const drawerClient = drawerId ? (clientData || []).find(c => c._supaId === drawerId) || null : null;
+  const openDrawer = (c, tab = 'base') => { setDrawerTab(tab); setDrawerId(c._supaId); };
+  const flashRow = (c) => {
+    const el = document.querySelector(`[data-client-id="${c._supaId}"]`);
+    if (!el) { openDrawer(c); return; }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('co-flash'); void el.offsetWidth; el.classList.add('co-flash');
+  };
+
   const filtered = displayClientData.filter(c => {
+    if (quick) {
+      if (c.status !== '支援中' || !QUICK_RULES[quick](c, crmToday, ruleCount)) return false;
+      return !search || c.company.includes(search) || c.industry.includes(search);
+    }
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
     if (serviceFilter !== 'all' && (c.service || '未設定') !== serviceFilter) return false;
     if (stageFilter !== 'all' && (c.stage || '未設定') !== stageFilter) return false;
@@ -389,6 +417,8 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
         case 'service':     return (c.service || '').toString();
         case 'stage':       return STAGE_LIST.indexOf(c.stage);
         case 'lastContact': return c.lastContactAt ? new Date(c.lastContactAt).getTime() : -Infinity;
+        case 'age':         return c.lastContactAt ? -new Date(c.lastContactAt).getTime() : Infinity;
+        case 'rules':       return ruleCount[c._supaId] || 0;
         case 'nextAction':  return c.nextActionDue ? new Date(c.nextActionDue).getTime() : Infinity;
         case 'company':     return (c.company || '').toString();
         case 'status':      return (c.status || '').toString();
@@ -630,7 +660,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
       {view !== 'detail' && (
         <PageHeader
           title="顧客管理"
-          description="顧客・連絡先・契約条件の管理"
+          description="クライアントとのやり取りの間隔と、次の一手"
           style={{ marginBottom: 16 }}
         />
       )}
@@ -700,6 +730,21 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             alertFilter={alertFilter}
             setAlertFilter={setAlertFilter}
           />
+          <CRMOverview
+            clients={activeClients}
+            today={crmToday}
+            ruleCount={ruleCount}
+            quick={quick}
+            onQuick={setQuick}
+            onDot={flashRow}
+            hoverId={hoverId}
+          />
+          {quick && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-4px 0 10px', fontSize: font.size.xs, color: color.textMid }}>
+              <span>上の数字で絞り込み中（支援中の会社だけ・下の絞り込みは外しています） ・ {filtered.length}社</span>
+              <Button variant="ghost" size="sm" onClick={() => setQuick('')}>解除</Button>
+            </div>
+          )}
           <CRMStatusTabs
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
@@ -794,7 +839,11 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
             rewardMaster={rewardMaster}
             sortState={sortState}
             setSortState={setSortState}
-            onRowClick={goToDetail}
+            onRowClick={(c) => openDrawer(c)}
+            ruleCount={ruleCount}
+            today={crmToday}
+            onRowHover={setHoverId}
+            onOpenRules={(c) => openDrawer(c, 'rule')}
             onComposeEmail={(c) => setEmailCtx({
               kind: 'client',
               client: {
@@ -864,6 +913,24 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           voiceTargetKind="client_update"
           voiceClientId={editForm._supaId || null}
           onVoiceProcessed={handleEditVoiceProcessed}
+        />
+      )}
+
+      {drawerClient && view === 'list' && (
+        <ClientDrawer
+          client={drawerClient}
+          today={crmToday}
+          contacts={contactsByClient[drawerClient._supaId] || []}
+          lists={(callListData || []).filter(l => l.client_id === drawerClient._supaId)}
+          rules={reportRules.filter(r => r.client_id === drawerClient._supaId)}
+          reward={rewardMap[drawerClient.rewardType] || null}
+          monthAppoCount={monthAppoCountByClient[drawerClient._supaId] || 0}
+          isAdmin={isAdmin}
+          currentUser={currentUser}
+          initialTab={drawerTab}
+          onClose={() => setDrawerId(null)}
+          onOpenPage={(c) => { setDrawerId(null); goToDetail(c); }}
+          onRulesSaved={() => loadRules(true)}
         />
       )}
 

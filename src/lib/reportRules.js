@@ -7,7 +7,12 @@ let cachedAt = 0;
 
 export async function fetchReportRules({ force = false } = {}) {
   if (!force && cache && Date.now() - cachedAt < 5 * 60 * 1000) return cache;
-  const { data, error } = await supabase.from('report_rules').select('client_id, contact_id, list_id, items, conditions, note');
+  let data, error;
+  try {
+    ({ data, error } = await supabase.from('report_rules').select('client_id, contact_id, list_id, items, conditions, note'));
+  } catch (e) {
+    error = e;
+  }
   if (error) { console.warn('[reportRules] 読込に失敗:', error.message); return cache || []; }
   cache = data || [];
   cachedAt = Date.now();
@@ -74,4 +79,28 @@ export function ruleReportBlock(form, rules) {
     })
     .filter(Boolean);
   return lines.length ? `\n【ヒアリング】\n${lines.join('\n')}` : '';
+}
+
+/**
+ * 1段（クライアント全体／担当者／リスト）を保存する。中身が空なら消す。管理者だけが書ける（RLS）。
+ * rule は utils/reportRulesEdit の toStorage の形（items / conditions / note）
+ */
+export async function saveReportRule({ clientId, contactId = null, listId = null, rule, orgId, updatedBy = '' }) {
+  let q = supabase.from('report_rules').select('id').eq('client_id', clientId);
+  q = contactId ? q.eq('contact_id', contactId) : q.is('contact_id', null);
+  q = listId ? q.eq('list_id', listId) : q.is('list_id', null);
+  const { data: existing, error: readError } = await q.maybeSingle();
+  if (readError) return { error: readError };
+  const empty = (!rule.items || rule.items.length === 0) && (!rule.conditions || rule.conditions.length === 0) && !rule.note;
+  let res;
+  if (empty) {
+    res = existing ? await supabase.from('report_rules').delete().eq('id', existing.id) : { error: null };
+  } else if (existing) {
+    res = await supabase.from('report_rules').update({ items: rule.items, conditions: rule.conditions, note: rule.note, updated_at: new Date().toISOString(), updated_by: updatedBy }).eq('id', existing.id).select('id');
+  } else {
+    res = await supabase.from('report_rules').insert({ org_id: orgId, client_id: clientId, contact_id: contactId, list_id: listId, items: rule.items, conditions: rule.conditions, note: rule.note, updated_by: updatedBy }).select('id');
+  }
+  if (!res.error && !empty && (!res.data || res.data.length === 0)) return { error: { message: '保存できませんでした（権限がない可能性があります）' } };
+  cache = null;
+  return { error: res.error || null };
 }

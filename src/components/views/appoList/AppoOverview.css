@@ -1,0 +1,77 @@
+/* アポ一覧の上の段（ルール v2・2026-10-07 見本どおり）。動きは出るときと押すときだけ。 */
+.ao { --ao-navy: #032D60; --ao-royal: #0176D3; --ao-gold: #C8A45A; --ao-ink: #0E1B2C; --ao-ink2: #4B5868; --ao-ink3: #8692A0; --ao-line: #E3E6EB; --ao-line2: #EEF0F3;
+  --ao-red: #C8102E; --ao-amber: #B7791F; --ao-green: #1F7A4D; --ao-spring: cubic-bezier(.34,1.56,.64,1); --ao-out: cubic-bezier(.2,.8,.2,1);
+  font-family: 'Noto Sans JP', sans-serif; font-feature-settings: "palt"; margin-bottom: 12px; }
+.ao-card { background: #fff; border: 1px solid var(--ao-line); border-radius: 8px; }
+.ao-lbl { font-size: 11px; color: var(--ao-ink3); }
+.ao-num { font-family: 'Barlow', 'Noto Sans JP', sans-serif; font-variant-numeric: tabular-nums; }
+
+.ao-kpi { display: grid; grid-template-columns: 1.1fr 1fr 1fr 2.2fr; gap: 12px; margin-bottom: 12px; }
+.ao-k { padding: 14px 16px; }
+.ao-k .ao-v { font-size: 28px; font-weight: 600; color: var(--ao-navy); line-height: 1.2; margin-top: 2px; }
+.ao-k .ao-v small { font-family: 'Noto Sans JP', sans-serif; font-size: 12px; color: var(--ao-ink2); font-weight: 500; margin-left: 2px; }
+.ao-k .ao-s { font-size: 11px; color: var(--ao-ink3); }
+.ao-months { display: flex; align-items: flex-end; gap: 6px; height: 64px; margin-top: 6px; }
+.ao-m { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; height: 100%; cursor: pointer; background: none; border: 0; padding: 0; }
+.ao-m i { display: block; flex: none; width: 100%; border-radius: 4px 4px 0 0; background: #B9D7F3; transform-origin: bottom; animation: ao-rise .6s var(--ao-out) both; transition: background .15s; }
+.ao-m:hover i { background: #7FB6E6; }
+.ao-m.is-on i { background: var(--ao-navy); }
+.ao-m span { font-size: 11px; color: var(--ao-ink3); }
+.ao-m b { font-size: 11px; color: var(--ao-ink2); font-weight: 600; }
+@keyframes ao-rise { from { transform: scaleY(0); } }
+
+.ao-todo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.ao-td { display: flex; align-items: center; gap: 12px; padding: 12px 14px; text-align: left; cursor: pointer; font-family: inherit;
+  transition: transform .2s var(--ao-spring), border-color .15s, box-shadow .15s; }
+.ao-td:hover { border-color: #B9D7F3; }
+.ao-td:active { transform: scale(.98); }
+.ao-td.is-on { border-color: var(--ao-royal); box-shadow: 0 0 0 3px #E8F2FC; }
+.ao-td .ao-n { font-size: 28px; font-weight: 600; line-height: 1; min-width: 22px; }
+.ao-td .ao-t { font-size: 13px; font-weight: 500; color: var(--ao-ink); display: block; }
+.ao-td .ao-d { font-size: 11px; color: var(--ao-ink3); display: block; }
+.ao-td.red .ao-n { color: var(--ao-red); } .ao-td.amb .ao-n { color: var(--ao-amber); }
+.ao-td.blu .ao-n { color: var(--ao-royal); } .ao-td.nv .ao-n { color: var(--ao-navy); }
+.ao-td.is-zero .ao-n { color: var(--ao-ink3); }
+
+.ao-week { padding: 12px 16px; }
+.ao-wh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.ao-wh b { font-size: 14px; color: var(--ao-navy); }
+.ao-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.ao-day { border: 1px solid var(--ao-line2); border-radius: 8px; padding: 6px 8px; min-height: 92px; min-width: 0; }
+.ao-day.is-today { border-color: #B9D7F3; background: #F7FAFE; }
+.ao-day h5 { font-size: 11px; color: var(--ao-ink3); font-weight: 500; display: flex; justify-content: space-between; margin: 0 0 4px; }
+.ao-day.is-today h5 { color: var(--ao-royal); }
+.ao-chip { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-bottom: 3px; border: 0;
+  background: var(--ao-line2); color: var(--ao-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; animation: ao-in .4s var(--ao-out) both; }
+.ao-chip b { font-weight: 600; color: var(--ao-navy); margin-right: 6px; }
+.ao-chip.ok { background: #E6F4EC; } .ao-chip.wait { background: #E8F2FC; } .ao-chip.res { background: #FBF1DE; }
+.ao-chip.can { background: #FCEBEE; text-decoration: line-through; color: var(--ao-ink3); }
+.ao-chip.done { background: #F1F3F6; color: var(--ao-ink2); }
+.ao-empty { font-size: 11px; color: var(--ao-ink3); }
+@keyframes ao-in { from { opacity: 0; transform: translateY(4px); } }
+
+/* 表の中で使う小物 */
+.ao-dots { display: inline-flex; gap: 2px; vertical-align: middle; }
+.ao-dots i { width: 9px; height: 6px; border-radius: 2px; background: #E3E6EB; }
+.ao-dots i.on { background: #C8A45A; }
+.ao-rep { font-size: 11px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ao-rep.no { color: #C8102E; font-weight: 500; }
+.ao-rep.yes { color: #1F7A4D; }
+
+/* 詳細（右から出す） */
+.ao-drawer { animation: ao-slide .32s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes ao-slide { from { transform: translateX(40px); opacity: 0; } }
+.ao-steps { display: flex; margin: 4px 0 12px; }
+.ao-steps div { flex: 1; text-align: center; font-size: 11px; color: #8692A0; position: relative; padding-top: 18px; }
+.ao-steps div::before { content: ""; position: absolute; top: 4px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: #fff; border: 2px solid #E3E6EB; z-index: 1; }
+.ao-steps div::after { content: ""; position: absolute; top: 9px; left: 50%; right: -50%; height: 2px; background: #E3E6EB; }
+.ao-steps div:last-child::after { display: none; }
+.ao-steps div.done { color: #032D60; font-weight: 500; }
+.ao-steps div.done::before { background: #032D60; border-color: #032D60; }
+.ao-steps div.done::after { background: #032D60; }
+.ao-steps div.cur::before { border-color: #0176D3; box-shadow: 0 0 0 4px #E8F2FC; }
+.ao-steps.is-off div { color: #C8102E; }
+
+@media (max-width: 1180px) { .ao-kpi { grid-template-columns: 1fr 1fr; } .ao-todo { grid-template-columns: 1fr 1fr; } .ao-days { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px) { .ao-kpi, .ao-todo { grid-template-columns: 1fr; } .ao-days { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .ao *, .ao-drawer { animation: none !important; transition: none !important; } }
