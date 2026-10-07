@@ -15,6 +15,20 @@ import './PermissionSettings.css';
 // - admin (users.role='admin') は権限テーブル無視で全閲覧可。UIでは編集不可・バッジ表示
 // - 未設定メンバー（行が無い）は「現状見えているもの＝所属事業の全ページ」を pre-check で表示
 
+// 権限の行は組織全体で1,000行を超える。1回の取得は1,000行までなので、分けて全部読む（2026-10-08）
+async function fetchAllPermissions(orgId) {
+  const out = [];
+  for (let from = 0; from < 20000; from += 1000) {
+    const { data, error } = await supabase.from('member_page_permissions')
+      .select('member_id, engagement_slug, page_key').eq('org_id', orgId)
+      .order('id').range(from, from + 999);
+    if (error) return { data: out, error };
+    out.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return { data: out };
+}
+
 // engagementId を渡すと、その事業に所属する人とその事業のページだけを出す（メンバーのページから開くとき・2026-10-08）
 export default function PermissionSettings({ onToast, engagementId = null }) {
   const orgId = getOrgId();
@@ -58,9 +72,7 @@ export default function PermissionSettings({ onToast, engagementId = null }) {
         supabase.from('member_engagements')
           .select('member_id, engagement_id')
           .eq('org_id', orgId),
-        supabase.from('member_page_permissions')
-          .select('member_id, engagement_slug')
-          .eq('org_id', orgId),
+        fetchAllPermissions(orgId),
       ]);
       if (cancelled) return;
       setMembers(m.data || []);
@@ -74,10 +86,11 @@ export default function PermissionSettings({ onToast, engagementId = null }) {
       });
       setMemberEngagementMap(meMap);
 
+      // 人ごと・事業ごとに持っているページの集合（数えるのは PAGE_REGISTRY にあるものだけ）
       const counts = {};
       (mpp.data || []).forEach(r => {
         const c = counts[r.member_id] || (counts[r.member_id] = {});
-        c[r.engagement_slug] = (c[r.engagement_slug] || 0) + 1;
+        (c[r.engagement_slug] || (c[r.engagement_slug] = new Set())).add(r.page_key);
       });
       setPermissionCounts(counts);
       setLoading(false);
@@ -127,6 +140,7 @@ export default function PermissionSettings({ onToast, engagementId = null }) {
 
   // 表示用ラベル: DB engagements.name を優先、無ければ ENGAGEMENT_LABELS フォールバック
   const labelFor = useCallback((slug) => {
+    if (slug === 'seller_sourcing') return '営業代行';
     const eng = engBySlug[slug];
     return eng?.name || ENGAGEMENT_LABELS[slug] || slug;
   }, [engBySlug]);
@@ -223,7 +237,7 @@ export default function PermissionSettings({ onToast, engagementId = null }) {
 
       // ステート更新
       setOrigPages(Object.fromEntries(Object.entries(selectedPages).map(([k, v]) => [k, new Set(v)])));
-      setPermissionCounts(prev => ({ ...prev, [selectedMemberId]: { ...(prev[selectedMemberId] || {}), ...Object.fromEntries(displayedSlugs.map(sl => [sl, (selectedPages[sl] || new Set()).size])) } }));
+      setPermissionCounts(prev => ({ ...prev, [selectedMemberId]: { ...(prev[selectedMemberId] || {}), ...Object.fromEntries(displayedSlugs.map(sl => [sl, new Set(selectedPages[sl] || [])])) } }));
       onToast?.({ type: 'success', message: '権限を保存しました' });
     } catch (err) {
       console.error('[PermissionSettings] save error', err);
@@ -257,7 +271,7 @@ export default function PermissionSettings({ onToast, engagementId = null }) {
       .map(e => e.slug);
     const denom = slugs.reduce((n, sl) => n + PAGE_REGISTRY[sl].length, 0);
     const c = permissionCounts[m.id] || {};
-    const count = slugs.reduce((n, sl) => n + Math.min(c[sl] || 0, PAGE_REGISTRY[sl].length), 0);
+    const count = slugs.reduce((n, sl) => n + PAGE_REGISTRY[sl].filter(pg => c[sl]?.has(pg.key)).length, 0);
     return { count, denom };
   };
   const initial = (m) => (m?.name || '?').trim().charAt(0);
@@ -281,7 +295,7 @@ export default function PermissionSettings({ onToast, engagementId = null }) {
       return { ...prev, [slug]: set };
     });
   };
-  const totalOn = displayedSlugs.reduce((n, sl) => n + (selectedPages[sl]?.size || 0), 0);
+  const totalOn = displayedSlugs.reduce((n, sl) => n + PAGE_REGISTRY[sl].filter(pg => selectedPages[sl]?.has(pg.key)).length, 0);
   const totalAll = displayedSlugs.reduce((n, sl) => n + PAGE_REGISTRY[sl].length, 0);
   let changed = 0;
   displayedSlugs.forEach(sl => {
