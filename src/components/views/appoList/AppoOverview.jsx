@@ -30,10 +30,10 @@ export default function AppoOverview({ appoData, today, countable, totalSales, t
         <div className="ao-card ao-k"><span className="ao-lbl">当社売上</span><div className="ao-v ao-num">{man(totalSales)}<small>万円</small></div><div className="ao-s">{periodLabel}の有効アポ分</div></div>
         <div className="ao-card ao-k"><span className="ao-lbl">インターン報酬</span><div className="ao-v ao-num">{man(totalReward)}<small>万円</small></div><div className="ao-s">{periodLabel}の有効アポ分</div></div>
         <div className="ao-card ao-k">
-          <span className="ao-lbl">月ごとの有効アポ ・ 押すとその月</span>
+          <span className="ao-lbl">月ごとの有効アポ</span>
           <div className="ao-months">
             {months.map((m, i) => (
-              <button key={m.yyyymm} type="button" className={`ao-m${m.yyyymm === activeMonth ? ' is-on' : ''}`} onClick={() => onPickMonth(m.yyyymm)} title={`${m.month} ${m.count}件`}>
+              <button key={m.yyyymm} type="button" className={`ao-m${m.yyyymm === activeMonth ? ' is-on' : ''}`} onClick={() => onPickMonth(m.yyyymm)} title={`${m.month} ${m.count}件（押すと${m.month}の表示に切り替え）`}>
                 <b className="ao-num">{m.count}</b>
                 <i style={{ height: Math.max(2, (m.count / mx) * 40), animationDelay: `${i * 0.04}s` }} />
                 <span>{m.month}</span>
