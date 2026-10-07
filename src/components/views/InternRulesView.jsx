@@ -284,7 +284,7 @@ export default function InternRulesView({ embedded = false }) {
           インターン22箇条
         </h1>
         <p style={{ color: color.gray400, fontSize: font.size.base, fontWeight: font.weight.medium }}>
-          M&amp;A Sourcing Partners, Inc.
+          Spartia Inc.
         </p>
       </div>
 

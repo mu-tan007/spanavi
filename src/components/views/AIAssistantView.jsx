@@ -29,7 +29,7 @@ export default function AIAssistantView({ appoData, members, callListData, indus
 
     const rulesText = industryRules.map(r => `${r.industry}: ${r.rule}`).join("\n");
 
-    return `あなたはMASP（M&A Sourcing Partners）の社内AIアシスタント「MASP AI」です。
+    return `あなたはSpartia株式会社（旧 M&Aソーシングパートナーズ）の社内AIアシスタント「Spartia AI」です。
 テレアポ（電話営業）によるM&A仲介企業向けアポイント獲得サービスを運営する会社のスタッフをサポートします。
 
 【会社概要】

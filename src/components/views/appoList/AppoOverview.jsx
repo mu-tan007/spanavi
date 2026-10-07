@@ -2,9 +2,9 @@ import './AppoOverview.css';
 import { todoCounts, weekDays, weekMeetings, shortCompany } from '../../../utils/appoOverview';
 
 // アポ一覧の上の段（2026-10-07 むー様確認の見本どおり）
-//   数字3つ＋月ごとの有効アポの棒 ／ やること4つ（押すと表を絞る） ／ 今週の面談（押すとそのアポを開く）
+//   数字3つ＋月ごとの有効アポの棒 ／ やること3つ（押すと表を絞る） ／ 今週の面談（押すとそのアポを開く）
 const TODOS = [
-  { key: 'unsent', cls: 'red', label: '報告を送っていない', desc: '面談前でクライアントに未送信' },
+  // 「報告を送っていない」は出さない（2026-10-08 むー様：送信済み・未送信は表示しなくてよい）
   { key: 'stale', cls: 'amb', label: '面談日を過ぎて状態がそのまま', desc: '面談済にするか確認' },
   { key: 'pre', cls: 'blu', label: '事前確認がまだ', desc: '状態がアポ取得のまま' },
   { key: 'res', cls: 'nv', label: 'リスケ中', desc: '直近60日 ・ 新しい日程を追う' },

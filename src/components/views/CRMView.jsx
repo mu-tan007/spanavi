@@ -349,7 +349,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
   // 自社 (軸②クライアント開拓便宜上の client) を除外した clientData
   // ステータス別カウント・KPI・バッジ件数すべてで自社を含めないため、ここで filter 済を使う
   const displayClientData = useMemo(
-    () => clientData.filter(c => c.company !== 'M&Aソーシングパートナーズ株式会社'),
+    () => clientData.filter(c => c.company !== 'Spartia株式会社' && c.company !== 'M&Aソーシングパートナーズ株式会社'),
     [clientData]
   );
   // バッジ件数（statusFilter は無視して全クライアントから集計）

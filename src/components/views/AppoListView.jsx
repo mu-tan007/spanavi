@@ -36,7 +36,6 @@ const APPO_COLS = [
   { key: 'client', width: 200, align: 'left' },
   { key: 'getter', width: 100, align: 'left' },
   { key: 'status', width: 100, align: 'center' },
-  { key: 'report', width: 100, align: 'center' },
   { key: 'temp', width: 80, align: 'center' },
   { key: 'revenue', width: 90, align: 'right' },
   { key: 'incentive', width: 90, align: 'right' },
@@ -1711,7 +1710,6 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
             { label: 'クライアント', key: 'client' },
             { label: '取得者', key: 'getter' },
             { label: '状態', key: null },
-            { label: '報告', key: null },
             { label: '温度感', key: null },
             { label: '当社売上', key: null },
             { label: '報酬', key: null },
@@ -1778,11 +1776,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               <span style={{ textAlign: 'center' }}>
                 <span style={{ display: 'inline-block', fontSize: 10, padding: '1px 8px', borderRadius: radius.pill, background: sc.bg, color: sc.color, fontWeight: font.weight.semibold, whiteSpace: 'nowrap' }}>{a.status}</span>
               </span>
-              <span style={{ textAlign: 'center' }}>
-                {a.status === 'キャンセル' ? <span style={{ fontSize: 10, color: color.textLight }}>—</span>
-                  : a.emailStatus === 'sent' ? <span className="ao-rep yes">送信済</span>
-                  : <span className="ao-rep no">未送信</span>}
-              </span>
+              {/* 報告の送信済み・未送信は出さない（2026-10-08 むー様） */}
               <span style={{ textAlign: 'center' }}>
                 {typeof tempById[a._supaId] === 'number'
                   ? <span className="ao-dots" title={`温度感 ${tempById[a._supaId]} / 5`}>{[1, 2, 3, 4, 5].map(k => <i key={k} className={k <= tempById[a._supaId] ? 'on' : ''} />)}</span>

@@ -18,7 +18,8 @@ import { useImeSafeInput } from '../../lib/useImeSafe';
 import { salesAmountOf } from '../../utils/money';
 
 const COUNTABLE_STATUSES = new Set(['面談済', '事前確認済', 'アポ取得']);
-const SELF_CLIENT_NAME = 'M&Aソーシングパートナーズ株式会社';
+// 弊社（2026-10-08 顧客名を旧社名から Spartia株式会社 に改めた。旧名も念のため弊社として扱う）
+const SELF_CLIENT_NAME = 'Spartia株式会社';
 // 軸①のタイプ表示順 (列順)
 const AXIS1_TYPES = [
   { type: 'seller_sourcing', label: '売り手ソーシング' },
