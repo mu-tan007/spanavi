@@ -140,7 +140,7 @@ export default function SourcingDashboardView({ currentUser, members = [], now =
       kmAppo: { label: 'キーマン→アポ率', unit: '%', note: 'キーマン接続10件以上の人だけ', rows: rows.filter(r => r.keyman >= 10).map(r => ({ name: r.getter_name, v: r.appo / r.keyman * 100 })) },
       days: { label: '稼働日数', unit: '日', note: `架電した日（平日${countWeekdays(range.fromDate, effectiveTo)}日のうち）`, rows: rows.map(r => ({ name: r.getter_name, v: r.days })) },
       recall: { label: '朝一の再コール', unit: '%', note: '1日の最初の50件に占める再コール', rows: rows.filter(r => r.recall50_pct !== null).map(r => ({ name: r.getter_name, v: Number(r.recall50_pct) })) },
-      mtg: { label: 'MTG出席', unit: '%', note: '週次MTG 直近8回', rows: rows.filter(r => r.mtg_total > 0).map(r => ({ name: r.getter_name, v: r.mtg_attended / r.mtg_total * 100 })) },
+      mtg: { label: '勉強会出席', unit: '%', note: '勉強会 直近8回', rows: rows.filter(r => r.mtg_total > 0).map(r => ({ name: r.getter_name, v: r.mtg_attended / r.mtg_total * 100 })) },
     };
   }, [metrics, salesByName, rankable, range.fromDate, effectiveTo]);
   const [rankKey, setRankKey] = useUrlState('dash_rank', 'sales', { allowed: ['sales', 'appo', 'kmAppo', 'days', 'recall', 'mtg'] });

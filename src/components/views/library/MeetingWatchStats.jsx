@@ -5,7 +5,7 @@ import { fetchWeeklyMeetingWatchLogs } from '../../../lib/supabaseWrite';
 import { Badge, Button, DataTable } from '../../ui';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 
-// 週次ミーティングの視聴状況。全員に見せる。
+// 勉強会の視聴状況。全員に見せる。
 //   player    : 何秒から何秒まで見たか（2026-09-26から記録）
 //   estimated : 記録を始める前の分。Cloudflare の再生記録からの推定分数（区間は無い）
 

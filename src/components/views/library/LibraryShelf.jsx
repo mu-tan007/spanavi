@@ -32,7 +32,7 @@ export function Book({ id, meta, stat, active, isNew, index, onOpen }) {
   );
 }
 
-/** 上の段：最新の週次ミーティング（押すと週次ミーティングを開く）と今日の日報 */
+/** 上の段：最新の勉強会（押すと勉強会を開く）と今日の日報 */
 export function LibraryHero({ meeting, watched, members, reports, onOpenMeetings, onOpenReports }) {
   const md = (d) => (d ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}` : '');
   const min = meeting?.duration_sec ? `${Math.floor(meeting.duration_sec / 60)}:${String(meeting.duration_sec % 60).padStart(2, '0')}` : '';
@@ -44,7 +44,7 @@ export function LibraryHero({ meeting, watched, members, reports, onOpenMeetings
             <span className="lb-rib">最新</span>{min && <span className="lb-dur lb-num">{min}</span>}
           </div>
           <div style={{ minWidth: 0 }}>
-            <span className="lb-lbl">週次ミーティング ・ {md(meeting.meeting_date)}</span>
+            <span className="lb-lbl">勉強会 ・ {md(meeting.meeting_date)}</span>
             <h3>{meeting.title || '（題名なし）'}</h3>
             <p>{[meeting.document_url ? '資料PDFつき' : '', meeting.access_restricted ? '見られる人を限った回' : ''].filter(Boolean).join(' ・ ') || '録画'}</p>
             {watched != null && members > 0 && (
@@ -52,7 +52,7 @@ export function LibraryHero({ meeting, watched, members, reports, onOpenMeetings
             )}
           </div>
         </div>
-      ) : <div className="lb-card lb-feat lb-empty">週次ミーティングはまだありません</div>}
+      ) : <div className="lb-card lb-feat lb-empty">勉強会はまだありません</div>}
       <div className="lb-card lb-today" onClick={onOpenReports} role="button" tabIndex={0}>
         <h4><span>今日の日報</span><span>チームごと</span></h4>
         {reports.length === 0 && <div className="lb-lbl" style={{ padding: '10px 0' }}>今日の日報はまだありません</div>}

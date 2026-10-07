@@ -81,7 +81,7 @@ export function buildBehaviorGroups(row, bench, ctx) {
       item('talk_med_sec', 'キーマン会話の長さ', `断り・再コール（中央値・${num(r.talk_n) ?? 0}件）`, num(r.talk_med_sec), '秒', true),
     ]},
     { group: '熱量', items: [
-      item('mtg_pct', '週次MTGの出席率', mtgTotal ? `直近${mtgTotal}回のうち${num(r.mtg_attended) ?? 0}回` : '直近の回', mtgTotal ? (num(r.mtg_attended) ?? 0) / mtgTotal * 100 : null, '%', true),
+      item('mtg_pct', '勉強会の出席率', mtgTotal ? `直近${mtgTotal}回のうち${num(r.mtg_attended) ?? 0}回` : '直近の回', mtgTotal ? (num(r.mtg_attended) ?? 0) / mtgTotal * 100 : null, '%', true),
     ]},
   ];
 }
@@ -114,7 +114,7 @@ export const NEXT_STEP = {
   lists_per_month: { title: '再コールを追ってリストをまたぐ', body: '上位はかけ直しの約束を追って、月に多くのリストをまたいでいます。1つのリストをかけ切るより、約束のある会社を先にかけましょう。' },
   keyman_appo_pct: { title: '断られた後に、日程の二択まで運ぶ', body: '上位は最初の断りのあと、相手の手がかり（県外の同業・相手の強み）を出し、理由を質問で聞き、30〜60秒で日時1点か二択まで進めています。' },
   talk_med_sec: { title: 'キーマンとの会話をあと15秒延ばす', body: 'キーマン会話の長さは、同じ人の中でもアポ率と結び付いていた唯一の腕の要素です。断られても、理由を質問で聞いてみましょう。' },
-  mtg_pct: { title: '週次MTGに出る', body: '上位は週次MTGの8割に出ています。出られない回は、録画を最後まで見ましょう。' },
+  mtg_pct: { title: '勉強会に出る', body: '上位は勉強会の8割に出ています。出られない回は、録画を最後まで見ましょう。' },
 };
 
 export function pickNextStep(groups) {

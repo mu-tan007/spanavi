@@ -34,7 +34,7 @@ const STORAGE_KEY = 'spanavi_library_card_order_v2';
 const DEFAULT_ORDER = ['meetings', 'roleplay', 'daily_report', 'bookmarks', 'rules'];
 
 const CARDS = {
-  meetings:     { title: '週次ミーティング', desc: '毎週の録画と資料。見られる人を限った回もある' },
+  meetings:     { title: '勉強会', desc: '毎週の録画と資料。見られる人を限った回もある' },
   roleplay:     { title: 'ロープレ',         desc: '毎週の篠宮・リーダーとのロープレの録音とAIの講評' },
   daily_report: { title: '日報',             desc: 'チームごとのその日の架電・アポ' },
   bookmarks:    { title: 'お気に入り録音',   desc: 'あとで聞き返したい通話' },
@@ -246,7 +246,7 @@ export default function LibraryView({
     setOrder(arrayMove(order, oldIdx, newIdx));
   };
 
-  // 週次ミーティング（2026-10-07 見本どおり）：選んだ回を大きく、右に回の一覧、管理は ⋯ に
+  // 勉強会（2026-10-07 見本どおり）：選んだ回を大きく、右に回の一覧、管理は ⋯ に
   const [selMeetingId, setSelMeetingId] = useState(null);
   const [showUploader, setShowUploader] = useState(false);
   const [mgmtOpen, setMgmtOpen] = useState(false);
@@ -278,7 +278,7 @@ export default function LibraryView({
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="ライブラリー"
-        description="見返すものの本棚 ・ 週次ミーティング・ロープレ・日報・お気に入り録音・22箇条"
+        description="見返すものの本棚 ・ 勉強会・ロープレ・日報・お気に入り録音・22箇条"
         style={{ marginBottom: space[4] }}
       />
 
@@ -925,7 +925,7 @@ function Empty({ children }) {
 }
 
 // ────────────────────────────────────────────────────────────
-// 週次ミーティング動画アップロード
+// 勉強会動画アップロード
 // ────────────────────────────────────────────────────────────
 function MeetingUploader({ currentUser, onUploaded }) {
   const [selectedFile, setSelectedFile] = useState(null);
