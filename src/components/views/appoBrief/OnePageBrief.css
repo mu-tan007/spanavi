@@ -1,0 +1,37 @@
+/* 面談前の1枚資料（A4縦 794×1123px）。PDFにするときもこの見た目のまま写す */
+.ob-page { width: 794px; height: 1123px; background: #fff; position: relative; overflow: hidden; padding: 40px 44px 30px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; font-family: 'Noto Sans JP', sans-serif; color: #0E1B2C; font-feature-settings: "palt"; }
+.ob-page * { box-sizing: border-box; }
+.ob-bar { position: absolute; left: 0; top: 0; right: 0; height: 7px; background: linear-gradient(90deg, #032D60, #0176D3 70%, #C8A45A); }
+.ob-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.ob-kicker { font-size: 11px; color: #8692A0; letter-spacing: .12em; }
+.ob-head h2 { font-size: 26px; color: #032D60; line-height: 1.25; margin: 2px 0 0; font-weight: 700; }
+.ob-sub { font-size: 12px; color: #4B5868; margin-top: 4px; }
+.ob-meet { border: 1px solid #B9D7F3; background: #E8F2FC; border-radius: 8px; padding: 8px 12px; text-align: right; min-width: 220px; }
+.ob-meet .ob-d { font-family: 'Barlow', 'Noto Sans JP', sans-serif; font-size: 22px; font-weight: 600; color: #032D60; line-height: 1.25; }
+.ob-meet .ob-s { font-size: 11px; color: #4B5868; }
+.ob-one { border-left: 3px solid #C8A45A; padding: 7px 12px; background: #F7F0E1; border-radius: 0 6px 6px 0; font-size: 13.5px; line-height: 1.75; }
+.ob-one b { color: #032D60; }
+.ob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1; min-height: 0; }
+.ob-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ob-box h3 { font-size: 12px; color: #032D60; letter-spacing: .06em; border-bottom: 1px solid #E3E6EB; padding-bottom: 4px; margin: 0 0 6px; font-weight: 700; }
+.ob-box p, .ob-box li { font-size: 11.5px; line-height: 1.7; margin: 0; }
+.ob-box ul { margin: 0 0 0 14px; padding: 0; }
+.ob-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ob-nums div { border: 1px solid #EEF0F3; border-radius: 6px; padding: 6px 8px; }
+.ob-nums b { display: block; font-family: 'Barlow', 'Noto Sans JP', sans-serif; font-size: 19px; color: #032D60; font-weight: 600; line-height: 1.2; }
+.ob-nums b.neg { color: #C8102E; }
+.ob-nums span { font-size: 10px; color: #8692A0; }
+.ob-tl { position: relative; padding-left: 14px; }
+.ob-tl::before { content: ""; position: absolute; left: 4px; top: 4px; bottom: 4px; width: 1px; background: #E3E6EB; }
+.ob-tl div { position: relative; font-size: 11px; line-height: 1.55; padding: 1px 0; }
+.ob-tl div::before { content: ""; position: absolute; left: -13px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: #fff; border: 2px solid #0176D3; }
+.ob-tl b { font-family: 'Barlow', sans-serif; color: #032D60; margin-right: 6px; }
+.ob-voice q { display: block; quotes: none; font-size: 12px; line-height: 1.6; padding: 5px 9px; margin: 5px 0; background: #F7F9FC; border-radius: 6px; border-left: 3px solid #0176D3; }
+.ob-voice q::before, .ob-voice q::after { content: none; }
+.ob-voice small { display: block; font-size: 10px; color: #8692A0; }
+.ob-meter { display: flex; align-items: center; gap: 8px; font-size: 11px; margin: 2px 0 6px; }
+.ob-meter b { color: #032D60; }
+.ob-dots { display: inline-flex; gap: 3px; }
+.ob-dots i { width: 14px; height: 8px; border-radius: 2px; background: #E3E6EB; }
+.ob-dots i.on { background: #C8A45A; }
+.ob-foot { display: flex; justify-content: space-between; align-items: flex-end; font-size: 9.5px; line-height: 1.5; color: #8692A0; border-top: 1px solid #EEF0F3; padding-top: 8px; }

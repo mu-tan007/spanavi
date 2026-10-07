@@ -1,3 +1,7 @@
+import { briefModel, buildNewReportText } from '../../utils/appoBrief';
+import { renderBriefPdf } from './appoBrief/briefPdf';
+import { fetchDossierByAppointment } from '../../lib/dossierApi';
+import { fetchReportTemplates } from '../../lib/supabaseWrite';
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { C } from '../../constants/colors';
@@ -154,8 +158,53 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     return (appo.appoReport || '').split('\n').filter(line => !line.startsWith('当社売上：')).join('\n');
   };
 
-  const initCompose = () => {
-    const report = buildReportText();
+  // 新しい形の報告と面談前の1枚資料（2026-10-07 むー様決定）。
+  //   ・本文：先方独自の書式（ブティックス様など）があればそれのまま、無ければ新しい形
+  //   ・1枚資料：AI企業分析があれば全クライアントにPDFで添付
+  const [briefState, setBriefState] = React.useState('idle'); // 'idle' | 'making' | 'attached' | 'none' | 'error'
+  const [briefUrl, setBriefUrl] = React.useState('');
+  const pickLine = (label) => {
+    const line = (appo.appoReport || '').split('\n').find(l => l.replace(/^[\s　・]+/, '').startsWith(label));
+    return line ? line.replace(/^[\s　・]+/, '').slice(label.length).replace(/^[：:\s　]+/, '').trim() : '';
+  };
+  const buildBodyReport = async () => {
+    const legacy = buildReportText();
+    let dossier = null;
+    let custom = false;
+    try {
+      const [{ data: d }, { data: tpls }] = await Promise.all([
+        appo._supaId ? fetchDossierByAppointment(appo._supaId) : Promise.resolve({ data: null }),
+        fetchReportTemplates(),
+      ]);
+      dossier = d || null;
+      custom = (tpls || []).some(t => (t.scope_level === 'client' || t.scope_level === 'list') && t.client_id && t.client_id === appo.client_id);
+    } catch (e) { console.warn('[EmailApprovalSection] 要点の読込に失敗:', e); }
+    const m = briefModel(appo, dossier);
+    let report = legacy;
+    if (!custom && m.brief) {
+      report = buildNewReportText(m, { phone: pickLine('電話番号'), email: pickLine('メール') });
+      const rec = pickLine('録音URL');
+      if (rec) report += `
+録音：${rec}`;
+    }
+    return { report, m, hasDossier: !!dossier };
+  };
+  const attachBrief = async (m) => {
+    setBriefState('making');
+    try {
+      const { file, blob } = await renderBriefPdf(m);
+      setAttachedFiles(prev => [file, ...prev.filter(f => !/^面談前資料_/.test(f.name))]);
+      setBriefUrl(URL.createObjectURL(blob));
+      setBriefState('attached');
+    } catch (e) {
+      console.error('[EmailApprovalSection] 1枚資料のPDF作成に失敗:', e);
+      setBriefState('error');
+    }
+  };
+
+  const initCompose = async () => {
+    const { report, m, hasDossier } = await buildBodyReport();
+    if (hasDossier && !isChat) attachBrief(m); else setBriefState('none');
 
     if (isChat) {
       // Slack/Chatwork: 本文のみ（宛先・件名不要）
@@ -390,6 +439,9 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
                   style={{ padding: '3px 10px', borderRadius: radius.md, border: `1px dashed ${color.border}`, background: color.white, cursor: 'pointer', fontSize: 10, color: color.textMid, fontFamily: "'Noto Sans JP'" }}>
                   + ファイルを追加
                 </button>
+                {briefState === 'making' && <span style={{ fontSize: 9, color: color.textMid }}>面談前の1枚資料を作成中…</span>}
+                {briefState === 'error' && <span style={{ fontSize: 9, color: color.danger }}>面談前の1枚資料を作れませんでした（本文だけで送れます）</span>}
+                {briefState === 'attached' && briefUrl && <a href={briefUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: color.navy }}>1枚資料を確認</a>}
                 {attachedFiles.map((f, i) => (
                   <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', borderRadius: radius.md, padding: '2px 8px', fontSize: 9, color: '#92400E' }}>
                     {f.name}（{fmtMB(f.size)}）
