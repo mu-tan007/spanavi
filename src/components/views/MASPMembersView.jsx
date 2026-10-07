@@ -356,8 +356,9 @@ export default function MASPMembersView({ isAdmin, onlyEngagementId = null }) {
             position: addForm.position || null,
             phone_number: addForm.phone_number || null,
             start_date: addForm.start_date || null,
-            // rank はとりあえず NULL（事業ごとに後で設定）
-            rank: null,
+            // 営業代行に入れる人はトレーニーから（空のままだとメンバーのページで「未設定」になる・2026-10-08）。
+            // それ以外の事業だけの人は空のまま（事業ごとに後で設定）
+            rank: engagements.some(e => e.slug === 'seller_sourcing' && addEngagementIds.has(e.id)) ? 'トレーニー' : null,
           }).eq('id', newMemberId);
         }
       } else {
