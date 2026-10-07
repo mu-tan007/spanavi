@@ -23,6 +23,7 @@ import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import { useUrlState } from '../../hooks/useUrlState';
 import { useSearchParams } from 'react-router-dom';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
+import TravelHint from '../common/TravelHint';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
 import QuickAppoModal from '../common/QuickAppoModal';
 import ScriptBody from '../common/ScriptBody';
@@ -2141,6 +2142,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const linkedContacts = resolveListContacts(list, contacts);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <TravelHint address={selectedRow?.address} />
                   <MultiCalendarPanel
                     showRegisteredAppointments
                     contacts={linkedContacts}
@@ -3178,6 +3180,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const linkedContacts = resolveListContacts(list, contacts);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <TravelHint address={selectedRow?.address} />
                   <MultiCalendarPanel
                     showRegisteredAppointments
                     contacts={linkedContacts}
