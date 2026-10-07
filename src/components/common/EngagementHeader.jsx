@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow } from '../../constants/design';
 import { Button } from '../ui';
+import './AppShell.css';
 import { useEngagements, CORPORATE_PRODUCT, ACQUISITION_PRODUCT } from '../../hooks/useEngagements';
 import { useAccessControl } from '../../hooks/useAccessControl';
 
@@ -76,26 +77,9 @@ export default function EngagementHeader({ isMobile = false, onEngagementChange,
                 <button
                   type="button"
                   onClick={() => handleTabClick(item)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    padding: isMasp ? '0 14px 0 2px' : '0 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: space[1],
-                    cursor: 'pointer',
-                    fontSize: font.size.sm,
-                    fontFamily: isMasp ? font.family.display + "," + font.family.sans : font.family.sans,
-                    letterSpacing: isMasp ? font.letterSpacing.wider : 0,
-                    fontWeight: active ? font.weight.semibold : (isMasp ? font.weight.semibold : font.weight.normal),
-                    color: active ? color.navy : (ready ? color.textMid : color.textLight),
-                    borderBottom: active ? `2px solid ${color.gold}` : '2px solid transparent',
-                    marginBottom: -1,
-                    whiteSpace: 'nowrap',
-                    textTransform: isMasp ? 'uppercase' : 'none',
-                  }}
-                  onMouseEnter={e => { if (!active) e.currentTarget.style.color = color.navy; }}
-                  onMouseLeave={e => { if (!active) e.currentTarget.style.color = ready ? color.textMid : color.textLight; }}
+                  // 見た目は AppShell.css（選ばれた事業に金の線がばねで伸びる）
+                  className={'sp-top__tab' + (active ? ' is-on' : '') + (!ready && !active ? ' is-off' : '')}
+                  style={isMasp ? { padding: '0 14px 0 2px', fontFamily: font.family.display + "," + font.family.sans, letterSpacing: font.letterSpacing.wider, fontWeight: font.weight.semibold, textTransform: 'uppercase' } : undefined}
                 >
                   {item.name}
                   {!ready && !isMasp && (

@@ -17,6 +17,7 @@ import CallingScreen from './views/CallingScreen';
 import { useCallQueue, readSavedQueue } from './views/smart-queue/useCallQueue';
 import PiPWidget from './common/PiPWidget';
 import EngagementHeader from './common/EngagementHeader';
+import './common/AppShell.css';
 import { EngagementProvider, useEngagements } from '../hooks/useEngagements';
 import { MemberProfileProvider } from './common/MemberProfileDrawer';
 import { RecordingPlayerProvider } from './common/RecordingPlayerProvider';
@@ -956,9 +957,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           userName={displayUserName}
         />
       )}
-      <div style={{ width: 220, position: 'fixed', left: 0, top: 0, height: '100vh', background: branding.primaryColor, overflowY: 'auto', zIndex: 200, boxShadow: '2px 0 8px rgba(0,0,0,0.15)', display: (isMobile || engSlug !== 'seller_sourcing') ? 'none' : 'flex', flexDirection: 'column' }}>
+      <div className="sp-sb" style={{ '--sb-primary': branding.primaryColor, display: (isMobile || engSlug !== 'seller_sourcing') ? 'none' : 'flex' }}>
         {/* Logo */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="sp-sb__logo">
           {branding.logoUrl ? (
             <img src={branding.logoUrl} alt={branding.orgName} style={{ width: 28, height: 32, objectFit: 'contain' }} />
           ) : (
@@ -998,13 +999,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             <div onClick={() => setCurrentTab('mypage')}
               onMouseEnter={() => setHoveredGroup('mypage')}
               onMouseLeave={() => setHoveredGroup(null)}
-              style={{ padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: currentTab === 'mypage' ? 'rgba(255,255,255,0.12)' : hoveredGroup === 'mypage' ? 'rgba(255,255,255,0.07)' : 'transparent', borderLeft: '3px solid transparent', boxSizing: 'border-box' }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#0176D3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+              className={'sp-sb__user' + (currentTab === 'mypage' ? ' is-on' : '')}>
+              <div className="sp-sb__avatar">
                 {_avatarUrl
                   ? <img src={_avatarUrl} alt={displayUserName} style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: '-webkit-optimize-contrast' }} />
                   : (displayUserName || '?')[0]}
               </div>
-              <span style={{ fontSize: 13, color: currentTab === 'mypage' ? '#FFFFFF' : 'rgba(255,255,255,0.75)', fontWeight: currentTab === 'mypage' ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayUserName}</span>
+              <span className="sp-sb__name">{displayUserName}</span>
             </div>
           );
         })()}
@@ -1016,40 +1017,20 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             if (!group.children) {
               const _sbActive = currentTab === group.id;
               return (
-                <button key={group.id} onClick={() => setCurrentTab(group.id)} style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  width: '100%', padding: '11px 20px',
-                  background: _sbActive ? 'rgba(255,255,255,0.12)' : 'transparent',
-                  border: 'none', borderLeft: '3px solid transparent',
-                  color: _sbActive ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
-                  fontSize: 13, fontWeight: _sbActive ? 600 : 400,
-                  fontFamily: "'Noto Sans JP', sans-serif",
-                  cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
-                }}>
+                <button key={group.id} onClick={() => setCurrentTab(group.id)} className={'sp-sb__item sp-sb__item--top' + (_sbActive ? ' is-on' : '')}>
                   {SbIconComp && <SbIconComp size={14} />}{group.label}
                 </button>
               );
             }
             return (
               <div key={group.id}>
-                <div style={{ padding: '16px 20px 6px', fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div className="sp-sb__sec">
                   {SbIconComp && <SbIconComp size={12} />}{group.label}
                 </div>
                 {group.children.map(child => {
                   const _sbChildActive = currentTab === child.id;
                   return (
-                    <button key={child.id} onClick={() => setCurrentTab(child.id)} style={{
-                      display: 'block', width: '100%', padding: '8px 20px 8px 28px',
-                      background: _sbChildActive ? 'rgba(255,255,255,0.12)' : 'transparent',
-                      border: 'none', borderLeft: '3px solid transparent',
-                      color: _sbChildActive ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
-                      fontSize: 13, fontWeight: _sbChildActive ? 600 : 400,
-                      fontFamily: "'Noto Sans JP', sans-serif",
-                      cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
-                    }}
-                    onMouseEnter={e => { if (!_sbChildActive) e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
-                    onMouseLeave={e => { if (!_sbChildActive) e.currentTarget.style.background = 'transparent'; }}
-                    >{child.label}{child.id === 'deals' && pendingReports > 0 && (<span role="button" title={'送信待ちの報告：' + Object.entries(pendingByClient).map(([id, n]) => ((clientData.find(c => c._supaId === id)?.company || '').replace(/株式会社|合同会社/g, '') || '名前不明') + ' ' + n + '件').join('／')} onClick={e => { e.stopPropagation(); openDealsReports(null); }} style={{ marginLeft: 6, padding: '0 6px', borderRadius: radius.pill, background: color.gold, color: color.navyDeep, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{pendingReports}</span>)}</button>
+                    <button key={child.id} onClick={() => setCurrentTab(child.id)} className={'sp-sb__item' + (_sbChildActive ? ' is-on' : '')}>{child.label}{child.id === 'deals' && pendingReports > 0 && (<span role="button" title={'送信待ちの報告：' + Object.entries(pendingByClient).map(([id, n]) => ((clientData.find(c => c._supaId === id)?.company || '').replace(/株式会社|合同会社/g, '') || '名前不明') + ' ' + n + '件').join('／')} onClick={e => { e.stopPropagation(); openDealsReports(null); }} style={{ marginLeft: 6, padding: '0 6px', borderRadius: radius.pill, background: color.gold, color: color.navyDeep, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{pendingReports}</span>)}</button>
                   );
                 })}
               </div>
@@ -1058,28 +1039,13 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         </div>
         {/* 設定（全社共通・admin限定）: スクロールと独立してログアウト直上に完全固定 */}
         {isAdmin && (
-          <div style={{ background: branding.primaryColor, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <button onClick={() => setCurrentTab('admin_settings')} style={{
-              display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 20px',
-              background: currentTab === 'admin_settings' ? 'rgba(255,255,255,0.12)' : 'transparent',
-              border: 'none', borderLeft: '3px solid transparent',
-              color: currentTab === 'admin_settings' ? '#FFFFFF' : 'rgba(255,255,255,0.75)',
-              fontSize: 13, fontWeight: currentTab === 'admin_settings' ? 600 : 400,
-              fontFamily: "'Noto Sans JP', sans-serif", cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
-            }}
-            onMouseEnter={e => { if (currentTab !== 'admin_settings') e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
-            onMouseLeave={e => { if (currentTab !== 'admin_settings') e.currentTarget.style.background = 'transparent'; }}
-            ><Settings size={14} />設定</button>
+          <div className="sp-sb__pin">
+            <button onClick={() => setCurrentTab('admin_settings')} className={'sp-sb__item sp-sb__item--top' + (currentTab === 'admin_settings' ? ' is-on' : '')}><Settings size={14} />設定</button>
           </div>
         )}
         {/* Logout */}
-        <div style={{ position: 'sticky', bottom: 0, background: '#021d47', padding: '12px 20px' }}>
-          <button onClick={() => { if (onLogout) onLogout(); else setCurrentUser(null); }} style={{
-            width: '100%', padding: '8px', borderRadius: 6,
-            border: '1px solid rgba(255,255,255,0.2)', background: 'transparent',
-            color: '#fff', fontSize: 12, fontWeight: 600,
-            fontFamily: "'Noto Sans JP', sans-serif", cursor: 'pointer',
-          }}>ログアウト</button>
+        <div className="sp-sb__foot">
+          <button onClick={() => { if (onLogout) onLogout(); else setCurrentUser(null); }} className="sp-sb__logout">ログアウト</button>
         </div>
       </div>
 
@@ -1135,9 +1101,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       })()}
 
       {/* ===== NEW HEADER (engagement tabs + bell を 1 段に統合) ===== */}
-      <header style={{
+      <header className="sp-top" style={{
         position: 'fixed', top: 0, left: isMobile ? 0 : 220, right: 0, width: isMobile ? '100%' : 'calc(100% - 220px)', height: isMobile ? 48 : 54, zIndex: 150,
-        background: color.white, borderBottom: `1px solid ${color.border}`,
         display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
         padding: isMobile ? '0 12px' : '0 24px', boxSizing: 'border-box',
       }} onClick={() => setShowBellDropdown(false)}>
@@ -1153,8 +1118,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 16 }}>
           <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowBellDropdown(p => !p)}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: color.navy, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => setShowBellDropdown(p => !p)} className={'sp-top__bell' + (showBellDropdown ? ' is-on' : '')} aria-label="通知">
               <Bell size={18} />
             </button>
             {overdueCount > 0 && (

@@ -1,0 +1,113 @@
+/* メニュー欄と上の帯（ルール v2・2026-10-07）。
+   色は事業ごとの branding.primaryColor を --sb-primary で受け取る（Spanavi は紺 #032D60）。
+   動きは「押す・切り替わる」ときだけ。prefers-reduced-motion では止める。 */
+
+/* ── メニュー欄 ── */
+.sp-sb {
+  width: 220px; position: fixed; left: 0; top: 0; height: 100vh; z-index: 200;
+  flex-direction: column; overflow: hidden;
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(1, 118, 211, 0.22), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--sb-primary, #032D60) 86%, #ffffff 4%) 0%, var(--sb-primary, #032D60) 55%, color-mix(in srgb, var(--sb-primary, #032D60) 80%, #000 20%) 100%);
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.04), 4px 0 18px rgba(1, 18, 38, 0.18);
+  font-family: 'Noto Sans JP', sans-serif; font-feature-settings: "palt";
+}
+/* 下に盾の放射線を薄く敷く（ロゴの形と同じ中心・角度） */
+.sp-sb::after {
+  content: ""; position: absolute; left: -40px; bottom: -60px; width: 300px; height: 300px; pointer-events: none; opacity: 0.07;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 50%, #fff 0deg 0.6deg, transparent 0.6deg 22.5deg);
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 0 45%, transparent 70%);
+          mask: radial-gradient(circle at 50% 50%, #000 0 45%, transparent 70%);
+}
+.sp-sb > * { position: relative; z-index: 1; }
+.sp-sb__logo {
+  display: flex; align-items: center; gap: 10px; padding: 16px 18px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.sp-sb__user {
+  display: flex; align-items: center; gap: 10px; padding: 10px 18px; cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  transition: background 0.15s;
+}
+.sp-sb__user:hover { background: rgba(255, 255, 255, 0.05); }
+.sp-sb__user.is-on { background: rgba(1, 118, 211, 0.24); }
+.sp-sb__avatar {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #0176D3; color: #fff; font-size: 12px; font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+.sp-sb__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sp-sb__user.is-on .sp-sb__avatar { box-shadow: 0 0 0 2px #C8A45A; }
+.sp-sb__name { font-size: 13px; color: rgba(255, 255, 255, 0.82); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-sb__user.is-on .sp-sb__name { color: #fff; font-weight: 500; }
+
+.sp-sb__sec {
+  display: flex; align-items: center; gap: 6px;
+  padding: 16px 18px 6px; font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.42); text-transform: uppercase;
+}
+.sp-sb__item {
+  position: relative; display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 8px 18px 8px 28px; border: 0; background: transparent; cursor: pointer; text-align: left;
+  font-family: inherit; font-size: 13px; font-weight: 400; color: rgba(255, 255, 255, 0.72);
+  transition: background 0.15s, color 0.15s, padding-left 0.25s cubic-bezier(.34, 1.56, .64, 1);
+}
+.sp-sb__item--top { padding-left: 18px; padding-top: 10px; padding-bottom: 10px; }
+.sp-sb__item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.sp-sb__item:active { transform: scale(0.98); }
+/* 選ばれている項目：左に金の線がばねで伸び、下地が青く灯る */
+.sp-sb__item::before {
+  content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0;
+  background: #C8A45A; transform: scaleY(0); transform-origin: center;
+  transition: transform 0.35s cubic-bezier(.34, 1.56, .64, 1);
+}
+.sp-sb__item.is-on {
+  color: #fff; font-weight: 500;
+  background: linear-gradient(90deg, rgba(1, 118, 211, 0.34), rgba(1, 118, 211, 0.10));
+}
+.sp-sb__item.is-on::before { transform: scaleY(1); }
+.sp-sb__pin { border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.sp-sb__foot { position: sticky; bottom: 0; padding: 12px 18px; background: rgba(1, 18, 38, 0.35); }
+.sp-sb__logout {
+  width: 100%; height: 30px; border-radius: 6px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18); background: transparent; color: rgba(255, 255, 255, 0.85);
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  transition: background 0.15s, border-color 0.15s, transform 0.25s cubic-bezier(.34, 1.56, .64, 1);
+}
+.sp-sb__logout:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.32); }
+.sp-sb__logout:active { transform: scale(0.95); }
+
+/* ── 上の帯 ── */
+.sp-top {
+  background: rgba(255, 255, 255, 0.92);
+  -webkit-backdrop-filter: saturate(1.4) blur(8px); backdrop-filter: saturate(1.4) blur(8px);
+  border-bottom: 1px solid #E3E6EB;
+}
+.sp-top__tab {
+  position: relative; display: flex; align-items: center; gap: 4px; padding: 0 14px;
+  border: 0; background: transparent; cursor: pointer; white-space: nowrap;
+  font-family: 'Noto Sans JP', sans-serif; font-size: 13px; color: #4B5868;
+  transition: color 0.15s;
+}
+.sp-top__tab:hover { color: #032D60; }
+.sp-top__tab::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px;
+  background: #C8A45A; transform: scaleX(0);
+  transition: transform 0.4s cubic-bezier(.34, 1.56, .64, 1);
+}
+.sp-top__tab.is-on { color: #032D60; font-weight: 500; }
+.sp-top__tab.is-on::after { transform: scaleX(1); }
+.sp-top__tab.is-off { color: #8692A0; }
+.sp-top__bell {
+  width: 34px; height: 34px; border-radius: 50%; border: 0; background: transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: #032D60;
+  transition: background 0.15s, transform 0.25s cubic-bezier(.34, 1.56, .64, 1);
+}
+.sp-top__bell:hover, .sp-top__bell.is-on { background: #E8F2FC; }
+.sp-top__bell:active { transform: scale(0.9); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-sb__item, .sp-sb__item::before, .sp-top__tab::after, .sp-top__bell, .sp-sb__logout { transition: none; }
+}

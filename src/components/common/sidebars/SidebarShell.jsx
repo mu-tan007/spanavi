@@ -1,6 +1,6 @@
 import React from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../../constants/design';
-import { Button, Input, Select, Card, Badge } from '../../ui';
+import '../AppShell.css';
 
 // 既存 Seller Sourcing サイドバーのビジュアル (ロゴ・ユーザー・ログアウト) を
 // 他 engagement 用サイドバーで再利用するための薄い殻。
@@ -22,17 +22,8 @@ export default function SidebarShell({
   const orgName = branding?.orgName || 'Spanavi';
 
   return (
-    <div style={{
-      width: 220, position: 'fixed', left: 0, top: 0, height: '100vh',
-      background: primary, overflowY: 'auto', zIndex: 200,
-      boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
-      display: 'flex', flexDirection: 'column',
-    }}>
-      <div style={{
-        padding: `${space[4]}px ${space[5]}px`, cursor: 'default',
-        borderBottom: `1px solid ${alpha(color.white, 0.1)}`,
-        display: 'flex', alignItems: 'center', gap: space[2.5],
-      }}>
+    <div className="sp-sb" style={{ '--sb-primary': primary, display: 'flex' }}>
+      <div className="sp-sb__logo">
         {branding?.logoUrl ? (
           <img src={branding.logoUrl} alt={orgName} style={{ width: 28, height: 32, objectFit: 'contain' }} />
         ) : (
@@ -73,33 +64,13 @@ export default function SidebarShell({
       </div>
 
       {currentUser && (
-        <div
-          onClick={onUserClick}
-          style={{
-            padding: `${space[2.5]}px ${space[5]}px`,
-            borderBottom: `1px solid ${alpha(color.white, 0.1)}`,
-            display: 'flex', alignItems: 'center', gap: space[2],
-            cursor: onUserClick ? 'pointer' : 'default',
-            background: userHighlighted ? alpha(color.white, 0.12) : 'transparent',
-            borderLeft: '3px solid transparent', boxSizing: 'border-box',
-          }}
-        >
-          <div style={{
-            width: 28, height: 28, borderRadius: '50%', background: color.navyLight,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: font.size.sm, fontWeight: font.weight.bold,
-            color: color.white, flexShrink: 0, overflow: 'hidden',
-          }}>
+        <div onClick={onUserClick} className={'sp-sb__user' + (userHighlighted ? ' is-on' : '')}>
+          <div className="sp-sb__avatar">
             {currentMemberAvatar
               ? <img src={currentMemberAvatar} alt={currentUser} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : (currentUser || '?')[0]}
           </div>
-          <span style={{
-            fontSize: font.size.base,
-            color: userHighlighted ? color.white : alpha(color.white, 0.75),
-            fontWeight: userHighlighted ? font.weight.semibold : font.weight.normal,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>{currentUser}</span>
+          <span className="sp-sb__name">{currentUser}</span>
         </div>
       )}
 
@@ -109,26 +80,14 @@ export default function SidebarShell({
 
       {/* スクロールと独立してログアウト直上に完全固定する枠（設定など） */}
       {pinnedFooter && (
-        <div style={{ background: primary, borderTop: `1px solid ${alpha(color.white, 0.1)}` }}>
+        <div className="sp-sb__pin">
           {pinnedFooter}
         </div>
       )}
 
       {onLogout && (
-        <div style={{
-          position: 'sticky', bottom: 0,
-          background: '#021d47',
-          padding: `${space[3]}px ${space[5]}px`,
-        }}>
-          <button
-            onClick={onLogout}
-            style={{
-              width: '100%', padding: space[2], borderRadius: radius.lg,
-              border: `1px solid ${alpha(color.white, 0.2)}`, background: 'transparent',
-              color: color.white, fontSize: font.size.sm, fontWeight: font.weight.semibold,
-              fontFamily: font.family.sans, cursor: 'pointer',
-            }}
-          >ログアウト</button>
+        <div className="sp-sb__foot">
+          <button onClick={onLogout} className="sp-sb__logout">ログアウト</button>
         </div>
       )}
     </div>
@@ -155,22 +114,7 @@ export function DisabledItem({ label, badge = '準備中' }) {
 // アクティブ化可能なメニュー行
 export function ActiveItem({ label, active, onClick }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: 'block', width: '100%',
-        padding: `${space[2]}px ${space[5]}px ${space[2]}px 28px`,
-        background: active ? alpha(color.white, 0.12) : 'transparent',
-        border: 'none', borderLeft: '3px solid transparent',
-        color: active ? color.white : alpha(color.white, 0.75),
-        fontSize: font.size.base, fontWeight: active ? font.weight.semibold : font.weight.normal,
-        fontFamily: font.family.sans,
-        cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box',
-      }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = alpha(color.white, 0.07); }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-    >
+    <button type="button" onClick={onClick} className={'sp-sb__item' + (active ? ' is-on' : '')}>
       {label}
     </button>
   );
@@ -178,13 +122,7 @@ export function ActiveItem({ label, active, onClick }) {
 
 export function SectionHeader({ label, Icon }) {
   return (
-    <div style={{
-      padding: `${space[4]}px ${space[5]}px ${space[1.5]}px`,
-      fontSize: 9, fontWeight: font.weight.bold,
-      color: alpha(color.white, 0.45), letterSpacing: '0.12em',
-      textTransform: 'uppercase',
-      display: 'flex', alignItems: 'center', gap: space[1.5],
-    }}>
+    <div className="sp-sb__sec">
       {Icon && <Icon size={12} />}
       {label}
     </div>
