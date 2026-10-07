@@ -4,10 +4,10 @@ import { todoCounts, weekDays, weekMeetings, shortCompany } from '../../../utils
 // アポ一覧の上の段（2026-10-07 むー様確認の見本どおり）
 //   数字3つ＋月ごとの有効アポの棒 ／ やること3つ（押すと表を絞る） ／ 今週の面談（押すとそのアポを開く）
 const TODOS = [
-  // 「報告を送っていない」は出さない（2026-10-08 むー様：送信済み・未送信は表示しなくてよい）
-  { key: 'stale', cls: 'amb', label: '面談日を過ぎて状態がそのまま', desc: '面談済にするか確認' },
-  { key: 'pre', cls: 'blu', label: '事前確認がまだ', desc: '状態がアポ取得のまま' },
-  { key: 'res', cls: 'nv', label: 'リスケ中', desc: '直近60日 ・ 新しい日程を追う' },
+  // 2026-10-08 むー様：本日の事前確認・リスケ中・キャンセルの3つにする
+  { key: 'today_pre', cls: 'blu', label: '本日の事前確認', desc: '面談が当日〜2営業日後でまだ確認していない' },
+  { key: 'res', cls: 'amb', label: 'リスケ中', desc: '直近60日 ・ 新しい日程を追う' },
+  { key: 'cancel', cls: 'red', label: 'キャンセル', desc: '面談日が直近60日' },
 ];
 const CHIP = { '事前確認済': 'ok', 'アポ取得': 'wait', 'リスケ中': 'res', 'キャンセル': 'can', '面談済': 'done' };
 const man = (yen) => {

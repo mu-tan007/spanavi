@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isStale, todoCounts, weekDays, weekMeetings, staleFirst, shortCompany, TODO_RULES } from './appoOverview';
+import { isStale, todoCounts, weekDays, weekMeetings, staleFirst, shortCompany, TODO_RULES, throughBusinessDay } from './appoOverview';
 
 const T = '2026-10-07';
 const A = [
@@ -20,9 +20,15 @@ describe('appoOverview', () => {
   it('面談日を過ぎて状態がそのままのものだけを拾う', () => {
     expect(A.filter(a => isStale(a, T)).map(a => a.company)).toEqual(['A']);
   });
-  it('やること4つを数える（キャンセル・面談済は報告未送信に入れない）', () => {
-    expect(todoCounts(A, T)).toEqual({ unsent: 2, stale: 1, pre: 1, res: 1 });
-    expect(A.filter(a => TODO_RULES.unsent(a, T)).map(a => a.company)).toEqual(['B', 'F']);
+  it('カード3つを数える（本日の事前確認・リスケ中・キャンセル）', () => {
+    expect(todoCounts(A, T)).toEqual({ today_pre: 0, cancel: 1, res: 1 });
+  });
+  it('本日の事前確認は面談が当日〜2営業日後でアポ取得のまま（土日は数えない）', () => {
+    expect(throughBusinessDay('2026-10-07', 2)).toBe('2026-10-09'); // 水→金
+    expect(throughBusinessDay('2026-10-08', 2)).toBe('2026-10-12'); // 木→月（間の土日は含める）
+    expect(TODO_RULES.today_pre({ status: 'アポ取得', meetDate: '2026-10-09' }, T)).toBe(true);
+    expect(TODO_RULES.today_pre({ status: 'アポ取得', meetDate: '2026-10-12' }, T)).toBe(false);
+    expect(TODO_RULES.today_pre({ status: '事前確認済', meetDate: '2026-10-08' }, T)).toBe(false);
   });
   it('水曜は同じ週の月〜金、土日は次の週', () => {
     expect(weekDays(T).map(d => d.date)).toEqual(['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09']);

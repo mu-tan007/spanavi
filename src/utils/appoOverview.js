@@ -1,8 +1,6 @@
 // アポ一覧の上の段（やること4つ・今週の面談）の数え方（2026-10-07 見本どおり）。
 // 日付は 'YYYY-MM-DD'（日本時間）の文字列で比べる。
 
-const ACTIVE = ['アポ取得', '事前確認済', 'リスケ中'];
-
 export function daysBefore(day, n) {
   const t = Date.parse(day + 'T00:00:00Z') - n * 86400000;
   return new Date(t).toISOString().slice(0, 10);
@@ -17,11 +15,23 @@ export function isStale(a, today) {
   return !!a.meetDate && a.meetDate < today && (a.status === 'アポ取得' || a.status === '事前確認済');
 }
 
-/** やること4つ。押したときの絞り込みにも同じ判定を使う */
+/** 今日から n 営業日後まで（土日は数えない・間の土日は含める）の最後の日。祝日は見ていない */
+export function throughBusinessDay(today, n) {
+  let t = Date.parse(today + 'T00:00:00Z'), count = 0;
+  while (count < n) {
+    t += 86400000;
+    const dow = new Date(t).getUTCDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/** やることのカード。押したときの絞り込みにも同じ判定を使う */
 export const TODO_RULES = {
-  unsent: (a, today) => ACTIVE.includes(a.status) && a.emailStatus !== 'sent' && !!a.meetDate && a.meetDate >= today,
-  stale: (a, today) => isStale(a, today),
-  pre: (a, today) => a.status === 'アポ取得' && !!a.meetDate && a.meetDate >= today,
+  // 本日の事前確認：#事前確認 の通知と同じ範囲（面談が当日〜2営業日後で、状態がアポ取得のまま）。2026-10-08 むー様
+  today_pre: (a, today) => a.status === 'アポ取得' && !!a.meetDate && a.meetDate >= today && a.meetDate <= throughBusinessDay(today, 2),
+  // キャンセル：面談日が直近60日以内のもの
+  cancel: (a, today) => a.status === 'キャンセル' && !!a.meetDate && a.meetDate >= daysBefore(today, 60),
   // リスケ中は元の面談日が直近60日以内のものだけ（何か月も前のリスケ中は追っても戻らない）
   res: (a, today) => a.status === 'リスケ中' && !!a.meetDate && a.meetDate >= daysBefore(today, 60),
 };
