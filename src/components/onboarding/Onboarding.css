@@ -1,0 +1,60 @@
+/* 入社手続きの画面（2026-10-07）。ルール v2 の配色：紺 #032D60・ロイヤル #0176D3・金 #C8A45A */
+.ob { min-height: 100vh; background: #F3F2F2; font-family: 'Noto Sans JP', sans-serif; font-feature-settings: "palt"; color: #1B2533; padding: 40px 16px 64px; box-sizing: border-box; }
+.ob *, .ob *::before, .ob *::after { box-sizing: border-box; }
+.ob-wrap { max-width: 640px; margin: 0 auto; }
+.ob-wrap.wide { max-width: 920px; }
+.ob-brand { display: flex; align-items: center; gap: 10px; color: #032D60; font-family: 'Outfit', 'Noto Sans JP', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: .04em; margin-bottom: 22px; }
+.ob-brand i { width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, #0176D3, #032D60); display: inline-block; }
+.ob h1 { position: relative; font-size: 24px; font-weight: 700; color: #032D60; margin: 0 0 6px; padding-bottom: 9px; }
+.ob h1::after { content: ""; position: absolute; left: 0; bottom: 0; width: 28px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, #C8A45A, #E5CB8F); transform-origin: left; animation: ob-draw .7s cubic-bezier(.2,.8,.2,1) .15s both; }
+@keyframes ob-draw { from { transform: scaleX(0); } }
+.ob-lead { font-size: 13px; color: #4B5868; line-height: 1.8; margin: 12px 0 20px; }
+.ob-card { background: #fff; border: 1px solid #E3E6EB; border-radius: 10px; padding: 20px 22px; margin-bottom: 14px; animation: ob-in .35s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes ob-in { from { opacity: 0; transform: translateY(6px); } }
+.ob-card h2 { font-size: 14px; color: #032D60; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+.ob-card h2 span { width: 20px; height: 20px; border-radius: 50%; background: #032D60; color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-family: 'Barlow', sans-serif; }
+.ob-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ob-f { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.ob-f label { font-size: 12px; color: #4B5868; }
+.ob-f label b { color: #C8102E; font-weight: 500; margin-left: 4px; font-size: 11px; }
+.ob-f input, .ob-f select { height: 40px; border: 1px solid #D5DAE1; border-radius: 6px; padding: 0 12px; font-size: 14px; font-family: inherit; color: #1B2533; background: #fff; transition: border-color .15s, box-shadow .15s; }
+.ob-f input:focus, .ob-f select:focus { outline: none; border-color: #0176D3; box-shadow: 0 0 0 3px rgba(1,118,211,.15); }
+.ob-f small { font-size: 11px; color: #8692A0; }
+.ob-f.bad input { border-color: #C8102E; }
+.ob-f.bad small { color: #C8102E; }
+.ob-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 22px; border-radius: 8px; border: 0; background: #032D60; color: #fff; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; transition: transform .15s, background .15s; }
+.ob-btn:hover:not(:disabled) { background: #0176D3; transform: translateY(-1px); }
+.ob-btn:disabled { opacity: .5; cursor: default; }
+.ob-btn.ghost { background: #fff; color: #032D60; border: 1px solid #D5DAE1; }
+.ob-btn.gold { background: #C8A45A; color: #032D60; }
+.ob-err { background: #FDECEE; color: #A10E25; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+.ob-done { text-align: center; padding: 36px 22px; }
+.ob-done .mark { width: 56px; height: 56px; border-radius: 50%; background: #E7F4EC; margin: 0 auto 14px; position: relative; animation: ob-pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+.ob-done .mark::after { content: ""; position: absolute; left: 20px; top: 13px; width: 12px; height: 22px; border: solid #1F7A4D; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+@keyframes ob-pop { from { transform: scale(.4); opacity: 0; } }
+.ob-done p { font-size: 13px; color: #4B5868; line-height: 1.9; margin: 6px 0 0; }
+.ob-done b { color: #032D60; }
+/* 契約書 */
+.ob-doc { background: #fff; border: 1px solid #E3E6EB; border-radius: 10px; max-height: 62vh; overflow: auto; padding: 8px 0; }
+.ob-doc .docx-wrapper { background: transparent !important; padding: 12px !important; }
+.ob-doc .docx-wrapper > section.docx { box-shadow: 0 1px 4px rgba(3,45,96,.12) !important; margin-bottom: 14px !important; }
+.ob-agree { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.7; margin: 16px 0; cursor: pointer; }
+.ob-agree input { width: 18px; height: 18px; margin-top: 3px; accent-color: #032D60; }
+.ob-meta { font-size: 11px; color: #8692A0; margin-top: 8px; word-break: break-all; }
+/* 手順 */
+.ob-steps { display: grid; gap: 10px; }
+.ob-step { display: grid; grid-template-columns: 34px 1fr auto; gap: 14px; align-items: center; background: #fff; border: 1px solid #E3E6EB; border-radius: 10px; padding: 14px 16px; animation: ob-in .35s cubic-bezier(.2,.8,.2,1) both; }
+.ob-step .ic { width: 34px; height: 34px; border-radius: 50%; background: #EEF3F9; color: #032D60; display: flex; align-items: center; justify-content: center; font-weight: 700; font-family: 'Barlow', sans-serif; }
+.ob-step.ok .ic { background: #1F7A4D; color: #fff; }
+.ob-step b { display: block; font-size: 14px; color: #032D60; }
+.ob-step small { display: block; font-size: 12px; color: #4B5868; margin-top: 2px; line-height: 1.6; }
+.ob-step a.ob-btn { height: 36px; font-size: 13px; text-decoration: none; }
+.ob-tag { font-size: 11px; padding: 3px 10px; border-radius: 999px; background: #E7F4EC; color: #1F7A4D; white-space: nowrap; }
+.ob-tag.wait { background: #F3F6FA; color: #4B5868; }
+@media (max-width: 640px) {
+  .ob { padding: 24px 12px 48px; }
+  .ob-row { grid-template-columns: 1fr; gap: 0; }
+  .ob-step { grid-template-columns: 30px 1fr; }
+  .ob-step > :last-child { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .ob *, .ob h1::after { animation: none !important; } }

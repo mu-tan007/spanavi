@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.slack-recording-transcribe]
 verify_jwt = true
+
+[functions.onboarding-join]
+verify_jwt = false

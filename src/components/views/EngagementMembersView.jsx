@@ -21,6 +21,7 @@ import { memberStatus, memberKpis, monthStartIso, nowJst } from '../../utils/mem
 import { MembersKpis, RankLadder, MemberLine, MemberDrawer } from './members/MembersParts';
 import MASPMembersView from './MASPMembersView';
 import PermissionSettings from '../admin/PermissionSettings';
+import OnboardingInvitesPanel from '../onboarding/OnboardingInvitesPanel';
 
 // 各事業タブの「Members」ページ。
 // admin はドラッグ&ドロップでチーム間移動/チーム内並び替えが可能。
@@ -195,6 +196,7 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
         description={`${visibleGroups.length}チーム ・ ${members.length}名 ・ ${canDrag ? '⋮⋮ をつかんでチームの移動・並べ替え' : '入社日順'}${isAdmin && filter.trim() ? '（検索中は並べ替え不可）' : ''}`}
         right={isAdmin ? (
           <div style={{ display: 'flex', gap: 8 }}>
+          <Button size="sm" variant="primary" onClick={() => setAdminSheet('invite')}>招待リンク</Button>
           <Button size="sm" variant="outline" onClick={() => setAdminSheet('perm')}>見られるページ</Button>
           <Button size="sm" variant="outline" onClick={() => setAdminSheet('add')}>＋ メンバーを追加</Button>
           <Button
@@ -270,14 +272,16 @@ export default function EngagementMembersView({ engagementOverride, bleed = true
         <div onClick={() => setAdminSheet(null)} style={{ position: 'fixed', inset: 0, background: alpha(color.navyDeep, 0.35), zIndex: 300, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflowY: 'auto', padding: '32px 16px' }}>
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 1100, background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: `1px solid ${color.borderLight}` }}>
-              <b style={{ color: color.navy, fontSize: font.size.md }}>{adminSheet === 'add' ? 'メンバーの追加・名簿' : '見られるページ（人ごとの権限）'}</b>
+              <b style={{ color: color.navy, fontSize: font.size.md }}>{adminSheet === 'invite' ? '入社の招待リンク' : adminSheet === 'add' ? 'メンバーの追加・名簿' : '見られるページ（人ごとの権限）'}</b>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {sheetMsg && <span style={{ fontSize: 12, color: color.success }}>{sheetMsg}</span>}
                 <Button size="sm" variant="outline" onClick={() => { setAdminSheet(null); refresh?.(); }}>閉じる</Button>
               </div>
             </div>
             <div style={{ padding: 20 }}>
-              {adminSheet === 'add'
+              {adminSheet === 'invite'
+                ? <OnboardingInvitesPanel />
+                : adminSheet === 'add'
                 ? <MASPMembersView isAdmin={isAdmin} />
                 : <PermissionSettings onToast={(t) => { setSheetMsg(t?.message || ''); setTimeout(() => setSheetMsg(''), 3000); }} />}
             </div>
