@@ -67,7 +67,8 @@ const SEARCH_LISTS_COLS = [
   { key: 'actions', width: 150, align: 'center' },
 ];
 
-export default function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen, rewardMaster = [] }) {
+// embedded：企業DBのページの中のタブとして出すとき（題名を出さない・2026-10-08 企業検索を企業DBに統合）
+export default function CompanySearchView({ importedCSVs, callListData, setCallingScreen, setImportedCSVs, clientData = [], currentUser, members = [], setCallFlowScreen, rewardMaster = [], embedded = false }) {
   // ハードリロード/URL共有で状態保持するため URL クエリに同期
   const [subTab, setSubTab]         = useUrlState('search_subtab', 'company');
   const [searchTerm, setSearchTerm] = useUrlState('search_q', '');
@@ -1067,11 +1068,11 @@ export default function CompanySearchView({ importedCSVs, callListData, setCalli
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      <PageHeader
+      {!embedded && <PageHeader
         title="企業検索"
         description="企業・連絡先・通話録音の横断検索"
         style={{ marginBottom: 24 }}
-      />
+      />}
       {/* Sub tabs */}
       <div style={{ display: "flex", gap: 0, marginBottom: space[4] }}>
         {[

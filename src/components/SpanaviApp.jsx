@@ -773,7 +773,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     { id: "g_call", label: "Call", children: [
       { id: "lists", label: "架電リスト" },
       { id: "recall", label: "再架電" },
-      { id: "search", label: "企業検索" },
       { id: "incoming", label: "着信対応" },
       { id: "scripts", label: "スクリプト" },
     ]},
@@ -806,7 +805,10 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         if (g.id === 'manager_admin' || g.id === 'overview') return g;
         return canViewPage('seller_sourcing', g.id) ? g : null;
       }
-      const visibleChildren = g.children.filter(c => canViewPage('seller_sourcing', c.id));
+      // 企業DBは管理者だけのページ。メンバーには「企業DB」の名前で、統合した企業検索（search）を開く（2026-10-08）
+      const visibleChildren = g.children
+        .map(c => (c.id === 'database' && !canViewPage('seller_sourcing', 'database') && canViewPage('seller_sourcing', 'search')) ? { ...c, id: 'search' } : c)
+        .filter(c => canViewPage('seller_sourcing', c.id));
       return visibleChildren.length > 0 ? { ...g, children: visibleChildren } : null;
     })
     .filter(Boolean);
@@ -1442,13 +1444,12 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {currentTab === "crm" && <CRMView isAdmin={isAdmin} clientData={clientData} setClientData={isAdmin ? setClientData : null} rewardMaster={rewardMaster} contactsByClient={contactsByClient} setContactsByClient={setContactsByClient} callListData={callListData} currentUser={currentUser} members={members} clientEngagementRewards={supabaseData?.clientEngagementRewards || []} />}
 
         {currentTab === "members" && <EngagementMembersView isAdmin={isAdmin} />}
-        {currentTab === "search" && <CompanySearchView importedCSVs={importedCSVs} callListData={callListData} setCallingScreen={setCallingScreen} setImportedCSVs={setImportedCSVs} clientData={clientData} currentUser={currentUser} members={members} setCallFlowScreen={setCallFlowScreen} rewardMaster={rewardMaster} />}
+        {(currentTab === "search" || currentTab === "database") && <DatabaseView isAdmin={isAdmin} key={currentTab} initialTab={currentTab === "search" ? "search" : "directory"} searchProps={{ importedCSVs: importedCSVs, callListData: callListData, setCallingScreen: setCallingScreen, setImportedCSVs: setImportedCSVs, clientData: clientData, currentUser: currentUser, members: members, setCallFlowScreen: setCallFlowScreen, rewardMaster } } />}
         {currentTab === "stats" && <AnalyticsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "edu_performance" && <AnalyticsView callListData={callListData} currentUser={currentUser} appoData={appoData} members={members} now={now} />}
         {currentTab === "recall" && <RecallListView callListData={callListData} supaRecalls={supaRecalls} onRecallComplete={handleSupaRecallComplete} members={memberNames} currentUser={currentUser} isAdmin={isAdmin} isManagerRole={isManagerRole} onRefresh={fetchSupaRecalls} setCallFlowScreen={setCallFlowScreen} />}
         {currentTab === "payroll" && <PayrollView members={members} appoData={appoData} isAdmin={isAdmin} setMembers={setMembers} onDataRefetch={onDataRefetch} currentUser={currentUser} />}
         {currentTab === "shift" && <ShiftManagementView members={members} currentUser={currentUser} isAdmin={isAdmin} />}
-        {currentTab === "database" && <DatabaseView isAdmin={isAdmin} />}
         {currentTab === "rules" && <RulesView onBack={() => setCurrentTab('lists')} />}
         {currentTab === "dashboard" && <SourcingDashboardView currentUser={currentUser} userId={userId} members={members} now={now} appoData={appoData} isAdmin={isAdmin} callListData={callListData} setCallFlowScreen={setCallFlowScreen} setCurrentTab={setCurrentTab} />}
         {currentTab === "mypage" && (
