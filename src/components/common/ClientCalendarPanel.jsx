@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import TimeRexEmbed, { timerexUrlOf } from './TimeRexEmbed';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Input, Card, Badge } from '../ui';
 
@@ -138,6 +139,16 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
     schedulingUrl ? { url: schedulingUrl, label: schedulingLabel || getToolName(schedulingUrl) } : null,
     schedulingUrl2 ? { url: schedulingUrl2, label: schedulingLabel2 || getToolName(schedulingUrl2) } : null,
   ].filter(Boolean);
+  // 注意事項の「カレンダー」に書かれた TimeRex のURL（担当者ごとに「(篠浦様)」のように並べている会社がある）も、
+  // 担当者設定のURLと重ならないものは同じように架電ページの中で開けるようにする
+  const knownTimerex = new Set(schedulingLinks.map(l => timerexUrlOf(l.url)).filter(Boolean));
+  const noteTimerexLinks = (props.staticNoteLines || []).flatMap(line => {
+    const url = timerexUrlOf(line);
+    if (!url || knownTimerex.has(url)) return [];
+    knownTimerex.add(url);
+    const who = String(line).slice(String(line).indexOf(url) + url.length).match(/[（(]([^）)]+)[）)]/);
+    return [{ url, label: who ? `TimeRex（${who[1]}）` : 'TimeRex' }];
+  });
 
   // 注意事項: list.cautions の「カレンダー」セクション (staticNoteLines) を編集対象とする
   // 保存時は onUpdateCalendarLines(newLines) で list.cautions に直接書き戻す（list 固有）
@@ -195,8 +206,10 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
   if (!clientCalendarId) {
     return (
       <div style={{ fontFamily: font.family.sans, padding: 16, display: 'flex', flexDirection: 'column', gap: space[2] }}>
-        {schedulingLinks.length > 0 ? (
-          schedulingLinks.map((link, i) => (
+        {schedulingLinks.length + noteTimerexLinks.length > 0 ? (
+          [...schedulingLinks, ...noteTimerexLinks].map((link, i) => timerexUrlOf(link.url) ? (
+            <TimeRexEmbed key={i} url={link.url} label={link.label} defaultOpen={i === 0} />
+          ) : (
             <div key={i} style={{ padding: '10px 12px', background: '#EFF6FF', borderRadius: radius.md, border: '1px solid #BFDBFE' }}>
               <div style={{ fontSize: font.size.xs, color: '#1E40AF', marginBottom: 8, fontWeight: font.weight.semibold }}>{link.label}</div>
               <a href={link.url} target="_blank" rel="noopener noreferrer"
@@ -216,7 +229,9 @@ export default function ClientCalendarPanel({ clientCalendarId, schedulingUrl, s
   return (
     <div style={{ fontFamily: font.family.sans }}>
       {/* Googleカレンダー連携済みでも日程調整ツールがあればリンク表示 */}
-      {schedulingLinks.map((link, i) => (
+      {[...schedulingLinks, ...noteTimerexLinks].map((link, i) => timerexUrlOf(link.url) ? (
+        <div key={i} style={{ marginBottom: 6 }}><TimeRexEmbed url={link.url} label={link.label} /></div>
+      ) : (
         <div key={i} style={{ marginBottom: 6, padding: '6px 10px', background: '#EFF6FF', borderRadius: radius.md, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 10, color: '#1E40AF', fontWeight: font.weight.semibold }}>{link.label}</span>
           <a href={link.url} target="_blank" rel="noopener noreferrer"
