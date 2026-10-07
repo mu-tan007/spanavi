@@ -208,7 +208,7 @@ export default function SpacareerInvoiceModal({ row, existing, canConfirm = fals
           width: 'min(680px, 100%)', maxHeight: '90vh', overflow: 'auto',
         }}
       >
-        <div style={{
+        <div className="v2-mhead" style={{
           background: color.navy, color: color.white,
           padding: `${space[3]}px ${space[4]}px`,
           borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg,

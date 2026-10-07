@@ -23,7 +23,7 @@ export function AcqModal({ title, onClose, children, footer, width = 640 }) {
         width: '100%', maxWidth: width, maxHeight: '90vh', display: 'flex', flexDirection: 'column',
         background: color.white, borderRadius: radius.lg, boxShadow: shadow.xl, overflow: 'hidden',
       }}>
-        <div style={{
+        <div className="v2-mhead" style={{
           background: color.navy, color: color.white, padding: `${space[3]}px ${space[4]}px`,
           fontFamily: font.family.sans, fontSize: font.size.md, fontWeight: font.weight.semibold,
         }}>{title}</div>

@@ -6,7 +6,7 @@ import { color, font } from '../../../../constants/design';
 
 // 時系列推移用の折れ線グラフ
 // data: [{ label: '5/1', 値1: 12, 値2: 5 }, ...]
-// series: [{ key: '値1', label: '進行中', color: '#0D2247' }, ...]
+// series: [{ key: '値1', label: '進行中', color: '#032D60' }, ...]
 export default function TrendChart({ data, series, height = 220 }) {
   if (!data || data.length === 0) {
     return (

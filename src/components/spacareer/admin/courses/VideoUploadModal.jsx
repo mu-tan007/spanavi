@@ -341,7 +341,7 @@ export default function VideoUploadModal({ open, onClose, categories, onUploaded
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}
       >
-        <div style={{
+        <div className="v2-mhead" style={{
           background: color.navy, color: color.white,
           padding: `${space[4]}px ${space[5]}px`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',

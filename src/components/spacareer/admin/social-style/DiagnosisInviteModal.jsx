@@ -123,7 +123,7 @@ export default function DiagnosisInviteModal({ open, onClose, onCreated }) {
         }}
       >
         {/* Header */}
-        <div style={{
+        <div className="v2-mhead" style={{
           background: color.navy,
           color: color.white,
           padding: `${space[4]}px ${space[5]}px`,

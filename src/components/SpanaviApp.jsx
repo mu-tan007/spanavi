@@ -1391,7 +1391,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       <main style={{ marginLeft: isMobile ? 0 : 220, paddingTop: isMobile ? 48 : 54, paddingLeft: isMobile ? 12 : 28, paddingRight: isMobile ? 12 : 28, paddingBottom: isMobile ? 72 : 24, minHeight: '100vh', width: isMobile ? '100%' : 'calc(100% - 220px)', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* key で engSlug+currentTab が変わるたびに DOM を強制再マウント。
             各 View の fadeIn が (engagement 切替含め) 必ず再生される。 */}
-        <div key={`${engSlug}:${currentTab}`}>
+        {/* 全社・スパキャリ・買収は .v2 の中に置き、カード（Card）を新しい見た目に寄せる（2026-10-08） */}
+        <div key={`${engSlug}:${currentTab}`} className={['corporate', 'spartia_career', 'acquisition'].includes(engSlug) ? 'v2' : undefined}>
         {/* 全社管理（管理者設定）は事業横断。旧 MASP タブから移設し、どの engagement からでも admin のみ開ける。 */}
         {currentTab === 'admin_settings' && isAdmin && (
           <AdminView
