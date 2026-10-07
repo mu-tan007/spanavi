@@ -13,12 +13,12 @@ import {
 import { useAuth } from '../../../hooks/useAuth'
 import VoiceRecorderInline from './VoiceRecorderInline'
 
-const NAVY = '#0D2247'
-const BLUE = '#1E40AF'
+const NAVY = '#032D60' // 2026-10-08 新しい見た目の紺（旧 #0D2247）
+const BLUE = '#0176D3'
 const GRAY_200 = '#E5E7EB'
 const GRAY_100 = '#F3F4F6'
 const GRAY_50 = '#F8F9FA'
-const GOLD = '#B8860B'
+const GOLD = '#C8A45A'
 
 const inputStyle = {
   width: '100%',
@@ -315,25 +315,25 @@ export default function ContactDrawer({
       >
         {/* Header */}
         <div style={{
-          padding: '14px 20px',
-          background: NAVY,
-          color: color.white,
+          padding: '16px 22px 14px',
+          background: color.white, borderBottom: '1px solid #E3E6EB',
+          color: NAVY,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontSize: font.size.xs, opacity: 0.7, letterSpacing: 1.5 }}>
+            <div style={{ fontSize: 10.5, color: '#8692A0', letterSpacing: '.14em' }}>
               {mode === 'add' ? '担当者を追加' : '担当者の編集'}
             </div>
-            <div style={{ fontSize: 15, fontWeight: font.weight.bold, marginTop: 2 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 3, paddingBottom: 8, backgroundImage: 'linear-gradient(90deg,#C8A45A,#E5CB8F)', backgroundSize: '24px 3px', backgroundRepeat: 'no-repeat', backgroundPosition: 'left bottom' }}>
               {mode === 'edit' ? (existingContact?.name || '担当者') : '新規担当者'}
             </div>
           </div>
           <button
             onClick={onClose}
             style={{
-              border: `1px solid ${alpha('#FFFFFF', 0.3)}`,
-              background: 'transparent',
-              color: color.white,
+              border: '1px solid #D5DAE1',
+              background: color.white,
+              color: NAVY,
               fontSize: font.size.sm,
               padding: '4px 12px',
               borderRadius: radius.md,

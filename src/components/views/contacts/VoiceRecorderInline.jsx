@@ -11,8 +11,8 @@ import {
 } from '../../../lib/supabaseWrite'
 import { useAuth } from '../../../hooks/useAuth'
 
-const NAVY = '#0D2247'
-const BLUE = '#1E40AF'
+const NAVY = '#032D60' // 2026-10-08 新しい見た目の紺（旧 #0D2247）
+const BLUE = '#0176D3'
 const GRAY_200 = '#E5E7EB'
 const GRAY_50 = '#F8F9FA'
 

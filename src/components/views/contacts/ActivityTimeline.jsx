@@ -5,12 +5,12 @@ import { Button, Input, Select, Card, Badge } from '../../ui';
 import { supabase } from '../../../lib/supabase';
 import { getOrgId } from '../../../lib/orgContext';
 
-const NAVY = '#0D2247';
-const BLUE = '#1E40AF';
+const NAVY = '#032D60'; // 2026-10-08 新しい見た目の紺（旧 #0D2247）
+const BLUE = '#0176D3';
 const GRAY_200 = '#E5E7EB';
 const GRAY_100 = '#F3F4F6';
 const GRAY_50 = '#F8F9FA';
-const GOLD = '#B8860B';
+const GOLD = '#C8A45A';
 
 const FILTERS = [
   { id: 'all', label: '全て' },

@@ -296,6 +296,7 @@ function Timeline({ items, onOpenMeeting }) {
 }
 
 export const activityCardStyle = {
-  background: color.white, border: `1px solid ${color.border}`,
-  borderRadius: radius.lg, boxShadow: shadow.sm, padding: '16px 20px',
+  // 2026-10-08 新しい見た目のカード（角丸10・薄い枠・影なし）
+  background: color.white, border: '1px solid #E3E6EB',
+  borderRadius: 10, boxShadow: 'none', padding: '16px 20px',
 };

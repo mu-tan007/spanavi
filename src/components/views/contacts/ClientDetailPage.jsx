@@ -9,17 +9,18 @@ import { useEngagements } from '../../../hooks/useEngagements';
 import { PAYMENT_SITE_OPTIONS, STAGE_LIST, SERVICE_LIST } from '../crm/utils';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import ContactDrawer from './ContactDrawer';
+import '../../../styles/v2.css';
 import ClientActionsEditor from './ClientActionsEditor';
 import ClientMeetingsSection from '../crm/ClientMeetingsSection';
 import ClientActivity, { useClientActivity, lastContactOf, daysAgo, activityCardStyle } from './ClientActivity';
 import { useUrlState } from '../../../hooks/useUrlState';
 
-const NAVY = '#0D2247';
-const BLUE = '#1E40AF';
+const NAVY = '#032D60'; // 2026-10-08 新しい見た目の紺（旧 #0D2247）
+const BLUE = '#0176D3';
 const GRAY_200 = '#E5E7EB';
 const GRAY_100 = '#F3F4F6';
 const GRAY_50 = '#F8F9FA';
-const GOLD = '#B8860B';
+const GOLD = '#C8A45A';
 
 // 獲得・停止の選択肢（2026-10-06 むー様の分類）
 const CHANNEL_OPTIONS = ['問い合わせフォーム', 'SNSのDM', '紹介', 'テレアポ', 'フォーム営業', 'その他'];
@@ -468,14 +469,14 @@ function EngagementRewardsInline({ clientId, rewardMaster }) {
             }}
           >
             <div style={{
-              padding: '12px 20px', background: color.navy,
+              padding: '16px 22px 12px', background: color.white, borderBottom: '1px solid #E3E6EB',
               borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
-              color: color.white, fontWeight: font.weight.semibold, fontSize: font.size.md,
+              color: NAVY, fontWeight: 700, fontSize: 17,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <span>報酬体系 (タイプ別)</span>
               <button onClick={() => setOpen(false)} style={{
-                background: 'none', border: 'none', color: color.white,
+                background: 'none', border: 'none', color: '#4B5868',
                 fontSize: 18, cursor: 'pointer',
               }}>✕</button>
             </div>
@@ -733,7 +734,7 @@ export default function ClientDetailPage({
   });
 
   return (
-    <div style={{ animation: 'fadeIn 0.2s ease', fontFamily: font.family.sans, color: color.textDark }}>
+    <div className="v2" style={{ animation: 'fadeIn 0.2s ease', fontFamily: font.family.sans, color: color.textDark }}>
       <button onClick={onBack} style={{
         padding: '4px 0', border: 'none', background: 'transparent', cursor: 'pointer',
         fontSize: 12.5, color: color.textMid, fontFamily: font.family.sans,
