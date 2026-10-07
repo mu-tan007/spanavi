@@ -1,3 +1,5 @@
+import AppoReportChecks, { canRegister } from '../common/AppoReportChecks';
+import { checkAppoReport } from '../../utils/appoReportChecks';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
 import { Button, Badge, Select } from '../ui';
@@ -187,6 +189,14 @@ export default function TemplateDrivenAppoReportModal({
 
   // 録音URL + 状態
   const [recordingUrl, setRecordingUrl] = useState(initialRecordingUrl);
+  // 登録前の検査（utils/appoReportChecks）。黄の注意は中身が変わったら確かめ直してもらう
+  const [issuesAck, setIssuesAck] = useState(false);
+  const reportIssues = useMemo(
+    () => (template ? checkAppoReport({ ...form, recordingUrl: form.recordingUrl || recordingUrl }, (template.schema || []).map(f => f.key)) : []),
+    [template, form, recordingUrl],
+  );
+  const warnKey = reportIssues.filter(i => i.level === 'warn').map(i => i.msg).join('|');
+  useEffect(() => { setIssuesAck(false); }, [warnKey]);
   const [recLoading, setRecLoading] = useState(false);
   // 録音URL 手動再取得（FieldRenderer の「再取得」ボタンから呼ぶ）
   const handleRefetchRecording = async () => {
@@ -407,6 +417,8 @@ export default function TemplateDrivenAppoReportModal({
   const handleSave = async () => {
     if (savingRef.current) return;
     if (!template) return;
+    // 登録前の検査（空欄・誤記）。赤が残っている・黄を確かめていないときは登録しない
+    if (!canRegister(reportIssues, issuesAck)) return;
     // 必須チェック
     for (const f of template.schema || []) {
       if (f.required) {
@@ -833,11 +845,12 @@ export default function TemplateDrivenAppoReportModal({
           </div>
         </div>
 
+        <AppoReportChecks issues={reportIssues} ack={issuesAck} onAck={setIssuesAck} />
         {/* フッター */}
         <div style={{ padding: `${space[3]}px ${space[5]}px`, borderTop: `1px solid ${color.border}`, display: 'flex', gap: space[2], background: color.white, borderRadius: `0 0 ${radius.md}px ${radius.md}px`, flexShrink: 0 }}>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>キャンセル</Button>
           <div style={{ flex: 1 }} />
-          <Button variant="primary" size="sm" onClick={handleSave} loading={saving} disabled={saving}>
+          <Button variant="primary" size="sm" onClick={handleSave} loading={saving} disabled={saving || !canRegister(reportIssues, issuesAck)}>
             {saving ? '保存中…' : '保存'}
           </Button>
         </div>

@@ -15,6 +15,8 @@ import { resolveApplicableTemplates } from '../../lib/templateRenderer';
 import { formatDateWithWeekday } from '../../lib/dateUtils';
 import { resolveListClient } from '../../utils/listContacts';
 import { MEET_TIME_OPTIONS } from '../../utils/meetTimeOptions';
+import AppoReportChecks, { canRegister } from '../common/AppoReportChecks';
+import { checkAppoReport } from '../../utils/appoReportChecks';
 
 export default function AppoReportModal(props) {
   const { row, list, currentUser = '', members = [], onClose, onSave, onDone, initialRecordingUrl = '', onFetchRecordingUrl, clientData = [], rewardMaster = [], dialedPhone = '', contactsByClient = {} } = props;
@@ -108,6 +110,7 @@ function LegacyAppoReportModal({ row, list, currentUser = '', members = [], onCl
     reportSupplement: row.report_supplement || '',
   });
   const [copied, setCopied] = React.useState(false);
+  const [issuesAck, setIssuesAck] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   // 二重押下防止 (saving state の非同期更新を待たず同期的にロック)
   const savingRef = React.useRef(false);
@@ -235,6 +238,8 @@ HP：${form.hp}
 
   const handleSave = async () => {
     if (savingRef.current) return;
+    // 登録前の検査（空欄・誤記）。赤が残っている・黄を確かめていないときは登録しない
+    if (!canRegister(reportIssues, issuesAck)) return;
     savingRef.current = true;
     setSaving(true);
     setAiStatus('saving');
@@ -382,6 +387,11 @@ HP：${form.hp}
       placeholder: rewardType ? `タイプ${rewardType}（${rewardRows[0]?.name || ''}）に基づき自動計算` : 'クライアント不明 — 手動入力' },
   ];
 
+  const reportIssues = checkAppoReport(form, [...FIELDS.map(f => f.key), 'appoTime']);
+  const warnKey = reportIssues.filter(i => i.level === 'warn').map(i => i.msg).join('|');
+  const lastWarnKey = React.useRef(warnKey);
+  if (lastWarnKey.current !== warnKey) { lastWarnKey.current = warnKey; if (issuesAck) setIssuesAck(false); }
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: alpha('#000', 0.5), zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: isMobile ? 0 : radius.md, width: isMobile ? '100vw' : 560, height: isMobile ? '100vh' : 'auto', maxHeight: isMobile ? '100vh' : '90vh', maxWidth: isMobile ? 'none' : undefined, display: 'flex', flexDirection: 'column', boxShadow: shadow.xl }}>
@@ -489,6 +499,7 @@ HP：${form.hp}
             <pre style={{ background: color.offWhite, border: `1px solid ${color.border}`, borderRadius: radius.md, padding: space[2.5], fontSize: font.size.xs - 1, whiteSpace: 'pre-wrap', fontFamily: font.family.mono, lineHeight: font.lineHeight.relaxed, color: color.textDark, margin: 0 }}>{generateReport()}</pre>
           </div>
         </div>
+        {(aiStatus === 'idle' || aiStatus === 'save_error') && <AppoReportChecks issues={reportIssues} ack={issuesAck} onAck={setIssuesAck} />}
         {/* フッター */}
         <div style={{ padding: `${space[2.5]}px ${space[5]}px`, borderTop: `1px solid ${color.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: space[2] }}>
           <div style={{ display: 'flex', gap: space[1.5] }}>
@@ -530,7 +541,7 @@ HP：${form.hp}
             {aiStatus.startsWith('done') || aiStatus === 'error' ? (
               <Button variant="outline" onClick={onDone || onClose}>閉じる</Button>
             ) : (
-              <Button onClick={handleSave} loading={saving} disabled={saving}>
+              <Button onClick={handleSave} loading={saving} disabled={saving || !canRegister(reportIssues, issuesAck)}>
                 {saving ? '処理中...' : '保存してアポ登録'}
               </Button>
             )}
