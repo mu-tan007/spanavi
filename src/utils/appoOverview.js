@@ -3,6 +3,11 @@
 
 const ACTIVE = ['アポ取得', '事前確認済', 'リスケ中'];
 
+export function daysBefore(day, n) {
+  const t = Date.parse(day + 'T00:00:00Z') - n * 86400000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
 export function todayJst(now = new Date()) {
   return now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
 }
@@ -17,7 +22,8 @@ export const TODO_RULES = {
   unsent: (a, today) => ACTIVE.includes(a.status) && a.emailStatus !== 'sent' && !!a.meetDate && a.meetDate >= today,
   stale: (a, today) => isStale(a, today),
   pre: (a, today) => a.status === 'アポ取得' && !!a.meetDate && a.meetDate >= today,
-  res: (a) => a.status === 'リスケ中',
+  // リスケ中は元の面談日が直近60日以内のものだけ（何か月も前のリスケ中は追っても戻らない）
+  res: (a, today) => a.status === 'リスケ中' && !!a.meetDate && a.meetDate >= daysBefore(today, 60),
 };
 
 export function todoCounts(appos, today) {

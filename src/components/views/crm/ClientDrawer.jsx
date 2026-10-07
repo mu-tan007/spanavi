@@ -26,7 +26,7 @@ function Kv({ rows }) {
   );
 }
 
-export default function ClientDrawer({ client: c, today, contacts = [], lists = [], rules = [], reward, monthAppoCount = 0, isAdmin, currentUser, initialTab = 'base', onClose, onOpenPage, onRulesSaved }) {
+export default function ClientDrawer({ client: c, today, contacts = [], lists = [], rules = [], reward, engagementRewards = [], monthAppoCount = 0, isAdmin, currentUser, initialTab = 'base', onClose, onOpenPage, onRulesSaved }) {
   const [tab, setTab] = useState(initialTab);
   useEffect(() => { setTab(initialTab); }, [c?._supaId, initialTab]);
   useEffect(() => {
@@ -109,7 +109,7 @@ export default function ClientDrawer({ client: c, today, contacts = [], lists = 
           {tab === 'fee' && (
             <div className="co-pane">
               <Kv rows={[
-                ['報酬体系', reward ? `${reward.name}${reward.tax ? `（${reward.tax}）` : ''}` : c.rewardType],
+                ['報酬体系', reward ? `${reward.name}${reward.tax ? `（${reward.tax}）` : ''}` : (c.rewardType || (engagementRewards.length ? '事業ごと（下の表）' : ''))],
                 reward?.tiers?.length ? ['単価', reward.tiers.map(t => (t.price ? formatCurrency(t.price) : '')).filter(Boolean).join(' ／ ')] : null,
                 c.feeAmount != null ? ['固定の金額', formatCurrency(c.feeAmount)] : null,
                 c.monthlyCap != null ? ['月の上限', `${c.monthlyCap}件`] : null,
@@ -117,6 +117,11 @@ export default function ClientDrawer({ client: c, today, contacts = [], lists = 
                 c.payNote ? ['支払いの補足', c.payNote] : null,
                 c.trialTerms ? ['テストの条件', c.trialTerms] : null,
               ]} />
+              {engagementRewards.length > 0 && (
+                <div style={box}><div style={h4}><span>事業ごとの報酬体系</span></div>
+                  <Kv rows={engagementRewards.map(r => [`${r.categoryName} ・ ${r.engName}`, r.rewardName])} />
+                </div>
+              )}
               <div style={box}><div style={h4}><span>今月</span></div><Kv rows={[['有効アポ', `${monthAppoCount}件`]]} /></div>
             </div>
           )}

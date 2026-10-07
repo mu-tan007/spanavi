@@ -22,7 +22,7 @@ const xBtn = { border: 'none', background: 'transparent', color: color.textLight
 
 function Toggle({ on, onChange, labels }) {
   return (
-    <button type="button" onClick={() => onChange(!on)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: color.textMid, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font.family.sans }}>
+    <button type="button" onClick={() => onChange(!on)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: color.textMid, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: font.family.sans, whiteSpace: 'nowrap' }}>
       <span style={{ width: 28, height: 16, borderRadius: 999, background: on ? color.navyLight : color.border, position: 'relative', transition: 'background .15s', flexShrink: 0 }}>
         <span style={{ position: 'absolute', top: 2, left: on ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: color.white, transition: 'left .2s cubic-bezier(.34,1.56,.64,1)' }} />
       </span>
@@ -66,7 +66,7 @@ export default function ReportRulesEditor({ client, contacts = [], lists = [], r
 
   return (
     <div style={{ display: 'grid', gap: space[3] }}>
-      <div style={hint}>アポ報告の画面に「必ず聞くこと」として出て、空欄や条件外は登録前に止まる。報告の本文の【ヒアリング】にも入る。</div>
+      <div style={hint}>アポ報告に「必ず聞くこと」として出て、本文の【ヒアリング】にも入る</div>
 
       <div>
         <div style={{ ...hint, marginBottom: 4 }}>どこに効かせるか</div>
@@ -97,7 +97,7 @@ export default function ReportRulesEditor({ client, contacts = [], lists = [], r
         </div>
         {form.items.length === 0 && <div style={hint}>まだ項目がありません</div>}
         {form.items.map((it, i) => (
-          <div key={it.key || `n${i}`} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 104px 28px', gap: 8, alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${color.borderLight}` }}>
+          <div key={it.key || `n${i}`} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 128px 28px', gap: 8, alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${color.borderLight}` }}>
             <Input size="sm" value={it.label} placeholder="例：売上高" disabled={!isAdmin} onChange={e => setItem(i, { label: e.target.value })} />
             <Select size="sm" value={it.type} disabled={!isAdmin} onChange={e => setItem(i, { type: e.target.value })} options={ITEM_TYPES} />
             <Toggle on={!!it.required} onChange={v => isAdmin && setItem(i, { required: v })} labels={['空欄で止める', '空欄でも通す']} />
@@ -116,7 +116,7 @@ export default function ReportRulesEditor({ client, contacts = [], lists = [], r
         <div style={h4}><span>アポにしない条件・確認すること</span>
           {isAdmin && <Button size="sm" variant="ghost" onClick={() => setForm(f => ({ ...f, conditions: [...f.conditions, { label: '', check: { field: '', op: '<=', value: '' } }] }))}>＋ 条件を足す</Button>}
         </div>
-        <div style={{ ...hint, marginBottom: 6 }}>登録の前に警告を出す（止めはしない）。売上・従業員で判定するものは、上の「必ず聞くこと」に金額・人数の項目が要る</div>
+        <div style={{ ...hint, marginBottom: 6 }}>登録前に警告（止めない）。売上・従業員の判定には金額・人数の項目が要る</div>
         {form.conditions.length === 0 && <div style={hint}>まだ条件がありません</div>}
         {form.conditions.map((c, i) => (
           <div key={c.key || `c${i}`} style={{ display: 'grid', gridTemplateColumns: '1fr 150px 28px', gap: 8, alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${color.borderLight}` }}>

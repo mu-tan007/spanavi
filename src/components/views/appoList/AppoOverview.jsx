@@ -7,7 +7,7 @@ const TODOS = [
   { key: 'unsent', cls: 'red', label: '報告を送っていない', desc: '面談前でクライアントに未送信' },
   { key: 'stale', cls: 'amb', label: '面談日を過ぎて状態がそのまま', desc: '面談済にするか確認' },
   { key: 'pre', cls: 'blu', label: '事前確認がまだ', desc: '状態がアポ取得のまま' },
-  { key: 'res', cls: 'nv', label: 'リスケ中', desc: '新しい日程を追う' },
+  { key: 'res', cls: 'nv', label: 'リスケ中', desc: '直近60日 ・ 新しい日程を追う' },
 ];
 const CHIP = { '事前確認済': 'ok', 'アポ取得': 'wait', 'リスケ中': 'res', 'キャンセル': 'can', '面談済': 'done' };
 const man = (yen) => {

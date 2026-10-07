@@ -924,6 +924,7 @@ function CRMViewInner({ isAdmin, clientData, setClientData, rewardMaster = [], c
           lists={(callListData || []).filter(l => l.client_id === drawerClient._supaId)}
           rules={reportRules.filter(r => r.client_id === drawerClient._supaId)}
           reward={rewardMap[drawerClient.rewardType] || null}
+          engagementRewards={rewardsByClient[drawerClient._supaId] || []}
           monthAppoCount={monthAppoCountByClient[drawerClient._supaId] || 0}
           isAdmin={isAdmin}
           currentUser={currentUser}

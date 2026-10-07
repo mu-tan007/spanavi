@@ -13,6 +13,10 @@ const A = [
 ];
 
 describe('appoOverview', () => {
+  it('リスケ中は元の面談日が直近60日以内だけ', () => {
+    expect(TODO_RULES.res({ status: 'リスケ中', meetDate: '2026-08-09' }, T)).toBe(true);
+    expect(TODO_RULES.res({ status: 'リスケ中', meetDate: '2026-08-07' }, T)).toBe(false);
+  });
   it('面談日を過ぎて状態がそのままのものだけを拾う', () => {
     expect(A.filter(a => isStale(a, T)).map(a => a.company)).toEqual(['A']);
   });
