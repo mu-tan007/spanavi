@@ -43,7 +43,8 @@ export function ShiftHeatRows({ rates, heads, gaps, NAME_W, TOTAL_W }) {
         <div className="sw-track">
           {hours.map((h, k) => {
             const r = rates[h];
-            if (!r) return null;
+            // 営業時間の外（20時〜）や件数の少ない時間は、割合が大きく振れるので出さない
+            if (!r || h > 19 || r.calls < 200) return null;
             return <span key={h} className="sw-hc" title={`${h}時台 ${r.calls.toLocaleString()}件中 ${r.rate}%（直近60日・平日）`}
               style={{ left: `calc(${pct(h * 60)}% + 2px)`, width: `calc(${(60 / TL_TOTAL) * 100}% - 4px)`, background: rateColor(r.rate), opacity: r.calls < 1000 ? 0.5 : 1, animationDelay: `${k * 30}ms` }}>{r.rate.toFixed(1)}%</span>;
           })}
@@ -74,7 +75,7 @@ export function ShiftDayNotes({ gaps, rates, heads, outside, totalCalls }) {
   const names = Object.entries(outside);
   if (names.length) {
     const t = names.map(([n, o]) => `${n.split(/\s/)[0]} ${o.hours.map(h => `${h}時`).join('・')}台 ${o.calls}件`).join('、');
-    items.push({ cls: 'blue', head: `シフトの外の架電 ${names.length}名`, body: `${t}。シフトの入れ忘れなら直す（報酬の計算に使うため）` });
+    items.push({ cls: 'blue', head: `シフトの外の架電 ${names.length}名`, body: `${t}。入れ忘れならシフトを直す` });
   }
   if (!items.length) items.push({ cls: 'gray', head: '気になる点はありません', body: totalCalls ? `この日の架電 ${totalCalls.toLocaleString()}件はすべてシフトの中です` : 'この日の架電はまだありません' });
   return (
