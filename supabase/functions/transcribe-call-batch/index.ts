@@ -75,7 +75,8 @@ Deno.serve(async (req) => {
   // 中身の role ではなく鍵そのものの一致でも通す（generate-appo-brief がアポの通話を書き起こすため・2026-10-07）
   const bearer = (req.headers.get('Authorization') || '').replace(/^Bearer /, '')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-  if (jwtRole(req) !== 'service_role' && !(serviceKey && bearer === serviceKey)) return json({ error: 'forbidden' }, 403)
+  // cron からは internal_cron_tokens の合言葉を x-cron-token に付けてくる（管理用の鍵をDBに置かない・2026-10-07）
+  if (jwtRole(req) !== 'service_role' && !(serviceKey && bearer === serviceKey) && !(await cronTokenOk(req))) return json({ error: 'forbidden' }, 403)
   try {
     const { record_ids } = await req.json()
     if (!Array.isArray(record_ids) || record_ids.length === 0) return json({ error: 'record_ids is required' }, 400)
@@ -86,6 +87,13 @@ Deno.serve(async (req) => {
     return json({ error: (e as Error).message }, 500)
   }
 })
+
+async function cronTokenOk(req: Request): Promise<boolean> {
+  const t = req.headers.get('x-cron-token') || ''
+  if (t.length < 32) return false
+  const { data } = await supabase.from('internal_cron_tokens').select('token').eq('name', 'transcribe-call-batch').maybeSingle()
+  return !!data?.token && data.token === t
+}
 
 function jwtRole(req: Request): string {
   try {
