@@ -63,14 +63,15 @@ export function RankLadder({ ranks, members, callingSet, onOpen }) {
 /** 1人の行（チームのカードの中） */
 export function MemberLine({ m, ranks, stat, status, grip, onOpen, rowRef, rowStyle, rowProps }) {
   const ri = rankIndex(ranks, m.rank_id);
-  const calls = Number(stat?.calls || 0), appos = Number(stat?.appos || 0);
+  const sales = Number(m.cumulative_sales || 0), appos = Number(stat?.appos || 0);
   return (
     <div ref={rowRef} style={rowStyle} {...rowProps} className="mb-mem" onClick={() => onOpen(m)}>
       <span className="mb-grip" onClick={e => e.stopPropagation()} {...(grip || {})}>{grip ? '⋮⋮' : ''}</span>
       <Avatar m={m} rankIdx={ri} calling={status.kind === 'calling'} onClick={() => onOpen(m)} />
       <span className="mb-nm"><b>{m.name}</b><span className={`mb-st ${status.kind}`}>{status.kind === 'calling' ? '● 架電中' : status.label}</span></span>
       <span className={`mb-rk${ri < 0 ? ' none' : ` r${Math.min(ri, 3)}`}`}>{ri < 0 ? '未設定' : ranks[ri].name}</span>
-      <span className={`mb-n mb-num${calls ? '' : ' zero'}`}><b>{calls.toLocaleString()}</b><small>架電</small></span>
+      {/* 2026-10-08 むー様：今月の架電より累計売上をぱっと見たい */}
+      <span className={`mb-n mb-num${sales ? '' : ' zero'}`}><b>{Math.round(sales / 10000).toLocaleString()}</b><small>累計 万円</small></span>
       <span className={`mb-n mb-num${appos ? '' : ' zero'}`}><b>{appos}</b><small>アポ</small></span>
     </div>
   );

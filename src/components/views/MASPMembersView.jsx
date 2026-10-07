@@ -48,7 +48,8 @@ const PRODUCT_TO_PRIMARY_ENG_SLUG = {
 };
 
 // MASP タブの「Members」ページ。全社の従業員一覧を編集する。
-export default function MASPMembersView({ isAdmin }) {
+// onlyEngagementId：その事業に所属する人だけ出す（営業代行のメンバーのページから開いたとき・2026-10-08）
+export default function MASPMembersView({ isAdmin, onlyEngagementId = null }) {
   const { engagements, products } = useEngagements();
   const { openProfile } = useMemberProfile();
   const { members, assignments, teamsByEngagement, memberTeam, loading, toggleAssignment, assignMemberToTeam, refresh } = useAllMembersWithEngagements();
@@ -119,14 +120,15 @@ export default function MASPMembersView({ isAdmin }) {
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return members;
-    return members.filter(m =>
+    const inScope = onlyEngagementId ? members.filter(m => (assignments[m.id] || new Set()).has(onlyEngagementId)) : members;
+    if (!q) return inScope;
+    return inScope.filter(m =>
       (m.name || '').toLowerCase().includes(q)
       || (m.email || '').toLowerCase().includes(q)
       || (m.position || '').toLowerCase().includes(q)
       || (m.team || '').toLowerCase().includes(q)
     );
-  }, [members, filter]);
+  }, [members, filter, onlyEngagementId, assignments]);
 
   const startEdit = (m) => {
     setEditingId(m.id);
@@ -484,7 +486,7 @@ export default function MASPMembersView({ isAdmin }) {
     <div style={{ background: color.offWhite, minHeight: 'calc(100vh - 120px)', animation: 'fadeIn 0.3s ease' }}>
       <PageHeader
         title="メンバー"
-        description={`全従業員 ${members.length} 名 (入社日順)。${isAdmin ? '編集ボタンで個別編集' : '閲覧のみ'}`}
+        description={`${onlyEngagementId ? 'この事業のメンバー' : '全従業員'} ${onlyEngagementId ? visible.length : members.length} 名 (入社日順)。${isAdmin ? '編集ボタンで個別編集' : '閲覧のみ'}`}
         right={isAdmin ? (
           <Button size="sm" onClick={openAddModal}>+ 新規追加</Button>
         ) : null}
