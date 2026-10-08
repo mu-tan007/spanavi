@@ -57,8 +57,8 @@ export default function AppoOverview({ appoData, today, range = null, countable,
         {TODOS.map(t => (
           <button key={t.key} type="button" className={`ao-card ao-td ${t.cls}${todo === t.key ? ' is-on' : ''}${counts[t.key] ? '' : ' is-zero'}`}
             onClick={() => {
-              // 新着は表を絞ったうえで、いちばん古いものの詳細をすぐ開く（送信画面も開いた状態）
-              if (t.key === 'new' && newOnes.length) { onTodo('new'); onOpen(newOnes[0], { compose: true }); return; }
+              // 新着は表を絞ったうえで、いちばん古いものの詳細をすぐ開く（送信画面も開いた状態）。もう一度押すと解除（ほかのカードと同じ）
+              if (t.key === 'new' && newOnes.length && todo !== 'new') { onTodo('new'); onOpen(newOnes[0], { compose: true }); return; }
               onTodo(todo === t.key ? '' : t.key);
             }}>
             <span className="ao-n ao-num">{counts[t.key]}</span>
