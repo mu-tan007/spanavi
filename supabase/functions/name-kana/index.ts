@@ -69,8 +69,12 @@ async function batch(limit: number) {
     }
   }
   const todo = names.filter(n => !known[n])
-  for (let i = 0; i < todo.length; i += 100) {
-    Object.assign(known, await readings(todo.slice(i, i + 100)))
+  // 100件ずつを5本同時に聞く（1回の実行が時間切れにならないように）
+  const chunks: string[][] = []
+  for (let i = 0; i < todo.length; i += 100) chunks.push(todo.slice(i, i + 100))
+  for (let i = 0; i < chunks.length; i += 5) {
+    const outs = await Promise.all(chunks.slice(i, i + 5).map(c => readings(c).catch(() => ({}))))
+    for (const o of outs) Object.assign(known, o)
   }
   let done = 0
   for (const [n, ids] of byName) {

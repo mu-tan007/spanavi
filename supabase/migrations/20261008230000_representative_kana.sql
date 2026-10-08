@@ -8,11 +8,11 @@ alter table public.call_list_items
   add column if not exists representative_source text;
 insert into public.internal_cron_tokens (name) values ('name-kana') on conflict do nothing;
 
--- 10分おきに、ふりがなの無い会社を最大3,000社ずつ推定する（新しく入ったリストの会社もこれで付く）
+-- 5分おきに、ふりがなの無い会社を最大2,000社ずつ推定する（新しく入ったリストの会社もこれで付く）
 select cron.unschedule('name-kana') where exists (select 1 from cron.job where jobname = 'name-kana');
-select cron.schedule('name-kana', '*/10 * * * *', $$
+select cron.schedule('name-kana', '*/5 * * * *', $$
   select net.http_post(
     url := 'https://baiiznjzvzhxwwqzsozn.supabase.co/functions/v1/name-kana',
     headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-token', (select token from public.internal_cron_tokens where name = 'name-kana')),
-    body := '{"limit":3000}'::jsonb, timeout_milliseconds := 150000);
+    body := '{"limit":2000}'::jsonb, timeout_milliseconds := 150000);
 $$);
