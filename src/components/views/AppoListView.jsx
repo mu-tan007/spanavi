@@ -26,6 +26,7 @@ import { useUrlState } from '../../hooks/useUrlState';
 import { useSearchParams } from 'react-router-dom';
 import { resolveClient, findClientByName } from '../../utils/listContacts';
 import AppoOverview from './appoList/AppoOverview';
+import ClientRelayCard from './appoList/ClientRelayCard';
 import ReceptionHistory from '../common/ReceptionHistory';
 import { todayJst, isStale, staleFirst, TODO_RULES } from '../../utils/appoOverview';
 
@@ -1829,6 +1830,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
           </div>
         );
       })()}
+
+      {/* クライアントの返信から作ったインターンへの伝言（送信待ち・管理者だけ） */}
+      <ClientRelayCard isAdmin={isAdmin} />
 
       {/* 上の段：数字・月ごとの棒・やること4つ・今週の面談（2026-10-07 見本どおり） */}
       <AppoOverview
