@@ -2372,6 +2372,23 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           </>)}
         </div>
 
+        {/* 自分の Zoom Phone の番号（受付に折り返しを頼むときに伝える・2026-10-08 むー様） */}
+        {(() => {
+          const norm = (x) => String(x || '').replace(/[\s　]/g, '');
+          const me = members.find(m => typeof m === 'object' && norm(m.name) === norm(currentUser));
+          const raw = String(me?.zoomPhoneNumber || '').replace(/[^\d+]/g, '');
+          // +81 の形は国内の形（0から始まる）に直して見せる
+          const num = raw.startsWith('+81') ? '0' + raw.slice(3) : raw;
+          const fmt = num.length === 10 ? `${num.slice(0, 2)}-${num.slice(2, 6)}-${num.slice(6)}` : num.length === 11 ? `${num.slice(0, 3)}-${num.slice(3, 7)}-${num.slice(7)}` : num;
+          return (
+            <span title="受付で戻り時間が分からないときは、この番号と用件を伝えて折り返しを頼む"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: radius.lg, flexShrink: 0,
+                border: `1px solid ${alpha('#FFFFFF', 0.2)}`, color: color.white, fontSize: font.size.xs - 1, fontFamily: font.family.sans }}>
+              <span style={{ color: alpha('#FFFFFF', 0.6) }}>あなたの番号</span>
+              <b style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}>{fmt || '未登録'}</b>
+            </span>
+          );
+        })()}
         {/* 右: オートコール + 閉じる */}
         <button onClick={toggleAutoDial}
           style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: radius.lg, cursor: 'pointer', flexShrink: 0,
