@@ -90,6 +90,9 @@ export function briefModel(appo, dossier) {
     // 業界のM&Aの動き（企業DBで集めたニュース）
     industryNews: Array.isArray(c.industry_ma_news) ? c.industry_ma_news.filter(n => n?.title).slice(0, 2) : [],
     personality: c.masp_memo?.personality || '',
+    // 録音から読み取ったM&Aへの向き合い方（2026-10-08 むー様：お人柄・面談経験は報告に残す）
+    meetingExp: c.masp_memo?.meeting_exp || '',
+    futureConsider: c.masp_memo?.future_consider || '',
     brief: b,
     getter: appo.getter || '',
     // クライアントごとの「聞くこと」（アポ報告の最後の【ヒアリング】の段）
@@ -112,6 +115,17 @@ export function buildNewReportText(m, { phone = '', email = '' } = {}) {
     lines.push('');
     lines.push('■ 社長の言葉（録音より）');
     for (const q of b.quotes) lines.push(`「${q.text}」${q.context ? `（${q.context}）` : ''}${q.source === 'report' ? '※趣旨' : ''}`);
+  }
+  if (m.personality) {
+    lines.push('');
+    lines.push('■ 社長のお人柄（録音より）');
+    lines.push(m.personality);
+  }
+  if (m.meetingExp || m.futureConsider) {
+    lines.push('');
+    lines.push('■ M&Aについて（録音より）');
+    if (m.meetingExp) lines.push(`面談経験：${m.meetingExp}`);
+    if (m.futureConsider) lines.push(`将来の検討：${m.futureConsider}`);
   }
   if (m.hearing?.length) {
     lines.push('');

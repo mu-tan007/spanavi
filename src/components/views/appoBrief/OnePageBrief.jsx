@@ -73,7 +73,9 @@ export default function OnePageBrief({ m, createdOn }) {
             {(b.quotes || []).map((q, i) => (
               <q key={i}>{q.text}{q.source === 'report' ? '（趣旨）' : ''}<small>{q.context}</small></q>
             ))}
-            {m.personality && <p>{m.personality.slice(0, 140)}{m.personality.length > 140 ? '…' : ''}</p>}
+            {m.personality && <p><b>お人柄：</b>{m.personality.slice(0, 150)}{m.personality.length > 150 ? '…' : ''}</p>}
+            {m.meetingExp && <p><b>面談経験：</b>{m.meetingExp.slice(0, 90)}{m.meetingExp.length > 90 ? '…' : ''}</p>}
+            {m.futureConsider && <p><b>将来の検討：</b>{m.futureConsider.slice(0, 90)}{m.futureConsider.length > 90 ? '…' : ''}</p>}
           </div>
           {(b.cautions || []).length > 0 && <div className="ob-box"><h3>気をつけること</h3><ul>{b.cautions.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
           {b.successor && <div className="ob-box"><h3>後継者</h3><p>{b.successor}</p></div>}

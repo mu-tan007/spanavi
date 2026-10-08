@@ -33,7 +33,7 @@ import { todayJst, isStale, staleFirst, TODO_RULES } from '../../utils/appoOverv
 const APPO_COLS = [
   { key: 'meet', width: 120, align: 'left' },
   // 取得日（2026-10-08 むー様：取得日の並べ替えで最新のアポを上に出して報告を送るので戻す）
-  { key: 'got', width: 70, align: 'right' },
+  { key: 'got', width: 70, align: 'center' }, // 右揃えだと右隣の企業名と隙間が無くなるので中央
   { key: 'company', width: 250, align: 'left' },
   { key: 'client', width: 200, align: 'left' },
   { key: 'getter', width: 100, align: 'left' },
@@ -1775,7 +1775,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                 <span style={{ display: 'block', fontFamily: "'Barlow', 'JetBrains Mono'", fontWeight: font.weight.semibold, color: isStale(a, today) ? color.textLight : color.textDark, whiteSpace: 'nowrap' }}>{a.meetDate ? `${Number(a.meetDate.slice(5, 7))}/${Number(a.meetDate.slice(8, 10))}（${'日月火水木金土'[new Date(a.meetDate + 'T00:00:00+09:00').getDay()]}）` : '—'}</span>
                 <span style={{ display: 'block', fontSize: 10, color: color.textLight, whiteSpace: 'nowrap' }}>{(a.meetTime || '').slice(0, 5) || '時刻なし'} ・ {a.isOnline ? 'オンライン' : '対面'}</span>
               </span>
-              <span style={{ textAlign: 'right', fontFamily: "'Barlow', 'JetBrains Mono'", color: color.textMid, whiteSpace: 'nowrap' }}>{a.getDate ? `${Number(a.getDate.slice(5, 7))}/${Number(a.getDate.slice(8, 10))}` : '—'}</span>
+              <span style={{ textAlign: 'center', fontFamily: "'Barlow', 'JetBrains Mono'", color: color.textMid, whiteSpace: 'nowrap' }}>{a.getDate ? `${Number(a.getDate.slice(5, 7))}/${Number(a.getDate.slice(8, 10))}` : '—'}</span>
               <span style={{ minWidth: 0, lineHeight: 1.35 }}>
                 <span style={{ display: 'block', fontWeight: font.weight.semibold, color: color.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {a.company}
