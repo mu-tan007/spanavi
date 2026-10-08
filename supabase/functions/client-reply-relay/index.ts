@@ -84,14 +84,16 @@ async function slackReplies(userToken: string, me: string, channel: string, ts: 
 }
 
 /* ---------- AI：要約と依頼 ---------- */
-type Read = { summary: string; tell: string }
+type Cancel = { cancel: boolean; afterMeeting: boolean; by: 'client' | 'prospect'; reason: string }
+type Read = { summary: string; tell: string; cancel: Cancel | null }
 async function readReply(company: string, client: string, text: string, afterMeeting: boolean, allowTell = true, addressee = ''): Promise<Read> {
   const prompt = `M&A仲介会社（クライアント：${client}）から、弊社（営業代行）が送ったアポ取得報告（アポ先：${company}）について連絡が来ました。${afterMeeting ? 'この連絡は面談の日より後に届いたものです。' : ''}
 次の2つを JSON だけで返してください。
 
 1. summary：弊社のインターン（アポを取った学生）も読む「このアポの経緯」に載せる要約。1文・60字以内。
    - ${afterMeeting ? '面談の結果（次の段階に進んだ・見送り・キャンセルとその理由など）が分かるように書く' : 'クライアントが何を伝えてきたかが分かるように書く（お礼だけなら「アポ取得のお礼のご返信」）'}
-   - 報酬・請求・金額・契約の条件、他のクライアントや他社の話、インターンの評価、社内の事情は書かない
+   - キャンセル・見送り・請求の扱いは、その理由（例：社内に後継者がいる、面談が30分未満だったので請求対象外に）まで書く
+   - 他のクライアントや他社の話、インターンの評価は書かない
    - 篠宮は弊社の担当者（クライアント側の人ではない）
    - クライアントの担当者は「${client}の〇〇様」と書く。自社を指す言い方（「弊社」など）は使わない
 2. tell：事前確認の電話で、アポ先の社長に伝える・確かめる必要がある「いつもと違うこと」だけ。1〜2文・60字以内。アポ先の社長に話す内容として書く。
@@ -100,7 +102,12 @@ async function readReply(company: string, client: string, text: string, afterMee
    - 入れないもの（当たり前のこと）：報告を送った担当者本人が伺う旨、報告どおりの日時・場所で問題ない旨、了解・お礼・よろしくお願いします
    - 報告の宛先の担当者：${addressee || '不明'}（この人が伺うのは当たり前なので入れない）${afterMeeting || !allowTell ? '今回は空にする。' : '無ければ空。'}
 
-{"summary":"…","tell":"…"}
+3. cancel：クライアントがこのアポを「キャンセルにしてほしい」「請求対象外（アポとして数えない）にしてほしい」と言っているか。
+   面談をして見送りになっただけ（キャンセルや請求対象外を求めていない）なら false。
+   by は、アポ先の事情（社長が来られない・M&Aを考えていない・後継者がいる など）なら "prospect"、クライアント側の事情なら "client"。
+   reason はキャンセルの理由を1文・60字以内で。
+
+{"summary":"…","tell":"…","cancel":{"cancel":false,"by":"prospect","reason":""}}
 
 # 連絡
 ${text}`
@@ -115,8 +122,10 @@ ${text}`
   const m = out.match(/\{[\s\S]*\}/)
   try {
     const j = JSON.parse(m ? m[0] : '{}')
-    return { summary: String(j.summary || '').trim().slice(0, 120), tell: afterMeeting || !allowTell ? '' : String(j.tell || '').trim().slice(0, 160) }
-  } catch { return { summary: '', tell: '' } }
+    const c = j.cancel || {}
+    const cancel: Cancel | null = c.cancel ? { cancel: true, afterMeeting, by: c.by === 'client' ? 'client' : 'prospect', reason: String(c.reason || '').trim().slice(0, 120) } : null
+    return { summary: String(j.summary || '').trim().slice(0, 160), tell: afterMeeting || !allowTell ? '' : String(j.tell || '').trim().slice(0, 160), cancel }
+  } catch { return { summary: '', tell: '', cancel: null } }
 }
 
 /** 報告の宛先の担当者（リストの担当者 → クライアントの主担当）。この人が伺うのは当たり前なので依頼に入れない */
@@ -129,6 +138,18 @@ async function addresseeOf(a: any): Promise<string> {
   const cs = (ids.length ? (await q.in('id', ids)).data : (await q).data) || []
   const pick = ids.length ? cs : cs.filter(c => c.is_primary)
   return pick.map(c => c.name).filter(Boolean).join('・')
+}
+
+/** 自動でキャンセルにしたら、むー様（管理者）に Spanavi で知らせる */
+async function notifyCancel(orgId: string, company: string, label: string, reason: string) {
+  const { data: admins } = await sb.from('users').select('id').eq('org_id', orgId).eq('role', 'admin')
+  const ids = (admins || []).map(x => x.id)
+  if (!ids.length) return
+  await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-push`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+    body: JSON.stringify({ type: 'appointment_cancelled', title: `${label}にしました：${company}`, body: reason, user_ids: ids, org_id: orgId, link: '/appo' }),
+  }).catch(() => {})
 }
 
 /** 確認待ちが入ったら、むー様（管理者）に Spanavi で知らせる */
@@ -188,6 +209,19 @@ async function scan() {
         }, { onConflict: 'appointment_id,source_ref', ignoreDuplicates: true })
       }
       if (r.tell) { requests++; await notifyAdmins(a.org_id, a.company_name, r.tell) }
+      // クライアントがキャンセル・請求対象外を求めてきたら、アポを自動でキャンセルにする（2026-10-08 むー様）
+      //   面談後のキャンセルは after_meeting（30日後の再アプローチの対象にしない）
+      if (r.cancel && a.status !== 'キャンセル') {
+        const type = r.cancel.afterMeeting ? 'after_meeting' : r.cancel.by
+        const { error: upErr } = await sb.from('appointments').update({ status: 'キャンセル', cancel_type: type, cancel_reason: r.cancel.reason || r.summary || null }).eq('id', a.id)
+        if (upErr) { console.error('[client-reply-relay] cancel update', a.id, upErr.message); continue }
+        a.status = 'キャンセル'
+        const label = r.cancel.afterMeeting ? '面談後のキャンセル' : type === 'client' ? 'クライアント都合のキャンセル' : '先方都合のキャンセル'
+        await sb.from('appo_timeline').upsert({
+          org_id: a.org_id, appointment_id: a.id, at: m.at, kind: 'cancel', text: `${label}：${r.cancel.reason || r.summary}`, source_ref: `cancel:${m.ref}`,
+        }, { onConflict: 'appointment_id,source_ref', ignoreDuplicates: true })
+        await notifyCancel(a.org_id, a.company_name, label, r.cancel.reason || r.summary)
+      }
     }
   }
   return { appointments: (appos || []).length, checked, requests }

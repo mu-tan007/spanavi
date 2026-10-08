@@ -55,8 +55,8 @@ export default function AppoTimeline({ appo }) {
   for (const n of notes) items.push({ key: `tl-${n.id}`, kind: n.kind, when: jst(n.at), sort: n.at, text: n.text });
   // 事前確認の記録に無いリスケ・キャンセル（アポ一覧で直接変えた分）
   const pcHas = (r) => events.some(e => e.result === r);
-  if (appo.status === 'キャンセル' && !pcHas('キャンセル')) {
-    items.push({ key: 'cancel', kind: 'cancel', when: '', sort: '9999', text: `${appo.cancelType === 'client' ? 'クライアント都合' : appo.cancelType === 'prospect' ? '先方都合' : ''}${appo.cancelReason ? `：${appo.cancelReason}` : ''}` || 'キャンセル' });
+  if (appo.status === 'キャンセル' && !pcHas('キャンセル') && !notes.some(n => n.kind === 'cancel')) {
+    items.push({ key: 'cancel', kind: 'cancel', when: '', sort: '9999', text: `${appo.cancelType === 'client' ? 'クライアント都合' : appo.cancelType === 'prospect' ? '先方都合' : appo.cancelType === 'after_meeting' ? '面談後のキャンセル' : ''}${appo.cancelReason ? `：${appo.cancelReason}` : ''}` || 'キャンセル' });
   }
   if (appo.status === 'リスケ中' && !pcHas('リスケ')) items.push({ key: 'resched', kind: 'resched', when: '', sort: '9998', text: '新しい日程を調整中' });
   if (appo.status === '面談済') items.push({ key: 'meet', kind: 'meeting', when: dayOnly(appo.meetDate), sort: `${appo.meetDate || '9'}T23`, text: '面談済' });
