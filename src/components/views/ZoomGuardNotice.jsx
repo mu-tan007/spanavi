@@ -20,6 +20,13 @@ export function isWindowsPc() {
   return /win/i.test(platform) || /Windows NT/.test(navigator.userAgent || '');
 }
 
+export function isMacPc() {
+  if (typeof navigator === 'undefined') return false;
+  const platform = navigator.userAgentData?.platform || navigator.platform || '';
+  // ⚠️ iPad も「Mac」と名乗るので、触れる画面（maxTouchPoints）があるものは外す。
+  return /mac/i.test(platform) && !(navigator.maxTouchPoints > 1);
+}
+
 function readHidden(userId) {
   try { return localStorage.getItem(zoomGuardHiddenKey(userId)) === '1'; } catch { return false; }
 }

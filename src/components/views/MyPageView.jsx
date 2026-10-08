@@ -10,6 +10,8 @@ import {
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed, resetPushSubscription } from '../../lib/pushNotification';
 import { getOrgId } from '../../lib/orgContext';
 import ZoomWindowGuardRow from './ZoomWindowGuardRow';
+import ZoomWindowGuardMacRow from './ZoomWindowGuardMacRow';
+import { isMacPc } from './ZoomGuardNotice';
 import { calcRankAndRate, getNextRankInfo, getRankLadder } from '../../utils/calculations';
 import { PAYROLL_COUNTABLE, salesMonthOf, salesAmountOf } from '../../utils/money';
 import './MyPageView.css';
@@ -587,7 +589,8 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
             )}
 
             <div className="mp-guard">
-              <ZoomWindowGuardRow openOnMount={openZoomGuide} />
+              {/* Mac で開いたら Mac 用の入れ方を出す（2026-10-08） */}
+              {isMacPc() ? <ZoomWindowGuardMacRow /> : <ZoomWindowGuardRow openOnMount={openZoomGuide} />}
             </div>
           </section>
         </div>
