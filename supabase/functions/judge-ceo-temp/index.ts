@@ -53,12 +53,18 @@ ${labels.map(l => `- ${l}`).join('\n')}
 JSON だけを返す：[{"id":"...","reasons":["..."],"quote":"..."}]
 
 ${recs.map(r => `### id=${r.id}\n${r.text}`).join('\n\n')}`
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': Deno.env.get('ANTHROPIC_API_KEY')!, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }),
-  })
-  if (!res.ok) throw new Error(`AI ${res.status}: ${(await res.text()).slice(0, 200)}`)
+  // 混雑（429・529など）のときは少し待って2回までやり直す
+  let res: Response | null = null
+  for (let t = 0; t < 3; t++) {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': Deno.env.get('ANTHROPIC_API_KEY')!, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 6000, messages: [{ role: 'user', content: prompt }] }),
+    })
+    if (res.ok || ![429, 500, 502, 503, 529].includes(res.status)) break
+    await new Promise(r => setTimeout(r, 2000 * (t + 1) + Math.random() * 1000))
+  }
+  if (!res || !res.ok) throw new Error(`AI ${res?.status}: ${(await res?.text())?.slice(0, 200)}`)
   const data = await res.json()
   const out = (data.content || []).filter((b: { type: string }) => b.type === 'text').map((b: { text: string }) => b.text).join('')
   const m = out.match(/\[[\s\S]*\]/)
@@ -91,10 +97,10 @@ Deno.serve(async (req) => {
   const empty = recs.filter(r => !r.text.trim())
   const todo = recs.filter(r => r.text.trim())
   const chunks: Rec[][] = []
-  for (let i = 0; i < todo.length; i += 10) chunks.push(todo.slice(i, i + 10))
+  for (let i = 0; i < todo.length; i += 8) chunks.push(todo.slice(i, i + 8))
   let done = 0, failed = 0
-  for (let i = 0; i < chunks.length; i += 6) {
-    const outs = await Promise.all(chunks.slice(i, i + 6).map(c => judge(c, labels).catch(() => null)))
+  for (let i = 0; i < chunks.length; i += 4) {
+    const outs = await Promise.all(chunks.slice(i, i + 4).map(c => judge(c, labels).catch(() => null)))
     for (let j = 0; j < outs.length; j++) {
       const out = outs[j]
       if (!out) { failed += chunks[i + j].length; continue }
