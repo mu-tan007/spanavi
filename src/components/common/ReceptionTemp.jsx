@@ -22,7 +22,7 @@ export default function ReceptionTemp({ itemId }) {
   }, [itemId]);
   if (!t || !t.level) return null;
   const d = new Date(t.called_at);
-  const src = [`${d.getMonth() + 1}/${d.getDate()}`, t.client_name ? `${t.client_name.replace(/株式会社|有限会社/g, '').trim()}様` : '', t.getter_name ? `${t.getter_name.split(/\s/)[0]}さん` : ''].filter(Boolean).join('・');
+  const src = [`${d.getMonth() + 1}/${d.getDate()}`, t.client_name ? t.client_name.replace(/株式会社|有限会社/g, '').trim() : '', t.getter_name ? t.getter_name.split(/\s/)[0] : ''].filter(Boolean).join('・');
   return (
     <div style={{ background: color.white, border: `1px solid ${color.border}`, borderRadius: radius.xl, padding: '10px 14px', marginBottom: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '84px 1fr 22px', gap: 10, alignItems: 'center' }}>
