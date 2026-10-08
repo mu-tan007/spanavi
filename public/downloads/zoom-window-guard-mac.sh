@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-VERSION="1.1.0"
+VERSION="1.1.1"
 BASE="https://spanavi.jp/downloads"
 HS_DIR="$HOME/.hammerspoon"
 

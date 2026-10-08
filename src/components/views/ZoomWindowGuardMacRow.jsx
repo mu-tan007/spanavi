@@ -65,7 +65,7 @@ export default function ZoomWindowGuardMacRow() {
             DockのZoomを押せば、隠したZoomを開けます。<br />
             Control＋Option＋Z で一時停止と再開ができます。<br />
             新しい版も、同じ1行で入れ替わります。<br />
-            効かないときは、右上の「Z」→「記録をコピー」で記録をSlackに貼ってください。
+            効かないときは、Control＋Option＋L で記録をコピーし、Slackに貼ってください。
           </div>
         </div>
       )}
