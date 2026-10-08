@@ -228,6 +228,16 @@ async function mayRead(uid: string, kind: string, key: string): Promise<boolean>
   return r === true;
 }
 
+const ZOOMCLOUD_TYPES: Record<string, string> = {
+  mp4: 'video/mp4', m4a: 'audio/mp4', vtt: 'text/vtt; charset=utf-8', txt: 'text/plain; charset=utf-8',
+  json: 'application/json', csv: 'text/csv; charset=utf-8',
+};
+function zoomcloudAs(key: string): { type: string; filename: string } | undefined {
+  const ext = (key.split('.').pop() ?? '').toLowerCase();
+  const type = ZOOMCLOUD_TYPES[ext];
+  return type ? { type, filename: key.split('/').pop() ?? `recording.${ext}` } : undefined;
+}
+
 /* ===================== 口 ===================== */
 
 async function check(kind: string) {
@@ -445,7 +455,9 @@ Deno.serve(async (req) => {
         ? await probeRecording(await presign('GET', bucketOf(kind), key, 60), key, () => head(kind, key))
         : await head(kind, key);
       if (!h.ok) return reply({ ok: false, error: 'R2にありません', status: h.status }, 404);
-      const as = h.as;
+      // ⚠️ Zoomから移した録画は、Zoomが返した型（application/octet-stream）のまま置いてある。
+      //    そのままだとブラウザが再生せずダウンロードするので、拡張子で名乗らせる（実体は書き換えない）。
+      const as = kind === 'zoomcloud' ? zoomcloudAs(key) : h.as;
       const url = await presign('GET', bucketOf(kind), key, Number(body.expires ?? 3600), as);
       return reply({ ok: true, url, size: h.size });
     }

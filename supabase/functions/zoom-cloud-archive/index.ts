@@ -227,6 +227,12 @@ async function scan(months: number) {
 }
 
 // 1本を Zoom から R2 へ流す。中身は変数に受けずにそのまま渡す（1本数百MBある）。
+const TYPES: Record<string, string> = {
+  mp4: 'video/mp4', m4a: 'audio/mp4', vtt: 'text/vtt; charset=utf-8', txt: 'text/plain; charset=utf-8',
+  json: 'application/json', csv: 'text/csv; charset=utf-8',
+};
+const typeOf = (key: string) => TYPES[(key.split('.').pop() ?? '').toLowerCase()] ?? 'application/octet-stream';
+
 async function copyOne(row: Row, f: ZFile): Promise<{ ok: boolean; why?: string }> {
   if (!f.download_url) return { ok: false, why: 'download_url が無い' };
   const src = await fetch(f.download_url, { headers: { Authorization: `Bearer ${await zoomToken()}` } });
@@ -235,7 +241,8 @@ async function copyOne(row: Row, f: ZFile): Promise<{ ok: boolean; why?: string 
   if (!len) { await src.body.cancel(); return { ok: false, why: '大きさが分からない' }; }
   const put = await fetch(await r2Presign('PUT', row.r2_key), {
     method: 'PUT',
-    headers: { 'content-length': len, 'content-type': src.headers.get('content-type') ?? 'application/octet-stream' },
+    // Zoomは application/octet-stream で返すので、拡張子から本当の型を付けて置く（そのままだと再生されない）。
+    headers: { 'content-length': len, 'content-type': typeOf(row.r2_key) },
     body: src.body,
     duplex: 'half',
   } as RequestInit);
