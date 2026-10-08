@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { color, font, radius } from '../../constants/design';
 import { Button } from '../ui';
 
@@ -22,8 +22,15 @@ const STEPS = [
   '画面の右上に「Z」が出れば完了です。Macを起動するたびに、自動で動きます。',
 ];
 
-export default function ZoomWindowGuardMacRow() {
-  const [open, setOpen] = useState(false);
+// openOnMount … 起動時の案内（ZoomGuardNotice）の「設定方法を見る」から来たとき。入れ方を開いて、この行まで送る。
+export default function ZoomWindowGuardMacRow({ openOnMount = false }) {
+  const [open, setOpen] = useState(openOnMount);
+  const rowRef = useRef(null);
+  useEffect(() => {
+    if (!openOnMount) return;
+    setOpen(true);
+    rowRef.current?.scrollIntoView?.({ block: 'center' });
+  }, [openOnMount]);
   const [copied, setCopied] = useState(false);
   const command = installCommand(typeof window !== 'undefined' ? window.location.origin : 'https://spanavi.jp');
   const copy = async () => {
@@ -36,7 +43,7 @@ export default function ZoomWindowGuardMacRow() {
   };
   const small = { fontSize: font.size.xs - 1, color: color.textLight, lineHeight: 1.7 };
   return (
-    <div>
+    <div ref={rowRef}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: font.size.sm, color: color.textDark, fontWeight: font.weight.semibold }}>Zoomの画面よけ（Mac）</div>

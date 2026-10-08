@@ -8,7 +8,7 @@ import { Button } from '../ui';
 // 『今後表示しない』のチェックを付けて、よくある広告のように」。
 // 押すとマイページの「Zoomの画面よけ（Windows）」の入れ方を開く（ZoomWindowGuardRow）。
 //
-// ⚠️ 出すのは Windows のPCだけ。画面よけは Windows でしか動かない（Mac・スマホに出しても入れられない）。
+// ⚠️ 出すのは Windows と Mac のPCだけ（スマホ・iPad には出さない）。Mac は 2026-10-08 に小松さんの Mac で効くのを確かめてから出した。
 // ⚠️ 「今後表示しない」はこのPCのブラウザに覚える（localStorage・人ごと）。画面よけはPCごとに入れるものなので、
 //    別のPCで開いたときはまた出る（そのPCにも入れてもらうため）。
 // ⚠️ 出すのは SpanaviAppInner が立ち上がったとき1回だけ（ログイン・再読み込み・起動）。タブを移っても出し直さない。
@@ -36,7 +36,7 @@ function writeHidden(userId) {
 }
 
 export default function ZoomGuardNotice({ userId, onOpenGuide }) {
-  const [open, setOpen] = useState(() => isWindowsPc() && !readHidden(userId));
+  const [open, setOpen] = useState(() => (isWindowsPc() || isMacPc()) && !readHidden(userId));
   const [dontShow, setDontShow] = useState(false);
 
   const close = (openGuide) => {

@@ -590,7 +590,7 @@ export default function MyPageView({ currentUser, userId, members, isAdmin = fal
 
             <div className="mp-guard">
               {/* Mac で開いたら Mac 用の入れ方を出す（2026-10-08） */}
-              {isMacPc() ? <ZoomWindowGuardMacRow /> : <ZoomWindowGuardRow openOnMount={openZoomGuide} />}
+              {isMacPc() ? <ZoomWindowGuardMacRow openOnMount={openZoomGuide} /> : <ZoomWindowGuardRow openOnMount={openZoomGuide} />}
             </div>
           </section>
         </div>
