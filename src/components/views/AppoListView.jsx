@@ -230,6 +230,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   // 新しい形の報告と面談前の1枚資料（2026-10-07 むー様決定）。組み立ては clientReportFor（詳細の表示と共通）
   const [briefState, setBriefState] = React.useState('idle'); // 'idle' | 'making' | 'attached' | 'none' | 'error'
   const [briefUrl, setBriefUrl] = React.useState('');
+  const [briefOpen, setBriefOpen] = React.useState(false); // 1枚資料をSpanaviの中で開く（2026-10-08 むー様）
   const buildBodyReport = () => clientReportFor(appo);
   const attachBrief = async (m) => {
     setBriefState('making');
@@ -549,7 +550,11 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
                 </button>
                 {briefState === 'making' && <span style={{ fontSize: 9, color: color.textMid }}>面談前の1枚資料を作成中…</span>}
                 {briefState === 'error' && <span style={{ fontSize: 9, color: color.danger }}>面談前の1枚資料を作れませんでした（本文だけで送れます）</span>}
-                {briefState === 'attached' && briefUrl && <a href={briefUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: color.navy }}>1枚資料を確認</a>}
+                {briefState === 'attached' && briefUrl && (
+                  <Button variant={briefOpen ? 'primary' : 'outline'} size="sm" onClick={() => setBriefOpen(v => !v)}>
+                    {briefOpen ? '1枚資料を閉じる' : '1枚資料を確認'}
+                  </Button>
+                )}
                 {attachedFiles.map((f, i) => (
                   <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF3C7', borderRadius: radius.md, padding: '2px 8px', fontSize: 9, color: '#4B5868' }}>
                     {f.name}（{fmtMB(f.size)}）
@@ -558,6 +563,12 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+          {/* 1枚資料をその場で見る（別のタブに飛ばない） */}
+          {briefOpen && briefUrl && (
+            <div style={{ marginBottom: 8, border: `1px solid ${color.borderLight}`, borderRadius: radius.md, overflow: 'hidden', background: color.gray50 }}>
+              <iframe title="面談前の1枚資料" src={`${briefUrl}#toolbar=0&view=FitH`} style={{ display: 'block', width: '100%', height: 760, border: 0 }} />
             </div>
           )}
           {sendError && <div style={{ fontSize: 10, color: color.danger, marginBottom: 6 }}>{sendError}</div>}
