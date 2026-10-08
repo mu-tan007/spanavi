@@ -1,9 +1,11 @@
 import './AppoOverview.css';
-import { todoCounts, weekDays, weekMeetings, shortCompany } from '../../../utils/appoOverview';
+import { todoCounts, weekDays, weekMeetings, shortCompany, TODO_RULES } from '../../../utils/appoOverview';
 
 // アポ一覧の上の段（2026-10-07 むー様確認の見本どおり）
 //   数字3つ＋月ごとの有効アポの棒 ／ やること3つ（押すと表を絞る） ／ 今週の面談（押すとそのアポを開く）
 const TODOS = [
+  // 2026-10-08 むー様：左端に新着アポ（押すとすぐ詳細が開き、そこから報告を送る）
+  { key: 'new', cls: 'nv', label: '新着アポ', desc: 'アポ取得報告をまだ送っていない' },
   // 2026-10-08 むー様：本日の事前確認・リスケ中・キャンセルの3つにする
   { key: 'today_pre', cls: 'blu', label: '本日の事前確認', desc: '面談が当日〜2営業日後でまだ確認していない' },
   { key: 'res', cls: 'amb', label: 'リスケ中', desc: '直近60日 ・ 新しい日程を追う' },
@@ -17,6 +19,8 @@ const man = (yen) => {
 
 export default function AppoOverview({ appoData, today, countable, totalSales, totalReward, periodLabel, monthStats, activeMonth, onPickMonth, todo, onTodo, onOpen }) {
   const counts = todoCounts(appoData, today);
+  // 新着は取得日の古い順（先に取ったものから報告する）
+  const newOnes = appoData.filter(a => TODO_RULES.new(a, today)).sort((a, b) => (a.getDate || '').localeCompare(b.getDate || ''));
   const days = weekDays(today);
   const byDay = weekMeetings(appoData, days);
   // 先の月（まだ始まっていない月）は出さない。古い月が左
@@ -45,9 +49,14 @@ export default function AppoOverview({ appoData, today, countable, totalSales, t
 
       <div className="ao-todo">
         {TODOS.map(t => (
-          <button key={t.key} type="button" className={`ao-card ao-td ${t.cls}${todo === t.key ? ' is-on' : ''}${counts[t.key] ? '' : ' is-zero'}`} onClick={() => onTodo(todo === t.key ? '' : t.key)}>
+          <button key={t.key} type="button" className={`ao-card ao-td ${t.cls}${todo === t.key ? ' is-on' : ''}${counts[t.key] ? '' : ' is-zero'}`}
+            onClick={() => {
+              // 新着は表を絞ったうえで、いちばん古いものの詳細をすぐ開く（送信画面も開いた状態）
+              if (t.key === 'new' && newOnes.length) { onTodo('new'); onOpen(newOnes[0], { compose: true }); return; }
+              onTodo(todo === t.key ? '' : t.key);
+            }}>
             <span className="ao-n ao-num">{counts[t.key]}</span>
-            <span><span className="ao-t">{t.label}</span><span className="ao-d">{t.desc}</span></span>
+            <span><span className="ao-t">{t.label}</span><span className="ao-d">{t.key === 'new' && newOnes.length ? newOnes.slice(0, 2).map(a => shortCompany(a.company)).join('・') + (newOnes.length > 2 ? ' ほか' : '') : t.desc}</span></span>
           </button>
         ))}
       </div>

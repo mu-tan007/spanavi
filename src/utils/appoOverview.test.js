@@ -20,8 +20,16 @@ describe('appoOverview', () => {
   it('面談日を過ぎて状態がそのままのものだけを拾う', () => {
     expect(A.filter(a => isStale(a, T)).map(a => a.company)).toEqual(['A']);
   });
-  it('カード3つを数える（本日の事前確認・リスケ中・キャンセル）', () => {
-    expect(todoCounts(A, T)).toEqual({ today_pre: 0, cancel: 1, res: 1 });
+  it('カード4つを数える（新着アポ・本日の事前確認・リスケ中・キャンセル）', () => {
+    const c = todoCounts(A, T);
+    expect({ today_pre: c.today_pre, cancel: c.cancel, res: c.res }).toEqual({ today_pre: 0, cancel: 1, res: 1 });
+  });
+  it('新着アポは報告を送っていないアポ取得（自社の開拓・面談日を過ぎたものは除く）', () => {
+    expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'pending', meetDate: '2026-10-13' }, T)).toBe(true);
+    expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'sent', meetDate: '2026-10-13' }, T)).toBe(false);
+    expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'pending', meetDate: '2026-10-13', isProspecting: true }, T)).toBe(false);
+    expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'pending', meetDate: '2026-10-01' }, T)).toBe(false);
+    expect(TODO_RULES.new({ status: '事前確認済', emailStatus: 'pending', meetDate: '2026-10-13' }, T)).toBe(false);
   });
   it('本日の事前確認は面談が当日〜2営業日後でアポ取得のまま（土日は数えない）', () => {
     expect(throughBusinessDay('2026-10-07', 2)).toBe('2026-10-09'); // 水→金

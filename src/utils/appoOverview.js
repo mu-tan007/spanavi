@@ -28,6 +28,8 @@ export function throughBusinessDay(today, n) {
 
 /** やることのカード。押したときの絞り込みにも同じ判定を使う */
 export const TODO_RULES = {
+  // 新着アポ：まだアポ取得報告を送っていないもの（自社の開拓・面談日を過ぎたものは除く）。2026-10-08 むー様
+  new: (a, today) => a.status === 'アポ取得' && a.emailStatus !== 'sent' && !a.isProspecting && (!a.meetDate || a.meetDate >= today),
   // 本日の事前確認：#事前確認 の通知と同じ範囲（面談が当日〜2営業日後で、状態がアポ取得のまま）。2026-10-08 むー様
   today_pre: (a, today) => a.status === 'アポ取得' && !!a.meetDate && a.meetDate >= today && a.meetDate <= throughBusinessDay(today, 2),
   // キャンセル：面談日が直近60日以内のもの

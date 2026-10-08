@@ -128,7 +128,7 @@ export function MemberSuggestInput({ value, onChange, members = [], style, place
   );
 }
 
-function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, onStatusUpdate }) {
+function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, onStatusUpdate, autoCompose = false }) {
   const [emailStep, setEmailStep] = React.useState('idle'); // 'idle' | 'compose' | 'sending' | 'sent' | 'error'
   const [emailTo, setEmailTo] = React.useState('');
   const [emailCcList, setEmailCcList] = React.useState([]); // 選択したクライアント担当者のCC（email配列・複数可）
@@ -294,6 +294,16 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     return emailOptions.filter(o => o.email !== emailTo);
   }, [emailOptions, emailTo]);
 
+  // 新着アポから開いたときは、送信画面を開いた状態で始める
+  const autoRef = React.useRef(false);
+  React.useEffect(() => {
+    if (autoCompose && !autoRef.current && emailStep === 'idle' && appo.emailStatus !== 'sent' && appo.appoReport) {
+      autoRef.current = true;
+      initCompose();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCompose, appo._supaId]);
+
   const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -384,10 +394,18 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       )}
 
       {emailStep === 'idle' && appo.emailStatus !== 'sent' && (
-        <Button onClick={initCompose} disabled={!appo.appoReport} variant="primary" size="sm"
-          title={!appo.appoReport ? 'アポ取得報告が未作成です' : ''}>
-          アポ取得報告を送信
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Button onClick={initCompose} disabled={!appo.appoReport} variant="primary" size="sm"
+            title={!appo.appoReport ? 'アポ取得報告が未作成です' : ''}>
+            アポ取得報告を送信
+          </Button>
+          {/* Slackに手で出したなど、Spanaviの外で送った分を新着から外す */}
+          <Button variant="ghost" size="sm" onClick={async () => {
+            if (!appo._supaId) return;
+            const err = await updateEmailStatus(appo._supaId, 'sent');
+            if (!err) onStatusUpdate?.('sent');
+          }}>送信済みにする</Button>
+        </div>
       )}
 
       {emailStep === 'sent' && (
@@ -823,6 +841,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
   const today = todayJst();
   // やること4つ（押すと表をその件だけに絞る。期間・状態の絞り込みより優先）
   const [todoFilter, setTodoFilter] = useState('');
+  const [detailCompose, setDetailCompose] = useState(false); // 新着アポから開いた＝送信画面を開いて始める
+  useEffect(() => { if (!reportDetail) setDetailCompose(false); }, [reportDetail]);
 
   const statusOrder = { "面談済": 0, "事前確認済": 1, "アポ取得": 2, "リスケ中": 3, "キャンセル": 4 };
   const passSearch = (a) => !search || a.company.includes(search) || a.client.includes(search) || a.getter.includes(search);
@@ -1739,7 +1759,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
         onPickMonth={(m) => { setTodoFilter(''); setSearchParams(prev => { const np = new URLSearchParams(prev); np.set('apo_period', 'month'); np.set('apo_month', m); return np; }); }}
         todo={todoFilter}
         onTodo={setTodoFilter}
-        onOpen={(appo) => setReportDetail(appo)}
+        onOpen={(appo, opt) => { setDetailCompose(!!opt?.compose); setReportDetail(appo); }}
       />
       {todoFilter && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-4px 0 10px', fontSize: font.size.xs, color: color.textMid }}>
@@ -3416,6 +3436,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               )}
               {/* ── メール承認・送信 ── */}
               <EmailApprovalSection
+                key={reportDetail._supaId}
+                autoCompose={detailCompose}
                 appo={reportDetail}
                 clientData={clientData}
                 contactsByClient={contactsByClient}

@@ -20,7 +20,7 @@
 .ao-m b { font-size: 11px; color: var(--ao-ink2); font-weight: 600; }
 @keyframes ao-rise { from { transform: scaleY(0); } }
 
-.ao-todo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+.ao-todo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
 .ao-td { display: flex; align-items: center; gap: 12px; padding: 12px 14px; text-align: left; cursor: pointer; font-family: inherit;
   transition: transform .2s var(--ao-spring), border-color .15s, box-shadow .15s; }
 .ao-td:hover { border-color: #B9D7F3; }
