@@ -38,6 +38,14 @@ async function getAccessToken(): Promise<string> {
 }
 
 /** MIME エンコード（日本語 Subject 用） */
+/**
+ * 添付のファイル名（filename*=）の書き方。encodeURIComponent は ( ) ' * をそのまま残すが、
+ * この書き方では使えない文字なので Gmail が名前を読み違える（2026-10-08「ご面談前資料_(有)…」が %E6… のまま届いた）
+ */
+function rfc5987(str: string): string {
+  return encodeURIComponent(str).replace(/['()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase())
+}
+
 function mimeEncode(str: string): string {
   const encoded = btoa(unescape(encodeURIComponent(str)))
   return `=?UTF-8?B?${encoded}?=`
@@ -118,7 +126,7 @@ function buildMimeMessage(params: {
       `\r\n--${boundary}\r\n` +
       `Content-Type: ${att.mimeType}; name="${encodedFilename}"\r\n` +
       `Content-Transfer-Encoding: base64\r\n` +
-      `Content-Disposition: attachment; filename*=UTF-8''${encodeURIComponent(att.filename)}; filename="${encodedFilename}"\r\n` +
+      `Content-Disposition: attachment; filename*=UTF-8''${rfc5987(att.filename)}; filename="${encodedFilename}"\r\n` +
       `\r\n`
     )
     pushWrappedBase64(parts, att.data)
