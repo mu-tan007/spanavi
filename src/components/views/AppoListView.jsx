@@ -246,12 +246,15 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   const initCompose = async () => {
     const { report, m, hasDossier } = await buildBodyReport();
     let threadOn = false;
+    let canAttach = false;
     if (canThread && appo._supaId) {
       const { data: g } = await invokeSlackAppoThread({ mode: 'guess', appointment_id: appo._supaId });
-      if (g) { setThread(g); threadOn = !!g.threadStyle || isSlack; }
+      if (g) { setThread(g); threadOn = !!g.threadStyle || isSlack; canAttach = !!g.canAttach; }
     }
     setUseThread(threadOn);
-    if (hasDossier && !(isSlack || isChatwork || threadOn)) attachBrief(m); else setBriefState('none');
+    // 1枚資料：メールと、Slackのスレッド（むー様のSlackの許可に添付の権限があるとき）で付ける
+    if (hasDossier && (!(isSlack || isChatwork) || (threadOn && canAttach))) attachBrief(m);
+    else setBriefState(hasDossier && threadOn ? 'noslack' : 'none');
 
     if (threadOn) {
       setEmailBody(
@@ -371,7 +374,11 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     if (useThread) {
       if (!thread?.channel) { setSendError('送り先のチャンネルを選んでください'); setEmailStep('compose'); return; }
       const parent = [thread.mentions, thread.header, thread.title].map(x => (x || '').trim()).filter(Boolean).join('\n');
-      ({ error } = await invokeSlackAppoThread({ mode: 'send', appointment_id: appo._supaId, channel: thread.channel, parent, text: emailBody }));
+      const brief = attachedFiles.find(f => /^(ご)?面談前資料_/.test(f.name));
+      const file = brief ? { name: brief.name, base64: await fileToBase64(brief) } : null;
+      let sent;
+      ({ data: sent, error } = await invokeSlackAppoThread({ mode: 'send', appointment_id: appo._supaId, channel: thread.channel, parent, text: emailBody, file }));
+      if (!error && sent?.attachError) setSendError(sent.attachError);
     } else if (isSlack) {
       if (!cl?.slackWebhookUrl) { setSendError('Slack Webhook URLが未設定です。CRMで設定してください。'); setEmailStep('compose'); return; }
       ({ error } = await invokeSendAppoReport({ channel: 'slack', text: emailBody, webhook_url: cl.slackWebhookUrl }));
@@ -536,16 +543,19 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
             <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={18}
               style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
-          {/* 添付ファイル */}
-          {!isChat && !useThread && (
+          {/* 添付ファイル（Slackのスレッドは1枚資料だけ付く） */}
+          {useThread && briefState === 'noslack' && (
+            <div style={{ fontSize: 9, color: color.danger, marginBottom: 6 }}>Slackの許可に添付の権限が無いため、1枚資料はスレッドに付きません（許可の取り直しが必要）</div>
+          )}
+          {!isChat && (useThread ? briefState !== 'noslack' && briefState !== 'none' : true) && (
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>添付ファイル</label>
               <input ref={fileInputRef} type="file" multiple onChange={handleFilePick} style={{ display: 'none' }} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                <button type="button" onClick={() => fileInputRef.current?.click()}
+                {!useThread && <button type="button" onClick={() => fileInputRef.current?.click()}
                   style={{ padding: '3px 10px', borderRadius: radius.md, border: `1px dashed ${color.border}`, background: color.white, cursor: 'pointer', fontSize: 10, color: color.textMid, fontFamily: "'Noto Sans JP'" }}>
                   + ファイルを追加
-                </button>
+                </button>}
                 {briefState === 'making' && <span style={{ fontSize: 9, color: color.textMid }}>面談前の1枚資料を作成中…</span>}
                 {briefState === 'error' && <span style={{ fontSize: 9, color: color.danger }}>面談前の1枚資料を作れませんでした（本文だけで送れます）</span>}
                 {briefState === 'attached' && briefUrl && (

@@ -48,6 +48,27 @@ async function parentsIn(token: string, me: string, channel: string): Promise<Pa
   }).map((m: any) => ({ ts: m.ts, text: unescape(m.text || ''), ch: channel, chName: m.channel?.name || '' }))
 }
 
+/** Slack の許可の範囲（x-oauth-scopes）。1枚資料の添付には files:write が要る */
+async function scopesOf(token: string): Promise<string[]> {
+  const res = await fetch('https://slack.com/api/auth.test', { headers: { Authorization: `Bearer ${token}` } })
+  return (res.headers.get('x-oauth-scopes') || '').split(',').map(s => s.trim()).filter(Boolean)
+}
+
+/** 1枚資料（PDF）をスレッドに添付する。files.getUploadURLExternal → 本体を送る → completeUploadExternal */
+async function uploadToThread(token: string, channel: string, threadTs: string, fileName: string, base64: string): Promise<string | null> {
+  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+  const u = await fetch(`https://slack.com/api/files.getUploadURLExternal?${new URLSearchParams({ filename: fileName, length: String(bytes.length) })}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+  if (!u.ok) return u.error || 'getUploadURLExternal failed'
+  const put = await fetch(u.upload_url, { method: 'POST', body: bytes })
+  if (!put.ok) return `upload ${put.status}`
+  const done = await fetch('https://slack.com/api/files.completeUploadExternal', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({ files: [{ id: u.file_id, title: fileName.replace(/\.pdf$/, '') }], channel_id: channel, thread_ts: threadTs }),
+  }).then(r => r.json())
+  return done.ok ? null : (done.error || 'completeUploadExternal failed')
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
@@ -120,6 +141,8 @@ Deno.serve(async (req) => {
         title: `${appo.company_name || ''}${corp ? `　${corp}` : ''}`,
         // 過去の親投稿が見つかった＝むー様がスレッドの形で送っているクライアント
         threadStyle: !!best,
+        // 1枚資料をスレッドに添付できるか（むー様の Slack の許可に files:write があるか）
+        canAttach: (await scopesOf(token)).includes('files:write'),
       })
     }
 
@@ -137,6 +160,11 @@ Deno.serve(async (req) => {
       await sb.from('appointments').update({ report_slack_channel: channel, report_slack_ts: p.ts, report_slack_mentions: mentions || null }).eq('id', appo.id)
       if (appo.list_id) await sb.from('call_lists').update({ report_slack_channel: channel, report_slack_mentions: mentions || null }).eq('id', appo.list_id)
       if (!r.ok) return json({ error: `親投稿は送れましたが、スレッドの本文が送れませんでした（${r.error}）。Slackで本文を貼ってください`, partial: true, ts: p.ts }, 502)
+      // 面談前の1枚資料をスレッドに添付（本文の下に付く）
+      if (body.file?.base64 && body.file?.name) {
+        const upErr = await uploadToThread(token, channel, p.ts, String(body.file.name), String(body.file.base64))
+        if (upErr) return json({ ok: true, ts: p.ts, attachError: `本文は送れましたが、1枚資料を添付できませんでした（${upErr}）。Slackのスレッドに手で添付してください` })
+      }
       return json({ ok: true, ts: p.ts })
     }
     return json({ error: 'mode が不正です' }, 400)
