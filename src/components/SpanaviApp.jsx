@@ -37,6 +37,7 @@ import SpacareerTemplatesView from './spacareer/admin/templates/SpacareerTemplat
 import SpacareerRevenueView from './spacareer/admin/revenue/SpacareerRevenueView';
 import CrowdworksScoutView from './spacareer/admin/crowdworks/CrowdworksScoutView';
 import SpacareerSalesFunnelView from './spacareer/admin/sales/SpacareerSalesFunnelView';
+import SpacareerZoomRecordingsView from './spacareer/admin/sales/SpacareerZoomRecordingsView';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
 import CorporateSidebar, { CORPORATE_SECTIONS, CORPORATE_TABS, ACQUISITION_SECTIONS, ACQUISITION_TABS } from './common/sidebars/CorporateSidebar';
 import SiteAnalyticsView from './views/corporate/SiteAnalyticsView';
@@ -450,7 +451,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       setCallFlowScreen({ list, defaultItemId: a.item_id, defaultListMode: false, singleItemMode: true });
     });
   }, [supabaseData, switchEngagement]);
-  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","ma_news","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","crowdworks_scout","site_analytics","business_metrics","company_members","acq_deals","acq_firms","admin_settings"];
+  const _VALID_TABS = ["overview","dashboard","live","incoming","lists","scripts","appo","deals","crm","members","search","stats","recall","payroll","shift","rules","database","mypage","library","edu_roleplay","ma_news","edu_performance","ai","manager_admin","customers","recruiting","sessions","trainer_schedule","session_records","trainer_rewards","homework","social_style","ai_courses","templates","analytics","revenue","sales_funnel","zoom_recordings","crowdworks_scout","site_analytics","business_metrics","company_members","acq_deals","acq_firms","admin_settings"];
   // 起動時の案内「Zoomの画面よけの設定方法はこちら」から来たら、マイページの入れ方を開く（ZoomGuardNotice）。
   const [zoomGuideRequested, setZoomGuideRequested] = useState(false);
   const [currentTab, setCurrentTab] = useState(() => {
@@ -507,7 +508,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
     const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','ma_news','edu_performance','manager_admin','admin_settings'];
-    const CAREER_TABS = ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout','mypage','admin_settings'];
+    const CAREER_TABS = ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','zoom_recordings','crowdworks_scout','mypage','admin_settings'];
     if (engSlug === 'seller_sourcing') {
       if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
     } else if (engSlug === 'spartia_career') {
@@ -833,7 +834,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         return null;
       }
       if (engSlug === 'spartia_career') {
-        return ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout'].find(k => canViewPage('spartia_career', k));
+        return ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','zoom_recordings','crowdworks_scout'].find(k => canViewPage('spartia_career', k));
       }
       return null;
     })();
@@ -895,7 +896,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         flatTabs.push('mypage');
         cycle(flatTabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'spartia_career') {
-        const tabs = ['customers','recruiting','sessions','trainer_schedule','homework','social_style','ai_courses','templates','session_records','trainer_rewards','analytics','revenue','sales_funnel','crowdworks_scout','mypage'];
+        const tabs = ['customers','recruiting','sessions','trainer_schedule','homework','social_style','ai_courses','templates','session_records','trainer_rewards','analytics','revenue','sales_funnel','zoom_recordings','crowdworks_scout','mypage'];
         if (isAdmin) tabs.push('admin_settings');
         cycle(tabs, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'corporate') {
@@ -1403,8 +1404,9 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_career' && currentTab === 'templates' && <SpacareerTemplatesView />}
         {engSlug === 'spartia_career' && currentTab === 'revenue' && <SpacareerRevenueView isAdmin={isAdmin} />}
         {engSlug === 'spartia_career' && currentTab === 'sales_funnel' && <SpacareerSalesFunnelView isAdmin={isAdmin} />}
+        {engSlug === 'spartia_career' && currentTab === 'zoom_recordings' && <SpacareerZoomRecordingsView />}
         {engSlug === 'spartia_career' && currentTab === 'crowdworks_scout' && <CrowdworksScoutView isAdmin={isAdmin} />}
-        {engSlug === 'spartia_career' && currentTab !== 'admin_settings' && !['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout','mypage'].includes(currentTab) && (
+        {engSlug === 'spartia_career' && currentTab !== 'admin_settings' && !['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','zoom_recordings','crowdworks_scout','mypage'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は実装中です" />
         )}
         {engSlug === 'corporate' && isAdmin && currentTab === 'business_metrics' && <BusinessMetricsView />}

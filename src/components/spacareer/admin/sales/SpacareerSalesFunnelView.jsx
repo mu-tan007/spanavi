@@ -24,7 +24,6 @@ const TABS = [
   { key: 'reps', label: '担当者別' },
   { key: 'leads', label: '見込み客' },
   { key: 'unlinked', label: '未照合' },
-  { key: 'zoom', label: 'Zoom録画' },
 ];
 
 const PERIODS = [
@@ -47,11 +46,6 @@ const SOURCE_OPTIONS = [
   { value: 'fukugyo', label: '複業クラウド' },
   { value: 'other', label: 'その他' },
 ];
-
-function fmtSize(bytes) {
-  if (!bytes) return '—';
-  return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)}GB` : `${Math.round(bytes / 1e6)}MB`;
-}
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
@@ -416,25 +410,6 @@ export default function SpacareerSalesFunnelView({ isAdmin }) {
     return <a href={url} target="_blank" rel="noreferrer" style={{ color: color.navyLight }}>録画</a>;
   };
 
-  const zoomColumns = [
-    { key: 'start_time', label: '開始', width: 110, align: 'right', sortable: true, sortValue: (m) => new Date(m.start_time).getTime(),
-      render: (m) => <span style={{ color: color.textMid }}>{fmtDateTime(m.start_time)}</span> },
-    { key: 'host_email', label: 'ホスト', width: 220, mobilePrimary: true,
-      render: (m) => <span style={{ color: color.textDark }}>{m.host_email || '—'}</span> },
-    { key: 'duration_min', label: '長さ', width: 70, align: 'right',
-      render: (m) => <span style={{ color: color.textMid }}>{m.duration_min != null ? `${m.duration_min}分` : '—'}</span> },
-    { key: 'size', label: '大きさ', width: 80, align: 'right',
-      render: (m) => <span style={{ color: color.textMid }}>{fmtSize(m.size)}</span> },
-    { key: '_state', label: '保存', width: 110, align: 'center',
-      render: (m) => (m.archived
-        ? <Badge variant="success" size="sm" dot>{m.trashed ? 'スパナビのみ' : 'スパナビ・Zoom'}</Badge>
-        : <Badge variant="warn" size="sm" dot>移送待ち</Badge>) },
-    { key: '_play', label: '再生', width: 80, align: 'center',
-      render: (m) => (m.play
-        ? <Button size="sm" variant="outline" onClick={() => playArchive(m.play.r2_key)}>再生</Button>
-        : <span style={{ color: color.textLight }}>—</span>) },
-  ];
-
   const renderTimeline = (r) => (
     <div style={{ padding: `${space[2]}px ${space[4]}px` }}>
       {r._sender && (
@@ -528,20 +503,6 @@ export default function SpacareerSalesFunnelView({ isAdmin }) {
             expandedKeys={expanded}
             onToggleExpand={toggle}
           />
-        )}
-
-        {tab === 'zoom' && (
-          <>
-            {zoomErr && <div style={{ color: color.danger, fontSize: font.size.sm, marginBottom: space[2] }}>{zoomErr}</div>}
-            <DataTable
-              columns={zoomColumns}
-              rows={zoomArchive.meetings}
-              rowKey="uuid"
-              loading={loading}
-              emptyMessage="移した録画なし"
-              height="calc(100vh - 300px)"
-            />
-          </>
         )}
 
         {tab === 'unlinked' && (

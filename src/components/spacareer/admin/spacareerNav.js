@@ -19,6 +19,7 @@ export const SPACAREER_ACTIVE_IDS = new Set([
   'analytics',
   'revenue',
   'sales_funnel',
+  'zoom_recordings',
   'crowdworks_scout',
 ]);
 
@@ -47,6 +48,7 @@ export const SPACAREER_ADMIN_SECTIONS = [
     { id: 'analytics', label: '分析レポート' },
     { id: 'revenue', label: '売上管理' },
     { id: 'sales_funnel', label: '営業ファネル' },
+    { id: 'zoom_recordings', label: 'Zoom録画' },
     { id: 'crowdworks_scout', label: '自動送信システム' },
   ]},
   // 「設定」は全社管理 → 対象事業=スパキャリ へ移行（admin限定）。
