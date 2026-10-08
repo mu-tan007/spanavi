@@ -6,6 +6,8 @@ import { supabase } from '../../../lib/supabase';
  * 社長の名前と、その上の小さなふりがな（2026-10-08 むー様）。
  * ふりがなは AI の推定（representative_kana_source='ai'）なら「推定」と出す。
  * 電話で正しい読みを聞いたら「読みを直す」で直せる。直した読みは、同じ法人番号の会社（別のリスト）にも入る。
+ * 受付で「社長は退任済み」と言われた時だけ「社長名を調べる」を押す。会社HPから今の社長名を取り、
+ * リストの名前と違えば、今の社長名（とふりがな）を出し、リストの名前は小さく打ち消して残す。
  */
 export default function RepName({ row, compact = false }) {
   const [kana, setKana] = useState(row?.representative_kana && row.representative_kana !== '-' ? row.representative_kana : '');
@@ -32,7 +34,26 @@ export default function RepName({ row, compact = false }) {
     })();
     return () => { alive = false; };
   }, [row?.id, compact]);
+  const [looking, setLooking] = useState(false);
+  const [lookMsg, setLookMsg] = useState('');
   if (!row?.representative) return null;
+
+  const lookup = async () => {
+    setLooking(true); setLookMsg('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/find-representative`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ item_id: row.id }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (j.current) { setCurrent(j.current); if (j.kana) { setKana(j.kana); setSource('ai'); } setLookMsg('会社HPで今の社長名が分かりました'); }
+      else if (j.same) setLookMsg('会社HPの社長名はリストと同じでした');
+      else setLookMsg(j.reason || j.error || '調べられませんでした');
+    } catch { setLookMsg('調べられませんでした'); }
+    setLooking(false);
+  };
 
   const save = async () => {
     const v = draft.trim();
@@ -46,9 +67,10 @@ export default function RepName({ row, compact = false }) {
     setKana(v); setSource('confirmed'); setSaving(false); setEditing(false);
   };
 
+  const shown = current || row.representative;
   const ruby = (
     <ruby style={{ rubyPosition: 'over' }}>
-      {row.representative}
+      {shown}
       {kana && <rt style={{ fontSize: compact ? 8 : 10, color: color.textMid, fontWeight: font.weight.normal, letterSpacing: '0.05em' }}>{kana}</rt>}
     </ruby>
   );
@@ -56,16 +78,18 @@ export default function RepName({ row, compact = false }) {
 
   return (
     <span style={{ display: 'inline-flex', alignItems: 'flex-end', gap: space[1.5], flexWrap: 'wrap' }}>
-      {current && (
-        <span title="国の法人情報（gBizINFO）に載っている現在の代表者です。リストの名前と違うので、退任している可能性があります"
-          style={{ fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.bold, width: '100%' }}>
-          現在の代表：{current} 様（国の法人情報）
-        </span>
-      )}
       {ruby}
+      {current && (
+        <span title="リストに載っていた名前です。今の社長は左の名前です" style={{ fontSize: 9, color: color.textLight, textDecoration: 'line-through' }}>{row.representative}</span>
+      )}
       {kana && source !== 'confirmed' && (
         <span title="AIが推定した読みです。電話で確かめたら直してください" style={{ fontSize: 9, color: color.textLight, border: `1px solid ${color.borderLight}`, borderRadius: radius.sm, padding: '0 4px', lineHeight: '14px' }}>推定</span>
       )}
+      <button type="button" onClick={lookup} disabled={looking} title="受付で「社長は退任済み」と言われた時に押す"
+        style={{ fontSize: 9, color: color.danger, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}>
+        {looking ? '調べています…' : '社長名を調べる'}
+      </button>
+      {lookMsg && <span style={{ fontSize: 9, color: color.textMid, width: '100%' }}>{lookMsg}</span>}
       {!editing && (
         <button type="button" onClick={() => { setDraft(kana); setEditing(true); }}
           style={{ fontSize: 9, color: color.navy, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}>
