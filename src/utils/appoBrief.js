@@ -100,73 +100,72 @@ export function briefModel(appo, dossier) {
   };
 }
 
-/** 新しい形のアポ取得報告（メール・Slack・Chatwork の本文に入れる部分） */
+/** 長い文を、最初の n 文（かつ max 字まで）に縮める */
+export function firstSentences(text, n = 1, max = 90) {
+  // 文の途中で切らない：最初の文から順に、max 字に収まる所まで足す（最初の1文だけが長いときは読点で切る）
+  const parts = String(text || '').replace(/\s+/g, ' ').trim().split(/(?<=。)/).filter(Boolean);
+  let out = '';
+  for (const p of parts.slice(0, n)) { if (out && (out + p).length > max) break; out += p; }
+  if (out.length > max) {
+    const cut = out.slice(0, max).lastIndexOf('、');
+    out = (cut > max * 0.5 ? out.slice(0, cut) : out.slice(0, max - 1)) + '…';
+  }
+  return out;
+}
+
+/**
+ * 新しい形のアポ取得報告（メール・Slack・Chatwork の本文）。2026-10-08 むー様「きれいにまとめる形に」
+ * 面談 → 社長との会話 → 会社の概要（東京商工リサーチ）→ 事業と強み（公開情報）→ 沿革 → 業界のM&A → ヒアリング の順。
+ * 長い所見は最初の1〜2文に縮める（全文は1枚資料と録音で）。
+ */
 export function buildNewReportText(m, { phone = '', email = '' } = {}) {
   const b = m.brief;
-  const lines = [];
-  lines.push(`【アポ取得】${m.company}${m.pref || m.industry ? `（${[m.pref.replace(/[都府県]$/, ''), m.industry].filter(Boolean).join('・')}）` : ''}`);
-  lines.push(`面談：${m.meeting}〜 ${m.format}${m.rep ? ` ・ ${m.rep} 様` : ''}`);
-  if (b?.one_liner) {
-    lines.push('');
-    lines.push(`■ ひとことで（温度感 ${'●'.repeat(b.temperature)}${'○'.repeat(5 - b.temperature)} ${b.temperature_label || ''}）`);
-    lines.push(b.one_liner);
+  const L = [];
+  const sec = (t) => { L.push(''); L.push(`■ ${t}`); };
+  L.push(`【アポ取得のご報告】${m.company}`);
+  L.push(`${[m.pref.replace(/[都府県]$/, ''), m.industry].filter(Boolean).join('・')}`);
+
+  sec('面談');
+  L.push(`日時　${m.meeting}〜（${m.format}）`);
+  if (m.address) L.push(`場所　${m.address}${m.travel ? `（東京から${m.travel.replace(/^東京から/, '').replace(/[（(](.+?)[)）]/, '・$1')}）` : ''}`);
+  if (m.rep) L.push(`お相手　${m.rep} 様${m.repAge ? `（${m.repAge}歳）` : ''}`);
+  if (phone || email) L.push(`連絡先　${[phone, email || 'メール未取得'].filter(Boolean).join(' ／ ')}`);
+
+  if (b?.one_liner || b?.quotes?.length || m.personality || m.meetingExp || m.futureConsider) {
+    sec(`社長との会話${b?.temperature ? `（温度感 ${'●'.repeat(b.temperature)}${'○'.repeat(5 - b.temperature)} ${b.temperature_label || ''}）` : ''}`);
+    if (b?.one_liner) L.push(`・ひとことで：${b.one_liner}`);
+    if (b?.quotes?.length) L.push(`・社長の言葉：${b.quotes.map(q => `「${q.text}」`).join('')}`);
+    if (m.personality) L.push(`・お人柄：${firstSentences(m.personality, 2, 130)}`);
+    if (m.meetingExp) L.push(`・面談経験：${firstSentences(m.meetingExp, 2, 90)}`);
+    if (m.futureConsider) L.push(`・将来の検討：${firstSentences(m.futureConsider, 2, 90)}`);
+    if (b?.successor && b.successor !== '未確認') L.push(`・後継者：${b.successor}`);
   }
-  if (b?.quotes?.length) {
-    lines.push('');
-    lines.push('■ 社長の言葉（録音より）');
-    for (const q of b.quotes) lines.push(`「${q.text}」${q.context ? `（${q.context}）` : ''}${q.source === 'report' ? '※趣旨' : ''}`);
-  }
-  if (m.personality) {
-    lines.push('');
-    lines.push('■ 社長のお人柄（録音より）');
-    lines.push(m.personality);
-  }
-  if (m.meetingExp || m.futureConsider) {
-    lines.push('');
-    lines.push('■ M&Aについて（録音より）');
-    if (m.meetingExp) lines.push(`面談経験：${m.meetingExp}`);
-    if (m.futureConsider) lines.push(`将来の検討：${m.futureConsider}`);
-  }
-  if (m.hearing?.length) {
-    lines.push('');
-    lines.push('■ ヒアリング');
-    for (const h of m.hearing) lines.push(h);
-  }
-  lines.push('');
-  lines.push('■ 会社の概要（東京商工リサーチ）');
-  if (m.industry || m.businessDesc) lines.push(`業種：${[m.industry, m.businessDesc].filter(Boolean).join(' ・ ')}`);
-  if (m.established) lines.push(`設立：${m.established}年${m.years != null && m.years >= 0 ? `（${m.years}年目）` : ''}`);
-  if (m.revenue || m.netIncome) lines.push(`財務：${[m.revenue && `売上 ${m.revenue}`, m.netIncome && `純利益 ${m.netIncome}`].filter(Boolean).join(' ／ ')}`);
-  if (m.employees) lines.push(`従業員：${m.employees}名`);
-  if (m.rep) lines.push(`代表：${m.rep} 様${m.repAge ? `（${m.repAge}歳）` : ''}`);
-  if (m.shareholders) lines.push(`大株主：${String(m.shareholders).replace(/[，,]/g, '、')}`);
-  if (m.business.length) {
-    lines.push('');
-    lines.push('■ 事業の詳細（会社HPなど公開情報より）');
-    for (const x of m.business.slice(0, 3)) lines.push(`・${x.replace(/。$/, '')}`);
-  }
-  if (m.strengths.length) {
-    lines.push('');
-    lines.push('■ 強み');
-    for (const x of m.strengths.slice(0, 3)) lines.push(`・${x.replace(/。$/, '')}`);
+
+  sec('会社の概要（東京商工リサーチ）');
+  if (m.industry || m.businessDesc) L.push(`業種　${[m.industry, m.businessDesc].filter(Boolean).join(' ・ ')}`);
+  if (m.established) L.push(`設立　${m.established}年${m.years != null && m.years >= 0 ? `（${m.years}年目）` : ''}`);
+  if (m.revenue || m.netIncome) L.push(`財務　${[m.revenue && `売上 ${m.revenue}`, m.netIncome && `純利益 ${m.netIncome}`].filter(Boolean).join(' ／ ')}`);
+  if (m.employees) L.push(`従業員　${m.employees}名`);
+  if (m.shareholders) L.push(`大株主　${String(m.shareholders).replace(/[，,]/g, '、')}`);
+
+  if (m.business.length || m.strengths.length) {
+    sec('事業と強み（会社HPなど公開情報より）');
+    for (const x of m.business.slice(0, 2)) L.push(`・${firstSentences(x, 1, 70).replace(/。$/, '')}`);
+    for (const x of m.strengths.slice(0, 3)) L.push(`◎${firstSentences(x, 1, 70).replace(/。$/, '')}`);
   }
   if (m.history.length) {
-    lines.push('');
-    lines.push('■ 沿革');
-    for (const h of m.history.slice(0, 5)) lines.push(`${h.year}　${String(h.event || '').replace(/[（(].*?[)）]$/, '')}`);
+    sec('沿革');
+    for (const h of m.history.slice(0, 5)) L.push(`${h.year}　${String(h.event || '').replace(/[（(][^（）()]*[)）]$/, '')}`);
   }
   if (m.industryNews.length) {
-    lines.push('');
-    lines.push('■ 業界のM&Aの動き');
-    for (const n of m.industryNews.slice(0, 2)) lines.push(`・${n.title}${n.date ? `（${String(n.date).slice(0, 7).replace('-', '/')}）` : ''}`);
+    sec('業界のM&Aの動き');
+    for (const n of m.industryNews.slice(0, 2)) L.push(`・${n.title}${n.date ? `（${String(n.date).slice(0, 7).replace('-', '/')}）` : ''}`);
   }
-  lines.push('');
-  lines.push('■ 面談');
-  if (m.address) lines.push(`訪問先：${m.address}${m.travel ? `（東京から${m.travel.replace(/^東京から/, '')}）` : ''}`);
-  if (phone || email) lines.push(`連絡先：${[phone, email || 'メール未取得'].filter(Boolean).join(' ／ ')}`);
-  if (b?.successor && b.successor !== '未確認') lines.push(`後継者：${b.successor}`);
-  lines.push('');
-  lines.push('面談前の1枚資料を添付しております。');
-  if (m.getter) lines.push(`取得：${m.getter.split(/\s/)[0]}`);
-  return lines.join('\n');
+  if (m.hearing?.length) {
+    sec('ヒアリング');
+    for (const h of m.hearing) L.push(h);
+  }
+  L.push('');
+  L.push(`面談前の1枚資料を添付しております。${m.getter ? `（取得：${m.getter.split(/\s/)[0]}）` : ''}`);
+  return L.join('\n');
 }

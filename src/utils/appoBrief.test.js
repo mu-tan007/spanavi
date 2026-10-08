@@ -19,10 +19,10 @@ describe('アポ報告の新しい形と1枚資料の値', () => {
     expect(m.meeting).toBe('10/20（火） 11:00');
     expect(m.travel).toBe('東京から片道 約3時間（新幹線）');
     const t = buildNewReportText(m, { phone: '06-6567-9140' });
-    expect(t).toContain('【アポ取得】株式会社ヒューマンクリエイト（大阪');
+    expect(t).toContain('【アポ取得のご報告】株式会社ヒューマンクリエイト');
     expect(t).toContain('温度感 ●●●○○ 条件次第');
-    expect(t).toContain('「全然ある」（将来の選択肢）');
-    expect(t).toContain('財務：売上 1億5,050万円 ／ 純利益 ▲30万円');
+    expect(t).toContain('「全然ある」');
+    expect(t).toContain('財務　売上 1億5,050万円 ／ 純利益 ▲30万円');
     expect(t).toContain('面談前の1枚資料を添付しております。');
     expect(t).not.toContain('後継者');
   });
