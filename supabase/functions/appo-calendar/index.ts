@@ -143,7 +143,8 @@ async function buildEvent(a: Appo) {
     summary,
     location,
     // 実際に送った報告（新しい形）があればそれ、無ければ登録時の報告
-    description: String(a.report_sent_text || a.appo_report || '').trim(),
+    // 社内向けの売上の行は、古い報告文を使うときも必ず落とす（クライアントがゲストで見るため）
+    description: String(a.report_sent_text || a.appo_report || '').split('\n').filter(l => !/^\s*(当社|弊社)売上[：:]/.test(l)).join('\n').trim(),
     start: { dateTime: startISO, timeZone: 'Asia/Tokyo' },
     end: { dateTime: end.toISOString(), timeZone: 'Asia/Tokyo' },
     attendees: guests.map(email => ({ email })),
