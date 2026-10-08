@@ -31,15 +31,21 @@ async function slack(token: string, method: string, params: Record<string, strin
   return await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }))
 }
 
-/** 過去にむー様が出した親投稿（メンションで始まり【…アポ取得報告】を含む）を、チャンネルごとに新しい順で探す */
-async function lastParent(token: string, me: string, channel: string) {
-  const d = await slack(token, 'search.messages', { query: `アポ取得報告 in:<#${channel}> from:<@${me}>`, sort: 'timestamp', sort_dir: 'desc', count: '20' })
+const unescape = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+/** 社名の芯（株式会社などと空白を除く）。過去の親投稿の社名と照らすのに使う */
+const core = (s: string) => String(s || '').replace(/株式会社|有限会社|合同会社|合資会社|合名会社|（株）|\(株\)|（有）|\(有\)|[\s　]/g, '')
+
+type Parent = { ts: string; text: string; ch: string; chName: string }
+/** 過去にむー様が出した親投稿（メンションで始まり【…アポ取得報告】を含む）を、チャンネルごとに新しい順で集める */
+async function parentsIn(token: string, me: string, channel: string): Promise<Parent[]> {
+  const d = await slack(token, 'search.messages', { query: `アポ取得報告 in:<#${channel}> from:<@${me}>`, sort: 'timestamp', sort_dir: 'desc', count: '40' })
   // deno-lint-ignore no-explicit-any
-  return (d.messages?.matches || []).find((m: any) => {
+  return (d.messages?.matches || []).filter((m: any) => {
     const t = m.text || ''
     const th = (m.permalink || '').match(/thread_ts=([\d.]+)/)?.[1]
     return MENTION_LINE.test(t) && /【[^】]*アポ取得報告】/.test(t) && (!th || th === m.ts)
-  }) || null
+  // deno-lint-ignore no-explicit-any
+  }).map((m: any) => ({ ts: m.ts, text: unescape(m.text || ''), ch: channel, chName: m.channel?.name || '' }))
 }
 
 Deno.serve(async (req) => {
@@ -68,29 +74,33 @@ Deno.serve(async (req) => {
 
     if (body.mode === 'guess') {
       const auth = await slack(token, 'auth.test', {})
-      // チャンネル名（選択肢に出す）
+      const found = (await Promise.all(channels.map(ch => parentsIn(token, auth.user_id, ch)))).flat()
+        .sort((a, b) => Number(b.ts) - Number(a.ts))
+      // チャンネル名（選択肢に出す）。検索結果の名前 → 取れなければ conversations.info
       const named = await Promise.all(channels.map(async (id) => {
+        const hit = found.find(f => f.ch === id && f.chName)
+        if (hit) return { id, name: hit.chName }
         const d = await slack(token, 'conversations.info', { channel: id })
         return { id, name: d.channel?.name || id }
       }))
       let channel = list?.report_slack_channel || ''
       let mentions = list?.report_slack_mentions || ''
-      let header = ''
       let source = mentions ? 'list' : ''
-      // 過去の親投稿から：リストに覚えたチャンネル → 登録済みの全チャンネルの順で、いちばん新しいもの
-      const order = [...new Set([channel, ...channels].filter(Boolean))]
-      // deno-lint-ignore no-explicit-any
-      let best: any = null
-      for (const ch of order) {
-        const hit = await lastParent(token, auth.user_id, ch)
-        if (hit && (!best || Number(hit.ts) > Number(best.ts))) best = { ...hit, ch }
-        if (hit && ch === channel) break
-      }
+      // どの親投稿に倣うか：同じリストの過去のアポを出した親投稿 → リストに覚えたチャンネルの最新 → 全体の最新
+      // （レバレジーズ様のように、チームごとにチャンネルと宛先が違うクライアントがある）
+      const { data: siblings } = appo.list_id
+        ? await sb.from('appointments').select('company_name').eq('list_id', appo.list_id).neq('id', appo.id).order('created_at', { ascending: false }).limit(60)
+        : { data: [] }
+      const names = [...new Set((siblings || []).map(x => core(x.company_name)).filter(n => n.length >= 2))]
+      const best = found.find(f => names.some(n => core(f.text).includes(n)))
+        || (channel ? found.find(f => f.ch === channel) : undefined)
+        || (list?.report_slack_channel ? undefined : found[0])
+        || null
+      let header = ''
       if (best) {
-        const lines = String(best.text || '').split('\n')
-        header = (lines.find((l: string) => /【[^】]*アポ取得報告】/.test(l)) || '').trim()
+        header = (best.text.split('\n').find(l => /【[^】]*アポ取得報告】/.test(l)) || '').trim()
         if (!mentions) {
-          mentions = (String(best.text).match(MENTION_LINE)?.[0] || '').replace(/<@([A-Z0-9]+)\|[^>]*>/g, '<@$1>').trim()
+          mentions = (best.text.match(MENTION_LINE)?.[0] || '').replace(/<@([A-Z0-9]+)\|[^>]*>/g, '<@$1>').trim()
           source = 'past'
         }
         if (!channel) channel = best.ch

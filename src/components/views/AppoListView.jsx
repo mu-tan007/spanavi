@@ -210,9 +210,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   //   親投稿＝メンション＋【…アポ取得報告】＋社名・法人番号、スレッド＝本文
   const [thread, setThread] = React.useState(null); // { channels, channel, mentions, header, title, threadStyle }
   const [useThread, setUseThread] = React.useState(false);
-  // 送信の関数の最新版を本番に置けていないため、むー様の確認が取れるまで止めておく（2026-10-08）
-  const SLACK_THREAD_READY = false;
-  const canThread = SLACK_THREAD_READY && (cl?.slackChannelIds || []).length > 0;
+  const canThread = (cl?.slackChannelIds || []).length > 0;
   const isChat = (isSlack || isChatwork) && !useThread;
   const channelLabel = useThread ? 'Slack（スレッド）' : isSlack ? 'Slack' : isChatwork ? 'Chatwork' : 'メール';
   const channelIcon = isSlack ? '💼' : isChatwork ? '📝' : '✉';
