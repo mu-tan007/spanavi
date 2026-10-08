@@ -48,6 +48,7 @@ import CallFlowView from './views/CallFlowView';
 import ScriptView from './views/ScriptView';
 import MyPageView from './views/MyPageView';
 import ZoomGuardNotice from './views/ZoomGuardNotice';
+import HangupKeyCoach from './views/HangupKeyCoach';
 import { subscribeToPush } from '../lib/pushNotification';
 import SourcingDashboardView from './views/SourcingDashboardView';
 import CRMView from './views/CRMView';
@@ -917,6 +918,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     <div style={{ minHeight: "100vh", background: '#F3F2F2', color: color.textDark, fontFamily: font.family.sans }}>
       <link href={FONT_URL} rel="stylesheet" />
       <ZoomGuardNotice userId={userId} onOpenGuide={() => { setZoomGuideRequested(true); setCurrentTab('mypage'); }} />
+      <HangupKeyCoach userId={userId} />
       <style>{String.raw`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         ::-webkit-scrollbar { width: 5px; }

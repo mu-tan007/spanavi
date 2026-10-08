@@ -7,6 +7,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
+import { HANGUP_KEY } from './HangupKeyCoach';
 import { Button, Input, Select, Card, Badge, Tag } from '../ui';
 import { dialPhone } from '../../utils/phone';
 import { extractUserNote, buildMemoWithNote } from '../../utils/memo';
@@ -48,7 +49,6 @@ const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAge
 
 // 切電のキー（Zoom のショートカット。Spanavi の機能ではない）。むー様 2026-10-08「架電の画面に書いておいた方がいい」。
 // ⚠️ 画面よけで Zoom がしまわれた後も効かせるには、Zoom の設定 → キーボードショートカットで「グローバル」にチェックが要る。
-const HANGUP_KEY = IS_MAC ? 'Control＋Shift＋E' : 'Ctrl＋Shift＋E';
 const HANGUP_TIP = 'Zoomのショートカット。Zoomが後ろにあっても効かせるには、Zoomの設定 → キーボードショートカットで「グローバル」にチェック';
 
 function HangupHint({ style }) {

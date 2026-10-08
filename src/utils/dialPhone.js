@@ -13,6 +13,8 @@ export function dialPhone(phoneNumber) {
     document.body.appendChild(iframe)
   }
   iframe.src = uri
+  // 発信したことを知らせる（切電のキーの案内 HangupKeyCoach が「発信の後に手で切ったか」を数えるのに使う）
+  try { window.dispatchEvent(new CustomEvent('spanavi:dial')) } catch { /* 古いブラウザでは数えない */ }
 }
 
 // 電話番号フォーマット
