@@ -101,7 +101,11 @@ async function r2CreateBucket(): Promise<Response> {
 }
 
 async function r2Size(key: string): Promise<number | null> {
-  const res = await fetch(await r2Presign('HEAD', key, 60), { method: 'HEAD' }).catch(() => null);
+  // ⚠️ 文字のファイル（チャット・タイムライン等）はCloudflareが圧縮して返し、大きさの欄が消える。
+  //    照合では圧縮させない（2026-10-08、型を付けた直後に全件「大きさ違い」で止まった）。
+  const res = await fetch(await r2Presign('HEAD', key, 60), {
+    method: 'HEAD', headers: { 'accept-encoding': 'identity' },
+  }).catch(() => null);
   if (!res?.ok) return null;
   return Number(res.headers.get('content-length') ?? NaN);
 }
