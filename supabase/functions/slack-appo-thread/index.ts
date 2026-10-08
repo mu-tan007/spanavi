@@ -35,17 +35,25 @@ const unescape = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').re
 /** 社名の芯（株式会社などと空白を除く）。過去の親投稿の社名と照らすのに使う */
 const core = (s: string) => String(s || '').replace(/株式会社|有限会社|合同会社|合資会社|合名会社|（株）|\(株\)|（有）|\(有\)|[\s　]/g, '')
 
-type Parent = { ts: string; text: string; ch: string; chName: string }
-/** 過去にむー様が出した親投稿（メンションで始まり【…アポ取得報告】を含む）を、チャンネルごとに新しい順で集める */
+type Parent = { ts: string; text: string; ch: string; chName: string; style: 'thread' | 'single' }
+/**
+ * 過去にむー様が出したアポ取得報告の投稿を、チャンネルごとに新しい順で集める。送り方はクライアントごとに違う（2026-10-08 むー様）
+ *   thread：親投稿（メンション＋【…アポ取得報告】＋社名）を出し、本文はそのスレッドへ（レバレジーズ様など）
+ *   single：メンションの後にそのまま本文（お世話になっております〜）を1投稿で（HCフィナンシャルアドバイザー様など）
+ */
 async function parentsIn(token: string, me: string, channel: string): Promise<Parent[]> {
-  const d = await slack(token, 'search.messages', { query: `アポ取得報告 in:<#${channel}> from:<@${me}>`, sort: 'timestamp', sort_dir: 'desc', count: '40' })
-  // deno-lint-ignore no-explicit-any
-  return (d.messages?.matches || []).filter((m: any) => {
-    const t = m.text || ''
+  const d = await slack(token, 'search.messages', { query: `アポ in:<#${channel}> from:<@${me}>`, sort: 'timestamp', sort_dir: 'desc', count: '50' })
+  const out: Parent[] = []
+  for (const m of d.messages?.matches || []) {
+    const t = unescape(m.text || '')
     const th = (m.permalink || '').match(/thread_ts=([\d.]+)/)?.[1]
-    return MENTION_LINE.test(t) && /【[^】]*アポ取得報告】/.test(t) && (!th || th === m.ts)
-  // deno-lint-ignore no-explicit-any
-  }).map((m: any) => ({ ts: m.ts, text: unescape(m.text || ''), ch: channel, chName: m.channel?.name || '' }))
+    if (!MENTION_LINE.test(t) || (th && th !== m.ts)) continue
+    const body = t.replace(MENTION_LINE, '')
+    const isSingle = /^\s*お世話になっております/.test(body) && /アポイントを取得|アポ取得報告/.test(body)
+    const isParent = !isSingle && /【[^】]*アポ取得報告】/.test(t)
+    if (isSingle || isParent) out.push({ ts: m.ts, text: t, ch: channel, chName: m.channel?.name || '', style: isSingle ? 'single' : 'thread' })
+  }
+  return out
 }
 
 /** Slack の許可の範囲（x-oauth-scopes）。1枚資料の添付には files:write が要る */
@@ -139,8 +147,9 @@ Deno.serve(async (req) => {
         channels: named, channel, mentions, source,
         header: header || '【M&A売り手ソーシング アポ取得報告】',
         title: `${appo.company_name || ''}${corp ? `　${corp}` : ''}`,
-        // 過去の親投稿が見つかった＝むー様がスレッドの形で送っているクライアント
+        // 過去の投稿が見つかった＝むー様が自分の名前で送っているクライアント。送り方もその投稿に合わせる
         threadStyle: !!best,
+        style: best?.style || null,
         // 1枚資料をスレッドに添付できるか（むー様の Slack の許可に files:write があるか）
         canAttach: (await scopesOf(token)).includes('files:write'),
       })
@@ -150,9 +159,23 @@ Deno.serve(async (req) => {
       const channel = String(body.channel || '').trim()
       const parent = String(body.parent || '').trim()
       const text = String(body.text || '').trim()
-      if (!channel || !parent || !text) return json({ error: '送り先・親投稿・本文のどれかが空です' }, 400)
       if (!channels.includes(channel)) return json({ error: 'このクライアントのチャンネルではありません' }, 400)
       if (appo.report_slack_ts && !body.force) return json({ error: 'このアポの報告はすでにSlackへ送っています' }, 409)
+      if (body.style === 'single') {
+        // メンションの後にそのまま本文を1投稿で送る（HCフィナンシャルアドバイザー様の形）
+        const mentions = String(body.mentions || '').trim()
+        if (!channel || !text) return json({ error: '送り先・本文のどちらかが空です' }, 400)
+        const p = await slack(token, 'chat.postMessage', { channel, text: [mentions, text].filter(Boolean).join('\n'), unfurl_links: 'false' } as Record<string, string>, true)
+        if (!p.ok) return json({ error: `Slackへの送信に失敗しました（${p.error}）` }, 502)
+        await sb.from('appointments').update({ report_slack_channel: channel, report_slack_ts: p.ts, report_slack_mentions: mentions || null }).eq('id', appo.id)
+        if (appo.list_id) await sb.from('call_lists').update({ report_slack_channel: channel, report_slack_mentions: mentions || null }).eq('id', appo.list_id)
+        if (body.file?.base64 && body.file?.name) {
+          const upErr = await uploadToThread(token, channel, p.ts, String(body.file.name), String(body.file.base64))
+          if (upErr) return json({ ok: true, ts: p.ts, attachError: `本文は送れましたが、1枚資料を添付できませんでした（${upErr}）。Slackのスレッドに手で添付してください` })
+        }
+        return json({ ok: true, ts: p.ts })
+      }
+      if (!channel || !parent || !text) return json({ error: '送り先・親投稿・本文のどれかが空です' }, 400)
       const p = await slack(token, 'chat.postMessage', { channel, text: parent, unfurl_links: 'false' } as Record<string, string>, true)
       if (!p.ok) return json({ error: `Slackへの送信に失敗しました（${p.error}）` }, 502)
       const r = await slack(token, 'chat.postMessage', { channel, thread_ts: p.ts, text, unfurl_links: 'false' } as Record<string, string>, true)

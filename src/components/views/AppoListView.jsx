@@ -150,6 +150,18 @@ async function clientReportFor(appo) {
       fetchReportTemplates(),
     ]);
     dossier = d || null;
+    // 要点（ひとことで・温度感・社長の言葉）は、録音の書き起こしを最大2時間待ってから自動で作られる。
+    // それより前に報告を送ろうとすると古い形に戻ってしまうので、まだ無ければその場で作る（2026-10-08 友十様で古い形になった）
+    if (dossier && !dossier.content?.brief && appo._supaId) {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-appo-brief`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ appointment_id: appo._supaId, force: true }),
+        });
+        if (res.ok) dossier = (await fetchDossierByAppointment(appo._supaId)).data || dossier;
+      } catch (e) { console.warn('[clientReportFor] 要点の作成に失敗:', e); }
+    }
     custom = (tpls || []).some(t => (t.scope_level === 'client' || t.scope_level === 'list') && t.client_id && t.client_id === appo.client_id);
   } catch (e) { console.warn('[clientReportFor] 要点の読込に失敗:', e); }
   const m = briefModel(appo, dossier);
@@ -211,10 +223,11 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   // Slackの共有チャンネルへスレッドの形で送る（むー様が手で出していた形・2026-10-08）
   //   親投稿＝メンション＋【…アポ取得報告】＋社名・法人番号、スレッド＝本文
   const [thread, setThread] = React.useState(null); // { channels, channel, mentions, header, title, threadStyle }
-  const [useThread, setUseThread] = React.useState(false);
+  const [useThread, setUseThread] = React.useState(false); // 篠宮の名前で Slack に送る
+  const [slackStyle, setSlackStyle] = React.useState('thread'); // thread＝親投稿＋スレッド ／ single＝メンション付きの1投稿
   const canThread = (cl?.slackChannelIds || []).length > 0;
   const isChat = (isSlack || isChatwork) && !useThread;
-  const channelLabel = useThread ? 'Slack（スレッド）' : isSlack ? 'Slack' : isChatwork ? 'Chatwork' : 'メール';
+  const channelLabel = useThread ? (slackStyle === 'single' ? 'Slack（篠宮名義）' : 'Slack（スレッド）') : isSlack ? 'Slack' : isChatwork ? 'Chatwork' : 'メール';
   const channelIcon = isSlack ? '💼' : isChatwork ? '📝' : '✉';
 
   // 宛先候補リスト（メール送信用）
@@ -251,7 +264,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     let canAttach = false;
     if (canThread && appo._supaId) {
       const { data: g } = await invokeSlackAppoThread({ mode: 'guess', appointment_id: appo._supaId });
-      if (g) { setThread(g); threadOn = !!g.threadStyle || isSlack; canAttach = !!g.canAttach; }
+      if (g) { setThread(g); threadOn = !!g.threadStyle || isSlack; canAttach = !!g.canAttach; setSlackStyle(g.style || (isSlack ? 'single' : 'thread')); }
     }
     setUseThread(threadOn);
     // 1枚資料：メールと、Slackのスレッド（むー様のSlackの許可に添付の権限があるとき）で付ける
@@ -379,7 +392,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       const brief = attachedFiles.find(f => /^(ご)?面談前資料_/.test(f.name));
       const file = brief ? { name: brief.name, base64: await fileToBase64(brief) } : null;
       let sent;
-      ({ data: sent, error } = await invokeSlackAppoThread({ mode: 'send', appointment_id: appo._supaId, channel: thread.channel, parent, text: emailBody, file }));
+      ({ data: sent, error } = await invokeSlackAppoThread({ mode: 'send', style: slackStyle, appointment_id: appo._supaId, channel: thread.channel, parent, mentions: thread.mentions, text: emailBody, file }));
       if (!error && sent?.attachError) setSendError(sent.attachError);
     } else if (isSlack) {
       if (!cl?.slackWebhookUrl) { setSendError('Slack Webhook URLが未設定です。CRMで設定してください。'); setEmailStep('compose'); return; }
@@ -510,10 +523,20 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
             <div style={{ marginBottom: 8, padding: 8, borderRadius: radius.md, background: color.gray50, border: `1px solid ${color.borderLight}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: useThread ? 6 : 0 }}>
                 <span style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868' }}>送り方</span>
-                <Button size="sm" variant={useThread ? 'primary' : 'outline'} onClick={() => setUseThread(true)}>Slackのスレッド</Button>
+                <Button size="sm" variant={useThread && slackStyle === 'single' ? 'primary' : 'outline'} onClick={() => { setUseThread(true); setSlackStyle('single'); }}>Slack（篠宮名義・1投稿）</Button>
+                <Button size="sm" variant={useThread && slackStyle === 'thread' ? 'primary' : 'outline'} onClick={() => { setUseThread(true); setSlackStyle('thread'); }}>Slack（親投稿＋スレッド）</Button>
                 <Button size="sm" variant={!useThread ? 'primary' : 'outline'} onClick={() => setUseThread(false)}>{isSlack ? 'Slack（Webhook）' : isChatwork ? 'Chatwork' : 'メール'}</Button>
               </div>
-              {useThread && (<>
+              {useThread && slackStyle === 'single' && (<>
+                <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>チャンネル</label>
+                <select value={thread.channel} onChange={e => setThread(t => ({ ...t, channel: e.target.value }))} style={{ ...iStyle, marginBottom: 6 }}>
+                  {(thread.channels || []).map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                </select>
+                <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>宛先のメンション（{thread.source === 'past' ? '前回の報告の宛先' : thread.source === 'list' ? 'このリストで前回送った宛先' : thread.source === 'contacts' ? '担当者のSlack ID' : '未設定。<@U…> の形で入れてください'}）</label>
+                <input value={thread.mentions || ''} onChange={e => setThread(t => ({ ...t, mentions: e.target.value }))} style={{ ...iStyle, fontFamily: font.family.mono }} />
+                <div style={{ fontSize: 9, color: color.textMid, marginTop: 2 }}>メンションの次の行から下の本文を続けて、篠宮の名前で1投稿で送ります</div>
+              </>)}
+              {useThread && slackStyle === 'thread' && (<>
                 <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>チャンネル</label>
                 <select value={thread.channel} onChange={e => setThread(t => ({ ...t, channel: e.target.value }))} style={{ ...iStyle, marginBottom: 6 }}>
                   {(thread.channels || []).map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
