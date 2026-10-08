@@ -46,6 +46,24 @@ const CompanyProfileDialog = React.lazy(() => import('../company/CompanyProfileD
 // ショートカット一覧を開くと ReferenceError で画面が落ちていた）
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
 
+// 切電のキー（Zoom のショートカット。Spanavi の機能ではない）。むー様 2026-10-08「架電の画面に書いておいた方がいい」。
+// ⚠️ 画面よけで Zoom がしまわれた後も効かせるには、Zoom の設定 → キーボードショートカットで「グローバル」にチェックが要る。
+const HANGUP_KEY = IS_MAC ? 'Control＋Shift＋E' : 'Ctrl＋Shift＋E';
+const HANGUP_TIP = 'Zoomのショートカット。Zoomが後ろにあっても効かせるには、Zoomの設定 → キーボードショートカットで「グローバル」にチェック';
+
+function HangupHint({ style }) {
+  return (
+    <div title={HANGUP_TIP} style={{ textAlign: 'center', fontSize: font.size.xs, color: color.textLight, ...style }}>
+      切電{' '}
+      <kbd style={{
+        display: 'inline-block', padding: '1px 6px', borderRadius: radius.md,
+        background: color.gray100, border: `1px solid ${color.gray300}`,
+        fontFamily: font.family.mono, fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.gray700,
+      }}>{HANGUP_KEY}</kbd>
+    </div>
+  );
+}
+
 const _cfSessionCache = new Map(); // `${listId}|${startNo}|${endNo}` → sessionId
 const _cfSlackNotified = new Set(); // cacheKey → Slack通知済みフラグ（重複防止）
 // モジュールレベルの「リアルクローズ済みセッションID」セット
@@ -1807,6 +1825,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   <div style={{ fontSize: 18, fontWeight: 900, color: C.white, fontFamily: "'JetBrains Mono'" }}>{selectedRow.phone}</div>
                 </div>
               )}
+              {selectedRow.phone && <HangupHint style={{ marginTop: -6, marginBottom: 12 }} />}
 
               {/* 別事業所番号（本社以外の支店/営業所） */}
               <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
@@ -2769,6 +2788,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     電話をかける
                   </Button>
                 )}
+                {selectedRow.phone && <HangupHint style={{ marginTop: 6 }} />}
                 {/* 別事業所番号（本社以外の支店/営業所） */}
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center' }}>
                   <input type="tel" value={subPhone} onChange={e => setSubPhone(e.target.value)} onBlur={handleSubPhoneBlur}
@@ -3301,9 +3321,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                        ['F4', '受付ブロック'], ['F5', '受付再コール'], ['F6', 'キーマン再コール'],
                        ['F7', 'キーマン断り'], ['F8', '除外']]),
                   ['← →', '前後の企業に移動'], ['Esc', 'モーダルを閉じる'], ['?', 'このヘルプを表示'],
+                  [HANGUP_KEY, '切電（Zoomのショートカット）'],
                 ].map(([key, desc]) => (
                   <tr key={key} style={{ borderBottom: `1px solid ${color.gray100}` }}>
-                    <td style={{ padding: '6px 10px', width: 90 }}>
+                    <td style={{ padding: '6px 10px', width: 90, whiteSpace: 'nowrap' }}>
                       <kbd style={{
                         display: 'inline-block', padding: '2px 8px', borderRadius: radius.md,
                         background: color.gray100, border: `1px solid ${color.gray300}`,
