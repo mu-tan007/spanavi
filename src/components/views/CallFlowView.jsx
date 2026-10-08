@@ -36,6 +36,7 @@ import { initialAppoStatus } from '../../utils/appoStatus';
 import { useAccessControl } from '../../hooks/useAccessControl';
 import { pickExcludeReason } from '../common/excludeReasonPicker';
 import RepName from './callflow/RepName';
+import { fetchCallStatusRates, outlookOf, perAppoLabel, segmentOf } from '../../utils/appoOutlook';
 
 const CompanyProfileDialog = React.lazy(() => import('../company/CompanyProfileDialog'));
 
@@ -943,6 +944,11 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     });
     return result;
   })();
+
+  // あと何件かけたらアポ1件（いまの絞り込みに当てはまる会社だけで計算。除外済みは数えない）
+  const [statusRates, setStatusRates] = useState(null);
+  useEffect(() => { fetchCallStatusRates().then(setStatusRates); }, []);
+  const appoOutlook = statusRates ? outlookOf(filtered.filter(i => !isExcludedItem(i.id)), segmentOf(list?.engagementSlug), statusRates) : null;
 
   const prefOptions = useMemo(() => [...new Set(items.map(r => extractPref(r.address)).filter(Boolean))].sort(), [items]);
 
@@ -2429,6 +2435,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 {/* IME対応のため共通Inputを使用（生inputだとURL書き戻しで日本語変換が壊れる） */}
                 <Input size="sm" value={search} onChange={e => setSearchAndResetPage(e.target.value)} placeholder="検索..."
                   fullWidth={false} containerStyle={{ width: 180, minWidth: 120 }} style={{ fontSize: font.size.xs }} />
+                {appoOutlook && (
+                  <span title={appoOutlook.n ? `いまの絞り込みの${appoOutlook.n.toLocaleString()}社に1回ずつかけたときの見込みアポ${appoOutlook.expected.toFixed(1)}件。会社ごとに直前の結果のアポ率（これまでの全記録・毎日20時に更新）を当てて出しています` : undefined}
+                    style={{ padding: '3px 8px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, whiteSpace: 'nowrap', color: color.navyDeep, background: alpha(color.navyLight, 0.08), border: `1px solid ${color.gray200}` }}>
+                    {`アポ1件まで ${perAppoLabel(appoOutlook)}`}
+                  </span>
+                )}
                 {[['callable','架電可能'],['all','全件'],['excluded','架電不可']].map(([mode, label]) => (
                   <button key={mode} onClick={() => { setStatusFilterLocal([]); setFilterModeAndResetPage(mode); }}
                     style={{ padding: '4px 10px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, cursor: 'pointer', fontFamily: font.family.sans, whiteSpace: 'nowrap',

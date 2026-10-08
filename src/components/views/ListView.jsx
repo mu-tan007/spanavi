@@ -15,6 +15,7 @@ import TopListCard, { ProgressPill } from '../common/TopListCard';
 import SmartQueueTab from './smart-queue/SmartQueueTab';
 import { useUrlState } from '../../hooks/useUrlState';
 import { resolveListClient } from '../../utils/listContacts';
+import { fetchListAppoOutlook, perAppoLabel } from '../../utils/appoOutlook';
 
 const DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -80,6 +81,7 @@ const LISTVIEW_COLS = [
   { key: 'manager', width: 160, align: 'center' },
   { key: 'reward', width: 110, align: 'right' },
   { key: 'progress', width: 110, align: 'center' },
+  { key: 'perAppo', width: 100, align: 'right' },
   { key: 'score', width: 125, align: 'center' },
   { key: 'actions', width: 65, align: 'left' },
 ];
@@ -507,6 +509,9 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
   const [formData, setFormData] = useState(emptyForm);
   // フォーム営業の資料かHPを開いた企業の数（リストごと）。押すとその企業だけで架電画面を開く
   const [viewedCounts, setViewedCounts] = useState({ counts: {}, issued: {} });
+  // あと何件かけたらアポ1件（まだかけられる会社 ÷ 見込みアポ。率は毎日20時に更新）
+  const [outlookByList, setOutlookByList] = useState({});
+  useEffect(() => { fetchListAppoOutlook().then(setOutlookByList); }, []);
   useEffect(() => {
     let cancelled = false;
     fetchViewedCountsByList().then(({ counts, issued }) => { if (!cancelled) setViewedCounts({ counts: counts || {}, issued: issued || {} }); });
@@ -1306,10 +1311,10 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           padding: isMobile ? "6px 10px" : "8px 16px", background: color.navy,
           fontSize: isMobile ? 10 : font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
         }}>
-          {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '当社売上', '架電進捗率', 'おすすめ度', ''].map((label, i) => (
-            <span key={i} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
+          {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '当社売上', '架電進捗率', 'アポ1件まで', 'おすすめ度', ''].map((label, i) => (
+            <span key={i} title={label === 'アポ1件まで' ? 'まだかけられる会社に1回ずつかけたとき、アポ1件に要る架電数。会社ごとに直前の結果のアポ率（これまでの全記録・毎日20時に更新）を当てて出しています' : undefined} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
               {label}
-              {i < 9 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
+              {i < 10 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
             </span>
           ))}
         </div>
@@ -1397,7 +1402,16 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
                         <RewardCell list={list} rewardMaster={rewardMaster} clientEngagementRewards={clientEngagementRewards} isInternFee={engagementToType[list.engagement_id] === 'client_acquisition'} />
                       </span>
                       <span style={{ display: "flex", justifyContent: lvCols[7]?.align === 'right' ? 'flex-end' : lvCols[7]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
-                      <span style={{ display: "flex", justifyContent: lvCols[8]?.align === 'right' ? 'flex-end' : lvCols[8]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
+                      {(() => {
+                        const o = outlookByList[list._supaId];
+                        return (
+                          <span title={o && o.n ? `まだかけられる${o.n.toLocaleString()}社・全部にかけて見込みアポ${o.expected.toFixed(1)}件` : undefined}
+                            style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: o?.perAppo ? color.textDark : color.textLight, textAlign: lvCols[8]?.align || 'right', whiteSpace: 'nowrap' }}>
+                            {o ? perAppoLabel(o) : '—'}
+                          </span>
+                        );
+                      })()}
+                      <span style={{ display: "flex", justifyContent: lvCols[9]?.align === 'right' ? 'flex-end' : lvCols[9]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
                       {isAdmin && (
                         <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
                           <button onClick={() => handleOpenEdit(list)} title="編集" style={{
