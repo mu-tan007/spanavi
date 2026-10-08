@@ -78,7 +78,6 @@ import PerformanceView from './views/PerformanceView';
 import InternRulesView from './views/InternRulesView';
 import CompanyMembersView from './views/CompanyMembersView';
 import LibraryView from './views/LibraryView';
-import AIAssistantView from './views/AIAssistantView';
 import AdminView from './views/AdminView';
 import ManagerAdminView from './views/ManagerAdminView';
 import { Phone, Calendar, BarChart2, Settings, GraduationCap, User, Users, Bot, Bell, Sparkles, Building2, LayoutDashboard } from 'lucide-react';
@@ -509,7 +508,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     // 初回（ロード完了直後）は currentTab を尊重する。タブが現エンゲージメントで
     // 有効ならそのまま、無効ならデフォルトに揃える。
     _prevEngSlugRef.current = engSlug;
-    const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','ma_news','edu_performance','ai','manager_admin','admin_settings'];
+    const SOURCING_TABS = ['dashboard','database','live','incoming','lists','scripts','appo','precheck','deals','crm','members','search','stats','recall','payroll','shift','rules','mypage','library','edu_roleplay','ma_news','edu_performance','manager_admin','admin_settings'];
     const CAREER_TABS = ['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout','mypage','admin_settings'];
     if (engSlug === 'seller_sourcing') {
       if (!SOURCING_TABS.includes(currentTab)) setCurrentTab('dashboard');
@@ -1473,7 +1472,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {/* 旧「ロープレ」へのリンクは、ライブラリーのロープレの本を開いて出す */}
         {currentTab === "edu_roleplay" && <LibraryView initialCard="roleplay" currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "ma_news" && <MaNewsView callListData={callListData} />}
-        {currentTab === "ai" && <AIAssistantView appoData={appoData} members={members} callListData={callListData} industryRules={industryRules} currentUser={currentUser} />}
         {currentTab === "manager_admin" && isManagerRole && <ManagerAdminView currentUser={currentUser} members={members} appoData={appoData} now={now} />}
         </>)}
         </div>
