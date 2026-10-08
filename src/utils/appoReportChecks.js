@@ -92,14 +92,20 @@ export function checkAppoReport(form, presentKeys, opt = {}) {
   if (hasAny(present, FORMAT_KEYS) && !pick(form, FORMAT_KEYS)) err('format', '実施形式（対面・オンライン）が選ばれていません');
   const online = /オンライン|zoom|meet|teams|web/i.test(pick(form, [...FORMAT_KEYS, 'visitLocation']));
 
-  // メール
+  // メール（2026-10-08 むー様）
+  //   オンライン：URLを送る先として、メールアドレスか携帯番号（ショートメッセージで送れる）のどちらかがあればよい
+  //   対面：どちらも要らない
+  //   携帯番号しか聞けなかったときは、メールの欄に携帯番号を入れてもよい
   if (hasAny(present, EMAIL_KEYS)) {
     const email = pick(form, EMAIL_KEYS).replace(/\s/g, '');
+    const isMobile = (v) => /^0[789]0\d{8}$/.test(String(v || '').replace(/\D/g, ''));
+    const hasMobile = isMobile(email) || PHONE_KEYS.some(k => present.has(k) && isMobile(form[k]));
     if (!email) {
-      if (online) err('email', 'オンライン面談はURLを送るため、メールアドレスが必要です');
-      else warn('email', 'メールアドレスが空欄です。聞けていれば入れてください');
+      if (online && !hasMobile) err('email', 'オンライン面談はURLを送るため、メールアドレスか携帯番号（ショートメッセージで送ります）のどちらかが必要です');
+    } else if (isMobile(email)) {
+      // 携帯番号を入れた：オンラインならショートメッセージで送る。形の検査はしない
     } else if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) {
-      err('email', `メールアドレスの形が正しくありません（${email}）`);
+      err('email', `メールアドレスの形が正しくありません（${email}）。携帯番号しか聞けなかったときは、携帯番号（070・080・090）をそのまま入れてください`);
     } else {
       if (/\.(con|cpm|ocm|co\.j|ne\.j|jo)$/i.test(email) || /docomone|ezwebne|softbankne/i.test(email)) err('email', `メールアドレスの綴りを確かめてください（${email}）`);
       const hp = pick(form, ['hp']);

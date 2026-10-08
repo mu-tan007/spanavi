@@ -41,7 +41,13 @@ describe('アポ取得報告の登録前の検査', () => {
     expect(warns(run({ email: 'taro@other.co.jp' }))).toContain('email');
     expect(warns(run({ email: 'taro@gmail.com' }))).not.toContain('email');
     expect(errs(run({ email: '', meeting_format: 'オンライン' }))).toContain('email');
-    expect(warns(run({ email: '' }))).toContain('email');
+    // 対面はメールも携帯も要らない（2026-10-08 むー様）
+    expect(warns(run({ email: '' }))).not.toContain('email');
+    expect(errs(run({ email: '' }))).not.toContain('email');
+    // オンラインはメールか携帯のどちらかでよい
+    expect(errs(run({ email: '090-1234-5678', meeting_format: 'オンライン' }))).not.toContain('email');
+    expect(errs(run({ email: '', mobile_phone: '08012345678', meeting_format: 'オンライン' }, [...STD, 'mobile_phone']))).not.toContain('email');
+    expect(errs(run({ email: '0544-58-1126', meeting_format: 'オンライン' }))).toContain('email');
   });
   it('金額の単位の重なり・電話番号の桁数・録音なし', () => {
     expect(errs(run({ salesAmount: '5億円円' }))).toContain('money');
