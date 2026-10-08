@@ -81,6 +81,12 @@ export default function OnePageBrief({ m, createdOn }) {
           {b.successor && <div className="ob-box"><h3>後継者</h3><p>{b.successor}</p></div>}
         </div>
       </div>
+      {/* 業界のM&Aの動き（企業DBで集めたニュース・2026-10-08） */}
+      {(m.industryNews || []).length > 0 && (
+        <div className="ob-box ob-news"><h3>業界のM&Aの動き</h3>
+          <ul>{m.industryNews.map((n, i) => <li key={i}>{n.title}{n.date ? <small>（{String(n.date).slice(0, 7).replace('-', '/')}{n.source ? ` ・ ${String(n.source).replace(/\s*\(.*\)$/, '')}` : ''}）</small> : null}</li>)}</ul>
+        </div>
+      )}
       <div className="ob-foot">
         <span>出典：東京商工リサーチ（弊社の企業DB）・会社HPなどの公開情報・通話録音<br />{createdOn} 作成{m.getter ? ` ・ 取得 ${m.getter.split(/\s/)[0]}` : ''}</span>
         <SpartiaLogo />

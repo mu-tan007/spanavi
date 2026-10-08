@@ -88,7 +88,7 @@ export function briefModel(appo, dossier) {
     strengths: Array.isArray(c.strengths) ? c.strengths.slice(0, 4) : [],
     history: Array.isArray(c.history) ? c.history.slice(0, 5) : [],
     // 業界のM&Aの動き（企業DBで集めたニュース）
-    industryNews: Array.isArray(c.industry_ma_news) ? c.industry_ma_news.filter(n => n?.title).slice(0, 2) : [],
+    industryNews: Array.isArray(c.industry_ma_news) ? c.industry_ma_news.filter(n => n?.title).slice(0, 3) : [],
     personality: c.masp_memo?.personality || '',
     // 録音から読み取ったM&Aへの向き合い方（2026-10-08 むー様：お人柄・面談経験は報告に残す）
     meetingExp: c.masp_memo?.meeting_exp || '',
@@ -158,7 +158,7 @@ export function buildNewReportText(m, { phone = '', email = '' } = {}) {
   if (m.industryNews.length) {
     lines.push('');
     lines.push('■ 業界のM&Aの動き');
-    for (const n of m.industryNews) lines.push(`・${n.title}${n.date ? `（${String(n.date).slice(0, 7).replace('-', '/')}）` : ''}`);
+    for (const n of m.industryNews.slice(0, 2)) lines.push(`・${n.title}${n.date ? `（${String(n.date).slice(0, 7).replace('-', '/')}）` : ''}`);
   }
   lines.push('');
   lines.push('■ 面談');
