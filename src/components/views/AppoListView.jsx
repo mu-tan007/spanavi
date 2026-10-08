@@ -27,6 +27,7 @@ import { useSearchParams } from 'react-router-dom';
 import { resolveClient, findClientByName } from '../../utils/listContacts';
 import AppoOverview from './appoList/AppoOverview';
 import ClientRelayCard from './appoList/ClientRelayCard';
+import AppoTimeline from './appoList/AppoTimeline';
 import ReceptionHistory from '../common/ReceptionHistory';
 import { todayJst, isStale, staleFirst, TODO_RULES } from '../../utils/appoOverview';
 
@@ -628,7 +629,7 @@ function ClientRequestsBox({ appo, onSaved }) {
   );
 }
 
-/** 事前確認で先方に伝えること。架電ページの事前確認と朝の通知に出て、伝えたら印が付く */
+/** クライアントからの依頼（事前確認で先方に伝えること）。架電ページの事前確認と朝の通知に出て、伝えたら印が付く */
 function PrecheckTellBox({ appo, onSaved }) {
   const [text, setText] = useState(appo.precheckTell || '');
   const [saving, setSaving] = useState(false);
@@ -644,7 +645,7 @@ function PrecheckTellBox({ appo, onSaved }) {
   return (
     <div className="v2-card" style={{ padding: `${space[2.5]}px ${space[3]}px`, marginBottom: space[3] }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[1] }}>
-        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>事前確認で先方に伝えること</span>
+        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>クライアントからの依頼（事前確認で先方に伝えること）</span>
         {appo.precheckTell && (appo.precheckTellDoneAt
           ? <Badge size="sm" variant="success" dot>伝えました</Badge>
           : <Badge size="sm" variant="warn" dot>まだ</Badge>)}
@@ -3327,6 +3328,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   </>
                 );
               })()}
+              {/* ── このアポの経緯（インターンも見られる・2026-10-08） ── */}
+              <AppoTimeline key={`tl-${reportDetail._supaId}`} appo={reportDetail} />
               {/* ── 報告の「ご依頼」（先方からの依頼・イレギュラー・2026-10-08） ── */}
               {isAdmin && (
                 <ClientRequestsBox key={`req-${reportDetail._supaId}`} appo={reportDetail} onSaved={(text) => {

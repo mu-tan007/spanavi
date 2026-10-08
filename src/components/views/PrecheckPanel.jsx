@@ -94,7 +94,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
     if (!result) { setError('結果を選んでください'); return; }
     if (['リスケ', 'キャンセル'].includes(result) && !memo.trim()) { setError('リスケ・キャンセルは先方のご事情をメモに書いてください（報告の文面に使います）'); return; }
     if (result === 'キャンセル' && !cancelType) { setError('キャンセルは「先方都合」か「クライアント都合」かを選んでください'); return; }
-    if (result === '確認完了' && tellPending && !told) { setError('「先方に伝えること」を伝えたら、チェックを入れてください'); return; }
+    if (result === '確認完了' && tellPending && !told) { setError('「クライアントからの依頼」を先方に伝えたら、チェックを入れてください'); return; }
     setSaving(true); setError(''); setSavedMsg('');
     try {
       onBeforeSave?.();
@@ -186,7 +186,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
       {(appo.precheck_tell || '').trim() && (
         <div style={{ padding: space[2], marginBottom: space[2], borderRadius: radius.md, background: appo.precheck_tell_done_at ? color.gray50 : color.warnSoft, border: `1px solid ${appo.precheck_tell_done_at ? color.borderLight : color.warn}` }}>
           <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[0.5] }}>
-            先方に伝えること{appo.precheck_tell_done_at ? '（伝えました）' : '（クライアント様からのご依頼）'}
+            クライアントからの依頼{appo.precheck_tell_done_at ? '（先方に伝えました）' : '（先方に伝えてください）'}
           </div>
           <div style={{ fontSize: font.size.sm, color: color.textDark, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{appo.precheck_tell}</div>
           {!appo.precheck_tell_done_at && (

@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
           const clientName = clientMap[a.client_id] || 'クライアント不明'
           sections.push(`・${a.company_name} / アポ取得者：${getterLabel(a.getter_name)} / クライアント：${clientName} / <${SPANAVI_URL}/?precheck=${a.id}|架電ページで開く>`)
           if (a.precheck_tell && (a.precheck_tell as string).trim()) {
-            sections.push(`　*先方に伝えること*：${(a.precheck_tell as string).trim()}`)
+            sections.push(`　*クライアントからの依頼*：${(a.precheck_tell as string).trim().split(/\r?\n/).join(' ／ ')}`)
           }
           if (a.notes && (a.notes as string).trim()) {
             sections.push(`　備考：${(a.notes as string).trim()}`)
