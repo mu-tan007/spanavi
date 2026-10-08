@@ -128,6 +128,66 @@ export function MemberSuggestInput({ value, onChange, members = [], style, place
   );
 }
 
+/**
+ * クライアントに送るアポ取得報告の本文（2026-10-07 むー様決定）。送信画面と詳細の表示で同じものを使う。
+ *   ・先方独自の書式（ブティックス様など）があれば、インターンが登録した報告のまま
+ *   ・無ければ、AI企業分析を使った新しい形
+ */
+async function clientReportFor(appo) {
+  const raw = appo.appoReport || '';
+  const legacy = raw.split('\n').filter(line => !line.startsWith('当社売上：')).join('\n');
+  const pickLine = (label) => {
+    const line = raw.split('\n').find(l => l.replace(/^[\s　・]+/, '').startsWith(label));
+    return line ? line.replace(/^[\s　・]+/, '').slice(label.length).replace(/^[：:\s　]+/, '').trim() : '';
+  };
+  let dossier = null;
+  let custom = false;
+  try {
+    const [{ data: d }, { data: tpls }] = await Promise.all([
+      appo._supaId ? fetchDossierByAppointment(appo._supaId) : Promise.resolve({ data: null }),
+      fetchReportTemplates(),
+    ]);
+    dossier = d || null;
+    custom = (tpls || []).some(t => (t.scope_level === 'client' || t.scope_level === 'list') && t.client_id && t.client_id === appo.client_id);
+  } catch (e) { console.warn('[clientReportFor] 要点の読込に失敗:', e); }
+  const m = briefModel(appo, dossier);
+  let report = legacy;
+  let isNew = false;
+  if (!custom && m.brief) {
+    report = buildNewReportText(m, { phone: pickLine('電話番号'), email: pickLine('メール') });
+    const rec = pickLine('録音URL');
+    if (rec) report += `\n録音：${rec}`;
+    isNew = true;
+  }
+  return { report, m, hasDossier: !!dossier, isNew };
+}
+
+/** 詳細のアポ取得報告の欄：送る文面（新しい形）を出す。元の報告は折りたたみで見られる */
+function ClientReportView({ appo }) {
+  const [view, setView] = useState(null);
+  const [showRaw, setShowRaw] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setView(null);
+    clientReportFor(appo).then(v => { if (alive) setView(v); });
+    return () => { alive = false; };
+  }, [appo._supaId, appo.appoReport]);
+  const text = view ? view.report : appo.appoReport;
+  return (
+    <>
+      <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{text}</div>
+      {view?.isNew && (
+        <div style={{ marginTop: space[2] }}>
+          <Button variant="ghost" size="sm" onClick={() => setShowRaw(v => !v)}>{showRaw ? 'インターンが登録した元の報告を閉じる' : 'インターンが登録した元の報告を見る'}</Button>
+          {showRaw && (
+            <div style={{ marginTop: space[1], padding: space[2], borderRadius: radius.md, background: color.gray50, fontSize: font.size.xs, color: color.textMid, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{appo.appoReport}</div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, onStatusUpdate, autoCompose = false }) {
   const [emailStep, setEmailStep] = React.useState('idle'); // 'idle' | 'compose' | 'sending' | 'sent' | 'error'
   const [emailTo, setEmailTo] = React.useState('');
@@ -167,42 +227,10 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     return opts;
   }, [cl, contactsByClient]);
 
-  // appoReportから「当社売上」行を除外したレポートテキスト
-  const buildReportText = () => {
-    return (appo.appoReport || '').split('\n').filter(line => !line.startsWith('当社売上：')).join('\n');
-  };
-
-  // 新しい形の報告と面談前の1枚資料（2026-10-07 むー様決定）。
-  //   ・本文：先方独自の書式（ブティックス様など）があればそれのまま、無ければ新しい形
-  //   ・1枚資料：AI企業分析があれば全クライアントにPDFで添付
+  // 新しい形の報告と面談前の1枚資料（2026-10-07 むー様決定）。組み立ては clientReportFor（詳細の表示と共通）
   const [briefState, setBriefState] = React.useState('idle'); // 'idle' | 'making' | 'attached' | 'none' | 'error'
   const [briefUrl, setBriefUrl] = React.useState('');
-  const pickLine = (label) => {
-    const line = (appo.appoReport || '').split('\n').find(l => l.replace(/^[\s　・]+/, '').startsWith(label));
-    return line ? line.replace(/^[\s　・]+/, '').slice(label.length).replace(/^[：:\s　]+/, '').trim() : '';
-  };
-  const buildBodyReport = async () => {
-    const legacy = buildReportText();
-    let dossier = null;
-    let custom = false;
-    try {
-      const [{ data: d }, { data: tpls }] = await Promise.all([
-        appo._supaId ? fetchDossierByAppointment(appo._supaId) : Promise.resolve({ data: null }),
-        fetchReportTemplates(),
-      ]);
-      dossier = d || null;
-      custom = (tpls || []).some(t => (t.scope_level === 'client' || t.scope_level === 'list') && t.client_id && t.client_id === appo.client_id);
-    } catch (e) { console.warn('[EmailApprovalSection] 要点の読込に失敗:', e); }
-    const m = briefModel(appo, dossier);
-    let report = legacy;
-    if (!custom && m.brief) {
-      report = buildNewReportText(m, { phone: pickLine('電話番号'), email: pickLine('メール') });
-      const rec = pickLine('録音URL');
-      if (rec) report += `
-録音：${rec}`;
-    }
-    return { report, m, hasDossier: !!dossier };
-  };
+  const buildBodyReport = () => clientReportFor(appo);
   const attachBrief = async (m) => {
     setBriefState('making');
     try {
@@ -3271,7 +3299,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
               </div>
               {/* ── アポ取得報告 ── */}
               <div style={{ padding: "10px 14px", borderRadius: 10, background: '#fff', border: '1px solid #E3E6EB', borderLeft: `3px solid ${color.navy}`, marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6 }}>アポ取得報告</div>
+                <div style={{ fontSize: 10, fontWeight: font.weight.bold, color: color.navy, marginBottom: 6 }}>{detailEditing ? 'アポ取得報告（インターンが登録した元の報告を直す・送る文面はここから作られます）' : 'アポ取得報告（クライアントに送る文面）'}</div>
                 {detailEditing ? (
                   <textarea
                     value={detailEditForm.appoReport || ''}
@@ -3282,7 +3310,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                       outline: "none", background: color.white, color: color.textDark, boxSizing: "border-box" }}
                   />
                 ) : reportDetail.appoReport ? (
-                  <div style={{ fontSize: font.size.xs, color: color.textDark, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{reportDetail.appoReport}</div>
+                  <ClientReportView appo={reportDetail} />
                 ) : (
                   <div style={{ fontSize: font.size.xs, color: color.textLight, textAlign: "center", padding: "8px 0" }}>
                     アポ取得報告はまだ登録されていません
