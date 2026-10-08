@@ -1,3 +1,4 @@
+import IndustryHours from './IndustryHours';
 import React, { useState, useEffect, useRef } from "react";
 import { C } from '../../constants/colors';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
@@ -23,7 +24,6 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
   const { statuses: callStatuses } = useCallStatuses();
   if (!list) return null;
   const cat = getIndustryCategory(list.industry);
-  const rule = industryRules.find(r => r.industry === cat);
 
   const isOutsideHours = list.recommendation?.isOutsideHours;
 
@@ -229,27 +229,8 @@ export default function DetailModal({ list, onClose, industryRules, now, callLis
           </div>
         </div>
 
-        {/* (c) 業界架電ルール */}
-        {rule && (
-          <div style={{ padding: `${space[3]}px ${space[4]}px`, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}`, marginBottom: space[4] }}>
-            <div style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy, marginBottom: space[1.5] }}>{cat}の架電ルール</div>
-            <div style={{ fontSize: font.size.sm, fontWeight: font.weight.medium, marginBottom: space[2], color: color.textDark }}>{rule.rule}</div>
-            <div style={{ display: "flex", gap: space[4], fontSize: font.size.xs, marginBottom: space[2] }}>
-              {rule.goodHours && <div><span style={{ color: color.textLight }}>推奨: </span><span style={{ color: color.navy, fontWeight: font.weight.semibold }}>{rule.goodHours}</span></div>}
-              {rule.badHours && <div><span style={{ color: color.textLight }}>非推奨: </span><span style={{ color: color.danger }}>{rule.badHours}</span></div>}
-            </div>
-            <div style={{ display: "flex", gap: 3 }}>
-              {DAY_NAMES.map((d, i) => (
-                <span key={i} style={{
-                  padding: "2px 8px", borderRadius: radius.sm, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold,
-                  background: rule.badDays.includes(i) ? alpha(color.danger, 0.08) : rule.goodDays.includes(i) ? alpha('#1E40AF', 0.10) : color.offWhite,
-                  color: rule.badDays.includes(i) ? color.danger : rule.goodDays.includes(i) ? color.navy : color.textLight,
-                  border: `1px solid ${rule.badDays.includes(i) ? alpha(color.danger, 0.18) : rule.goodDays.includes(i) ? alpha('#1E40AF', 0.25) : color.border}`,
-                }}>{d}</span>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* (c) つながりやすい時間：手で書いた業種の架電ルールの代わりに、全架電の実績（業種×時間帯のキーマン接続率）を出す（2026-10-09） */}
+        <IndustryHours listSupaId={list._supaId} />
 
         {list.notes && (
           <div style={{ padding: `${space[2.5]}px ${space[3] + 2}px`, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}`, fontSize: font.size.sm, color: color.textMid, marginBottom: space[3] }}>
