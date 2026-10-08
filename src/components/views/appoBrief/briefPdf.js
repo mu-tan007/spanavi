@@ -33,8 +33,10 @@ export async function renderBriefPdf(m) {
     const el = container.querySelector('.ob-page');
     // html2canvas は「palt」（括弧や・を詰める組み方）に対応しておらず、詰めて測った幅に詰めずに描くので文字が重なる。
     // PDF にするときだけ詰めを外す（2026-10-08 笠井畜産の1枚資料で重なり）
-    el.style.fontFeatureSettings = 'normal';
-    container.querySelectorAll('*').forEach(n => { n.style.fontFeatureSettings = 'normal'; });
+    // Chrome は続いた約物（」「・、「 など）を自動で詰める（text-spacing-trim）。これも html2canvas は再現できず括弧が欠けるので外す
+    const plain = (n) => { n.style.fontFeatureSettings = 'normal'; n.style.setProperty('text-spacing-trim', 'space-all'); };
+    plain(el);
+    container.querySelectorAll('*').forEach(plain);
     await new Promise(resolve => setTimeout(resolve, 50));
     const { default: html2canvas } = await import('html2canvas');
     const { jsPDF } = await import('jspdf');
