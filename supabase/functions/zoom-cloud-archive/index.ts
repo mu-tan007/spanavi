@@ -291,8 +291,10 @@ async function copy(limitMeetings: number, budgetMs: number) {
 }
 
 // 会議ごとに、全ファイルが R2 にあり大きさが一致することを**その場で確かめてから**ゴミ箱へ送る。
-async function trash(limitMeetings: number, dryRun: boolean, hostEmail: string | null) {
-  const filter = hostEmail ? `&host_email=eq.${encodeURIComponent(hostEmail)}` : '';
+async function trash(limitMeetings: number, dryRun: boolean, hostEmail: string | null, minAgeDays = 0) {
+  let filter = hostEmail ? `&host_email=eq.${encodeURIComponent(hostEmail)}` : '';
+  // 新しい録画はしばらくZoomにも残す（Slackに貼ったZoomのリンクがすぐ切れないように）。
+  if (minAgeDays > 0) filter += `&start_time=lt.${new Date(Date.now() - minAgeDays * 86400_000).toISOString()}`;
   const rows = await db(
     `zoom_cloud_recordings?select=*&zoom_trashed_at=is.null${filter}&order=start_time.asc&limit=5000`,
   ) as Row[];
@@ -365,6 +367,20 @@ Deno.serve(async (req) => {
       return reply(await trash(Number(body.limit ?? 20), body.dryRun !== false, body.host ?? null));
     }
     if (action === 'stats') return reply(await stats());
+    if (action === 'auto') {
+      // 毎時の自動実行（pg_cron）。新しい録画を記録→R2へ移す→14日より前のものだけZoomのゴミ箱へ。
+      // ⚠️ Zoomの容量はアカウント全体で40GB。鍛冶さんだけで月10GB前後増えるので、14日なら十分収まる。
+      // ⚠️ 呼び出し側は150秒で切れる（IDLE_TIMEOUT）。すぐ返事をして、処理は裏で続ける。
+      const job = (async () => {
+        const scanned = await scan(1);
+        const copied = await copy(20, 150_000);
+        const trashed = await trash(100, false, null, 14);
+        console.log('[zoom-cloud-archive] auto', JSON.stringify({ scanned, copied, trashed }).slice(0, 1500));
+      })().catch((e) => console.error('[zoom-cloud-archive] auto 失敗', String(e)));
+      // deno-lint-ignore no-explicit-any
+      (globalThis as any).EdgeRuntime?.waitUntil(job);
+      return reply({ ok: true, started: true }, 202);
+    }
     if (action === 'bucket') {
       // 置き場が無ければ作り、自動削除の規則が付いていないかを実体のGET応答ヘッダで確かめる。
       const created = await r2CreateBucket();
