@@ -536,6 +536,16 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
     (allEngagements || []).forEach(e => { map[e.id] = e.category_id; });
     return map;
   }, [allEngagements]);
+  // 絞り込みのボタンは、アーカイブしていないリストがある商材・タイプだけ出す（2026-10-08 むー様）
+  // （リストを作るときの選択肢は今までどおり全部出す）
+  const activeEngagementIds = useMemo(
+    () => new Set((callListData || []).filter(l => !l.is_archived && l.engagement_id).map(l => l.engagement_id)),
+    [callListData]
+  );
+  const filterCategories = useMemo(
+    () => selectableCategories.filter(c => [...activeEngagementIds].some(id => engagementToCategoryId[id] === c.id)),
+    [selectableCategories, activeEngagementIds, engagementToCategoryId]
+  );
   // トップタブ: 'lists' = 既存のリスト一覧 / 'smart_queue' = スマートキュー（リスト跨ぎ横断）
   // URLに保持してハードリロード/共有/戻る進むでも保持。プレフィックス lv_ で他画面と衝突回避。
   const [viewMode, setViewMode] = useUrlState('lv_view', 'lists', { allowed: ['lists', 'smart_queue'] });
@@ -906,14 +916,14 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         // 選択中商材配下のタイプ
         const typesForCategory = categoryFilter === 'all'
           ? []
-          : salesAgencyEngagements.filter(e => e.category_id === categoryFilter);
+          : salesAgencyEngagements.filter(e => e.category_id === categoryFilter && activeEngagementIds.has(e.id));
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginBottom: space[3] }}>
             {/* Row 1: 商材セレクタ */}
             <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>商材:</span>
               <button onClick={() => { setCategoryFilter('all'); setDisplayFilter('all'); }} style={pillStyle(categoryFilter === 'all')}>全商材</button>
-              {selectableCategories.map(c => (
+              {filterCategories.map(c => (
                 <button key={c.id} onClick={() => setCategoryFilter(c.id)} style={pillStyle(categoryFilter === c.id)}>{c.name}</button>
               ))}
             </div>
