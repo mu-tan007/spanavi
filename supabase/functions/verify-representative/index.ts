@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const corp = String(item.corporate_number || '').replace(/\D/g, '')
     if (corp.length !== 13) return json({ skipped: '法人番号がありません' })
 
-    const res = await fetch(`https://info.gbiz.go.jp/hojin/v2/hojin/${corp}`, { headers: { 'X-hojinInfo-api-token': token, Accept: 'application/json' } })
+    const res = await fetch(`https://api.info.gbiz.go.jp/hojin/v2/hojin/${corp}`, { headers: { 'X-hojinInfo-api-token': token, Accept: 'application/json' } })
     if (!res.ok) return json({ error: `gBizINFO ${res.status}` }, 502)
     const data = await res.json()
     const info = (data['hojin-infos'] || [])[0] || {}
