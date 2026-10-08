@@ -62,9 +62,10 @@ export default function ZoomWindowGuardMacRow() {
             Hammerspoon（無料）も一緒に入ります。<br />
             電話をかけた直後に出た画面だけをしまいます。<br />
             着信の知らせとミーティングの画面はしまいません。<br />
-            DockのZoomを押せば、しまった画面を開けます。<br />
+            DockのZoomを押せば、隠したZoomを開けます。<br />
             Control＋Option＋Z で一時停止と再開ができます。<br />
-            新しい版も、同じ1行で入れ替わります。
+            新しい版も、同じ1行で入れ替わります。<br />
+            効かないときは、右上の「Z」→「記録をコピー」で記録をSlackに貼ってください。
           </div>
         </div>
       )}
