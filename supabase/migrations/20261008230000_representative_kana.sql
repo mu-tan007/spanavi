@@ -16,3 +16,6 @@ select cron.schedule('name-kana', '*/5 * * * *', $$
     headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-token', (select token from public.internal_cron_tokens where name = 'name-kana')),
     body := '{"limit":2000}'::jsonb, timeout_milliseconds := 150000);
 $$);
+
+-- 確かめた結果、リストと違う現在の代表者名（gBizINFOなど）
+alter table public.call_list_items add column if not exists representative_current text;

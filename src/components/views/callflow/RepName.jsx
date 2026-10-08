@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { color, font, radius, space } from '../../../constants/design';
 import { supabase } from '../../../lib/supabase';
 
@@ -13,6 +13,25 @@ export default function RepName({ row, compact = false }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  // 社長名を国の法人情報（gBizINFO）で確かめる。180日以内に確かめていれば、前の結果をそのまま使う
+  const [current, setCurrent] = useState(row?.representative_current || '');
+  useEffect(() => {
+    if (compact || !row?.id || !row?.corporate_number) return;
+    let alive = true;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-representative`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token || ''}` },
+          body: JSON.stringify({ item_id: row.id }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (alive && 'current' in j) setCurrent(j.current || '');
+      } catch { /* 確かめられなくても名前はそのまま出す */ }
+    })();
+    return () => { alive = false; };
+  }, [row?.id, compact]);
   if (!row?.representative) return null;
 
   const save = async () => {
@@ -37,6 +56,12 @@ export default function RepName({ row, compact = false }) {
 
   return (
     <span style={{ display: 'inline-flex', alignItems: 'flex-end', gap: space[1.5], flexWrap: 'wrap' }}>
+      {current && (
+        <span title="国の法人情報（gBizINFO）に載っている現在の代表者です。リストの名前と違うので、退任している可能性があります"
+          style={{ fontSize: font.size.xs, color: color.danger, fontWeight: font.weight.bold, width: '100%' }}>
+          現在の代表：{current} 様（国の法人情報）
+        </span>
+      )}
       {ruby}
       {kana && source !== 'confirmed' && (
         <span title="AIが推定した読みです。電話で確かめたら直してください" style={{ fontSize: 9, color: color.textLight, border: `1px solid ${color.borderLight}`, borderRadius: radius.sm, padding: '0 4px', lineHeight: '14px' }}>推定</span>
