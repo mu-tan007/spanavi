@@ -335,6 +335,7 @@ export function useSpanaviData(authOrgId) {
         cancelReason: a.cancel_reason || '',
         cancelType: a.cancel_type || '',
         precheckTell: a.precheck_tell || '',
+        clientRequests: a.client_requests || '',
         precheckTellDoneAt: a.precheck_tell_done_at || null,
         apoCalEventId: a.apo_cal_event_id || null,
         apoCalError: a.apo_cal_error || null,

@@ -26,6 +26,16 @@ describe('アポ報告の新しい形と1枚資料の値', () => {
     expect(t).toContain('面談前の1枚資料を添付しております。');
     expect(t).not.toContain('後継者');
   });
+  it('ご依頼：無ければ「なし」、オンラインはURL送付の依頼、手で書いた内容はAIより優先', () => {
+    const base = { company: 'A社', client: 'B社', meetDate: '2026-10-20', meetTime: '10:00', appoReport: '' };
+    const dos = (requests) => ({ content: { brief: { one_liner: 'x', temperature: 3, quotes: [], questions: [], requests } } });
+    expect(buildNewReportText(briefModel(base, dos([])))).toContain('■ ご依頼\nなし');
+    expect(buildNewReportText(briefModel(base, dos(['面談前に会社概要をメールでお送りください'])))).toContain('■ ご依頼\n・面談前に会社概要をメールでお送りください');
+    const online = buildNewReportText(briefModel({ ...base, isOnline: true }, dos([])), { email: 'ceo@example.co.jp' });
+    expect(online).toContain('・オンライン面談のため、面談のURLを貴社ご担当者様より先方へ事前にお送りいただけますでしょうか（送付先：ceo@example.co.jp）');
+    expect(buildNewReportText(briefModel({ ...base, clientRequests: 'なし' }, dos(['AIの拾ったもの'])))).toContain('■ ご依頼\nなし');
+    expect(buildNewReportText(briefModel({ ...base, clientRequests: '駐車場は2台分あります' }, dos(['AIの拾ったもの'])))).toContain('・駐車場は2台分あります');
+  });
   it('アポ報告の【ヒアリング】の段を本文に載せる', () => {
     const m = briefModel({ company: 'A社', client: 'B社', meetDate: '2026-10-20', appoReport: '…\n　・アポ取得者→山田\n【ヒアリング】\n売上高：3.5億円\n従業員数：12人' }, { content: { brief: { one_liner: 'x', temperature: 3, quotes: [], questions: [] } } });
     expect(m.hearing).toEqual(['売上高：3.5億円', '従業員数：12人']);

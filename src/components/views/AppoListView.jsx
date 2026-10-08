@@ -13,7 +13,7 @@ import { calcRankAndRate } from '../../utils/calculations';
 import { applyTaxIfPretax, calcInvoiceTax, calcInternReward, salesAmountOf } from '../../utils/money';
 import { cumulativeSalesDelta } from '../../utils/cumulativeSales';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel, MAX_MAIL_ATTACHMENT_BYTES, updatePrecheckTell, invokeSlackAppoThread } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel, MAX_MAIL_ATTACHMENT_BYTES, updatePrecheckTell, updateClientRequests, invokeSlackAppoThread } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -171,7 +171,7 @@ function ClientReportView({ appo }) {
     setView(null);
     clientReportFor(appo).then(v => { if (alive) setView(v); });
     return () => { alive = false; };
-  }, [appo._supaId, appo.appoReport]);
+  }, [appo._supaId, appo.appoReport, appo.clientRequests]);
   const text = view ? view.report : appo.appoReport;
   return (
     <>
@@ -580,6 +580,39 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
               {emailStep === 'sending' ? '送信中...' : `${channelLabel}で送信`}
             </Button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 報告の「ご依頼」。空ならAIが録音から拾ったものを使う。依頼が無いと確かめたら「なし」 */
+function ClientRequestsBox({ appo, onSaved }) {
+  const [text, setText] = useState(appo.clientRequests || '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const dirty = text.trim() !== (appo.clientRequests || '').trim();
+  const save = async () => {
+    setSaving(true); setErr('');
+    const error = await updateClientRequests(appo._supaId, text);
+    setSaving(false);
+    if (error) { setErr('保存できませんでした：' + (error.message || '')); return; }
+    onSaved(text.trim());
+  };
+  return (
+    <div className="v2-card" style={{ padding: `${space[2.5]}px ${space[3]}px`, marginBottom: space[3] }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[1] }}>
+        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>報告の「ご依頼」</span>
+        <span style={{ fontSize: font.size.xs, color: color.textLight }}>空欄なら録音から拾った内容 ・ オンラインはURL送付の依頼が自動で入る</span>
+      </div>
+      <textarea value={text} onChange={e => setText(e.target.value)} rows={2}
+        placeholder="例：面談前に貴社の会社概要をメールでお送りいただけますでしょうか（依頼がなければ「なし」）"
+        style={{ width: '100%', boxSizing: 'border-box', padding: space[2], resize: 'vertical', fontSize: font.size.sm,
+          fontFamily: font.family.sans, color: color.textDark, border: `1px solid ${color.border}`, borderRadius: radius.md, outline: 'none' }} />
+      {(dirty || err) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginTop: space[1] }}>
+          {err && <span style={{ fontSize: font.size.xs, color: color.danger }}>{err}</span>}
+          <Button size="sm" variant="primary" loading={saving} onClick={save} style={{ marginLeft: 'auto' }}>保存</Button>
         </div>
       )}
     </div>
@@ -3282,6 +3315,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   </>
                 );
               })()}
+              {/* ── 報告の「ご依頼」（先方からの依頼・イレギュラー・2026-10-08） ── */}
+              {isAdmin && (
+                <ClientRequestsBox key={`req-${reportDetail._supaId}`} appo={reportDetail} onSaved={(text) => {
+                  const patch = { clientRequests: text };
+                  setReportDetail(d => ({ ...d, ...patch }));
+                  if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === reportDetail._supaId ? { ...a, ...patch } : a));
+                }} />
+              )}
               {/* ── 事前確認で先方に伝えること（クライアント様からの依頼・2026-10-08） ── */}
               {isAdmin && (
                 <PrecheckTellBox key={reportDetail._supaId} appo={reportDetail} onSaved={(text) => {

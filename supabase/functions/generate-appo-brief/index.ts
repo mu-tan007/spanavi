@@ -20,6 +20,7 @@ type Brief = {
   quotes: Array<{ text: string; context: string; source: 'transcript' | 'report' }>
   questions: string[]
   cautions: string[]
+  requests: string[]
   successor: string
   generated_at: string
 }
@@ -65,10 +66,12 @@ ${JSON.stringify({ business: input.dossier.business, strengths: input.dossier.st
  "temperature_label":"温度感を6字以内の言葉で（例：前向き・条件次第・様子見）",
  "quotes":[{"text":"社長の発言","context":"どんな質問への答えか（15字以内）"}],
  "cautions":["面談で気をつけること（0〜2個・各30字以内）"],
+ "requests":["クライアント（M&A仲介会社）へのお願い。0〜3個・各60字以内。無ければ空の配列"],
  "successor":"あり・なし・未確認 のどれか"}
 
 # 決まり
 - quotes は${input.transcript ? '書き起こしにある社長の発言を**一字一句そのまま**抜き出す。言い換え・要約・つなぎ合わせは禁止。こちら（インターン）の発言は入れない。2〜3個' : 'アポ取得報告の『』の中の言葉だけを使う。無ければ空の配列'}
+- requests は、社長から頼まれたこと（例：面談前に会社概要をメールで送ってほしい、来社時は電話してほしい、同席者がいる、駐車場の案内）と、面談の段取りのイレギュラー（例：日程が仮決め、代表以外が対応、時間が短い）だけ。クライアントへのお願いの文（「〜をお願いいたします」「〜とのことです」）で書く。オンライン面談のURLの送付は別で書くので入れない。無ければ空の配列
 - 書き起こしやメモに無いことは書かない。推測で埋めない
 - 「弊社」「当社」などの主語は使わない。敬語は不要。体言止めでよい`
 }
@@ -122,6 +125,7 @@ async function buildOne(appointmentId: string, force = false): Promise<{ id: str
     // 「面談で聞くとよいこと」は作らない（2026-10-08 むー様：クライアントに釈迦に説法）
     questions: [],
     cautions: (Array.isArray(raw.cautions) ? raw.cautions : []).map(String).slice(0, 2),
+    requests: (Array.isArray(raw.requests) ? raw.requests : []).map(String).filter(s => s.trim()).slice(0, 3),
     successor: ['あり', 'なし', '未確認'].includes(String(raw.successor)) ? String(raw.successor) : '未確認',
     generated_at: new Date().toISOString(),
   }

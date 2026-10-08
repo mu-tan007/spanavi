@@ -94,10 +94,20 @@ export function briefModel(appo, dossier) {
     meetingExp: c.masp_memo?.meeting_exp || '',
     futureConsider: c.masp_memo?.future_consider || '',
     brief: b,
+    // ご依頼（2026-10-08 むー様）：アポ一覧で書いた内容があればそれ（「なし」も含む）、無ければ録音からAIが拾ったもの
+    isOnline: !!appo.isOnline,
+    requests: requestLines(appo.clientRequests, b?.requests),
     getter: appo.getter || '',
     // クライアントごとの「聞くこと」（アポ報告の最後の【ヒアリング】の段）
     hearing: ((String(appo.appoReport || '').split('【ヒアリング】')[1] || '').split(/\r?\n/).map(l => l.trim()).filter(l => l && /[：:]/.test(l))),
   };
+}
+
+/** ご依頼の行。手で書いた内容（改行区切り・「なし」なら空）を優先し、無ければ AI の拾ったもの */
+export function requestLines(manual, ai) {
+  const m = String(manual || '').trim();
+  if (m) return /^なし$/.test(m) ? [] : m.split(/\r?\n/).map(l => l.replace(/^[・\-\s　]+/, '').trim()).filter(Boolean);
+  return (Array.isArray(ai) ? ai : []).map(x => String(x || '').trim()).filter(Boolean).slice(0, 3);
 }
 
 /** 長い文を、最初の n 文（かつ max 字まで）に縮める */
@@ -119,6 +129,7 @@ export function firstSentences(text, n = 1, max = 90) {
  * 長い所見は最初の1〜2文に縮める（全文は1枚資料と録音で）。
  */
 export function buildNewReportText(m, { phone = '', email = '' } = {}) {
+  // 面談 → ご依頼 → 社長との会話 → …（ご依頼は先方への対応が要るので面談のすぐ下）
   const b = m.brief;
   const L = [];
   const sec = (t) => { L.push(''); L.push(`■ ${t}`); };
@@ -130,6 +141,14 @@ export function buildNewReportText(m, { phone = '', email = '' } = {}) {
   if (m.address) L.push(`場所　${m.address}${m.travel ? `（東京から${m.travel.replace(/^東京から/, '').replace(/[（(](.+?)[)）]/, '・$1')}）` : ''}`);
   if (m.rep) L.push(`お相手　${m.rep} 様${m.repAge ? `（${m.repAge}歳）` : ''}`);
   if (phone || email) L.push(`連絡先　${[phone, email || 'メール未取得'].filter(Boolean).join(' ／ ')}`);
+
+  // ご依頼：先方（社長）からの依頼・オンライン面談のURLの送付・イレギュラー。無ければ「なし」（2026-10-08 むー様）
+  sec('ご依頼');
+  const reqs = [];
+  if (m.isOnline) reqs.push(`オンライン面談のため、面談のURLを貴社ご担当者様より先方へ事前にお送りいただけますでしょうか${email ? `（送付先：${email}）` : ''}`);
+  for (const r of m.requests || []) reqs.push(r);
+  if (reqs.length) for (const r of reqs) L.push(`・${r}`);
+  else L.push('なし');
 
   if (b?.one_liner || b?.quotes?.length || m.personality || m.meetingExp || m.futureConsider) {
     sec(`社長との会話${b?.temperature ? `（温度感 ${'●'.repeat(b.temperature)}${'○'.repeat(5 - b.temperature)} ${b.temperature_label || ''}）` : ''}`);

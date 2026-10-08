@@ -5631,6 +5631,13 @@ export async function markPrecheckTellDone(appointmentId) {
   return error
 }
 
+/** アポ一覧で、報告の「ご依頼」を書く（空なら録音からAIが拾ったもの・「なし」も書ける） */
+export async function updateClientRequests(appointmentId, text) {
+  const { error } = await supabase.from('appointments').update({ client_requests: text?.trim() || null }).eq('id', appointmentId)
+  if (error) console.error('[DB] updateClientRequests error:', error)
+  return error
+}
+
 /** アポ一覧で、事前確認で先方に伝えることを書く。書き直したら「伝えた」は外す */
 export async function updatePrecheckTell(appointmentId, text) {
   const { error } = await supabase.from('appointments').update({ precheck_tell: text?.trim() || null, precheck_tell_done_at: null }).eq('id', appointmentId)
