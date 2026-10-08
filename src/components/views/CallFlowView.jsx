@@ -35,6 +35,7 @@ import { resolveListContacts, resolveListClient, tagAppointmentContacts } from '
 import { initialAppoStatus } from '../../utils/appoStatus';
 import { useAccessControl } from '../../hooks/useAccessControl';
 import { pickExcludeReason } from '../common/excludeReasonPicker';
+import RepName from './callflow/RepName';
 
 const CompanyProfileDialog = React.lazy(() => import('../company/CompanyProfileDialog'));
 
@@ -1723,7 +1724,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         <td style={{ padding: '6px 8px', fontWeight: 600, color: C.navy, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</td>
                         <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 10, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
                         <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 9, width: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.address || '—'}</td>
-                        <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 10, whiteSpace: 'nowrap' }}>{item.representative}</td>
+                        <td style={{ padding: '6px 8px', color: C.textMid, fontSize: 10, whiteSpace: 'nowrap' }}><RepName row={item} compact /></td>
                         <td style={{ padding: '6px 8px' }}>
                           {item.phone
                             ? <span onClick={() => { dialPhone(item.phone); setSelectedRow(item); }} style={{ fontFamily: "'JetBrains Mono'", fontSize: 10, color: C.navy, fontWeight: 600, padding: '2px 5px', borderRadius: 3, background: isCalled ? 'transparent' : C.gold + '25', whiteSpace: 'nowrap', cursor: 'pointer' }}>{item.phone}</span>
@@ -1783,7 +1784,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     {[
                       { label: '事業内容', value: selectedRow.business },
                       { label: '住所', value: (selectedRow.address || '').replace(/\/\s*$/, '') },
-                      { label: '代表者', value: selectedRow.representative },
+                      { label: '代表者', value: selectedRow.representative ? <RepName key={selectedRow.id} row={selectedRow} /> : null },
                       { label: '前回架電結果', value: lastResult },
                     ].map(({ label, value }) => (
                       <div key={label} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}>
@@ -2662,7 +2663,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             <td style={{ padding: '7px 8px', fontFamily: font.family.mono, fontSize: 9, color: color.gray500, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                               {item.net_income != null ? `${Number(item.net_income).toLocaleString()}千円` : <span style={{ color: color.gray400 }}>-</span>}
                             </td>
-                            <td style={{ padding: '7px 8px', color: color.gray500, fontSize: font.size.xs - 1, whiteSpace: 'nowrap' }}>{item.representative}</td>
+                            <td style={{ padding: '7px 8px', color: color.gray500, fontSize: font.size.xs - 1, whiteSpace: 'nowrap' }}><RepName row={item} compact /></td>
                             <td style={{ padding: '7px 8px' }}>
                               {item.phone
                                 ? <span onClick={e => { e.stopPropagation(); dialPhone(item.phone); setSelectedRow(item); setListMode(false); setLastDialedPhone(item.phone); }}
@@ -2740,7 +2741,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                         const netIncome = selectedRow.net_income ?? parsedMemo?.net_income ?? null;
                         return [
                           { label: '事業内容', value: selectedRow.business },
-                          { label: '代表者', value: selectedRow.representative },
+                          { label: '代表者', value: selectedRow.representative ? <RepName key={selectedRow.id} row={selectedRow} /> : null },
                           { label: '住所', value: (selectedRow.address || '').replace(/\/\s*$/, '') },
                           { label: '売上', value: selectedRow.revenue != null ? Number(selectedRow.revenue).toLocaleString() + ' 千円' : null },
                           { label: '当期純利益', value: netIncome != null ? Number(netIncome).toLocaleString() + ' 千円' : null },
