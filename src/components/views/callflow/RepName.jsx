@@ -45,12 +45,19 @@ export default function RepName({ row, compact = false }) {
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/find-representative`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token || ''}` },
-        body: JSON.stringify({ item_id: row.id }),
+        // 裏で最後まで調べる。押したらすぐ次の会社へ移って大丈夫（結果は次にこの会社を開いた時に出る）
+        body: JSON.stringify({ item_id: row.id, background: true }),
       });
-      const j = await res.json().catch(() => ({}));
+      await res.json().catch(() => ({}));
+      setLookMsg('調べています（10秒ほど）。次の会社へ移って大丈夫です');
+      // この画面に居続けた時だけ、少し待って結果を出す
+      await new Promise(r => setTimeout(r, 12000));
+      const { data: fresh } = await supabase.from('call_list_items').select('representative_current, representative_kana, representative_source').eq('id', row.id).maybeSingle();
+      const j = { current: fresh?.representative_current || '', kana: fresh?.representative_kana || '', same: fresh?.representative_source && !fresh?.representative_current && !/no_name|not_found/.test(fresh.representative_source), reason: /no_name|not_found/.test(fresh?.representative_source || '') ? '会社HPとウェブ検索で、社長名が見つかりませんでした' : '' };
       if (j.current) { setCurrent(j.current); if (j.kana) { setKana(j.kana); setSource('ai'); } setLookMsg('会社HPで今の社長名が分かりました'); }
       else if (j.same) setLookMsg('会社HPの社長名はリストと同じでした');
-      else setLookMsg(j.reason || j.error || '調べられませんでした');
+      else if (j.reason) setLookMsg(j.reason);
+      else setLookMsg('まだ調べています。次にこの会社を開くと出ます');
     } catch { setLookMsg('調べられませんでした'); }
     setLooking(false);
   };

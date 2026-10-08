@@ -39,7 +39,7 @@ async function searchRep(company: string, address: string): Promise<{ name: stri
     headers: { 'Content-Type': 'application/json', 'x-api-key': Deno.env.get('ANTHROPIC_API_KEY')!, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001', max_tokens: 1500,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
       messages: [{ role: 'user', content: `「${company}」（所在地：${address || '不明'}）の、現在の代表者（代表取締役など）の氏名を、ウェブで調べてください。
 同じ名前の別の会社と取り違えないよう、所在地が合うものだけを使う。会社HP・官公庁・信頼できる企業データベースを優先し、いちばん新しい情報を使う。
 分からなければ name を空にする。最後に JSON だけを返す：{"name":"氏名（役職は付けない）","source":"出どころのURL"}` }],
@@ -60,45 +60,56 @@ Deno.serve(async (req) => {
     const { data: who } = await u.auth.getUser()
     if (!who?.user) return json({ error: 'ログインが切れています' }, 401)
     const sb = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-    const { item_id } = await req.json().catch(() => ({}))
+    const { item_id, background } = await req.json().catch(() => ({}))
     const { data: item } = await sb.from('call_list_items')
       .select('id, company, address, phone, url, representative, corporate_number').eq('id', item_id || '').maybeSingle()
     if (!item) return json({ error: '会社が見つかりません' }, 404)
 
-    let hp = String(item.url || '').trim()
-    if (!/^https?:\/\//.test(hp)) {
-      const found = await call('lookup-company-homepage', { company_name: item.company, address: item.address, phone: item.phone, representative: item.representative })
-      hp = found?.url && (found.verified || found.confidence === 'high') ? found.url : ''
+    // 押した直後に次の会社へ移っても、画面を閉じても、裏で最後まで調べて保存する（2026-10-08 むー様：スピード重視）
+    const work = async () => {
+      let hp = String(item.url || '').trim()
+      if (!/^https?:\/\//.test(hp)) {
+        const found = await call('lookup-company-homepage', { company_name: item.company, address: item.address, phone: item.phone, representative: item.representative })
+        hp = found?.url && (found.verified || found.confidence === 'high') ? found.url : ''
+      }
+      let rep = ''
+      let source = 'hp'
+      if (hp) {
+        const ex = await call('extract-company-from-url', { url: hp })
+        rep = String(ex?.raw?.representative || '').trim()
+      }
+      if (!rep) {
+        // HPが見つからない・HPに名前が無い時は、ウェブ検索で調べる
+        // ウェブ検索は結果が振れるので、見つからなければもう1回だけ聞く
+        let s2 = await searchRep(item.company, item.address)
+        if (!s2.name) s2 = await searchRep(item.company, item.address)
+        rep = s2.name; source = 'web'; if (s2.source) hp = s2.source
+      }
+      if (!rep) {
+        await sb.from('call_list_items').update({ representative_checked_at: new Date().toISOString(), representative_source: 'hp_no_name' }).eq('id', item.id)
+        return { current: null, reason: '会社HPとウェブ検索で、社長名が見つかりませんでした', hp }
+      }
+      const changed = norm(rep) !== norm(item.representative)
+      const patch: Record<string, unknown> = {
+        representative_checked_at: new Date().toISOString(), representative_source: source, representative_current: changed ? rep : null,
+      }
+      if (changed) {
+        // 新しい社長名のふりがなに付け直す（架電ページは「現在の代表」の読みとして出す）
+        const k = await kanaOf(rep)
+        if (k) { patch.representative_kana = k; patch.representative_kana_source = 'ai' }
+      }
+      await sb.from('call_list_items').update(patch).eq('id', item.id)
+      // 同じ法人番号の会社（別のリスト）にも入れる
+      const corp = String(item.corporate_number || '').replace(/\D/g, '')
+      if (changed && corp.length === 13) await sb.from('call_list_items').update(patch).eq('corporate_number', item.corporate_number)
+      return { current: changed ? rep : null, same: !changed, rep, kana: patch.representative_kana || null, hp }
     }
-    let rep = ''
-    let source = 'hp'
-    if (hp) {
-      const ex = await call('extract-company-from-url', { url: hp })
-      rep = String(ex?.raw?.representative || '').trim()
+    if (background) {
+      // deno-lint-ignore no-explicit-any
+      ;(globalThis as any).EdgeRuntime?.waitUntil(work().catch((e: Error) => console.error('[find-representative]', e.message)))
+      return json({ accepted: true })
     }
-    if (!rep) {
-      // HPが見つからない・HPに名前が無い時は、ウェブ検索で調べる
-      const s2 = await searchRep(item.company, item.address)
-      rep = s2.name; source = 'web'; if (s2.source) hp = s2.source
-    }
-    if (!rep) {
-      await sb.from('call_list_items').update({ representative_checked_at: new Date().toISOString(), representative_source: 'hp_no_name' }).eq('id', item.id)
-      return json({ current: null, reason: '会社HPとウェブ検索で、社長名が見つかりませんでした', hp })
-    }
-    const changed = norm(rep) !== norm(item.representative)
-    const patch: Record<string, unknown> = {
-      representative_checked_at: new Date().toISOString(), representative_source: source, representative_current: changed ? rep : null,
-    }
-    if (changed) {
-      // 新しい社長名のふりがなに付け直す（架電ページは「現在の代表」の読みとして出す）
-      const k = await kanaOf(rep)
-      if (k) { patch.representative_kana = k; patch.representative_kana_source = 'ai' }
-    }
-    await sb.from('call_list_items').update(patch).eq('id', item.id)
-    // 同じ法人番号の会社（別のリスト）にも入れる
-    const corp = String(item.corporate_number || '').replace(/\D/g, '')
-    if (changed && corp.length === 13) await sb.from('call_list_items').update(patch).eq('corporate_number', item.corporate_number)
-    return json({ current: changed ? rep : null, same: !changed, rep, kana: patch.representative_kana || null, hp })
+    return json(await work())
   } catch (e) {
     return json({ error: (e as Error).message }, 500)
   }
