@@ -402,7 +402,8 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
           {/* Slackに手で出したなど、Spanaviの外で送った分を新着から外す */}
           <Button variant="ghost" size="sm" onClick={async () => {
             if (!appo._supaId) return;
-            const err = await updateEmailStatus(appo._supaId, 'sent');
+            // 送った日時は入れない（カレンダーの自動登録は Spanavi から送った報告だけ。手で送った分はむー様が登録済み）
+            const { error: err } = await supabase.from('appointments').update({ email_status: 'sent' }).eq('id', appo._supaId);
             if (!err) onStatusUpdate?.('sent');
           }}>送信済みにする</Button>
         </div>
