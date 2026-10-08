@@ -184,6 +184,14 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
     const body = await req.json().catch(() => ({}))
+    if (body.mode === 'scopes') {
+      // 確認用：むー様の Slack の許可の範囲（中身の文字列は返さない）
+      if (!(await cronTokenOk(req)) && !(await adminOrg(req))) return json({ error: 'forbidden' }, 403)
+      const tk = Deno.env.get('SLACK_USER_TOKEN')?.trim() || ''
+      const r = await fetch('https://slack.com/api/auth.test', { headers: { Authorization: `Bearer ${tk}` } })
+      const j = await r.json()
+      return json({ ok: j.ok, user: j.user, scopes: (r.headers.get('x-oauth-scopes') || '').split(',').map(x => x.trim()).filter(Boolean) })
+    }
     if (body.mode === 'scan') {
       if (!(await cronTokenOk(req)) && !(await adminOrg(req))) return json({ error: 'forbidden' }, 403)
       return json(await scan())
