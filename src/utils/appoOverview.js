@@ -29,18 +29,26 @@ export function throughBusinessDay(today, n) {
 /** やることのカード。押したときの絞り込みにも同じ判定を使う */
 export const TODO_RULES = {
   // 新着アポ：まだアポ取得報告を送っていないもの（自社の開拓・面談日を過ぎたものは除く）。2026-10-08 むー様
-  new: (a, today) => a.status === 'アポ取得' && a.emailStatus !== 'sent' && !a.isProspecting && (!a.meetDate || a.meetDate >= today),
+  //   取得日が直近14日のものだけ（7〜8月の面談日の無い古いアポは出さない）
+  new: (a, today) => a.status === 'アポ取得' && a.emailStatus !== 'sent' && !a.isProspecting && !!a.getDate && a.getDate >= daysBefore(today, 14) && (!a.meetDate || a.meetDate >= today),
   // 本日の事前確認：#事前確認 の通知と同じ範囲（面談が当日〜2営業日後で、状態がアポ取得のまま）。2026-10-08 むー様
   today_pre: (a, today) => a.status === 'アポ取得' && !!a.meetDate && a.meetDate >= today && a.meetDate <= throughBusinessDay(today, 2),
-  // キャンセル：面談日が直近60日以内のもの
-  cancel: (a, today) => a.status === 'キャンセル' && !!a.meetDate && a.meetDate >= daysBefore(today, 60),
-  // リスケ中は元の面談日が直近60日以内のものだけ（何か月も前のリスケ中は追っても戻らない）
-  res: (a, today) => a.status === 'リスケ中' && !!a.meetDate && a.meetDate >= daysBefore(today, 60),
+  // キャンセル・リスケ中：月（や期間）を選んでいればその期間の面談月のもの。全期間なら面談日が直近60日（2026-10-08 むー様）
+  cancel: (a, today, range) => a.status === 'キャンセル' && inRange(a, today, range),
+  res: (a, today, range) => a.status === 'リスケ中' && inRange(a, today, range),
 };
 
-export function todoCounts(appos, today) {
+/** range = { from: 'YYYY-MM', to: 'YYYY-MM' }（どちらか空でもよい）。null なら直近60日 */
+function inRange(a, today, range) {
+  if (!a.meetDate) return false;
+  if (!range) return a.meetDate >= daysBefore(today, 60);
+  const m = a.meetDate.slice(0, 7);
+  return (!range.from || m >= range.from) && (!range.to || m <= range.to);
+}
+
+export function todoCounts(appos, today, range = null) {
   const out = {};
-  for (const k of Object.keys(TODO_RULES)) out[k] = appos.filter(a => TODO_RULES[k](a, today)).length;
+  for (const k of Object.keys(TODO_RULES)) out[k] = appos.filter(a => TODO_RULES[k](a, today, range)).length;
   return out;
 }
 

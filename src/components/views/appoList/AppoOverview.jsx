@@ -8,8 +8,8 @@ const TODOS = [
   { key: 'new', cls: 'nv', label: '新着アポ', desc: 'アポ取得報告をまだ送っていない' },
   // 2026-10-08 むー様：本日の事前確認・リスケ中・キャンセルの3つにする
   { key: 'today_pre', cls: 'blu', label: '本日の事前確認', desc: '面談が当日〜2営業日後でまだ確認していない' },
-  { key: 'res', cls: 'amb', label: 'リスケ中', desc: '直近60日 ・ 新しい日程を追う' },
-  { key: 'cancel', cls: 'red', label: 'キャンセル', desc: '面談日が直近60日' },
+  { key: 'res', cls: 'amb', label: 'リスケ中', desc: 'range' },
+  { key: 'cancel', cls: 'red', label: 'キャンセル', desc: 'range' },
 ];
 const CHIP = { '事前確認済': 'ok', 'アポ取得': 'wait', 'リスケ中': 'res', 'キャンセル': 'can', '面談済': 'done' };
 const man = (yen) => {
@@ -17,15 +17,17 @@ const man = (yen) => {
   return v >= 100 ? Math.round(v).toLocaleString() : (Math.round(v * 10) / 10).toLocaleString();
 };
 
-export default function AppoOverview({ appoData, today, countable, totalSales, totalReward, periodLabel, monthStats, activeMonth, onPickMonth, todo, onTodo, onOpen }) {
-  const counts = todoCounts(appoData, today);
+export default function AppoOverview({ appoData, today, range = null, countable, totalSales, totalReward, periodLabel, monthStats, activeMonth, onPickMonth, todo, onTodo, onOpen }) {
+  const counts = todoCounts(appoData, today, range);
+  // リスケ中・キャンセルの説明は、選んでいる期間に合わせる
+  const rangeDesc = range ? `${periodLabel}の面談` : '面談日が直近60日';
   // 新着は取得日の古い順（先に取ったものから報告する）
   const newOnes = appoData.filter(a => TODO_RULES.new(a, today)).sort((a, b) => (a.getDate || '').localeCompare(b.getDate || ''));
   const days = weekDays(today);
   const byDay = weekMeetings(appoData, days);
   // 先の月（まだ始まっていない月）は出さない。古い月が左
   const months = monthStats.filter(m => m.yyyymm <= today.slice(0, 7));
-  const mx = Math.max(1, ...months.map(m => m.count));
+  const mx = Math.max(1, ...months.map(m => m.count + (m.res || 0) + (m.cancel || 0)));
 
   return (
     <div className="ao">
@@ -34,12 +36,16 @@ export default function AppoOverview({ appoData, today, countable, totalSales, t
         <div className="ao-card ao-k"><span className="ao-lbl">当社売上</span><div className="ao-v ao-num">{man(totalSales)}<small>万円</small></div><div className="ao-s">{periodLabel}の有効アポ分</div></div>
         <div className="ao-card ao-k"><span className="ao-lbl">インターン報酬</span><div className="ao-v ao-num">{man(totalReward)}<small>万円</small></div><div className="ao-s">{periodLabel}の有効アポ分</div></div>
         <div className="ao-card ao-k">
-          <span className="ao-lbl">月ごとの有効アポ</span>
+          <span className="ao-lbl">月ごとの有効アポ<span className="ao-leg"><i className="v" />有効<i className="r" />リスケ<i className="c" />キャンセル</span></span>
           <div className="ao-months">
             {months.map((m, i) => (
-              <button key={m.yyyymm} type="button" className={`ao-m${m.yyyymm === activeMonth ? ' is-on' : ''}`} onClick={() => onPickMonth(m.yyyymm)} title={`${m.month} ${m.count}件（押すと${m.month}の表示に切り替え）`}>
+              <button key={m.yyyymm} type="button" className={`ao-m${m.yyyymm === activeMonth ? ' is-on' : ''}`} onClick={() => onPickMonth(m.yyyymm)} title={`${m.month} 有効${m.count}件・リスケ中${m.res || 0}件・キャンセル${m.cancel || 0}件（押すと${m.month}の表示に切り替え）`}>
                 <b className="ao-num">{m.count}</b>
-                <i style={{ height: Math.max(2, (m.count / mx) * 40), animationDelay: `${i * 0.04}s` }} />
+                <span className="ao-stack" style={{ animationDelay: `${i * 0.04}s` }}>
+                  {m.cancel > 0 && <i className="c" style={{ height: (m.cancel / mx) * 40 }} />}
+                  {m.res > 0 && <i className="r" style={{ height: (m.res / mx) * 40 }} />}
+                  <i className="v" style={{ height: Math.max(2, (m.count / mx) * 40) }} />
+                </span>
                 <span>{m.month}</span>
               </button>
             ))}
@@ -56,7 +62,7 @@ export default function AppoOverview({ appoData, today, countable, totalSales, t
               onTodo(todo === t.key ? '' : t.key);
             }}>
             <span className="ao-n ao-num">{counts[t.key]}</span>
-            <span><span className="ao-t">{t.label}</span><span className="ao-d">{t.key === 'new' && newOnes.length ? newOnes.slice(0, 2).map(a => shortCompany(a.company)).join('・') + (newOnes.length > 2 ? ' ほか' : '') : t.desc}</span></span>
+            <span><span className="ao-t">{t.label}</span><span className="ao-d">{t.key === 'new' && newOnes.length ? newOnes.slice(0, 2).map(a => shortCompany(a.company)).join('・') + (newOnes.length > 2 ? ' ほか' : '') : (t.desc === 'range' ? rangeDesc : t.desc)}</span></span>
           </button>
         ))}
       </div>

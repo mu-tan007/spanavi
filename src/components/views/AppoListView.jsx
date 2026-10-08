@@ -863,7 +863,9 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     }
     return true;
   };
-  const filteredBase = appoData.filter(a => (todoFilter ? TODO_RULES[todoFilter](a, today) && passSearch(a) : passPeriod(a))).sort((a, b) => {
+  // カードの数え方の期間（面談月）。月・期間を選んでいればそれ、全期間なら null＝直近60日
+  const todoRange = apPeriod === 'month' ? { from: apSelectedMonth, to: apSelectedMonth } : apPeriod === 'custom' ? { from: apCustomFrom || '', to: apCustomTo || '' } : null;
+  const filteredBase = appoData.filter(a => (todoFilter ? TODO_RULES[todoFilter](a, today, todoRange) && passSearch(a) : passPeriod(a))).sort((a, b) => {
     if (sortKey === 'status') {
       const sa = statusOrder[a.status] ?? 99;
       const sb = statusOrder[b.status] ?? 99;
@@ -915,7 +917,8 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
     const items = appoData.filter(a =>
       a.meetDate && a.meetDate.slice(0, 7) === yyyymm && countableStatuses.includes(a.status)
     );
-    return { month: label, yyyymm, count: items.length,
+    const inMonth = (st) => appoData.filter(a => a.meetDate && a.meetDate.slice(0, 7) === yyyymm && a.status === st).length;
+    return { month: label, yyyymm, count: items.length, res: inMonth('リスケ中'), cancel: inMonth('キャンセル'),
       sales: items.reduce((s, a) => s + salesAmountOf(a), 0),
       reward: items.reduce((s, a) => s + (a.reward || 0), 0) };
   });
@@ -1750,6 +1753,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       <AppoOverview
         appoData={appoData}
         today={today}
+        range={todoRange}
         countable={countable.length}
         totalSales={totalSales}
         totalReward={totalReward}
@@ -1763,7 +1767,7 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
       />
       {todoFilter && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-4px 0 10px', fontSize: font.size.xs, color: color.textMid }}>
-          <span>やることで絞り込み中（期間・ステータスの絞り込みは外しています） ・ {filtered.length}件</span>
+          <span>やることで絞り込み中（ステータスの絞り込みは外しています） ・ {filtered.length}件</span>
           <Button variant="ghost" size="sm" onClick={() => setTodoFilter('')}>解除</Button>
         </div>
       )}

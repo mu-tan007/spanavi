@@ -24,11 +24,19 @@ describe('appoOverview', () => {
     const c = todoCounts(A, T);
     expect({ today_pre: c.today_pre, cancel: c.cancel, res: c.res }).toEqual({ today_pre: 0, cancel: 1, res: 1 });
   });
+  it('リスケ中・キャンセルは選んだ月の面談だけ数える（全期間なら直近60日）', () => {
+    const oct = { from: '2026-10', to: '2026-10' };
+    expect(TODO_RULES.cancel({ status: 'キャンセル', meetDate: '2026-10-20' }, T, oct)).toBe(true);
+    expect(TODO_RULES.cancel({ status: 'キャンセル', meetDate: '2026-09-20' }, T, oct)).toBe(false);
+    expect(TODO_RULES.res({ status: 'リスケ中', meetDate: '2026-09-20' }, T, { from: '2026-09', to: '2026-09' })).toBe(true);
+    expect(TODO_RULES.res({ status: 'リスケ中', meetDate: '2026-09-20' }, T, null)).toBe(true);
+  });
   it('新着アポは報告を送っていないアポ取得（自社の開拓・面談日を過ぎたものは除く）', () => {
-    expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'pending', meetDate: '2026-10-13' }, T)).toBe(true);
+    expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'pending', meetDate: '2026-10-13', getDate: '2026-10-06' }, T)).toBe(true);
     expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'sent', meetDate: '2026-10-13' }, T)).toBe(false);
     expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'pending', meetDate: '2026-10-13', isProspecting: true }, T)).toBe(false);
     expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'pending', meetDate: '2026-10-01' }, T)).toBe(false);
+    expect(TODO_RULES.new({ status: 'アポ取得', emailStatus: 'pending', getDate: '2026-07-06' }, T)).toBe(false);
     expect(TODO_RULES.new({ status: '事前確認済', emailStatus: 'pending', meetDate: '2026-10-13' }, T)).toBe(false);
   });
   it('本日の事前確認は面談が当日〜2営業日後でアポ取得のまま（土日は数えない）', () => {
