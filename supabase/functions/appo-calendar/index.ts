@@ -142,7 +142,8 @@ async function buildEvent(a: Appo) {
   const body = {
     summary,
     location,
-    description: String(a.appo_report || '').trim(),
+    // 実際に送った報告（新しい形）があればそれ、無ければ登録時の報告
+    description: String(a.report_sent_text || a.appo_report || '').trim(),
     start: { dateTime: startISO, timeZone: 'Asia/Tokyo' },
     end: { dateTime: end.toISOString(), timeZone: 'Asia/Tokyo' },
     attendees: guests.map(email => ({ email })),
@@ -190,7 +191,7 @@ async function sync(onlyId?: string) {
   if (!setting?.enabled) return { skipped: '止めています' }
   const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10)
   let q = sb.from('appointments')
-    .select('id, company_name, client_id, list_id, item_id, status, email_status, email_sent_at, meeting_date, meeting_time, meeting_location, is_online, appo_report, apo_cal_event_id, apo_cal_hash, apo_cal_error')
+    .select('id, company_name, client_id, list_id, item_id, status, email_status, email_sent_at, meeting_date, meeting_time, meeting_location, is_online, appo_report, report_sent_text, apo_cal_event_id, apo_cal_hash, apo_cal_error')
     .eq('email_status', 'sent')
     .gte('email_sent_at', setting.since)
     .gte('meeting_date', today)

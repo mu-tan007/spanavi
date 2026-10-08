@@ -362,7 +362,10 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       setEmailStep('compose');
       return;
     }
-    if (appo._supaId) await updateEmailStatus(appo._supaId, 'sent', sentThreadId ? { report_gmail_thread_id: sentThreadId } : {});
+    // 送った報告の本文（区切り線の間）を控える。カレンダーの予定の説明に使う（2026-10-08）
+    const parts = emailBody.split(/\n-{3,}\n/);
+    const sentReport = (parts.length >= 3 ? parts.slice(1, -1).join('\n---\n') : emailBody).trim();
+    if (appo._supaId) await updateEmailStatus(appo._supaId, 'sent', { report_sent_text: sentReport || null, ...(sentThreadId ? { report_gmail_thread_id: sentThreadId } : {}) });
     onStatusUpdate?.('sent');
     setEmailStep('sent');
   };
