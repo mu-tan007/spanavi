@@ -13,7 +13,7 @@ import { calcRankAndRate } from '../../utils/calculations';
 import { applyTaxIfPretax, calcInvoiceTax, calcInternReward, salesAmountOf } from '../../utils/money';
 import { cumulativeSalesDelta } from '../../utils/cumulativeSales';
 import { formatCurrency } from '../../utils/formatters';
-import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel, MAX_MAIL_ATTACHMENT_BYTES } from '../../lib/supabaseWrite';
+import { updateAppointment, insertAppointment, deleteAppointment, updateAppoCounted, updateMember, insertMember, deleteMember, updateMemberReward, invokeSyncZoomUsers, invokeGetZoomRecording, invokeTranscribeRecording, updateEmailStatus, invokeSendEmail, invokeSendAppoReport, fetchMatchingListItemsByCompanyNames, fetchCallListItemByAppo, fetchCallListItemById, uploadAppoRecording, invokeLookupCompanyHomepage, updateCallListItem, saveSentInvoiceArchive, createInvoiceSignedUrl, invokeSendInvoiceToChannel, MAX_MAIL_ATTACHMENT_BYTES, updatePrecheckTell, invokeSlackAppoThread } from '../../lib/supabaseWrite';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
 import useColumnConfig from '../../hooks/useColumnConfig';
 import ColumnResizeHandle from '../common/ColumnResizeHandle';
@@ -146,8 +146,15 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
   const contactMethod = cl?.contact || '';
   const isSlack = contactMethod === 'Slack';
   const isChatwork = contactMethod === 'Chatwork';
-  const isChat = isSlack || isChatwork;
-  const channelLabel = isSlack ? 'Slack' : isChatwork ? 'Chatwork' : 'メール';
+  // Slackの共有チャンネルへスレッドの形で送る（むー様が手で出していた形・2026-10-08）
+  //   親投稿＝メンション＋【…アポ取得報告】＋社名・法人番号、スレッド＝本文
+  const [thread, setThread] = React.useState(null); // { channels, channel, mentions, header, title, threadStyle }
+  const [useThread, setUseThread] = React.useState(false);
+  // 送信の関数の最新版を本番に置けていないため、むー様の確認が取れるまで止めておく（2026-10-08）
+  const SLACK_THREAD_READY = false;
+  const canThread = SLACK_THREAD_READY && (cl?.slackChannelIds || []).length > 0;
+  const isChat = (isSlack || isChatwork) && !useThread;
+  const channelLabel = useThread ? 'Slack（スレッド）' : isSlack ? 'Slack' : isChatwork ? 'Chatwork' : 'メール';
   const channelIcon = isSlack ? '💼' : isChatwork ? '📝' : '✉';
 
   // 宛先候補リスト（メール送信用）
@@ -211,9 +218,26 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
 
   const initCompose = async () => {
     const { report, m, hasDossier } = await buildBodyReport();
-    if (hasDossier && !isChat) attachBrief(m); else setBriefState('none');
+    let threadOn = false;
+    if (canThread && appo._supaId) {
+      const { data: g } = await invokeSlackAppoThread({ mode: 'guess', appointment_id: appo._supaId });
+      if (g) { setThread(g); threadOn = !!g.threadStyle || isSlack; }
+    }
+    setUseThread(threadOn);
+    if (hasDossier && !(isSlack || isChatwork || threadOn)) attachBrief(m); else setBriefState('none');
 
-    if (isChat) {
+    if (threadOn) {
+      setEmailBody(
+        `お世話になっております。\n` +
+        `Spartiaの篠宮でございます。\n\n` +
+        `下記企業のアポイントを取得いたしましたので、ご報告申し上げます。\n\n` +
+        `---\n` +
+        `${report}\n` +
+        `---\n\n` +
+        `以上でございます。\n` +
+        `ご確認のほど、よろしくお願いいたします。`
+      );
+    } else if (isSlack || isChatwork) {
       // Slack/Chatwork: 本文のみ（宛先・件名不要）
       const clientLabel = cl?.company || appo.client || '';
       // Slackの場合、担当者のメンションを先頭に挿入
@@ -307,7 +331,11 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
 
     let error;
     let sentThreadId = null;
-    if (isSlack) {
+    if (useThread) {
+      if (!thread?.channel) { setSendError('送り先のチャンネルを選んでください'); setEmailStep('compose'); return; }
+      const parent = [thread.mentions, thread.header, thread.title].map(x => (x || '').trim()).filter(Boolean).join('\n');
+      ({ error } = await invokeSlackAppoThread({ mode: 'send', appointment_id: appo._supaId, channel: thread.channel, parent, text: emailBody }));
+    } else if (isSlack) {
       if (!cl?.slackWebhookUrl) { setSendError('Slack Webhook URLが未設定です。CRMで設定してください。'); setEmailStep('compose'); return; }
       ({ error } = await invokeSendAppoReport({ channel: 'slack', text: emailBody, webhook_url: cl.slackWebhookUrl }));
     } else if (isChatwork) {
@@ -366,7 +394,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
       {(emailStep === 'compose' || emailStep === 'sending') && (
         <div style={{ marginTop: 8 }}>
           {/* メール送信の場合のみ: 宛先・CC・件名 */}
-          {!isChat && (<>
+          {!isChat && !useThread && (<>
             <div style={{ marginBottom: 6 }}>
               <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>宛先</label>
               {emailOptions.length > 0 ? (
@@ -419,13 +447,36 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
             </div>
           </>)}
 
+          {/* Slackの共有チャンネルへスレッドの形で送る */}
+          {canThread && thread && (
+            <div style={{ marginBottom: 8, padding: 8, borderRadius: radius.md, background: color.gray50, border: `1px solid ${color.borderLight}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: useThread ? 6 : 0 }}>
+                <span style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868' }}>送り方</span>
+                <Button size="sm" variant={useThread ? 'primary' : 'outline'} onClick={() => setUseThread(true)}>Slackのスレッド</Button>
+                <Button size="sm" variant={!useThread ? 'primary' : 'outline'} onClick={() => setUseThread(false)}>{isSlack ? 'Slack（Webhook）' : isChatwork ? 'Chatwork' : 'メール'}</Button>
+              </div>
+              {useThread && (<>
+                <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>チャンネル</label>
+                <select value={thread.channel} onChange={e => setThread(t => ({ ...t, channel: e.target.value }))} style={{ ...iStyle, marginBottom: 6 }}>
+                  {(thread.channels || []).map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                </select>
+                <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>
+                  親投稿（1行目のメンションは{thread.source === 'list' ? 'このリストで前回送った宛先' : thread.source === 'past' ? '前回の報告の宛先' : thread.source === 'contacts' ? '担当者のSlack ID' : '未設定。<@U…> の形で入れてください'}）
+                </label>
+                <textarea rows={3} value={[thread.mentions, thread.header, thread.title].join('\n')}
+                  onChange={e => { const [mentions = '', header = '', ...rest] = e.target.value.split('\n'); setThread(t => ({ ...t, mentions, header, title: rest.join('\n') })); }}
+                  style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6, fontFamily: font.family.mono }} />
+                <div style={{ fontSize: 9, color: color.textMid, marginTop: 2 }}>下の本文は、この親投稿のスレッドに篠宮の名前で送ります</div>
+              </>)}
+            </div>
+          )}
           {/* Slack/Chatwork: 送信先情報 */}
-          {isSlack && (
+          {isSlack && !useThread && (
             <div style={{ marginBottom: 6, fontSize: 10, color: color.textMid }}>
               送信先: {cl?.slackWebhookUrl ? 'Webhook設定済み' : <span style={{ color: color.danger }}>未設定（CRMで設定してください）</span>}
             </div>
           )}
-          {isChatwork && (
+          {isChatwork && !useThread && (
             <div style={{ marginBottom: 6, fontSize: 10, color: color.textMid }}>
               送信先: ルームID {cl?.chatworkRoomId || <span style={{ color: color.danger }}>未設定（CRMで設定してください）</span>}
             </div>
@@ -437,7 +488,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
               style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
           {/* 添付ファイル */}
-          {!isChat && (
+          {!isChat && !useThread && (
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 9, fontWeight: font.weight.semibold, color: '#4B5868', display: 'block', marginBottom: 2 }}>添付ファイル</label>
               <input ref={fileInputRef} type="file" multiple onChange={handleFilePick} style={{ display: 'none' }} />
@@ -468,6 +519,41 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
               {emailStep === 'sending' ? '送信中...' : `${channelLabel}で送信`}
             </Button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 事前確認で先方に伝えること。架電ページの事前確認と朝の通知に出て、伝えたら印が付く */
+function PrecheckTellBox({ appo, onSaved }) {
+  const [text, setText] = useState(appo.precheckTell || '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const dirty = text.trim() !== (appo.precheckTell || '').trim();
+  const save = async () => {
+    setSaving(true); setErr('');
+    const error = await updatePrecheckTell(appo._supaId, text);
+    setSaving(false);
+    if (error) { setErr('保存できませんでした：' + (error.message || '')); return; }
+    onSaved(text.trim());
+  };
+  return (
+    <div className="v2-card" style={{ padding: `${space[2.5]}px ${space[3]}px`, marginBottom: space[3] }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginBottom: space[1] }}>
+        <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>事前確認で先方に伝えること</span>
+        {appo.precheckTell && (appo.precheckTellDoneAt
+          ? <Badge size="sm" variant="success" dot>伝えました</Badge>
+          : <Badge size="sm" variant="warn" dot>まだ</Badge>)}
+      </div>
+      <textarea value={text} onChange={e => setText(e.target.value)} rows={2}
+        placeholder="例：当日は李様のみご訪問とお伝えください"
+        style={{ width: '100%', boxSizing: 'border-box', padding: space[2], resize: 'vertical', fontSize: font.size.sm,
+          fontFamily: font.family.sans, color: color.textDark, border: `1px solid ${color.border}`, borderRadius: radius.md, outline: 'none' }} />
+      {(dirty || err) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: space[2], marginTop: space[1] }}>
+          {err && <span style={{ fontSize: font.size.xs, color: color.danger }}>{err}</span>}
+          <Button size="sm" variant="primary" loading={saving} onClick={save} style={{ marginLeft: 'auto' }}>保存</Button>
         </div>
       )}
     </div>
@@ -3129,6 +3215,14 @@ export default function AppoListView({ appoData, setAppoData, members = [], setM
                   </>
                 );
               })()}
+              {/* ── 事前確認で先方に伝えること（クライアント様からの依頼・2026-10-08） ── */}
+              {isAdmin && (
+                <PrecheckTellBox key={reportDetail._supaId} appo={reportDetail} onSaved={(text) => {
+                  const patch = { precheckTell: text, precheckTellDoneAt: null };
+                  setReportDetail(d => ({ ...d, ...patch }));
+                  if (setAppoData) setAppoData(prev => prev.map(a => a._supaId === reportDetail._supaId ? { ...a, ...patch } : a));
+                }} />
+              )}
               {/* ── 備考 ── */}
               <div style={{ padding: "10px 14px", borderRadius: 10, background: '#fff', border: '1px solid #E3E6EB', marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: color.textLight, fontWeight: font.weight.semibold, marginBottom: 4 }}>備考</div>

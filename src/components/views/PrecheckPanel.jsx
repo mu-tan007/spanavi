@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { color, space, radius, font } from '../../constants/design';
 import { Button, Input, Badge } from '../ui';
 import { InlineAudioPlayer } from '../common/InlineAudioPlayer';
-import { fetchPrecheckAppointmentByItem, fetchPrecheckEvents, insertPrecheckEvent, updatePreCheckResult, invokeCancelPrecheckEvent } from '../../lib/supabaseWrite';
+import { fetchPrecheckAppointmentByItem, fetchPrecheckEvents, insertPrecheckEvent, updatePreCheckResult, invokeCancelPrecheckEvent, markPrecheckTellDone } from '../../lib/supabaseWrite';
 
 /**
  * 架電ページの「事前確認」欄。アポ獲得済みの企業にだけ出る。
@@ -59,6 +59,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   const [recallAt, setRecallAt] = useState('');
   const [rescheduledAt, setRescheduledAt] = useState('');
   const [cancelType, setCancelType] = useState(''); // キャンセルの区分（2026-10-08）
+  const [told, setTold] = useState(false); // クライアント様からの伝言を先方に伝えたか（2026-10-08）
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [savedMsg, setSavedMsg] = useState('');
@@ -74,7 +75,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   }, [itemId]);
 
   useEffect(() => {
-    setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt(''); setCancelType(''); setError(''); setSavedMsg('');
+    setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt(''); setCancelType(''); setTold(false); setError(''); setSavedMsg('');
     load();
   }, [load]);
 
@@ -87,14 +88,21 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
   }, [hasPending, appo]);
 
   if (!appo) return null;
+  const tellPending = !!(appo.precheck_tell || '').trim() && !appo.precheck_tell_done_at;
 
   const save = async () => {
     if (!result) { setError('結果を選んでください'); return; }
     if (['リスケ', 'キャンセル'].includes(result) && !memo.trim()) { setError('リスケ・キャンセルは先方のご事情をメモに書いてください（報告の文面に使います）'); return; }
     if (result === 'キャンセル' && !cancelType) { setError('キャンセルは「先方都合」か「クライアント都合」かを選んでください'); return; }
+    if (result === '確認完了' && tellPending && !told) { setError('「先方に伝えること」を伝えたら、チェックを入れてください'); return; }
     setSaving(true); setError(''); setSavedMsg('');
     try {
       onBeforeSave?.();
+      // 伝えた記録は、事前確認の記録より先に入れる（報告の下書きに「お伝えしました」を入れるため）
+      if (tellPending && told) {
+        const tellErr = await markPrecheckTellDone(appo.id);
+        if (tellErr) throw tellErr;
+      }
       const normName = (s) => String(s || '').replace(/[\s　]/g, '');
       const member = members.find(m => typeof m === 'object' && normName(m.name) === normName(currentUser));
       const { error: insErr } = await insertPrecheckEvent({
@@ -124,7 +132,7 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
         } : a));
       }
       setSavedMsg(`「${result}」を記録しました。録音とSlackへの返信は1〜3分ほどで自動で付きます。`);
-      setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt(''); setCancelType('');
+      setResult(''); setMemo(''); setRecallAt(''); setRescheduledAt(''); setCancelType(''); setTold(false);
       await load();
     } catch (e) {
       setError('保存に失敗しました：' + (e?.message || '不明なエラー'));
@@ -174,6 +182,21 @@ export default function PrecheckPanel({ itemId, clientName, currentUser, members
           <Badge variant={appo.status === '事前確認済' ? 'success' : 'neutral'} dot size="sm">{appo.status}</Badge>
         </span>
       </div>
+
+      {(appo.precheck_tell || '').trim() && (
+        <div style={{ padding: space[2], marginBottom: space[2], borderRadius: radius.md, background: appo.precheck_tell_done_at ? color.gray50 : color.warnSoft, border: `1px solid ${appo.precheck_tell_done_at ? color.borderLight : color.warn}` }}>
+          <div style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy, marginBottom: space[0.5] }}>
+            先方に伝えること{appo.precheck_tell_done_at ? '（伝えました）' : '（クライアント様からのご依頼）'}
+          </div>
+          <div style={{ fontSize: font.size.sm, color: color.textDark, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{appo.precheck_tell}</div>
+          {!appo.precheck_tell_done_at && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: space[1], marginTop: space[1], fontSize: font.size.xs, color: color.textDark, cursor: 'pointer' }}>
+              <input type="checkbox" checked={told} onChange={e => setTold(e.target.checked)} />
+              先方に伝えた
+            </label>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: space[1.5], marginBottom: space[2] }}>
         {RESULTS.map(r => (

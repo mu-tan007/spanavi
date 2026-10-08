@@ -1164,6 +1164,20 @@ export async function invokeSendAppoReport({ channel, text, webhook_url, room_id
   return { data, error: null }
 }
 
+// Slack の共有チャンネルへ、むー様の名前でスレッドの形（親投稿＋本文）で報告を送る（2026-10-08）
+// mode 'guess'：送り先とメンションの初期値 ／ mode 'send'：送信
+export async function invokeSlackAppoThread(payload) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/slack-appo-thread`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify(payload),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) return { data: null, error: data.error || `送信失敗: ${res.status}` }
+  return { data, error: null }
+}
+
 // ── クライアント担当者 CRUD ──────────────────────────────────
 export async function insertClientContact(clientId, { name, email, slackMemberId, googleCalendarId, schedulingUrl, schedulingUrl2, schedulingLabel, schedulingLabel2, schedulingNotes, isPrimary, showInCallCalendar }) {
   const orgId = getOrgId()
@@ -5599,7 +5613,7 @@ export async function fetchPrecheckAppointmentByItem(itemId) {
   if (!itemId) return { data: null, error: null }
   const { data, error } = await supabase
     .from('appointments')
-    .select('id, company_name, client_id, meeting_date, meeting_time, status, pre_check_status, pre_check_memo, rescheduled_at, cancel_reason, getter_name, created_at')
+    .select('id, company_name, client_id, meeting_date, meeting_time, status, pre_check_status, pre_check_memo, rescheduled_at, cancel_reason, getter_name, created_at, precheck_tell, precheck_tell_done_at')
     .eq('item_id', itemId)
     // キャンセルも含める（事前確認でキャンセルを記録したあとも、取り消しができるように）
     .in('status', ['アポ取得', '事前確認済', 'リスケ中', 'キャンセル'])
@@ -5608,6 +5622,20 @@ export async function fetchPrecheckAppointmentByItem(itemId) {
     .maybeSingle()
   if (error) console.error('[DB] fetchPrecheckAppointmentByItem error:', error)
   return { data, error }
+}
+
+/** 事前確認で、クライアント様からの伝言を先方に伝えた（2026-10-08） */
+export async function markPrecheckTellDone(appointmentId) {
+  const { error } = await supabase.from('appointments').update({ precheck_tell_done_at: new Date().toISOString() }).eq('id', appointmentId)
+  if (error) console.error('[DB] markPrecheckTellDone error:', error)
+  return error
+}
+
+/** アポ一覧で、事前確認で先方に伝えることを書く。書き直したら「伝えた」は外す */
+export async function updatePrecheckTell(appointmentId, text) {
+  const { error } = await supabase.from('appointments').update({ precheck_tell: text?.trim() || null, precheck_tell_done_at: null }).eq('id', appointmentId)
+  if (error) console.error('[DB] updatePrecheckTell error:', error)
+  return error
 }
 
 /** 通知のリンク（?precheck=<アポID>）から企業を開くための最小情報 */

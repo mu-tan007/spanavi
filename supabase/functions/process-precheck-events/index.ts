@@ -275,6 +275,7 @@ const STYLE_PROMPT = `あなたはSpartia株式会社 篠宮の代筆です。M&
 - リスケ：「先方様より、〜とのことで、{新日時（曜日）}にて再調整していただきたいとのご要望を賜っております。」＋「{姓}様のご都合のほどはいかがでしょうか。」。新しい日時がメモに無ければ「現在リスケジュール先の調整中でございます。調整が完了しましたら速やかにご報告申し上げます。」。インターンが日時を決めてきても「確定しました」とは書かない。
 - キャンセル：「先方様より〜とのことで、{日時}のご面談はキャンセルにてお願いできればと存じます。」＋お詫び1文。
 - 面談が近い（直前の）変更なら、締めは「直前のご変更となり誠に恐れ入りますが、何卒よろしくお願い申し上げます。」
+- 「先方に伝えたこと（クライアント様からのご依頼）」が渡されたら、確認の結果の直後に「ご依頼いただいておりました〈内容の要点〉の件も、先方様にお伝えしております。」と1文で書く。
 - 録音リンクが渡されたら、本文の最後の段落の前に「事前確認時の通話録音を共有いたします。」と書き、次の行にURLをそのまま置く。
 - インターンのメモにある事実だけを使い、無いことは書かない。細かすぎる事情（オンラインも不可、など）は省いてよい。インターンの名前・「当社」・絵文字は使わない。自社は「弊社」、こちらに不手際があってお詫びする文脈だけ「弊方」。日時は「10月12日（月）11時」の形。
 - 未完了（1営業日前の夜になっても確認が取れていない）：「{社名}様の事前確認につきまして、{これまでの電話の経緯（例：昨日・本日とお電話しているものの社長様に繋がらず）}、確認が完了いたしておりません。」→「大変恐れ入りますが、{面談日（曜日）}の当日朝に再度ご連絡を差し上げる運びでございます。確認が完了いたしましたら、速やかにご一報差し上げます。」→「ご訪問の一文」が「入れる」なら「なお、ご訪問が難しいようでしたら、お申し付けくださいませ。」→「直前まで確認が完了せず、誠に申し訳ございません。」。経緯は渡された電話の記録の事実だけで書く（記録が無ければ「お電話しているものの」の部分は「先方様と連絡が取れず」程度にとどめる）。
@@ -549,7 +550,7 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
   // 録音は待たない（2026-10-04 篠宮）。見つかったら addRecordingToDraft が後から書き足す
 
   const { data: appo } = await sb.from('appointments')
-    .select('id, company_name, meeting_date, meeting_time, client_id, created_at, report_gmail_thread_id, is_online, meeting_location')
+    .select('id, company_name, meeting_date, meeting_time, client_id, created_at, report_gmail_thread_id, is_online, meeting_location, report_slack_channel, report_slack_ts, report_slack_mentions, precheck_tell, precheck_tell_done_at')
     .eq('id', ev.appointment_id).maybeSingle()
   if (!appo) throw new Error('アポが見つかりません')
   const { data: client } = await sb.from('clients')
@@ -572,7 +573,10 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
   let slackError = ''
   if (channel === 'slack') {
     try {
-      slackReply = slackChannels.length > 0 ? await findSlackReportThread(slackChannels, appo.company_name || '') : null
+      // Spanavi からスレッドの形で送った報告は、送った先を控えてある（探さなくてよい）
+      slackReply = appo.report_slack_ts && appo.report_slack_channel
+        ? { channel: appo.report_slack_channel, ts: appo.report_slack_ts, mentions: appo.report_slack_mentions || '' }
+        : slackChannels.length > 0 ? await findSlackReportThread(slackChannels, appo.company_name || '') : null
       if (!slackReply) {
         // 登録済みのチャンネルに無い・未登録 → Slack 全体を探し、見つかったチャンネルを登録する
         const precheckChannel = await orgSetting(sb, ev.org_id, 'slack_channel_precheck')
@@ -640,6 +644,7 @@ async function stepDraft(sb: SupabaseClient, ev: EventRow): Promise<void> {
     'ご訪問の一文': ev.result === '未完了' ? (needsVisitNote(appo) ? '入れる' : '入れない') : '',
     '録音リンク': shareRec && ev.result !== '未完了' ? ev.recording_url! : '',
     'Slack形式': channel === 'slack' ? 'はい' : '',
+    '先方に伝えたこと（クライアント様からのご依頼）': ev.result !== '未完了' && appo.precheck_tell && appo.precheck_tell_done_at ? appo.precheck_tell : '',
   })
 
   if (channel !== 'email') {

@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       // 当該 org のアポのみ取得（status='アポ取得' / 対象日範囲）
       const { data: rawOrg, error: apposError } = await supabase
         .from('appointments')
-        .select('id, company_name, getter_name, meeting_date, client_id, notes')
+        .select('id, company_name, getter_name, meeting_date, client_id, notes, precheck_tell')
         .eq('org_id', orgId)
         .eq('status', 'アポ取得')
         .gte('meeting_date', `${targetDates[0]}T00:00:00+00:00`)
@@ -123,6 +123,9 @@ Deno.serve(async (req) => {
         for (const a of grouped[day.date]) {
           const clientName = clientMap[a.client_id] || 'クライアント不明'
           sections.push(`・${a.company_name} / アポ取得者：${getterLabel(a.getter_name)} / クライアント：${clientName} / <${SPANAVI_URL}/?precheck=${a.id}|架電ページで開く>`)
+          if (a.precheck_tell && (a.precheck_tell as string).trim()) {
+            sections.push(`　*先方に伝えること*：${(a.precheck_tell as string).trim()}`)
+          }
           if (a.notes && (a.notes as string).trim()) {
             sections.push(`　備考：${(a.notes as string).trim()}`)
           }
