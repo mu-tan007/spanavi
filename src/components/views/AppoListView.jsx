@@ -235,7 +235,7 @@ function EmailApprovalSection({ appo, clientData = [], contactsByClient = {}, on
     setBriefState('making');
     try {
       const { file, blob } = await renderBriefPdf(m);
-      setAttachedFiles(prev => [file, ...prev.filter(f => !/^面談前資料_/.test(f.name))]);
+      setAttachedFiles(prev => [file, ...prev.filter(f => !/^(ご)?面談前資料_/.test(f.name))]);
       setBriefUrl(URL.createObjectURL(blob));
       setBriefState('attached');
     } catch (e) {

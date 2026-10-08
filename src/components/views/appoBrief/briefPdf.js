@@ -2,9 +2,18 @@
 import React from 'react';
 import OnePageBrief from './OnePageBrief';
 
+/** 社名を短くする：株式会社→(株)・有限会社→(有)・合同会社→(同)、全角の括弧は半角に、空白は詰める（2026-10-08 むー様） */
+export function shortCorpName(name) {
+  return String(name || '')
+    .replace(/株式会社/g, '(株)').replace(/有限会社/g, '(有)').replace(/合同会社/g, '(同)')
+    .replace(/（/g, '(').replace(/）/g, ')')
+    .replace(/[\s　]/g, '');
+}
+
+/** ファイル名は「ご面談前資料_アポ取得先企業名_日付」（例：ご面談前資料_(有)笠井畜産_20261008.pdf） */
 export function briefFileName(m, createdOn) {
-  const safe = String(m.company || '').replace(/[\\/:*?"<>|]/g, '');
-  return `面談前資料_${safe}_${String(createdOn).replace(/\//g, '')}.pdf`;
+  const safe = shortCorpName(m.company).replace(/[\\/:*?"<>|]/g, '');
+  return `ご面談前資料_${safe}_${String(createdOn).replace(/\//g, '')}.pdf`;
 }
 
 /** @returns {Promise<{ blob: Blob, file: File, base64: string, fileName: string }>} */
@@ -22,6 +31,11 @@ export async function renderBriefPdf(m) {
     if (document.fonts?.ready) await document.fonts.ready;
     await new Promise(resolve => setTimeout(resolve, 500));
     const el = container.querySelector('.ob-page');
+    // html2canvas は「palt」（括弧や・を詰める組み方）に対応しておらず、詰めて測った幅に詰めずに描くので文字が重なる。
+    // PDF にするときだけ詰めを外す（2026-10-08 笠井畜産の1枚資料で重なり）
+    el.style.fontFeatureSettings = 'normal';
+    container.querySelectorAll('*').forEach(n => { n.style.fontFeatureSettings = 'normal'; });
+    await new Promise(resolve => setTimeout(resolve, 50));
     const { default: html2canvas } = await import('html2canvas');
     const { jsPDF } = await import('jspdf');
     const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
