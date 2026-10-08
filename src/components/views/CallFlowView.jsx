@@ -25,6 +25,7 @@ import { useUrlState } from '../../hooks/useUrlState';
 import { useSearchParams } from 'react-router-dom';
 import ClientCalendarPanel from '../common/ClientCalendarPanel';
 import ReceptionHistory from '../common/ReceptionHistory';
+import ReceptionTemp from '../common/ReceptionTemp';
 import RuleAskBar from '../common/RuleAskBar';
 import TravelHint from '../common/TravelHint';
 import MultiCalendarPanel from '../common/MultiCalendarPanel';
@@ -2008,6 +2009,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               </div>
 
               {/* この会社の受付（リストをまたいだ受付の対応の記録） */}
+              <ReceptionTemp itemId={selectedRow.id} />
               <ReceptionHistory itemId={selectedRow.id} />
 
               {/* 架電履歴 */}
@@ -2954,6 +2956,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               })()}
 
               {/* この会社の受付（リストをまたいだ受付の対応の記録） */}
+              <ReceptionTemp itemId={selectedRow.id} />
               <ReceptionHistory itemId={selectedRow.id} />
 
               {/* 架電履歴 */}
