@@ -37,14 +37,11 @@ import SpacareerTemplatesView from './spacareer/admin/templates/SpacareerTemplat
 import SpacareerRevenueView from './spacareer/admin/revenue/SpacareerRevenueView';
 import CrowdworksScoutView from './spacareer/admin/crowdworks/CrowdworksScoutView';
 import SpacareerSalesFunnelView from './spacareer/admin/sales/SpacareerSalesFunnelView';
-import SpartiaCapitalSidebar from './common/sidebars/SpartiaCapitalSidebar';
 import PlaceholderSidebar from './common/sidebars/PlaceholderSidebar';
 import CorporateSidebar, { CORPORATE_SECTIONS, CORPORATE_TABS, ACQUISITION_SECTIONS, ACQUISITION_TABS } from './common/sidebars/CorporateSidebar';
 import SiteAnalyticsView from './views/corporate/SiteAnalyticsView';
 import BusinessMetricsView from './views/corporate/BusinessMetricsView';
 import AcquisitionView from './views/acquisition/AcquisitionView';
-import CapitalApp from './views/capital/CapitalApp';
-import { capitalNavigate, getCapitalPathname } from './views/capital/lib/capitalNav';
 import RecallModal from './views/RecallModal';
 import AppoReportModal from './views/AppoReportModal';
 import CallFlowView from './views/CallFlowView';
@@ -813,12 +810,12 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     .filter(Boolean);
 
   // 権限ガード: 現在の currentTab がそのエンゲージメントで閲覧不可の場合、見られる最初のページへ。
-  // adminは常に閲覧可なので影響なし。Capital は path ベースなので除外（capitalNav 側で別途ガードされる）。
+  // adminは常に閲覧可なので影響なし。
   // navGroups を deps配列で参照するため、navGroups 宣言の後に置かないと TDZ で全画面真っ黒になる。
   useEffect(() => {
     if (engLoading || accessLoading) return;
     if (!engSlug) return;
-    if (engSlug === 'spartia_capital' || engSlug === 'corporate' || engSlug === 'acquisition') return;
+    if (engSlug === 'corporate' || engSlug === 'acquisition') return;
     if (currentTab === 'mypage') return;
     if (currentTab === 'admin_settings' || currentTab === 'manager_admin' || currentTab === 'overview') return;
     if (canViewPage(engSlug, currentTab)) return;
@@ -904,12 +901,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         cycle(CORPORATE_TABS, currentTab, e.key, setCurrentTab);
       } else if (engSlug === 'acquisition') {
         cycle(ACQUISITION_TABS, currentTab, e.key, setCurrentTab);
-      } else if (engSlug === 'spartia_capital') {
-        const paths = ['/dashboard', '/deals', '/needs', '/partners', '/documents', '/members'];
-        const cur = getCapitalPathname();
-        // /deals/:id のような詳細ページは /deals にマッチさせる
-        const normalized = paths.find(p => cur === p || cur.startsWith(p + '/')) || paths[0];
-        cycle(paths, normalized, e.key, capitalNavigate);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -1083,16 +1074,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
             onLogout={_onLogout}
           />
         );
-        if (engSlug === 'spartia_capital') return (
-          <SpartiaCapitalSidebar
-            currentTab={currentTab}
-            branding={branding}
-            currentUser={displayUserName}
-            currentMemberAvatar={_avatar}
-            onUserClick={_onUserClick}
-            onLogout={_onLogout}
-          />
-        );
         return (
           <PlaceholderSidebar
             engagement={currentEngagement}
@@ -1203,7 +1184,6 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         <div onClick={() => {
           if (engSlug === 'seller_sourcing') setCurrentTab('dashboard');
           else if (engSlug === 'spartia_career') setCurrentTab('customers');
-          else if (engSlug === 'spartia_capital') capitalNavigate('/dashboard');
           else setCurrentTab('dashboard');
         }} style={{ display: "flex", alignItems: "center", gap: 14, cursor: 'pointer' }}>
           <svg width="36" height="42" viewBox="0 0 52 60">
@@ -1425,12 +1405,11 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         {engSlug === 'spartia_career' && currentTab !== 'admin_settings' && !['customers','recruiting','sessions','trainer_schedule','session_records','trainer_rewards','homework','social_style','ai_courses','templates','analytics','revenue','sales_funnel','crowdworks_scout','mypage'].includes(currentTab) && (
           <EngagementComingSoon title={currentEngagement?.name || 'スパキャリ'} subtitle="この画面は実装中です" />
         )}
-        {engSlug === 'spartia_capital' && currentTab !== 'admin_settings' && <CapitalApp isAdmin={isAdmin} />}
         {engSlug === 'corporate' && isAdmin && currentTab === 'business_metrics' && <BusinessMetricsView />}
         {engSlug === 'corporate' && isAdmin && currentTab === 'site_analytics' && <SiteAnalyticsView />}
         {engSlug === 'corporate' && isAdmin && currentTab === 'company_members' && <CompanyMembersView isAdmin={isAdmin} />}
         {engSlug === 'acquisition' && isAdmin && ACQUISITION_TABS.includes(currentTab) && <AcquisitionView currentTab={currentTab} setCurrentTab={setCurrentTab} />}
-        {engSlug !== 'seller_sourcing' && engSlug !== 'spartia_career' && engSlug !== 'spartia_capital' && engSlug !== 'corporate' && engSlug !== 'acquisition' && currentTab !== 'admin_settings' && (
+        {engSlug !== 'seller_sourcing' && engSlug !== 'spartia_career' && engSlug !== 'corporate' && engSlug !== 'acquisition' && currentTab !== 'admin_settings' && (
           <EngagementPlaceholder engagement={currentEngagement} />
         )}
         {/* --- Seller Sourcing views (既存) / スパキャリ の mypage --- */}

@@ -1,10 +1,8 @@
-import { Search, Database, CalendarCheck2, BarChart3, LayoutDashboard, Users, Briefcase, Menu } from 'lucide-react';
+import { Search, Database, CalendarCheck2, BarChart3, Users, Briefcase, Menu } from 'lucide-react';
 import { color, space, radius, font, alpha } from '../../constants/design';
-import { capitalNavigate, useCapitalPathname } from '../views/capital/lib/capitalNav';
 
 // 事業別の下部タブ構成。
 //   id 末尾が `_more` のものは「その他」モーダルを開く動作
-//   Capital は内部ルーター用に { capitalPath } で対応
 // 営業代行は 2026-08-15 にむー様指示で「企業検索 / 企業DB / アポ一覧 / アナリティクス」へ変更。
 // （左上のハンバーガーから全メニューに行けるため「その他」は置かない）
 const NAV_BY_ENGAGEMENT = {
@@ -19,12 +17,6 @@ const NAV_BY_ENGAGEMENT = {
     { id: 'sessions',   label: 'セッション', Icon: CalendarCheck2 },
     { id: 'recruiting', label: '採用',       Icon: Briefcase },
     { id: '_more',      label: 'その他',     Icon: Menu },
-  ],
-  spartia_capital: [
-    { capitalPath: '/dashboard', label: 'ダッシュ',  Icon: LayoutDashboard },
-    { capitalPath: '/deals',     label: 'ディール',  Icon: Briefcase },
-    { capitalPath: '/partners',  label: '提携',      Icon: Users },
-    { id: '_more',               label: 'その他',    Icon: Menu },
   ],
   spartia_recruitment: [
     { id: 'mypage', label: 'マイページ', Icon: Users },
@@ -45,27 +37,17 @@ export default function MobileBottomNav({ currentTab, setCurrentTab, onMorePress
   const all = NAV_BY_ENGAGEMENT[engSlug] || DEFAULT_NAV;
   // 権限の無いタブ（例: 企業DB は管理者のみ）は出さない。押しても弾かれるだけなので。
   const items = typeof canView === 'function'
-    ? all.filter(it => it.id === '_more' || it.capitalPath || canView(it.id))
+    ? all.filter(it => it.id === '_more' || canView(it.id))
     : all;
-  const isCapital = engSlug === 'spartia_capital';
-  const capitalPath = useCapitalPathname();
 
   const isActive = (item) => {
     if (item.id === '_more') return false;
-    if (isCapital && item.capitalPath) {
-      return capitalPath === item.capitalPath
-        || (item.capitalPath !== '/dashboard' && capitalPath.startsWith(item.capitalPath + '/'));
-    }
     return currentTab === item.id;
   };
 
   const handleClick = (item) => {
     if (item.id === '_more') {
       onMorePress?.();
-      return;
-    }
-    if (isCapital && item.capitalPath) {
-      capitalNavigate(item.capitalPath);
       return;
     }
     setCurrentTab?.(item.id);
@@ -92,7 +74,7 @@ export default function MobileBottomNav({ currentTab, setCurrentTab, onMorePress
         const Icon = item.Icon;
         return (
           <button
-            key={item.id || item.capitalPath || i}
+            key={item.id || i}
             type="button"
             aria-label={item.label}
             aria-current={active ? 'page' : undefined}

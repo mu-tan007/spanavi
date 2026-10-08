@@ -8,8 +8,8 @@ import { useAccessControl } from '../../hooks/useAccessControl';
 
 // product slug 単位で「サイドバーが切り替わる対象」と「準備中」を判定する。
 // product → 代表 engagement に切替する（業務種別単位ではなく事業単位でナビゲーション）。
-const SWITCHABLE_PRODUCT_SLUGS = new Set(['corporate', 'acquisition', 'sales_agency', 'spartia_career_biz', 'spartia_capital_biz']);
-const READY_PRODUCT_SLUGS      = new Set(['corporate', 'acquisition', 'sales_agency', 'spartia_career_biz', 'spartia_capital_biz']);
+const SWITCHABLE_PRODUCT_SLUGS = new Set(['corporate', 'acquisition', 'sales_agency', 'spartia_career_biz']);
+const READY_PRODUCT_SLUGS      = new Set(['corporate', 'acquisition', 'sales_agency', 'spartia_career_biz']);
 
 // product slug → 配下の代表 engagement slug
 const PRODUCT_TO_PRIMARY_ENG_SLUG = {
@@ -19,7 +19,6 @@ const PRODUCT_TO_PRIMARY_ENG_SLUG = {
   spartia_career_biz:     'spartia_career',
   spartia_recruitment_biz:'spartia_recruitment',
   spanavi_biz:            'spanavi',
-  spartia_capital_biz:    'spartia_capital',
 };
 
 // inline=true のとき: 外側の position:fixed コンテナを出さず、タブ列だけ返す。
