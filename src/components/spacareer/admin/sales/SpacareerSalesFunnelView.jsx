@@ -4,6 +4,7 @@ import { Badge, DataTable, Button, Select, Input } from '../../../ui';
 import PageHeader from '../../../common/PageHeader';
 import SubTabs from '../_shared/SubTabs';
 import { supabase } from '../../../../lib/supabase';
+import { loadZoomArchive, zoomShareIdOf, openZoomArchive } from '../../../../lib/spacareer/zoomArchive';
 
 // ============================================================
 // スパキャリ 営業ファネル（admin限定）
@@ -23,6 +24,7 @@ const TABS = [
   { key: 'reps', label: '担当者別' },
   { key: 'leads', label: '見込み客' },
   { key: 'unlinked', label: '未照合' },
+  { key: 'zoom', label: 'Zoom録画' },
 ];
 
 const PERIODS = [
@@ -45,6 +47,11 @@ const SOURCE_OPTIONS = [
   { value: 'fukugyo', label: '複業クラウド' },
   { value: 'other', label: 'その他' },
 ];
+
+function fmtSize(bytes) {
+  if (!bytes) return '—';
+  return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)}GB` : `${Math.round(bytes / 1e6)}MB`;
+}
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
@@ -205,6 +212,8 @@ export default function SpacareerSalesFunnelView({ isAdmin }) {
   const [senders, setSenders] = useState(new Map());
   const [lastFetched, setLastFetched] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
+  const [zoomArchive, setZoomArchive] = useState({ meetings: [], meetingByShare: new Map() });
+  const [zoomErr, setZoomErr] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -245,6 +254,10 @@ export default function SpacareerSalesFunnelView({ isAdmin }) {
     setSenders(senderMap);
     setLastFetched(raw.data?.[0]?.fetched_at ?? null);
     setLoading(false);
+
+    // Zoomから移した録画。読めなくてもファネル本体は出す。
+    try { setZoomArchive(await loadZoomArchive()); setZoomErr(null); }
+    catch (e) { setZoomErr(e.message); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -380,6 +393,48 @@ export default function SpacareerSalesFunnelView({ isAdmin }) {
       render: (r) => <span style={{ color: color.textLight }}>{fmtDateTime(r._lastAt)}</span> },
   ];
 
+  const meetingByUuid = useMemo(
+    () => new Map(zoomArchive.meetings.map((m) => [m.uuid, m])),
+    [zoomArchive],
+  );
+
+  const playArchive = async (key) => {
+    try { await openZoomArchive(key); } catch (e) { setZoomErr(e.message); }
+  };
+
+  // Zoomの共有リンクは、移した録画があればスパナビの中で再生する（Zoomから外したあとも見られる）。
+  const renderRecordingLink = (url) => {
+    const shareId = zoomShareIdOf(url);
+    const meeting = shareId ? meetingByUuid.get(zoomArchive.meetingByShare.get(shareId)) : null;
+    if (meeting?.play) {
+      return (
+        <a href="#" onClick={(ev) => { ev.preventDefault(); playArchive(meeting.play.r2_key); }} style={{ color: color.navyLight }}>
+          録画
+        </a>
+      );
+    }
+    return <a href={url} target="_blank" rel="noreferrer" style={{ color: color.navyLight }}>録画</a>;
+  };
+
+  const zoomColumns = [
+    { key: 'start_time', label: '開始', width: 110, align: 'right', sortable: true, sortValue: (m) => new Date(m.start_time).getTime(),
+      render: (m) => <span style={{ color: color.textMid }}>{fmtDateTime(m.start_time)}</span> },
+    { key: 'host_email', label: 'ホスト', width: 220, mobilePrimary: true,
+      render: (m) => <span style={{ color: color.textDark }}>{m.host_email || '—'}</span> },
+    { key: 'duration_min', label: '長さ', width: 70, align: 'right',
+      render: (m) => <span style={{ color: color.textMid }}>{m.duration_min != null ? `${m.duration_min}分` : '—'}</span> },
+    { key: 'size', label: '大きさ', width: 80, align: 'right',
+      render: (m) => <span style={{ color: color.textMid }}>{fmtSize(m.size)}</span> },
+    { key: '_state', label: '保存', width: 110, align: 'center',
+      render: (m) => (m.archived
+        ? <Badge variant="success" size="sm" dot>{m.trashed ? 'スパナビのみ' : 'スパナビ・Zoom'}</Badge>
+        : <Badge variant="warn" size="sm" dot>移送待ち</Badge>) },
+    { key: '_play', label: '再生', width: 80, align: 'center',
+      render: (m) => (m.play
+        ? <Button size="sm" variant="outline" onClick={() => playArchive(m.play.r2_key)}>再生</Button>
+        : <span style={{ color: color.textLight }}>—</span>) },
+  ];
+
   const renderTimeline = (r) => (
     <div style={{ padding: `${space[2]}px ${space[4]}px` }}>
       {r._sender && (
@@ -394,7 +449,7 @@ export default function SpacareerSalesFunnelView({ isAdmin }) {
           {e.result && <span>{e.result}</span>}
           {e.scheduled_at && <span>面談 {fmtDateTime(e.scheduled_at)}</span>}
           {e.rep_id && <span>（{repName.get(e.rep_id)}）</span>}
-          {e.recording_url && <a href={e.recording_url} target="_blank" rel="noreferrer" style={{ color: color.navyLight }}>録画</a>}
+          {e.recording_url && renderRecordingLink(e.recording_url)}
         </div>
       ))}
     </div>
@@ -473,6 +528,20 @@ export default function SpacareerSalesFunnelView({ isAdmin }) {
             expandedKeys={expanded}
             onToggleExpand={toggle}
           />
+        )}
+
+        {tab === 'zoom' && (
+          <>
+            {zoomErr && <div style={{ color: color.danger, fontSize: font.size.sm, marginBottom: space[2] }}>{zoomErr}</div>}
+            <DataTable
+              columns={zoomColumns}
+              rows={zoomArchive.meetings}
+              rowKey="uuid"
+              loading={loading}
+              emptyMessage="移した録画なし"
+              height="calc(100vh - 300px)"
+            />
+          </>
         )}
 
         {tab === 'unlinked' && (

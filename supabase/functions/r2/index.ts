@@ -43,6 +43,8 @@ function env(name: string): string {
 function bucketOf(kind: string): string {
   if (kind === 'spacareer') return env('R2_BUCKET_SPACAREER');
   if (kind === 'recordings') return env('R2_BUCKET_RECORDINGS');
+  // Zoomのクラウド録画を移したもの。自動削除の規則を入れない専用の置き場（無期限・2026-10-08）。
+  if (kind === 'zoomcloud') return 'spanavi-zoom-archive';
   throw new Error(`知らない置き場です: ${kind}`);
 }
 
