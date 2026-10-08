@@ -80,7 +80,8 @@ export function briefModel(appo, dossier) {
     employees: bi.employee_count || '',
     // 東京商工リサーチ（企業DB・リストの値）
     industryMajor: String(bi.industry_major || '').replace(/^[A-Z]\s*/, ''),
-    businessDesc: bi.business_description || '',
+    // 「食肉販売（１００％）」→「食肉販売100%」（全角の数字と括弧を整える）
+    businessDesc: String(bi.business_description || '').replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0)).replace(/[（(]\s*(\d+)\s*[％%]\s*[）)]/g, '$1%'),
     shareholders: bi.shareholders || '',
     repAge: bi.representative_age || '',
     business: Array.isArray(c.business) ? c.business.slice(0, 4) : [],
@@ -119,7 +120,7 @@ export function buildNewReportText(m, { phone = '', email = '' } = {}) {
   }
   lines.push('');
   lines.push('■ 会社の概要（東京商工リサーチ）');
-  if (m.industry || m.businessDesc) lines.push(`業種：${[m.industry, m.businessDesc && `（${m.businessDesc}）`].filter(Boolean).join('')}`);
+  if (m.industry || m.businessDesc) lines.push(`業種：${[m.industry, m.businessDesc].filter(Boolean).join(' ・ ')}`);
   if (m.established) lines.push(`設立：${m.established}年${m.years != null && m.years >= 0 ? `（${m.years}年目）` : ''}`);
   if (m.revenue || m.netIncome) lines.push(`財務：${[m.revenue && `売上 ${m.revenue}`, m.netIncome && `純利益 ${m.netIncome}`].filter(Boolean).join(' ／ ')}`);
   if (m.employees) lines.push(`従業員：${m.employees}名`);

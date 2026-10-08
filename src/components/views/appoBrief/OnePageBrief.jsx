@@ -39,7 +39,7 @@ export default function OnePageBrief({ m, createdOn }) {
           {/* 東京商工リサーチ（企業DB）の概要（2026-10-08） */}
           <div className="ob-box"><h3>会社の概要（東京商工リサーチ）</h3>
             <dl className="ob-kv">
-              {(m.industry || m.businessDesc) && <><dt>業種</dt><dd>{m.industry}{m.businessDesc ? `（${m.businessDesc}）` : ''}</dd></>}
+              {(m.industry || m.businessDesc) && <><dt>業種</dt><dd>{[m.industry, m.businessDesc].filter(Boolean).join(' ・ ')}</dd></>}
               {m.established && <><dt>設立</dt><dd>{m.established}年</dd></>}
               {m.employees && <><dt>従業員</dt><dd>{m.employees}名</dd></>}
               {m.rep && <><dt>代表</dt><dd>{m.rep} 様{m.repAge ? `（${m.repAge}歳）` : ''}</dd></>}
