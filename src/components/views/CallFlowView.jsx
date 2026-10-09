@@ -44,6 +44,7 @@ import AltNumbers from './callflow/AltNumbers';
 import ScriptV2 from './callflow/ScriptV2';
 import useCandidateDates from './callflow/useCandidateDates';
 import CandidateCal from './callflow/CandidateCal';
+import CustomerInfo from './callflow/CustomerInfo';
 import './callflow/CallPage.css';
 import { supabase } from '../../lib/supabase';
 import { telFmt } from '../../utils/telFormat';
@@ -2526,43 +2527,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 </>
               );
             })();
-  const renderTabBody = () => (
-    <>
-            {scriptTab === 'script' && <RuleAskBar list={list} />}
-            {scriptTab === 'script' && ((listMode || isMobile) ? renderLegacyScript() : (() => {
-              let rdS = null;
-              try { rdS = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch { /* 読めなければ共通のアウト返しだけ */ }
-              const meM = members.find(m => typeof m === 'object' && norm2(m.name) === norm2(currentUser));
-              const rawN = String(meM?.zoomPhoneNumber || '').replace(/[^\d+]/g, '');
-              return <ScriptV2 key={list._supaId} spec={list.scriptV2} list={list} row={selectedRow} rebuttal={rdS} renderLegacy={renderLegacyScript}
-                cands={candData.cands} pick={apoPick} onPick={setApoPick}
-                myNumber={telFmt(rawN.startsWith('+81') ? `0${rawN.slice(3)}` : rawN)} />;
-            })())}
-            {scriptTab === 'letter' && letterPath && (() => {
-              const url = letterUrl?.path === letterPath ? letterUrl.url : null;
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[2] }}>
-                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: font.size.xs, color: color.gray500 }}>
-                    <span>お送りした手紙（印刷したものと同じ紙面）</span>
-                    {url && (
-                      <a href={url} target="_blank" rel="noopener noreferrer"
-                        style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
-                        新規タブで開く
-                      </a>
-                    )}
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
-                    {url ? (
-                      <iframe key={letterPath} src={`${url}#toolbar=0&navpanes=0&view=FitH`} title="手紙"
-                        style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }} />
-                    ) : (
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>手紙を読み込み中...</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-            {scriptTab === 'info' && (() => {
+  // 今までの「企業概要」（会社の説明文とPDF）。顧客情報がまだ無いリストはこれを出す
+  const renderLegacyInfo = () => (() => {
               const pdfs = Array.isArray(list.companyOverviewPdfs) ? list.companyOverviewPdfs : [];
               const selectedPdf = pdfs.find(p => p.path === selectedOverviewPdfPath) || pdfs[0] || null;
               const iframeUrl = selectedPdf ? overviewPdfUrls[selectedPdf.path] : null;
@@ -2621,7 +2587,44 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   )}
                 </div>
               );
+            })();
+  const renderTabBody = () => (
+    <>
+            {scriptTab === 'script' && <RuleAskBar list={list} />}
+            {scriptTab === 'script' && ((listMode || isMobile) ? renderLegacyScript() : (() => {
+              let rdS = null;
+              try { rdS = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch { /* 読めなければ共通のアウト返しだけ */ }
+              const meM = members.find(m => typeof m === 'object' && norm2(m.name) === norm2(currentUser));
+              const rawN = String(meM?.zoomPhoneNumber || '').replace(/[^\d+]/g, '');
+              return <ScriptV2 key={list._supaId} spec={list.scriptV2} list={list} row={selectedRow} rebuttal={rdS} renderLegacy={renderLegacyScript}
+                cands={candData.cands} pick={apoPick} onPick={setApoPick}
+                myNumber={telFmt(rawN.startsWith('+81') ? `0${rawN.slice(3)}` : rawN)} />;
+            })())}
+            {scriptTab === 'letter' && letterPath && (() => {
+              const url = letterUrl?.path === letterPath ? letterUrl.url : null;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[2] }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: font.size.xs, color: color.gray500 }}>
+                    <span>お送りした手紙（印刷したものと同じ紙面）</span>
+                    {url && (
+                      <a href={url} target="_blank" rel="noopener noreferrer"
+                        style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
+                        新規タブで開く
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
+                    {url ? (
+                      <iframe key={letterPath} src={`${url}#toolbar=0&navpanes=0&view=FitH`} title="手紙"
+                        style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }} />
+                    ) : (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>手紙を読み込み中...</div>
+                    )}
+                  </div>
+                </div>
+              );
             })()}
+            {scriptTab === 'info' && ((listMode || isMobile) ? renderLegacyInfo() : <CustomerInfo cust={list?.scriptV2?.cust} client={list?.company} legacy={renderLegacyInfo} />)}
             {scriptTab === 'cautions' && (
               list.cautions
                 ? <CautionsCards text={list.cautions} fontSize={12} filter="non-calendar" />
