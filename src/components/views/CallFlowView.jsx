@@ -41,6 +41,7 @@ import RepName from './callflow/RepName';
 import HeatRule from './callflow/HeatRule';
 import TempsBox from './callflow/TempsBox';
 import AltNumbers from './callflow/AltNumbers';
+import ScriptV2 from './callflow/ScriptV2';
 import './callflow/CallPage.css';
 import { supabase } from '../../lib/supabase';
 import { telFmt } from '../../utils/telFormat';
@@ -2412,10 +2413,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
   });
 
   // 右のタブの中身（スマホ・一覧の旧画面と、架電ページの新しい画面で同じものを使う）
-  const renderTabBody = () => (
-    <>
-            {scriptTab === 'script' && <RuleAskBar list={list} />}
-            {scriptTab === 'script' && (() => {
+  // 今までの台本の出し方（ツリー・PDF・文）。新しい台本の「台本」タブでも、共通の台本が無いリストはこれを出す
+  const renderLegacyScript = () => (() => {
               // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
               let rdScript = null;
               try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
@@ -2499,7 +2498,18 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
                 </>
               );
-            })()}
+            })();
+  const renderTabBody = () => (
+    <>
+            {scriptTab === 'script' && <RuleAskBar list={list} />}
+            {scriptTab === 'script' && ((listMode || isMobile) ? renderLegacyScript() : (() => {
+              let rdS = null;
+              try { rdS = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch { /* 読めなければ共通のアウト返しだけ */ }
+              const meM = members.find(m => typeof m === 'object' && norm2(m.name) === norm2(currentUser));
+              const rawN = String(meM?.zoomPhoneNumber || '').replace(/[^\d+]/g, '');
+              return <ScriptV2 key={list._supaId} spec={list.scriptV2} list={list} row={selectedRow} rebuttal={rdS} renderLegacy={renderLegacyScript}
+                myNumber={telFmt(rawN.startsWith('+81') ? `0${rawN.slice(3)}` : rawN)} />;
+            })())}
             {scriptTab === 'letter' && letterPath && (() => {
               const url = letterUrl?.path === letterPath ? letterUrl.url : null;
               return (

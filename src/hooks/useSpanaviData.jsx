@@ -204,6 +204,8 @@ export function useSpanaviData(authOrgId) {
         rewardNote: cl.reward_note || '',
         // ツリー型スクリプト（ノード＋リンク）。NULL=テキスト型のみ
         scriptTree: cl.script_tree || null,
+        // 共通の台本に差し込む、リストごとの違い（2026-10-09 基本台本）
+        scriptV2: cl.script_v2 || null,
         contactIds: (cl.contact_ids && cl.contact_ids.length > 0) ? cl.contact_ids : (cl.contact_id ? [cl.contact_id] : []),
         created_at: cl.created_at || null,
       });
