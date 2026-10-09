@@ -43,6 +43,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   const [linkSearching, setLinkSearching] = useState(false);
   // 録音再生表示中の行ID
   const [activeRecordingId, setActiveRecordingId] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   // 録音自動取得を 1 行 1 回に制限するための refs
   const _autoFetchedRef = useRef(new Set());
 
@@ -50,8 +51,15 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   // 会社が分からない番号の候補（受けた人が直前7日にかけた会社）が付いて返る（2026-10-09）
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc('incoming_board', { p_days: 45 });
-    if (error) console.warn('[IncomingCalls] incoming_board error:', error);
+    setLoadError(false);
+    // 直接このページを開いたときは、ログインの読み込みが済む前に呼ぶと空で返るため、先にログインを確かめる。失敗したら1回だけやり直す
+    await supabase.auth.getSession();
+    let { data, error } = await supabase.rpc('incoming_board', { p_days: 45 });
+    if (error || !Array.isArray(data) || !data.length) {
+      await new Promise(r => setTimeout(r, 1200));
+      ({ data, error } = await supabase.rpc('incoming_board', { p_days: 45 }));
+    }
+    if (error) { console.warn('[IncomingCalls] incoming_board error:', error); setLoadError(true); }
     setRecords(Array.isArray(data) ? data : []);
     setLoading(false);
   };
@@ -368,7 +376,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
           {!loading && showOpen && (
             <div className="card sec">
               <div className="card-h"><b>折り返す順番</b><span>約束の日が来た会社・社長と話した会社・何度もかけてきた番号を上に</span></div>
-              {openGroups.length ? openGroups.map(card) : <div className="hint">折り返し待ちの着信はありません</div>}
+              {openGroups.length ? openGroups.map(card) : <div className="hint">{loadError ? '読み込めませんでした。「更新」を押してください' : '折り返し待ちの着信はありません'}</div>}
             </div>
           )}
           {!loading && showDone && (
