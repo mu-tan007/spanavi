@@ -368,7 +368,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
           _savedQueueRef.current = null;
           if (savedQueue && savedQueue.items.length > 0) {
             // restoreQueue が setCallFlowScreen を呼ぶので callFlowScreen 単独復元は不要
-            restoreQueue(savedQueue.items, savedQueue.idx || 0);
+            restoreQueue(savedQueue.items, savedQueue.idx || 0, savedQueue.opts || {});
           } else if (savedData) {
             const { listSupaId, startNo, endNo, defaultItemId, defaultListMode, statusFilter, revenueMin, revenueMax, prefFilter, prefMode, callCountMin, callCountMax, addressMatchFilter, viewedOnly, sentOnly } = savedData;
             const list = supabaseData.callLists.find(l => l._supaId === listSupaId);
@@ -770,7 +770,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
     { id: "stats", label: "アナリティクス", children: null },
     { id: "g_call", label: "Call", children: [
       { id: "lists", label: "架電リスト" },
-      { id: "recall", label: "再架電" },
+      // 再架電は架電リストの「条件で探す」（受付・キーマン再コール）に統合（2026-10-09 むー様）
       { id: "incoming", label: "着信対応" },
       { id: "scripts", label: "スクリプト" },
     ]},
@@ -1265,7 +1265,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
                   )}
                 </div>
                 <div style={{ padding: "8px 14px", borderTop: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <button onClick={() => { setCurrentTab("recall"); setShowBellDropdown(false); }}
+                  <button onClick={() => { try { sessionStorage.setItem('spanavi_calllist_open_find', '1'); } catch { /* 開けなくても架電リストへは移る */ } setCurrentTab("lists"); setShowBellDropdown(false); }}
                     style={{ width: "100%", padding: "6px", borderRadius: 5, border: "none",
                       background: C.navy, color: C.white, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Noto Sans JP'" }}>
                     再コール一覧を開く

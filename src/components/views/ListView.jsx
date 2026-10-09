@@ -12,7 +12,8 @@ import ColumnResizeHandle from '../common/ColumnResizeHandle';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import PageHeader from '../common/PageHeader';
 import TopListCard, { ProgressPill } from '../common/TopListCard';
-import SmartQueueTab from './smart-queue/SmartQueueTab';
+import CallListHome from './calllist/CallListHome';
+import { useAuth } from '../../hooks/useAuth';
 import { useUrlState } from '../../hooks/useUrlState';
 import { resolveListClient } from '../../utils/listContacts';
 import { fetchListAppoOutlook, perAppoLabel } from '../../utils/appoOutlook';
@@ -423,6 +424,8 @@ function RewardCell({ list, rewardMaster, clientEngagementRewards, isInternFee =
 
 export default function ListView({ filteredLists, allLists, filterStatus, setFilterStatus, filterType, setFilterType, searchQuery, setSearchQuery, sortBy, setSortBy, setSelectedList, callListData, setCallListData, listFormOpen, setListFormOpen, editingListId, setEditingListId, now, isAdmin = false, clientData = [], contactsByClient = {}, setCallFlowScreen, onOpenIndustryRules, rewardMaster = [], clientEngagementRewards = [] }) {
   const isMobile = useIsMobile();
+  const { session } = useAuth();
+  const currentUserKey = session?.user?.id || '';
   const { currentEngagement, engagements: allEngagements, categories: allCategories } = useEngagements();
   // 商材（business_categories）：現状はM&Aのみ
   const selectableCategories = useMemo(
@@ -831,167 +834,6 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
-      <PageHeader
-        title="架電リスト"
-        description="架電リスト管理"
-        style={{ marginBottom: space[3] }}
-        right={onOpenIndustryRules && viewMode === 'lists' ? (
-          <Button variant="secondary" size="sm" onClick={onOpenIndustryRules}>業種別ルールを開く</Button>
-        ) : null}
-      />
-
-      {/* トップタブ: リスト一覧 / スマートキュー */}
-      <div style={{
-        display: 'flex', gap: space[1], marginBottom: space[4],
-        borderBottom: `1px solid ${color.border}`,
-      }}>
-        {[
-          { value: 'lists',       label: 'リスト一覧' },
-          { value: 'smart_queue', label: 'スマートキュー' },
-        ].map(t => {
-          const active = viewMode === t.value;
-          return (
-            <button key={t.value} onClick={() => setViewMode(t.value)} style={{
-              padding: '10px 22px', background: 'transparent',
-              border: 'none', borderBottom: `2px solid ${active ? color.navy : 'transparent'}`,
-              fontSize: font.size.sm, fontWeight: active ? font.weight.bold : font.weight.semibold,
-              color: active ? color.navy : color.textMid, cursor: 'pointer',
-              fontFamily: font.family.sans, transition: 'all 0.12s', marginBottom: -1,
-            }}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.color = color.navy; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = color.textMid; }}
-            >{t.label}</button>
-          );
-        })}
-      </div>
-
-      {viewMode === 'smart_queue' && (
-        <SmartQueueTab setCallFlowScreen={setCallFlowScreen} callListData={callListData} />
-      )}
-
-      {viewMode === 'lists' && <>
-      {/* 時間外メッセージ */}
-      {now && (now.getHours() < 7 || now.getHours() >= 20) && (
-        <div style={{ background: color.white, borderRadius: radius.md, padding: "14px 20px", marginBottom: space[4], border: `1px solid ${color.border}`, borderLeft: `4px solid ${color.textLight}`, display: "flex", alignItems: "center", gap: space[2] }}>
-          <span style={{ fontSize: font.size.base }}>夜</span>
-          <span style={{ fontSize: font.size.sm, color: color.textMid, fontWeight: font.weight.semibold }}>この時間帯は架電時間外です</span>
-          <span style={{ fontSize: 10, color: color.textLight }}>（7:00〜20:00が架電推奨時間帯）</span>
-        </div>
-      )}
-
-      {/* Recommendation Banner */}
-      {topRecommended.length > 0 && showRec && !(now && (now.getHours() < 7 || now.getHours() >= 20)) && (
-        <div style={{
-          background: color.white, borderRadius: radius.md, padding: isMobile ? "10px 12px" : "16px 20px", marginBottom: space[4],
-          border: `1px solid ${color.border}`, borderLeft: "2px solid #1E40AF",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: space[3] }}>
-            <div style={{ display: "flex", alignItems: "center", gap: space[2] }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: color.success, animation: "pulse 2s infinite" }} />
-              <span style={{ fontSize: font.size.base, fontWeight: font.weight.bold, color: color.navy }}>現在のおすすめリスト</span>
-              <span style={{ fontSize: 10, color: color.textLight }}>
-                {now ? (DAY_NAMES[now.getDay()] + "曜日 " + now.getHours() + "時台") : ""}
-              </span>
-              <span style={{ fontSize: 10, fontWeight: font.weight.bold, color: "#1E40AF", background: "#EFF6FF", padding: "1px 8px", borderRadius: 8 }}>
-                {topRecommended.length}件
-              </span>
-            </div>
-            <button onClick={() => setShowRec(false)} style={{
-              background: "transparent", border: "none", cursor: "pointer",
-              fontSize: 14, color: color.textLight, padding: "2px 6px",
-            }}>×</button>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: space[2.5] }}>
-            {topRecommended.map(list => (
-              <TopListCard key={list.id} list={list} onClick={() => setSelectedList(list.id)} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Filter Tabs: 商材 → タイプ の 2 階層 */}
-      {(() => {
-        const pillStyle = (active) => ({
-          padding: "6px 16px", borderRadius: radius.md, fontSize: font.size.sm, fontWeight: font.weight.semibold,
-          cursor: "pointer", transition: "all 0.15s", fontFamily: font.family.sans,
-          ...(active
-            ? { background: color.navy, color: color.white, border: `1px solid ${color.navy}` }
-            : { background: color.white, color: color.textMid, border: `1px solid ${color.border}` }),
-        });
-        // 選択中商材配下のタイプ
-        const typesForCategory = categoryFilter === 'all'
-          ? []
-          : salesAgencyEngagements.filter(e => e.category_id === categoryFilter && activeEngagementIds.has(e.id));
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: space[2], marginBottom: space[3] }}>
-            {/* Row 1: 商材セレクタ */}
-            <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>商材:</span>
-              <button onClick={() => { setCategoryFilter('all'); setDisplayFilter('all'); }} style={pillStyle(categoryFilter === 'all')}>全商材</button>
-              {filterCategories.map(c => (
-                <button key={c.id} onClick={() => setCategoryFilter(c.id)} style={pillStyle(categoryFilter === c.id)}>{c.name}</button>
-              ))}
-            </div>
-            {/* Row 2: タイプセレクタ (商材選択中のみ表示) */}
-            {categoryFilter !== 'all' && (
-              <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: font.size.xs, color: color.textMid, fontWeight: font.weight.semibold, minWidth: 40 }}>タイプ:</span>
-                <button onClick={() => setDisplayFilter('all')} style={pillStyle(displayFilter === 'all')}>全て</button>
-                {typesForCategory.map(e => (
-                  <button key={e.slug} onClick={() => setDisplayFilter(e.slug)} style={pillStyle(displayFilter === e.slug)}>{e.name}</button>
-                ))}
-                <span style={{ flex: 1 }} />
-                <button
-                  onClick={() => setDisplayFilter(displayFilter === 'archived' ? 'all' : 'archived')}
-                  title={displayFilter === 'archived' ? 'クリックでアーカイブ表示を解除' : 'アーカイブされたリストを表示'}
-                  style={pillStyle(displayFilter === 'archived')}
-                >アーカイブ</button>
-              </div>
-            )}
-            {/* 商材=全商材 のときはアーカイブだけ右端に置く */}
-            {categoryFilter === 'all' && (
-              <div style={{ display: 'flex', gap: space[1.5], alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ flex: 1 }} />
-                <button
-                  onClick={() => setDisplayFilter(displayFilter === 'archived' ? 'all' : 'archived')}
-                  title={displayFilter === 'archived' ? 'クリックでアーカイブ表示を解除' : 'アーカイブされたリストを表示'}
-                  style={pillStyle(displayFilter === 'archived')}
-                >アーカイブ</button>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Filters */}
-      <div style={{
-        display: "flex", gap: space[2.5], marginBottom: space[5], flexWrap: "wrap", alignItems: "center",
-        padding: isMobile ? "10px 12px" : "14px 18px", background: color.white, borderRadius: radius.md,
-        border: `1px solid ${color.border}`,
-      }}>
-        <input type="text" placeholder="企業名・リスト名・担当者で検索..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, flex: "1 1 200px", minWidth: 180 }} />
-        {/* 旧「全種別」セレクト(call_lists.list_type の遺物)は撤去。商材→タイプ+アーカイブの軸に集約。 */}
-        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={inputStyle}>
-          <option value="date">日付順</option>
-          <option value="manager">担当者別</option>
-          <option value="client">クライアント順</option>
-        </select>
-        <span style={{ fontSize: font.size.xs, color: color.textLight, fontWeight: font.weight.semibold, fontFamily: font.family.mono }}>{(() => {
-          const archivedCount = callListData.filter(l => l.is_archived).length;
-          if (displayFilter === 'archived') return archivedCount;
-          const filterEng = salesAgencyEngagements.find(e => e.slug === displayFilter);
-          let scope = filteredLists;
-          if (categoryFilter !== 'all') scope = scope.filter(l => engagementToCategoryId[l.engagement_id] === categoryFilter);
-          if (filterEng) scope = scope.filter(l => l.engagement_id === filterEng.id);
-          return scope.length;
-        })()}件</span>
-        {isAdmin && (
-          <div style={{ marginLeft: 'auto' }}>
-            <Button variant="primary" size="sm" onClick={handleOpenAdd}>＋ リスト追加</Button>
-          </div>
-        )}
-      </div>
-
       {/* Add/Edit Form */}
       {listFormOpen && (
         <div style={{
@@ -1300,206 +1142,15 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
         </div>
       )}
 
-      {/* Table */}
-      <div style={{
-        background: color.white, border: `1px solid ${color.border}`,
-        borderRadius: radius.md, overflowX: "auto", overflowY: "hidden",
-      }}>
-        <div style={{ minWidth: lvMinW }}>
-        <div style={{
-          display: "grid", gridTemplateColumns: lvGrid,
-          padding: isMobile ? "6px 10px" : "8px 16px", background: color.navy,
-          fontSize: isMobile ? 10 : font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
-        }}>
-          {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '当社売上', '架電進捗率', 'アポ1件まで', 'おすすめ度', ''].map((label, i) => (
-            <span key={i} title={label === 'アポ1件まで' ? 'まだかけられる会社に1回ずつかけたとき、アポ1件に要る架電数。会社ごとに直前の結果のアポ率（これまでの全記録）を当てて出しています' : undefined} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
-              {label}
-              {i < 10 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
-            </span>
-          ))}
-        </div>
-        {displayFilter !== 'archived' && <div style={{ maxHeight: 600, overflowY: "auto" }}>
-          {(() => {
-            // 2 階層絞り込み:
-            //   (a) categoryFilter (商材) ── 'all' 以外なら配下 engagement のみ残す
-            //   (b) displayFilter (タイプ) ── slug 一致の engagement のみ残す
-            const filterEng = salesAgencyEngagements.find(e => e.slug === displayFilter);
-            let activeLists = filteredLists;
-            if (categoryFilter !== 'all') {
-              activeLists = activeLists.filter(l => engagementToCategoryId[l.engagement_id] === categoryFilter);
-            }
-            if (filterEng) {
-              activeLists = activeLists.filter(l => l.engagement_id === filterEng.id);
-            }
-            const grouped = {};
-            activeLists.forEach(list => {
-              const key = list.company;
-              if (!grouped[key]) grouped[key] = [];
-              grouped[key].push(list);
-            });
-            let idx = 0;
-            return Object.entries(grouped).map(([client, lists]) => (
-              <div key={client}>
-                <div style={{
-                  padding: "6px 16px", background: alpha(color.navy, 0.03),
-                  borderBottom: `1px solid ${color.borderLight}`,
-                  display: "flex", alignItems: "center", gap: space[2],
-                  position: "sticky", top: 0, zIndex: 1,
-                }}>
-                  <span style={{ fontSize: font.size.xs, fontWeight: font.weight.bold, color: color.navy }}>{client}</span>
-                  <span style={{ fontSize: 10, color: color.textLight }}>{lists.length}リスト・{lists.reduce((s,l)=>s+l.count,0).toLocaleString()}社</span>
-                </div>
-                {lists.map((list) => {
-                  const i = idx++;
-                  return (
-                    <div key={list.id} style={{
-                      display: "grid", gridTemplateColumns: lvGrid,
-                      padding: "10px 16px",
-                      borderBottom: `1px solid ${color.offWhite}`,
-                      fontSize: font.size.sm, alignItems: "center",
-                      transition: "background 0.15s",
-                      opacity: list.status === "架電停止" ? 0.4 : 1,
-                      animation: "fadeIn 0.2s ease " + (i * 0.015) + "s both",
-                      borderLeft: "2px solid transparent",
-                      position: "relative",
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#EAF4FF"; e.currentTarget.style.borderLeft = `2px solid ${color.navy}`; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "2px solid transparent"; }}
-                    >
-                      <span onClick={() => setSelectedList(list.id)} style={{ fontWeight: font.weight.medium, paddingRight: space[2], cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[0]?.align || 'left', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        {list.status === "架電停止" && <span style={{ color: color.danger, marginRight: 4 }}>■</span>}
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.company}</span>
-                        <CallerLockBadge list={list} />
-                      </span>
-                      <span style={{ color: color.textMid, fontSize: font.size.xs, textAlign: lvCols[1]?.align || 'center' }}>{engagementToCategoryName[list.engagement_id] || '—'}</span>
-                      <span style={{ display: "flex", justifyContent: lvCols[2]?.align === 'right' ? 'flex-end' : lvCols[2]?.align === 'center' ? 'center' : 'flex-start' }}>
-                        {(() => {
-                          const typeName = engagementToEngagementName[list.engagement_id] || '—';
-                          const tone = typeName === '売り手ソーシング' ? color.navy
-                                     : typeName === '買い手マッチング' ? '#6366F1'
-                                     : typeName === 'クライアント開拓' ? color.gold
-                                     : color.textMid;
-                          return <TypeBadge color={tone} small>{typeName}</TypeBadge>;
-                        })()}
-                      </span>
-                      <span style={{ color: color.textMid, minWidth: 0, display: 'flex', alignItems: 'center', gap: space[1.5], justifyContent: lvCols[3]?.align === 'right' ? 'flex-end' : lvCols[3]?.align === 'center' ? 'center' : 'flex-start' }}>
-                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{list.industry}</span>
-                        {viewedCounts.issued[list._supaId] > 0 && setCallFlowScreen && (() => {
-                          const n = viewedCounts.counts[list._supaId] || 0;
-                          return (
-                            <button
-                              disabled={n === 0}
-                              onClick={e => { e.stopPropagation(); if (n > 0) setCallFlowScreen({ list, startNo: null, endNo: null, statusFilter: null, defaultListMode: true, viewedOnly: true }); }}
-                              title={n > 0 ? 'フォーム営業で送った資料かHPを開いた企業だけで架電画面を開きます' : 'まだリンク開封済の企業はありません'}
-                              style={{ flexShrink: 0, padding: '1px 7px', borderRadius: radius.md, cursor: n > 0 ? 'pointer' : 'default', fontSize: font.size.xs - 2, fontWeight: font.weight.semibold, fontFamily: font.family.sans, whiteSpace: 'nowrap', background: color.white, color: n > 0 ? color.success : color.textLight, border: `1px solid ${n > 0 ? color.success : color.border}` }}
-                            >{`リンク開封済 ${n}`}</button>
-                          );
-                        })()}
-                      </span>
-                      <span style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: color.textMid, textAlign: lvCols[4]?.align || 'right' }}>{list.count.toLocaleString()}</span>
-                      <span style={{ color: color.textMid, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: lvCols[5]?.align || 'center' }}>{shortManagerName(list)}</span>
-                      <span style={{ textAlign: lvCols[6]?.align || 'right', display: 'block' }}>
-                        <RewardCell list={list} rewardMaster={rewardMaster} clientEngagementRewards={clientEngagementRewards} isInternFee={engagementToType[list.engagement_id] === 'client_acquisition'} />
-                      </span>
-                      <span style={{ display: "flex", justifyContent: lvCols[7]?.align === 'right' ? 'flex-end' : lvCols[7]?.align === 'center' ? 'center' : 'flex-start' }}><ProgressPill pct={list.call_progress_pct} /></span>
-                      {(() => {
-                        const o = outlookByList[list._supaId];
-                        return (
-                          <span title={o && o.n ? `まだかけられる${o.n.toLocaleString()}社・全部にかけて見込みアポ${o.expected.toFixed(1)}件` : undefined}
-                            style={{ fontFamily: font.family.mono, fontSize: font.size.xs, color: o?.perAppo ? color.textDark : color.textLight, textAlign: lvCols[8]?.align || 'right', whiteSpace: 'nowrap' }}>
-                            {o ? perAppoLabel(o) : '—'}
-                          </span>
-                        );
-                      })()}
-                      <span style={{ display: "flex", justifyContent: lvCols[9]?.align === 'right' ? 'flex-end' : lvCols[9]?.align === 'center' ? 'center' : 'flex-start' }}>{list.status === "架電可能" && <ScorePill score={list.recommendation.score} />}</span>
-                      {isAdmin && (
-                        <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
-                          <button onClick={() => handleOpenEdit(list)} title="編集" style={{
-                            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, borderRadius: radius.md, background: color.offWhite,
-                            border: `1px solid ${color.border}`, color: color.textMid, cursor: "pointer",
-                            fontSize: font.size.xs, display: "flex", alignItems: "center", justifyContent: "center",
-                          }}>✎</button>
-                          <button onClick={() => { handleDelete(list.id); }} title="削除" style={{
-                            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, borderRadius: radius.md, background: color.dangerSoft,
-                            border: `1px solid ${alpha(color.danger, 0.13)}`, color: color.danger, cursor: "pointer",
-                            fontSize: font.size.xs, display: "flex", alignItems: "center", justifyContent: "center",
-                          }}>✕</button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ));
-          })()}
-        </div>}
-        {/* アーカイブ済みリスト (商材/タイプ フィルタ + 検索 + ソート を適用) */}
-        {displayFilter === 'archived' && (() => {
-          let archivedLists = callListData.filter(l => l.is_archived);
-          if (categoryFilter !== 'all') {
-            archivedLists = archivedLists.filter(l => engagementToCategoryId[l.engagement_id] === categoryFilter);
-          }
-          // 検索 (企業名・業種・担当者で部分一致) — 通常リストと同じロジック
-          if (searchQuery) {
-            const q = searchQuery.toLowerCase();
-            archivedLists = archivedLists.filter(l =>
-              (l.company || '').toLowerCase().includes(q) ||
-              (l.industry || '').toLowerCase().includes(q) ||
-              (l.manager || '').toLowerCase().includes(q)
-            );
-          }
-          // アーカイブ画面は「クライアント順」がデフォルト。
-          // 通常リスト共通の sortBy は初期値 'date' だが、アーカイブを開く目的は
-          // 「あの会社のリスト過去にあったよな」を探すケースが多いので、
-          // selector がデフォルト ('date') の時は client にフォールバックする。
-          // selector で明示的に 'manager' や 'client' を選べばそれを反映。
-          const effectiveSort = (sortBy === 'date') ? 'client' : sortBy;
-          if (effectiveSort === 'client') {
-            archivedLists = [...archivedLists].sort((a, b) =>
-              (a.company || '').localeCompare(b.company || '', 'ja')
-            );
-          } else if (effectiveSort === 'manager') {
-            archivedLists = [...archivedLists].sort((a, b) =>
-              (a.manager || '').localeCompare(b.manager || '', 'ja')
-            );
-          }
-          if (archivedLists.length === 0) return <div style={{ padding: "24px 16px", textAlign: "center", fontSize: font.size.sm, color: color.textLight }}>— No records —</div>;
-          return (
-            <div style={{ overflowX: "auto", overflowY: "hidden" }}>
-              <div style={{ minWidth: arMinW }}>
-              {archivedLists.map(list => (
-                <div key={list.id} style={{
-                  display: "grid", gridTemplateColumns: arGrid,
-                  padding: "8px 16px", fontSize: font.size.xs, alignItems: "center",
-                  borderBottom: `1px solid ${color.borderLight}`,
-                  opacity: 0.5, background: color.offWhite,
-                }}>
-                  <span style={{ color: color.textMid, fontWeight: font.weight.medium, textAlign: arCols[0]?.align || 'left' }}>{list.company}</span>
-                  <span style={{ color: color.textLight, fontSize: 10, textAlign: arCols[1]?.align || 'center' }}>{engagementToCategoryName[list.engagement_id] || '—'}</span>
-                  <span style={{ color: color.textLight, fontSize: 10, textAlign: arCols[2]?.align || 'center' }}>{engagementToEngagementName[list.engagement_id] || '—'}</span>
-                  <span style={{ color: color.textLight, textAlign: arCols[3]?.align || 'left' }}>{list.industry}</span>
-                  <span style={{ fontFamily: font.family.mono, fontSize: 10, color: color.textLight, textAlign: arCols[4]?.align || 'left' }}>{list.count.toLocaleString()}</span>
-                  <span style={{ color: color.textLight, textAlign: arCols[5]?.align || 'left' }}>{shortManagerName(list)}</span>
-                  <span style={{ textAlign: arCols[6]?.align || 'right' }}>
-                    {isAdmin && <button onClick={async () => {
-                      const error = await restoreCallList(list._supaId);
-                      if (error) { alert('復元に失敗しました: ' + (error.message || '不明なエラー')); return; }
-                      setCallListData(prev => prev.map(l => l.id === list.id ? { ...l, is_archived: false } : l));
-                    }} style={{
-                      padding: isMobile ? "8px 12px" : "4px 10px", borderRadius: radius.md, fontSize: isMobile ? font.size.sm : font.size.xs, fontWeight: font.weight.medium,
-                      background: color.white, color: color.navy, border: `1px solid ${color.navy}`, cursor: "pointer",
-                      fontFamily: font.family.sans,
-                    }}>復元</button>}
-                  </span>
-                </div>
-              ))}
-              </div>
-            </div>
-          );
-        })()}
-        </div>
-      </div>
-      </>}
+      <CallListHome
+        lists={allLists}
+        callListData={callListData}
+        setCallFlowScreen={setCallFlowScreen}
+        setSelectedList={setSelectedList}
+        onAddList={isAdmin ? () => { handleOpenAdd(); window.scrollTo({ top: 0, behavior: 'smooth' }); } : null}
+        onEditList={isAdmin ? (id) => { const l = callListData.find(x => x.id === id); if (l) { handleOpenEdit(l); window.scrollTo({ top: 0, behavior: 'smooth' }); } } : null}
+        userKey={currentUserKey}
+      />
       {/* 企業概要PDF プレビューモーダル（CallFlowViewと同形） */}
       {overviewPdfPreviewLoading && (
         <div style={{ position: 'fixed', inset: 0, background: alpha('#000000', 0.4), zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.white, fontSize: font.size.base }}>

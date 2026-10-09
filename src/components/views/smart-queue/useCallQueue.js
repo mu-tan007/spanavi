@@ -15,9 +15,22 @@ import { supabase } from '../../../lib/supabase';
 const SKIP_STATUSES = ['アポ獲得', '除外'];
 const WARN_STATUSES = ['受付再コール', 'キーマン再コール'];
 const STORAGE_KEY   = 'masp_v2_callQueue';
+// 「前回の続きから」用（2026-10-09 むー様）。架電ページを閉じても消さず、同じ並びと位置から再開する
+const LAST_KEY      = 'spanavi_lastCall';
 
-function saveQueue(items, idx) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, idx })); } catch {}
+function saveQueue(items, idx, opts = {}) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, idx, opts })); } catch {}
+  try {
+    const cur = items[idx] || {};
+    localStorage.setItem(LAST_KEY, JSON.stringify({ items, idx, opts, no: cur.no ?? null, company: cur.company || '', at: Date.now() }));
+  } catch {}
+}
+export function readLastCall() {
+  try {
+    const obj = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+    if (!obj || !Array.isArray(obj.items) || obj.items.length === 0) return null;
+    return { ...obj, idx: Number.isFinite(obj.idx) ? obj.idx : 0, opts: obj.opts || {} };
+  } catch { return null; }
 }
 function clearQueue() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
@@ -28,7 +41,7 @@ export function readSavedQueue() {
     if (!raw) return null;
     const obj = JSON.parse(raw);
     if (!obj || !Array.isArray(obj.items) || obj.items.length === 0) return null;
-    return { items: obj.items, idx: Number.isFinite(obj.idx) ? obj.idx : 0 };
+    return { items: obj.items, idx: Number.isFinite(obj.idx) ? obj.idx : 0, opts: obj.opts || {} };
   } catch { return null; }
 }
 
@@ -44,7 +57,7 @@ async function checkItem(itemId) {
 export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks = false }) {
   // suppressChecks: 「アポ獲得/除外で自動スキップ」「再コール状態で警告」「他人架電で警告」を全部off。
   // 事業俯瞰のリスト分析からの架電など、状態を承知の上で意図的に再アプローチする経路向け。
-  const queueRef = useRef({ items: [], idx: 0 });
+  const queueRef = useRef({ items: [], idx: 0, opts: {} });
 
   const resolveFullList = useCallback((listId) => {
     return (callListData || []).find(l => l._supaId === listId || l.id === listId)
@@ -65,7 +78,7 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
     if (!cur || !setCallFlowScreen) { finishQueue(); return; }
 
     // 進捗を永続化（ハードリロードでも再開可能に）
-    saveQueue(q.items, q.idx);
+    saveQueue(q.items, q.idx, q.opts);
 
     // DB 直接チェック (suppressChecks=true なら全部スキップ)
     const check = suppressChecks ? null : await checkItem(cur.item_id);
@@ -74,7 +87,7 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
       if (SKIP_STATUSES.includes(check.latest_status)) {
         const nextIdx = q.idx + 1;
         if (nextIdx < q.items.length) {
-          queueRef.current = { items: q.items, idx: nextIdx };
+          queueRef.current = { items: q.items, idx: nextIdx, opts: q.opts };
           openAtIdx(autoDialNext);
         } else {
           alert('全件「アポ獲得/除外」済のためキューを終了します。');
@@ -82,8 +95,8 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
         }
         return;
       }
-      // 受付再コール / キーマン再コール は警告
-      if (WARN_STATUSES.includes(check.latest_status)) {
+      // 受付再コール / キーマン再コール は警告（再コールの会社を集めた欄から開いたときは出さない）
+      if (WARN_STATUSES.includes(check.latest_status) && !q.opts?.noRecallWarn) {
         const msg = `⚠ この企業は既に「${check.latest_status}」になっています。\n`
           + `取得者: ${check.latest_getter || '不明'}\n`
           + `日付: ${(check.latest_called_at || '').slice(0, 16).replace('T', ' ')}\n\n`
@@ -91,7 +104,7 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
         if (window.confirm(msg)) {
           const nextIdx = q.idx + 1;
           if (nextIdx < q.items.length) {
-            queueRef.current = { items: q.items, idx: nextIdx };
+            queueRef.current = { items: q.items, idx: nextIdx, opts: q.opts };
             openAtIdx();
           } else {
             finishQueue();
@@ -108,7 +121,7 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
         if (!window.confirm(msg)) {
           const nextIdx = q.idx + 1;
           if (nextIdx < q.items.length) {
-            queueRef.current = { items: q.items, idx: nextIdx };
+            queueRef.current = { items: q.items, idx: nextIdx, opts: q.opts };
             openAtIdx();
           } else {
             finishQueue();
@@ -119,11 +132,11 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
     }
 
     const goPrev = q.idx > 0 ? () => {
-      queueRef.current = { items: q.items, idx: q.idx - 1 };
+      queueRef.current = { items: q.items, idx: q.idx - 1, opts: q.opts };
       openAtIdx();
     } : null;
     const goNext = q.idx < q.items.length - 1 ? () => {
-      queueRef.current = { items: q.items, idx: q.idx + 1 };
+      queueRef.current = { items: q.items, idx: q.idx + 1, opts: q.opts };
       openAtIdx();
     } : null;
     setCallFlowScreen({
@@ -134,19 +147,21 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
       onQueuePrev: goPrev,
       onQueueNext: goNext,
       queuePos: `${q.idx + 1} / ${q.items.length}件`,
+      queueLabel: q.opts?.label || '',
       autoDialOnLoad: autoDialNext,
       onResultSubmit: () => {
-        queueRef.current = { items: q.items, idx: q.idx + 1 };
+        queueRef.current = { items: q.items, idx: q.idx + 1, opts: q.opts };
         if (queueRef.current.idx < queueRef.current.items.length) openAtIdx(true);
         else finishQueue();
       },
     });
   }, [setCallFlowScreen, resolveFullList, finishQueue, suppressChecks]);
 
-  const openQueue = useCallback((rows, startIdx = 0) => {
+  // opts: { label: '条件で探す・受付再コール' など（前回の続きからの表示）, noRecallWarn: true }
+  const openQueue = useCallback((rows, startIdx = 0, opts = {}) => {
     const items = (rows || []).filter(r => r && r.item_id && r.list_id);
     if (items.length === 0) return;
-    queueRef.current = { items, idx: Math.max(0, Math.min(startIdx, items.length - 1)) };
+    queueRef.current = { items, idx: Math.max(0, Math.min(startIdx, items.length - 1)), opts: opts || {} };
     openAtIdx();
   }, [openAtIdx]);
 
