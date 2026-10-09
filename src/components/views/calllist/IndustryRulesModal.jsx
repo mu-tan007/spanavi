@@ -108,7 +108,7 @@ export default function IndustryRulesModal({ open, onClose }) {
                   }),
                 ])}
               </div>
-              <div className="lg"><span>キーマン接続率</span><i style={{ background: '#EEF4FB' }} />低<i style={{ background: '#7FB4E6' }} /><i style={{ background: '#0176D3' }} /><i style={{ background: '#032D60' }} />高　<i className="few" />架電20回未満（参考）　金の枠＝狙い目</div>
+              <div className="clh-lg"><span>キーマン接続率</span><i style={{ background: '#EEF4FB' }} />低<i style={{ background: '#7FB4E6' }} /><i style={{ background: '#0176D3' }} /><i style={{ background: '#032D60' }} />高　<i className="few" />架電20回未満（参考）　金の枠＝狙い目</div>
               <div className="note2">これまでの全架電から、毎日計算し直しています。架電ページの「つながりやすい時間」と同じ数字です。</div>
             </>}
           </div>

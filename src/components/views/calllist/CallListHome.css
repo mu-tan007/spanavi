@@ -65,13 +65,13 @@
 .clh .btn.ghost:hover{background:var(--royal-soft)}
 .clh .btn.danger{color:var(--red)}
 .clh .btn.sm{height:var(--h-sm);padding:0 var(--s3);font-size:var(--fs-sm)}
-.clh .btn.lg{height:var(--h-lg);padding:0 var(--s5)}
+.clh .btn.clh-lg{height:var(--h-lg);padding:0 var(--s5)}
 .clh .chipb{height:var(--h-sm);padding:0 var(--s3);border-radius:var(--r-full);border:1px solid var(--royal-line);color:var(--royal);font-size:var(--fs-sm);background:var(--sheet);
   transition:transform var(--t-base) var(--spring),background var(--t-fast)}
 .clh .chipb:hover{background:var(--royal-soft)}
 .clh .chipb:active{transform:scale(.92)}
 .clh .input{height:var(--h-md);border:1px solid var(--line);border-radius:var(--r-md);background:var(--sheet);padding:0 var(--s3);font:inherit;font-size:var(--fs-base);color:var(--ink)}
-.clh .input.lg{height:var(--h-lg);font-size:var(--fs-md);padding:0 var(--s4)}
+.clh .input.clh-lg{height:var(--h-lg);font-size:var(--fs-md);padding:0 var(--s4)}
 .clh .input:focus{outline:2px solid var(--royal-line);border-color:var(--royal)}
 .clh .seg{position:relative;display:inline-flex;height:var(--h-md);padding:3px;background:var(--sheet);border:1px solid var(--line);border-radius:var(--r-md)}
 .clh .seg button{position:relative;z-index:1;height:100%;padding:0 var(--s3);border-radius:calc(var(--r-md) - 2px);font-size:var(--fs-sm);color:var(--ink-2);background:none;transition:color var(--t-fast),transform var(--t-base) var(--spring)}
@@ -239,8 +239,8 @@
 .clh .rowact{color:var(--royal);font-size:12px;opacity:0;transform:translateX(-6px);transition:opacity .2s,transform .3s var(--spring);white-space:nowrap}
 .clh .lt tbody tr:hover .rowact{opacity:1;transform:none}
 .clh .more-row td{color:var(--royal);font-size:var(--fs-sm)}
-.clh .lg{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-2);margin:0 0 10px 2px}
-.clh .lg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.clh .clh-lg{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-2);margin:0 0 10px 2px}
+.clh .clh-lg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .clh .sec{margin-bottom:12px;overflow:hidden}
 .clh .sec-h{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
 .clh .sec-h .ttl{font-size:14px;font-weight:700;color:var(--navy)}
@@ -258,8 +258,8 @@
 .clh .rw .tm.today{color:var(--royal);font-size:12px}
 .clh .sec-h .td{font-size:11px;color:var(--royal);background:var(--royal-soft);border-radius:999px;padding:2px 8px;white-space:nowrap}
 .clh .sec-h .td b{font-family:var(--font-num);font-size:13px}
-.clh .rw .co{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.clh .rw .co small{display:block;font-size:11px;color:var(--ink-3);font-weight:400}
+.clh .rw .cname{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clh .rw .cname small{display:block;font-size:11px;color:var(--ink-3);font-weight:400}
 .clh .rw .li{color:var(--ink-2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .clh .rw .r{text-align:right;font-family:var(--font-num);color:var(--ink-2)}
 .clh .rw .go{color:var(--royal);opacity:0}
@@ -350,8 +350,8 @@
 .clh .rl-r .hm i.now{outline:3px solid #E8590C;outline-offset:2px;z-index:1}
 .clh .rl-r .hm .nowt{position:absolute;top:-9px;right:-6px;background:#E8590C;color:#fff;font-size:9px;line-height:1;border-radius:999px;padding:2px 5px;font-weight:700}
 .clh .rl-r .hm .nowh{color:#E8590C!important;font-weight:800}
-.clh .rl-r .lg{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-3);margin-top:10px;flex-wrap:wrap}
-.clh .rl-r .lg i{display:inline-block;width:14px;height:10px;border-radius:2px}
-.clh .rl-r .lg i.few{background:repeating-linear-gradient(45deg,#F2F4F7 0 3px,#E6EAF0 3px 5px)}
+.clh .rl-r .clh-lg{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-3);margin-top:10px;flex-wrap:wrap}
+.clh .rl-r .clh-lg i{display:inline-block;width:14px;height:10px;border-radius:2px}
+.clh .rl-r .clh-lg i.few{background:repeating-linear-gradient(45deg,#F2F4F7 0 3px,#E6EAF0 3px 5px)}
 .clh .rl-r .note2{margin-top:12px;font-size:11.5px;color:var(--ink-2);background:#F7F9FC;border-radius:8px;padding:8px 10px;line-height:1.7}
 @media (max-width:760px){.clh .rl-b{grid-template-columns:1fr}.clh .rl-l{max-height:240px;border-right:0;border-bottom:1px solid var(--line)}}

@@ -245,7 +245,7 @@ function FindSection({ si, sec, data, today, listsById, rates, onCall }) {
             <div key={`${r.id}-${ri}`} className={`rw ${v.cl === 'today' ? 'today' : ''}`} onClick={() => onCall(si, rows.indexOf(r), sel)}>
               <span className={`tm ${v.cl === 'late' ? 'late' : v.cl === 'today' ? 'today' : ''}`}
                 style={v.cl === 'hi' ? { color: 'var(--red)', fontSize: 11.5, fontFamily: 'var(--font)' } : v.cl === 'mid' ? { color: 'var(--amber)', fontSize: 11.5, fontFamily: 'var(--font)' } : undefined}>{v.tm}</span>
-              <span className="co">{r.company}<small>{v.sub}</small></span>
+              <span className="cname">{r.company}<small>{v.sub}</small></span>
               <span className="li">{v.li}</span>
               <span className="st-tag"><i style={{ background: sec.col }} />{sec.t === '再アプローチ' ? sec.sub : sec.t}</span>
               <span className="r" />
@@ -365,7 +365,7 @@ function ListsPane({ L, live, grouped, search, onOpenList, onEditList }) {
           <span className="fsum"><b>{cur.length}</b>リスト・架電可能 <b>{fmt(cur.reduce((a, r) => a + r.n, 0))}</b>社・見込みアポ <b>{cur.reduce((a, r) => a + r.x, 0).toFixed(1)}</b>件</span>
         </div>
       </div>
-      <div className="lg"><span style={{ color: 'var(--ink-3)' }}>いまの状態：</span>{ORDER.slice(0, 7).map(s => <span key={s}><i style={{ background: COL[s] }} />{s}</span>)}</div>
+      <div className="clh-lg"><span style={{ color: 'var(--ink-3)' }}>いまの状態：</span>{ORDER.slice(0, 7).map(s => <span key={s}><i style={{ background: COL[s] }} />{s}</span>)}</div>
       <div id="groups">{body}</div>
     </>
   );
@@ -394,7 +394,14 @@ export default function CallListHome({ lists, callListData, setCallFlowScreen, s
 
   useEffect(() => {
     supabase.rpc('call_list_home').then(({ data }) => setHome(data || []));
-    supabase.rpc('call_find_sections', { p_limit: 200 }).then(({ data }) => setFinds(data || null));
+    // 開いた直後は他の読み込みと重なって時間切れになることがあるので、失敗したら少し置いて取り直す
+    let tries = 0;
+    const loadFinds = () => supabase.rpc('call_find_sections', { p_limit: 200 }).then(({ data, error }) => {
+      if (data && !error) setFinds(data);
+      else if (++tries < 4) setTimeout(loadFinds, 1500 * tries);
+      else setFinds({ n: {}, error: true });
+    });
+    loadFinds();
     fetchCallStatusRates().then(setRates);
   }, []);
   // 上段は1分ごとに取り直す
@@ -478,6 +485,7 @@ export default function CallListHome({ lists, callListData, setCallFlowScreen, s
       )}
       {tab === 'find' && (
         <section className="pane on" id="p-find">
+          {finds?.error && <div className="hint" style={{ color: 'var(--red)' }}>読み込めませんでした。ページを開き直してください</div>}
           <div className="hint">リストをまたいで、条件に合う会社を集めています。上から順にかけると、アポになりやすい会社から当たれます。動いているリストに入っている会社だけ。各欄の「続けてかける」で、その欄の会社を架電ページで順に開きます。</div>
           <div id="finds">
             {finds ? SECS.map((s, si) => <FindSection key={si} si={si} sec={s} data={finds} today={today} listsById={listsById} rates={rates} onCall={callSection} />)
