@@ -4,9 +4,10 @@ import ScriptView from '../ScriptView';
 import ScriptBody from '../../common/ScriptBody';
 import './CallListHome.css';
 import '../callflow/CallPage.css';
+import './ScriptsPage.css';
 
-// スクリプトのページ（2026-10-09 むー様・見本 script.html のつくり）
-// 台本を見る：リストと業種を選ぶと、架電ページに出る台本がそのまま組み上がる（色の帯＝どこが業種・クライアントの差し込みか）
+// スクリプトのページ（2026-10-09 むー様：架電リストと同じ部品・言葉づかいで）
+// 台本を見る：左でリストを選ぶと、架電ページに出る台本がそのまま組み上がる。右に、このリストだけの言葉と注意事項
 // 業種の一覧：業種ごとの「〇〇会社様」と受付の一文 ／ 編集：今までの編集画面（管理者だけ）
 function parseCautions(text) {
   const out = [];
@@ -20,20 +21,57 @@ function parseCautions(text) {
   return out;
 }
 
+// script_v2 の項目のうち、画面で「このリストだけの言葉」として見せるもの
+const SPEC_LABEL = [
+  ['client', '名乗る社名'], ['boss', '面談する上長'], ['honorific', '相手の呼び方'], ['house', '相手の会社の呼び方'], ['noun', '〇〇会社様'],
+  ['mode', '面談の形'], ['mode_note', '面談の補足'], ['pitch', '用件の型'], ['buyer', '買い手の言い方'], ['pitch_text', '用件（このリストだけ）'],
+  ['reception', '受付への一文'], ['reception_say', '受付で言うこと'], ['shimei', '指名'], ['support', '支援の中身'], ['closing_who', '当日うかがう人'], ['after', 'アポ後にやること'],
+];
+const MODE = { face: '対面', online: 'オンライン', both: '対面かオンライン' };
+const PITCH = { base: '基本（買い手がいる）', nohint: '買い手を言わない', buyer: '具体的な買い手', custom: 'このリストだけの用件' };
+const show = (k, v) => (k === 'mode' ? MODE[v] || v : k === 'pitch' ? PITCH[v] || v : v);
+
+const readSaved = () => { try { return localStorage.getItem('spanavi_scripts_list') || ''; } catch { return ''; } };
+const save = (id) => { try { localStorage.setItem('spanavi_scripts_list', id); } catch { /* 覚えられなくても選べる */ } };
+
 export default function ScriptsPage({ isAdmin, clientData, callListData, setCallListData }) {
   const [view, setView] = useState('build');
   const lists = useMemo(() => (callListData || []).filter(l => !l.is_archived).sort((a, b) => (a.company + a.industry).localeCompare(b.company + b.industry, 'ja')), [callListData]);
-  const [listId, setListId] = useState(() => lists[0]?._supaId || '');
+  const [listId, setListIdRaw] = useState(readSaved);
+  const setListId = (id) => { setListIdRaw(id); save(id); };
   const list = lists.find(l => l._supaId === listId) || lists[0];
-  const [grp, setGrp] = useState('建築工事');
-  const sample = { representative: '〇〇 〇〇', address: '', industry_group: grp };
+  const [q, setQ] = useState('');
+  const [grp, setGrp] = useState('');
+  const g = grp || (list?.industryGroup && IND_NOUN[list.industryGroup] ? list.industryGroup : '建築工事');
+  const sample = { representative: '〇〇 〇〇', address: '', industry_group: g };
   const cautions = parseCautions(list?.cautions);
   let rebuttal = null;
   try { rebuttal = list?.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch { /* 読めなければ共通のアウト返しだけ */ }
   const views = [['build', '台本を見る'], ['packs', '業種の一覧'], ...(isAdmin ? [['edit', '編集']] : [])];
 
+  const nV2 = lists.filter(l => l.scriptV2 && !l.scriptV2.legacy).length;
+  const nLegacy = lists.length - nV2;
+  const nClients = new Set(lists.map(l => l.company)).size;
+
+  // クライアントごとにまとめる（検索はクライアント名・リスト名どちらでも）
+  const byClient = useMemo(() => {
+    const k = q.trim();
+    const m = new Map();
+    for (const l of lists) {
+      if (k && !`${l.company}${l.industry}`.includes(k)) continue;
+      if (!m.has(l.company)) m.set(l.company, []);
+      m.get(l.company).push(l);
+    }
+    return [...m.entries()];
+  }, [lists, q]);
+
+  const spec = list?.scriptV2 || null;
+  const own = spec ? SPEC_LABEL.filter(([k]) => spec[k] != null && spec[k] !== '' && typeof spec[k] !== 'object') : [];
+  const extras = spec ? [...(spec.extra || []), ...(spec.after_extra || [])] : [];
+  const ngs = spec?.ng || [];
+
   return (
-    <div className="clh">
+    <div className="clh scp">
       <div className="pt">
         <div><h1>スクリプト</h1><p>どのリストも同じ基本台本に、業種ごと・クライアントごとの言葉を差し込んで出します</p></div>
         <div className="r">
@@ -43,44 +81,90 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
         </div>
       </div>
 
+      <div className="card kpis">
+        <div className="k"><span className="t-label">使っているリスト</span><b className="n">{lists.length}<small>本</small></b><small>{nClients}社のクライアント</small></div>
+        <div className="k"><span className="t-label">基本台本で話すリスト</span><b className="n">{nV2}<small>本</small></b><small>違いだけを差し込む</small></div>
+        <div className="k"><span className="t-label">今までの台本のまま</span><b className="n">{nLegacy}<small>本</small></b><small>売り手ソーシング以外など</small></div>
+        <div className="k"><span className="t-label">業種の言い方</span><b className="n">{Object.keys(IND_NOUN).length}<small>業種</small></b><small>受付の一文は{Object.keys(IND_RECEPTION).length}業種</small></div>
+      </div>
+
       {view === 'build' && (
-        <>
-          <div className="fl2" style={{ flexDirection: 'row', gap: 16, flexWrap: 'wrap' }}>
-            <div className="fl2-r"><span className="fl2-l" style={{ width: 'auto' }}>リスト</span>
-              <select className="input" style={{ minWidth: 320 }} value={list?._supaId || ''} onChange={e => setListId(e.target.value)}>
-                {lists.map(l => <option key={l._supaId} value={l._supaId}>{l.company}・{l.industry}</option>)}
-              </select></div>
-            <div className="fl2-r"><span className="fl2-l" style={{ width: 'auto' }}>この会社の業種</span>
-              <select className="input" value={grp} onChange={e => setGrp(e.target.value)}>
-                {Object.keys(IND_NOUN).map(g => <option key={g} value={g}>{g}</option>)}
-              </select></div>
-            <span className="fsum">{list?.scriptV2 ? '基本台本＋このリストの差し込み' : 'このリストは今までの台本のまま'}</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr)', gap: 14 }}>
-            <div className="card" style={{ padding: '14px 16px' }}>
-              <div className="cfv" style={{ position: 'static' }}>
-                {list && <ScriptV2 key={list._supaId} spec={list.scriptV2} list={list} row={sample} rebuttal={rebuttal}
-                  renderLegacy={() => (list.scriptBody ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={{ ...sample, company: '〇〇株式会社', representative: '〇〇' }} style={{ fontSize: 13, lineHeight: 1.8 }} /> : <div style={{ color: 'var(--ink-3)' }}>台本はまだありません</div>)} />}
+        <div className="scp-grid">
+          <aside className="card picker">
+            <div className="ph"><input className="input" placeholder="クライアント・リストで探す" value={q} onChange={e => setQ(e.target.value)} /></div>
+            <div className="pl">
+              {byClient.map(([c, ls]) => (
+                <div key={c} className="pg">
+                  <div className="pgh"><span>{c}</span><b className="n">{ls.length}</b></div>
+                  {ls.map(l => (
+                    <button key={l._supaId} className={`pr ${l._supaId === list?._supaId ? 'on' : ''}`} onClick={() => { setListId(l._supaId); setGrp(''); }}>
+                      <span className="ind">{l.industry || '—'}</span>
+                      <span className={`tag ${l.scriptV2 && !l.scriptV2.legacy ? 'blue' : 'gray'}`}>{l.scriptV2 && !l.scriptV2.legacy ? '基本台本' : '今までの台本'}</span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+              {!byClient.length && <div className="hint">見つかりません</div>}
+            </div>
+          </aside>
+
+          <section className="card stage">
+            <div className="sh">
+              <div className="tt"><b>{list?.company || '—'}</b><span>{list?.industry || ''}</span></div>
+              <div className="legend">
+                <span><i className="v-i" />業種ごと</span><span><i className="v-c" />クライアントごと</span><span><i className="v-k" />その会社・その日</span>
               </div>
+              <label className="as">この会社の業種
+                <select className="input" value={g} onChange={e => setGrp(e.target.value)}>
+                  {Object.keys(IND_NOUN).map(x => <option key={x} value={x}>{x}</option>)}
+                </select>
+              </label>
             </div>
-            <div className="card" style={{ padding: '14px 16px', alignSelf: 'start' }}>
-              <h4 style={{ fontSize: 14, color: 'var(--navy)', marginBottom: 8 }}>このリストの注意事項</h4>
-              {cautions.length ? <dl style={{ fontSize: 12.5, lineHeight: 1.85 }}>{cautions.map((c, i) => [c.dt && <dt key={`t${i}`} style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: i ? 8 : 0 }}>{c.dt}</dt>, <dd key={`d${i}`} style={{ margin: 0 }}>{c.dd.join(' ／ ')}</dd>])}</dl>
-                : <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>注意事項はまだありません</div>}
+            <div className="cfv sb">
+              {list && <ScriptV2 key={list._supaId} spec={list.scriptV2} list={list} row={sample} rebuttal={rebuttal}
+                renderLegacy={() => (list.scriptBody ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={{ ...sample, company: '〇〇株式会社', representative: '〇〇' }} style={{ fontSize: 13, lineHeight: 1.8 }} /> : <div className="hint">台本はまだありません</div>)} />}
             </div>
-          </div>
-        </>
+          </section>
+
+          <aside className="side-col">
+            <div className="card side">
+              <div className="card-h"><b>このリストだけの言葉</b></div>
+              {spec && !spec.legacy ? (
+                <dl className="own">
+                  {own.map(([k, t]) => <div key={k}><dt>{t}</dt><dd>{show(k, spec[k])}</dd></div>)}
+                  {extras.length > 0 && <div><dt>追加の質問・確認</dt><dd>{extras.map((x, i) => <span key={i} className="li">{typeof x === 'string' ? x : x?.q || x?.t || ''}</span>)}</dd></div>}
+                  {ngs.length > 0 && <div><dt>言ってはいけないこと</dt><dd>{ngs.map((x, i) => <span key={i} className="li ng">{typeof x === 'string' ? x : x?.t || ''}</span>)}</dd></div>}
+                  {!own.length && !extras.length && !ngs.length && <div className="hint">基本台本のまま</div>}
+                </dl>
+              ) : <div className="hint">このリストは今までの台本を使っています</div>}
+            </div>
+            <div className="card side">
+              <div className="card-h"><b>{g}の言い方</b></div>
+              <dl className="own">
+                <div><dt>社長に</dt><dd>{IND_NOUN[g]}</dd></div>
+                <div><dt>受付に</dt><dd>{IND_RECEPTION[g] ? `〇〇市の${IND_RECEPTION[g]}アライアンスの件で` : '業種の言葉を入れて伝える（まだ決めていない）'}</dd></div>
+              </dl>
+            </div>
+            <div className="card side">
+              <div className="card-h"><b>注意事項</b></div>
+              {cautions.length ? (
+                <dl className="own">{cautions.map((c, i) => <div key={i}>{c.dt && <dt>{c.dt}</dt>}<dd>{c.dd.join(' ／ ')}</dd></div>)}</dl>
+              ) : <div className="hint">注意事項はまだありません</div>}
+            </div>
+          </aside>
+        </div>
       )}
 
       {view === 'packs' && (
-        <div className="card grp" style={{ overflow: 'hidden' }}>
-          <table className="tbl">
-            <colgroup><col style={{ width: 180 }} /><col style={{ width: 220 }} /><col /></colgroup>
-            <thead><tr><th>業種</th><th>社長への言い方（〇〇会社様）</th><th>受付への一文（〇〇市の…アライアンスの件）</th></tr></thead>
-            <tbody>{Object.keys(IND_NOUN).map(g => (
-              <tr key={g}><td style={{ fontWeight: 500 }}>{g}</td><td>{IND_NOUN[g]}</td><td>{IND_RECEPTION[g] ? `${IND_RECEPTION[g]}アライアンス` : <span style={{ color: 'var(--ink-3)' }}>まだ決めていない（業種の言葉を入れて伝える）</span>}</td></tr>
-            ))}</tbody>
-          </table>
+        <div className="card packs">
+          <div className="card-h"><b>業種ごとの言い方</b><span>架電ページでは、会社の業種に合わせてこの言葉が台本に入ります</span></div>
+          <div className="prow head"><span>業種</span><span>社長への言い方（〇〇会社様）</span><span>受付への一文（〇〇市の…アライアンスの件で）</span></div>
+          {Object.keys(IND_NOUN).map(x => (
+            <div key={x} className="prow">
+              <b>{x}</b><span>{IND_NOUN[x]}</span>
+              <span>{IND_RECEPTION[x] ? `${IND_RECEPTION[x]}アライアンス` : <em>まだ決めていない（業種の言葉を入れて伝える）</em>}</span>
+            </div>
+          ))}
         </div>
       )}
 

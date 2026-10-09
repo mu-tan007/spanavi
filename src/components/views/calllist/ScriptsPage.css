@@ -1,0 +1,65 @@
+/* スクリプトのページ（2026-10-09 むー様）：色・文字・札・ボタンは架電リスト（.clh）の決まり。並べ方は「選ぶ・読む・確かめる」の3列 */
+.clh.scp .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:14px}
+.clh.scp .kpis .k{display:flex;flex-direction:column;gap:2px;padding:12px 18px;border-left:1px solid var(--line-2)}
+.clh.scp .kpis .k:first-child{border-left:0}
+.clh.scp .kpis .k b{font-size:24px;font-weight:700;color:var(--navy);line-height:1.2}
+.clh.scp .kpis .k b small{font-size:12px;font-weight:500;color:var(--ink-3);margin-left:2px}
+.clh.scp .kpis .k > small{font-size:11px;color:var(--ink-3)}
+.clh.scp .card-h{display:flex;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line-2)}
+.clh.scp .hint{padding:14px 16px;font-size:12.5px;color:var(--ink-3)}
+
+.clh.scp .scp-grid{display:grid;grid-template-columns:260px minmax(0,1fr) 300px;gap:14px;align-items:start}
+
+/* 左：リストを選ぶ */
+.clh.scp .picker{position:sticky;top:12px;display:flex;flex-direction:column;max-height:calc(100vh - 120px);overflow:hidden}
+.clh.scp .picker .ph{padding:10px;border-bottom:1px solid var(--line-2)}
+.clh.scp .picker .ph .input{width:100%}
+.clh.scp .picker .pl{overflow-y:auto;padding:4px 0 8px}
+.clh.scp .pg + .pg{border-top:1px solid var(--line-2)}
+.clh.scp .pgh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px 4px;font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.clh.scp .pgh span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clh.scp .pgh b{font-size:11px;font-weight:500;color:var(--ink-3)}
+.clh.scp .pr{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:6px 14px 6px 22px;border:0;background:none;font:inherit;font-size:12.5px;color:var(--ink);text-align:left;cursor:pointer;transition:background var(--t-fast)}
+.clh.scp .pr:hover{background:var(--hover)}
+.clh.scp .pr.on{background:var(--royal-soft);box-shadow:inset 3px 0 0 var(--royal);color:var(--navy);font-weight:600}
+.clh.scp .pr .ind{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.clh.scp .pr .tag{flex:none;font-size:10.5px;height:18px;padding:0 6px}
+
+/* 中：台本 */
+.clh.scp .stage{min-width:0;overflow:hidden}
+.clh.scp .stage .sh{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line-2);background:linear-gradient(180deg,var(--sheet),var(--hover))}
+.clh.scp .stage .tt{display:flex;flex-direction:column;line-height:1.3;min-width:0;margin-right:auto}
+.clh.scp .stage .tt b{font-size:15px;color:var(--navy)}
+.clh.scp .stage .tt span{font-size:12px;color:var(--ink-3)}
+.clh.scp .legend{display:flex;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.clh.scp .legend span{display:inline-flex;align-items:center;gap:5px}
+.clh.scp .legend i{width:14px;height:10px;border-radius:2px;display:inline-block}
+.clh.scp .legend .v-i{background:#E8F2FC;box-shadow:inset 0 0 0 1px #B9D7F3}
+.clh.scp .legend .v-c{background:#F7F0E1;box-shadow:inset 0 0 0 1px #E6D3A8}
+.clh.scp .legend .v-k{background:#EEF0F3;box-shadow:inset 0 0 0 1px #DCE0E6}
+.clh.scp .stage .as{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+.clh.scp .stage .as .input{height:30px}
+.clh.scp .cfv.sb{padding:14px 18px;background:var(--sheet)}
+
+/* 右：このリストだけの言葉・業種の言い方・注意事項 */
+.clh.scp .side-col{display:flex;flex-direction:column;gap:14px;position:sticky;top:12px;max-height:calc(100vh - 120px);overflow-y:auto}
+.clh.scp .own{margin:0;padding:6px 16px 12px;display:flex;flex-direction:column}
+.clh.scp .own > div{padding:7px 0;border-top:1px dashed var(--line-2)}
+.clh.scp .own > div:first-child{border-top:0}
+.clh.scp .own dt{font-size:11px;color:var(--ink-3);margin-bottom:1px}
+.clh.scp .own dd{margin:0;font-size:12.5px;line-height:1.7;color:var(--ink);word-break:break-word}
+.clh.scp .own .li{display:block;position:relative;padding-left:12px}
+.clh.scp .own .li::before{content:"";position:absolute;left:2px;top:.75em;width:4px;height:4px;border-radius:50%;background:var(--royal)}
+.clh.scp .own .li.ng::before{background:var(--red)}
+
+/* 業種の一覧 */
+.clh.scp .packs{overflow:hidden}
+.clh.scp .prow{display:grid;grid-template-columns:180px 240px minmax(0,1fr);gap:16px;padding:9px 16px;border-top:1px solid var(--line-2);font-size:13px;color:var(--ink)}
+.clh.scp .prow.head{border-top:0;background:var(--hover);font-size:11.5px;color:var(--ink-3);font-weight:500}
+.clh.scp .prow b{font-weight:600;color:var(--navy)}
+.clh.scp .prow em{font-style:normal;color:var(--ink-3)}
+
+@media (max-width:1400px){
+  .clh.scp .scp-grid{grid-template-columns:240px minmax(0,1fr)}
+  .clh.scp .side-col{grid-column:1 / -1;position:static;max-height:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+}
