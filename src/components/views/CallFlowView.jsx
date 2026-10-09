@@ -2222,7 +2222,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const linkedContacts = resolveListContacts(list, contacts);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {!(listMode || isMobile) && <CandidateCal data={candData} visitor={list?.scriptV2?.boss || ''} onPick={p => { setApoPick(p); setScriptTab('script'); }} />}
                   <TravelHint address={selectedRow?.address} />
                   <MultiCalendarPanel
                     showRegisteredAppointments
@@ -2634,6 +2633,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const linkedContacts = resolveListContacts(list, contacts);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {!(listMode || isMobile) && <CandidateCal data={candData} visitor={list?.scriptV2?.boss || ''} onPick={p => { setApoPick(p); setScriptTab('script'); }} />}
                   <TravelHint address={selectedRow?.address} />
                   <MultiCalendarPanel
                     showRegisteredAppointments
