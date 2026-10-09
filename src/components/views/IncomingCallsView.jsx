@@ -308,18 +308,8 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
             <div className="nm"><b className="unk-t">{g.name || '会社が分からない番号'}</b><small>{g.name ? '紐づけ済み・リストには見当たらない' : 'どのリストの番号とも一致しない'}</small></div>
           )}
           {g.reasons.length > 0 && <div className="rs">{g.reasons.map(x => <span key={x.t} className={`tag ${x.c}`}>{x.t}</span>)}</div>}
-          {g.m ? (
+          {g.m && (
             <div className="lastl">{g.l ? <>前回<span className={`tag ${tagOf(g.l.s)}`}>{g.l.s}</span><span>{md(g.l.at)} {first(g.l.g)}</span>{g.l.nt ? <q>{g.l.nt}</q> : null}</> : <span>まだ架電していない会社</span>}</div>
-          ) : (
-            <div className="cands">
-              <span className="ch">{g.cands.length ? `${first(g.callees[0])}さんが直前にかけた会社` : '直前にかけた会社の候補なし'}</span>
-              {g.cands.map(c => (
-                <button key={c.item_id} className="cand" title="この会社に紐づける" onClick={() => applyLink({ id: c.item_id, company: c.company }, { callIds: g.ids, callerNumber: g.raw })}>
-                  {c.company}<small>{md(c.at)} {c.s}</small>
-                </button>
-              ))}
-              <button className="lnk" onClick={() => { setLinkModal({ callIds: g.ids, callId: g.id, callerNumber: g.raw }); setLinkQuery(''); setLinkResults([]); }}>検索して紐づける</button>
-            </div>
           )}
         </div>
         <div className="inc-at">
@@ -339,6 +329,17 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
           <button className="btn sm" style={g.m ? undefined : { visibility: 'hidden' }} onClick={() => g.m && openAppoFromIncoming(g, g.m)}>アポ取得</button>
           <button className="btn sm" onClick={() => markHandled(g.ids)}>対応済</button>
         </div>
+        {!g.m && (
+          <div className="cands">
+            <span className="ch">{g.cands.length ? `${first(g.callees[0])}さんが直前にかけた会社` : '直前にかけた会社の候補なし'}</span>
+            {g.cands.map(c => (
+              <button key={c.item_id} className="cand" title="この会社に紐づける" onClick={() => applyLink({ id: c.item_id, company: c.company }, { callIds: g.ids, callerNumber: g.raw })}>
+                {c.company}<small>{md(c.at)} {c.s}</small>
+              </button>
+            ))}
+            <button className="lnk" onClick={() => { setLinkModal({ callIds: g.ids, callId: g.id, callerNumber: g.raw }); setLinkQuery(''); setLinkResults([]); }}>検索して紐づける</button>
+          </div>
+        )}
       </div>
     );
   };
