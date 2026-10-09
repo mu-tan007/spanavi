@@ -118,10 +118,10 @@
 .cfv .where b{font-size:13px;font-weight:500}
 .cfv .where span{font-size:11px;color:#9FB6D6}
 .cfv .prog{display:flex;align-items:center;gap:10px;margin-left:8px}
-.cfv .ring{width:34px;height:34px}
-.cfv .ring circle{fill:none;stroke-width:3}
-.cfv .ring .bgc{stroke:rgba(255,255,255,.14)}
-.cfv .ring .fg{stroke:#5DADF2;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .6s var(--out)}
+.cfv .pring{width:34px;height:34px}
+.cfv .pring circle{fill:none;stroke-width:3}
+.cfv .pring .bgc{stroke:rgba(255,255,255,.14)}
+.cfv .pring .fg{stroke:#5DADF2;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .6s var(--out)}
 .cfv .prog .t{font-size:20px;font-weight:600}
 .cfv .prog .t small{font-size:11px;color:#9FB6D6;font-weight:500;margin-left:2px}
 .cfv .today{display:flex;gap:14px;margin-left:10px;font-size:11px;color:#9FB6D6}

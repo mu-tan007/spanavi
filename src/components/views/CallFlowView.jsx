@@ -3422,7 +3422,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 <button className="nav-b" disabled={!canPrev} style={canPrev ? undefined : { opacity: 0.4 }} onClick={goPrev}>← 前へ</button>
                 <div className="where"><b>{list?.company} ・ {list?.industry}</b><span>{queueLabel && queueLabel.startsWith('条件で探す') ? queueLabel : `${list?.productCategoryName || ''} ・ ${list?.engagementName || ''}`}</span></div>
                 <div className="prog">
-                  <svg className="ring" viewBox="0 0 36 36"><circle className="bgc" cx="18" cy="18" r="15" /><circle className="fg" cx="18" cy="18" r="15" strokeDasharray="94.2" strokeDashoffset={tot ? 94.2 * (1 - pos / tot) : 94.2} /></svg>
+                  <svg className="pring" viewBox="0 0 36 36"><circle className="bgc" cx="18" cy="18" r="15" /><circle className="fg" cx="18" cy="18" r="15" strokeDasharray="94.2" strokeDashoffset={tot ? 94.2 * (1 - pos / tot) : 94.2} /></svg>
                   <span className="t n">{pos > 0 ? pos : '-'}<small>/ {tot.toLocaleString()}社</small></span>
                 </div>
                 <div className="today">今日の架電<b className="n">{meToday.calls}</b>接続<b className="n">{meToday.conn}</b>アポ<b className="n g">{meToday.apo}</b></div>
