@@ -122,3 +122,4 @@
 .clh.scp .cfv .hl{outline:2px solid var(--royal);outline-offset:1px;border-radius:3px;animation:scp-hl 1.2s ease-in-out infinite}
 @keyframes scp-hl{0%,100%{box-shadow:0 0 0 0 rgba(1,118,211,.35)}50%{box-shadow:0 0 0 4px rgba(1,118,211,.12)}}
 .clh.scp .stage,.clh.scp .picker,.clh.scp .fe{animation:clh-fin .35s var(--out) both}
+.clh.scp .pr .pr-st{flex:none;min-height:4px;height:4px;width:100%}
