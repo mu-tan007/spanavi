@@ -26,7 +26,7 @@
 .clh.inc2 .icard{display:grid;grid-template-columns:30px minmax(0,1fr) 168px 150px 286px;gap:14px;align-items:center;padding:12px 16px;border-top:1px solid var(--line-2);transition:background var(--t-fast)}
 .clh.inc2 .icard:first-of-type{border-top:0}
 .clh.inc2 .icard:hover{background:var(--hover)}
-.clh.inc2 .icard .rk{box-sizing:border-box;padding:0;width:26px;height:26px;font-variant-numeric:tabular-nums;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--navy);background:var(--royal-soft);align-self:start}
+.clh.inc2 .icard .rk{box-sizing:border-box;padding:0;width:26px;height:26px;font-variant-numeric:tabular-nums;border-radius:50%;display:flex;align-items:center;justify-content:center;grid-template-columns:none;font-size:12px;font-weight:700;color:var(--navy);background:var(--royal-soft);align-self:start}
 .clh.inc2 .icard.unk .rk{background:var(--line-2);color:var(--ink-3)}
 .clh.inc2 .icard .main{min-width:0;display:flex;flex-direction:column;gap:5px}
 .clh.inc2 .icard .nm b{font-size:14px;font-weight:600;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
