@@ -350,8 +350,8 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
         <div><h1>着信対応</h1><p>折り返しはアポにいちばん近い電話。アポに近い順に並べています</p></div>
         <div className="r">
           <select className="input" value={calleeFilter} onChange={e => setCalleeFilter(e.target.value)} title="着信を受けた人で絞る">
-            <option value="all">全員あて</option>
-            {callees.map(c => <option key={c} value={c}>{c}あて</option>)}
+            <option value="all">全員</option>
+            {callees.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <div className="seg" style={{ position: 'relative' }}>
             {[['未対応', '折り返し待ち', openGroups.length], ['対応済み', '対応済み', doneGroups.length], ['all', 'すべて', openGroups.length + doneGroups.length]].map(([v, t, n]) => (
