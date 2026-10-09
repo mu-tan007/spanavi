@@ -62,7 +62,12 @@ begin
   ), mt2 as (
     select mt.*,
       (select jsonb_build_object('at', r.called_at, 'g', r.getter_name, 's', r.status,
-               'rd', substring(r.memo from '"recall_date":"([0-9-]+)"'), 'rt', substring(r.memo from '"recall_time":"([0-9:]+)"'), 'nt', substring(r.memo from '"note":"([^"]*)"'))
+               'rd', substring(r.memo from '"recall_date":"([0-9-]+)"'), 'rt', substring(r.memo from '"recall_time":"([0-9:]+)"'), 'nt', substring(r.memo from '"note":"([^"]*)"'),
+               -- 会話の中身：社長の発言・断りの理由、折り返しの話が出たか（書き起こしかメモに「折り返」）とその前後の一言
+               'q', r.ceo_temp_quote, 'rr', r.rejection_reason,
+               'cb', (coalesce(r.transcript, '') like '%折り返%' or coalesce(r.memo, '') like '%折り返%'),
+               'cbs', case when coalesce(r.transcript, '') like '%折り返%'
+                        then regexp_replace(substring(r.transcript from greatest(1, position('折り返' in r.transcript) - 40) for 90), '\[[0-9:]+\]\s*', ' ', 'g') end)
          from call_records r where r.item_id = mt.item_id order by r.called_at desc limit 1) last,
       (select r.ceo_temp from call_records r where r.item_id = mt.item_id and r.ceo_temp is not null order by r.called_at desc limit 1) ceo
       from mt

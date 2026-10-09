@@ -33,7 +33,17 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   // (CRM の ?status=面談予定 を そのまま読むと着信対応が全件除外になる事故防止)
   const [statusFilter, setStatusFilter] = useUrlState('inc_status', '未対応');
   const [calleeFilter, setCalleeFilter] = useUrlState('inc_to', 'all');
-  const [lastFilter, setLastFilter] = useUrlState('inc_last', 'all');
+  const [lastRaw, setLastRaw] = useUrlState('inc_last', '');
+  const lastSel = new Set(String(lastRaw || '').split(',').filter(Boolean));
+  const setLastSel = (set) => setLastRaw([...set].join(','));
+  const [lastDd, setLastDd] = useState(false);
+  const lastDdRef = useRef(null);
+  useEffect(() => {
+    if (!lastDd) return undefined;
+    const f = e => { if (!lastDdRef.current?.contains(e.target)) setLastDd(false); };
+    document.addEventListener('mousedown', f);
+    return () => document.removeEventListener('mousedown', f);
+  }, [lastDd]);
   const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   // リスト選択モーダル: null | [{ itemId, company, listId, listName, clientName }]
   const [selectModal, setSelectModal] = useState(null);
@@ -237,15 +247,18 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
       const m = matches[0];
       const l = m?.last;
       const reasons = [];
+      let promise = null;
       let score = 0;
       if (m) {
         score += 30;
         if (l?.rd) {
           const due = l.rd <= today;
           const [, mo, d] = l.rd.split('-');
-          reasons.push({ t: `約束 ${Number(mo)}/${Number(d)}${l.rt ? ` ${l.rt}` : ''}`, c: due ? 'red' : 'amber' });
+          promise = { t: `${Number(mo)}/${Number(d)}${l.rt ? ` ${l.rt.slice(0, 5)}` : ''}にこちらからかけ直す約束`, due };
+          reasons.push({ t: '約束あり', c: due ? 'red' : 'amber' });
           score += due ? 45 : 30;
         }
+        if (l?.cb) { reasons.push({ t: '折り返しの話あり', c: 'red' }); score += 35; }
         if (l?.s === 'キーマン再コール') { reasons.push({ t: '社長と話した会社', c: 'green' }); score += 25; }
         else if (l?.s === 'キーマン不在') { reasons.push({ t: '前回は社長不在', c: 'blue' }); score += 20; }
         else if (l?.s === '受付再コール') { reasons.push({ t: '受付で再コール', c: 'blue' }); score += 15; }
@@ -262,7 +275,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
         ...g, open, id: r0.id, ids: g.rows.map(x => x.id), at: r0.at, firstAt: g.rows[g.rows.length - 1].at,
         n: r0.n, raw: r0.raw, callees: [...new Set(g.rows.map(x => x.callee).filter(Boolean))],
         missed: g.rows.every(x => !x.zid), rec: recRow?.rec || null, recId: recRow?.id,
-        matches, m, l, cands: r0.cands || [], name: m?.company || r0.company_name || '', reasons, score,
+        matches, m, l, promise, cands: r0.cands || [], name: m?.company || r0.company_name || '', reasons, score,
         handledBy: r0.handled_by, handledAt: r0.handled_at,
       };
     });
@@ -273,7 +286,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   const lastOf = g => (!g.m ? '会社が分からない' : g.l?.s || 'まだかけていない');
   const LAST_ORDER = ['アポ獲得', 'キーマン再コール', 'キーマン不在', '受付再コール', '受付ブロック', 'キーマン断り', '不通', '除外', 'まだかけていない', '会社が分からない'];
   const lastOpts = [...new Set(groups.map(lastOf))].sort((a, b) => (LAST_ORDER.indexOf(a) + 99 * (LAST_ORDER.indexOf(a) < 0)) - (LAST_ORDER.indexOf(b) + 99 * (LAST_ORDER.indexOf(b) < 0)));
-  const byWho = g => (calleeFilter === 'all' || g.callees.includes(calleeFilter)) && (lastFilter === 'all' || lastOf(g) === lastFilter);
+  const byWho = g => (calleeFilter === 'all' || g.callees.includes(calleeFilter)) && (!lastSel.size || lastSel.has(lastOf(g)));
   const openGroups = groups.filter(g => g.open && byWho(g)).sort((a, b) => b.score - a.score);
   const doneGroups = groups.filter(g => !g.open && byWho(g)).sort((a, b) => String(b.handledAt || b.at).localeCompare(String(a.handledAt || a.at)));
   const queueable = openGroups.filter(g => g.m);
@@ -295,6 +308,14 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   };
 
   const PhoneIcon = () => <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>;
+  // 前回の会話の一言：社長の発言 → メモ → 断りの理由 → 書き起こしの「折り返」の行
+  const talkOf = l => {
+    if (l.q) return l.q;
+    if (l.nt) return l.nt;
+    if (l.rr) return l.rr;
+    if (l.cbs) { const line = String(l.cbs).split(/\r?\n/).find(x => x.includes('折り返')) || ''; return line.replace(/^[\d:\]\s]+/, '').trim(); }
+    return '';
+  };
   const tagOf = s => ({ 'キーマン不在': 'blue', '受付再コール': 'blue', 'キーマン再コール': 'amber', 'キーマン断り': 'gray', 'アポ獲得': 'green' }[s] || 'gray');
   const showOpen = statusFilter !== '対応済み';
   const showDone = statusFilter !== '未対応';
@@ -314,13 +335,22 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
           )}
           {g.reasons.length > 0 && <div className="rs">{g.reasons.map(x => <span key={x.t} className={`tag ${x.c}`}>{x.t}</span>)}</div>}
           {g.m && (
-            <div className="lastl">{g.l ? <>前回<span className={`tag ${tagOf(g.l.s)}`}>{g.l.s}</span><span>{md(g.l.at)} {first(g.l.g)}</span>{g.l.nt ? <q>{g.l.nt}</q> : null}</> : <span>まだ架電していない会社</span>}</div>
+            <>
+              {(g.promise || g.l?.cb) && (
+                <div className={`promise ${g.promise?.due || g.l?.cb ? 'due' : ''}`}>
+                  <b>約束</b>
+                  <span>{g.promise ? g.promise.t : '前回の電話で折り返しの話が出ている'}</span>
+                </div>
+              )}
+              <div className="lastl">{g.l ? <>前回<span className={`tag ${tagOf(g.l.s)}`}>{g.l.s}</span><span>{md(g.l.at)} {first(g.l.g)}</span></> : <span>まだ架電していない会社</span>}</div>
+              {g.l && talkOf(g.l) && <div className="talk">「{talkOf(g.l)}」</div>}
+            </>
           )}
         </div>
         <div className="inc-at">
           <b className="n">{when(g.at)}</b>
-          <small>{ago(g.at)}{g.callees.length ? ` ・ ${g.callees.map(first).join('・')}あて` : ''}</small>
-          <small>{g.missed ? <span className="miss">出られなかった</span> : '誰かが出た'}{g.rows.length > 1 ? ` ・ 初回 ${when(g.firstAt)}` : ''}</small>
+          {g.callees.length ? <span className="to">{g.callees.map(first).join('・')}あて</span> : <span className="to na">あて先不明</span>}
+          <small>{ago(g.at)} ・ {g.missed ? <span className="miss">出られなかった</span> : '誰かが出た'}{g.rows.length > 1 ? ` ・ 初回 ${when(g.firstAt)}` : ''}</small>
         </div>
         <div className="tel">
           <span className="n">{telFmt(g.n) || g.raw || '—'}</span>
@@ -358,10 +388,23 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
             <option value="all">全員</option>
             {callees.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select className="input" value={lastFilter} onChange={e => setLastFilter(e.target.value)} title="前回のステータスで絞る">
-            <option value="all">前回のステータス：すべて</option>
-            {lastOpts.map(x => <option key={x} value={x}>{x}（{groups.filter(g => g.open && lastOf(g) === x).length}）</option>)}
-          </select>
+          <div className="dd" ref={lastDdRef}>
+            <button className={`dd-b ${lastSel.size ? 'on' : ''}`} type="button" onClick={() => setLastDd(v => !v)}>
+              前回のステータス：{!lastSel.size ? 'すべて' : lastSel.size === 1 ? [...lastSel][0] : `${lastSel.size}つ選択中`} ▾
+            </button>
+            {lastDd && (
+              <div className="dd-p">
+                <div className="dd-t"><button type="button" onClick={() => setLastSel(new Set(lastOpts))}>全選択</button><span>・</span><button type="button" onClick={() => setLastSel(new Set())}>全解除</button></div>
+                {lastOpts.map(x => (
+                  <label key={x} className="dd-i">
+                    <input type="checkbox" checked={lastSel.has(x)} onChange={e => { const n = new Set(lastSel); if (e.target.checked) n.add(x); else n.delete(x); setLastSel(n); }} />
+                    <span>{x}</span><span className="c">{groups.filter(g => g.open && lastOf(g) === x).length}</span>
+                  </label>
+                ))}
+                <div className="dd-f"><span /><button type="button" onClick={() => setLastDd(false)}>閉じる</button></div>
+              </div>
+            )}
+          </div>
           <div className="seg" style={{ position: 'relative' }}>
             {[['未対応', '折り返し待ち', openGroups.length], ['対応済み', '対応済み', doneGroups.length], ['all', 'すべて', openGroups.length + doneGroups.length]].map(([v, t, n]) => (
               <button key={v} className={statusFilter === v ? 'on' : ''} style={statusFilter === v ? { background: 'var(--navy)', color: '#fff' } : undefined} onClick={() => setStatusFilter(v)}>{t}<span className="c">{n}</span></button>
