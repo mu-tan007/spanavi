@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import ScriptV2, { IND_NOUN, IND_RECEPTION } from '../callflow/ScriptV2';
 import ScriptView from '../ScriptView';
+import ScriptBody from '../../common/ScriptBody';
 import './CallListHome.css';
 import '../callflow/CallPage.css';
 
@@ -59,7 +60,7 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
             <div className="card" style={{ padding: '14px 16px' }}>
               <div className="cfv" style={{ position: 'static' }}>
                 {list && <ScriptV2 key={list._supaId} spec={list.scriptV2} list={list} row={sample} rebuttal={rebuttal}
-                  renderLegacy={() => <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.8, margin: 0 }}>{list.scriptBody || '台本はまだありません'}</pre>} />}
+                  renderLegacy={() => (list.scriptBody ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={{ ...sample, company: '〇〇株式会社', representative: '〇〇' }} style={{ fontSize: 13, lineHeight: 1.8 }} /> : <div style={{ color: 'var(--ink-3)' }}>台本はまだありません</div>)} />}
               </div>
             </div>
             <div className="card" style={{ padding: '14px 16px', alignSelf: 'start' }}>
