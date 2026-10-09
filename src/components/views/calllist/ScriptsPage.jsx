@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { fetchListHome } from './listHomeData';
 import ScriptV2, { IND_NOUN, IND_RECEPTION } from '../callflow/ScriptV2';
 import ScriptEditor from './ScriptEditor';
 import ScriptBody from '../../common/ScriptBody';
@@ -21,6 +22,9 @@ function parseCautions(text) {
   return out;
 }
 
+// 状態の色（架電リストの「いまの状態」と同じ）
+const COL = { 'キーマン再コール': '#032D60', '受付再コール': '#0176D3', '未架電': '#B9D7F3', 'キーマン断り': '#E2C68A', 'キーマン不在': '#8692A0', '不通': '#C9D1DB', '受付ブロック': '#E8B4BC', '問い合わせフォーム': '#EEF0F3' };
+
 // script_v2 の項目のうち、画面で「このリストだけの言葉」として見せるもの
 const SPEC_LABEL = [
   ['client', '名乗る社名'], ['boss', '面談する上長'], ['honorific', '相手の呼び方'], ['house', '相手の会社の呼び方'], ['noun', '〇〇会社様'],
@@ -41,6 +45,9 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
   const setListId = (id) => { setListIdRaw(id); save(id); };
   const list = lists.find(l => l._supaId === listId) || lists[0];
   const [q, setQ] = useState('');
+  // 左のリストに、架電可能・見込みアポ・最終架電・いまの状態の帯を出す（架電リストと同じ数字）
+  const [home, setHome] = useState({});
+  useEffect(() => { fetchListHome().then(rows => setHome(Object.fromEntries((rows || []).map(r => [r.list_id, r])))); }, []);
   const [grp, setGrp] = useState('');
   const g = grp || (list?.industryGroup && IND_NOUN[list.industryGroup] ? list.industryGroup : '建築工事');
   const sample = { representative: '〇〇 〇〇', address: '', industry_group: g };
@@ -77,8 +84,22 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
             <div className="pgh"><span>{c}</span><b className="n">{ls.length}</b></div>
             {ls.map(l => (
               <button key={l._supaId} className={`pr ${l._supaId === list?._supaId ? 'on' : ''}`} onClick={() => { setListId(l._supaId); setGrp(''); }}>
-                <span className="ind">{l.industry || '—'}</span>
-                <span className={`tag ${l.scriptV2 && !l.scriptV2.legacy ? 'blue' : 'gray'}`}>{l.scriptV2 && !l.scriptV2.legacy ? '基本台本' : '今までの台本'}</span>
+                <span className="pr-t">
+                  <span className="ind">{l.industry || '—'}</span>
+                  <span className={`tag ${l.scriptV2 && !l.scriptV2.legacy ? 'blue' : 'gray'}`}>{l.scriptV2 && !l.scriptV2.legacy ? '基本台本' : '今までの台本'}</span>
+                </span>
+                {home[l._supaId] && (() => {
+                  const h = home[l._supaId];
+                  const st = h.statuses || {};
+                  const tot = Object.values(st).reduce((a, b) => a + Number(b || 0), 0) || 1;
+                  const lc = h.last_called ? new Date(h.last_called).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' }) : '—';
+                  return (
+                    <span className="pr-m">
+                      <span className="pr-n"><b className="n">{Number(h.callable || 0).toLocaleString()}</b>社 ・ 見込み <b className="n g">{Number(h.expected || 0).toFixed(1)}</b> ・ 最終 {lc}</span>
+                      <span className="pr-st">{Object.keys(COL).map(k => st[k] ? <i key={k} style={{ flex: `${Number(st[k])} 1 0`, background: COL[k] }} /> : null)}{!Object.keys(st).length && <i style={{ flex: `${tot} 1 0`, background: 'var(--line-2)' }} />}</span>
+                    </span>
+                  );
+                })()}
               </button>
             ))}
           </div>

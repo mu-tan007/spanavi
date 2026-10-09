@@ -19,6 +19,9 @@ const listLabel = (m) => {
   return m.listName ? `${m.clientName} – ${m.listName}` : m.clientName;
 };
 
+// 前回の状態の色（架電リストの「いまの状態」と同じ）
+const COL = { '未架電': '#B9D7F3', 'キーマン再コール': '#032D60', '受付再コール': '#0176D3', 'キーマン不在': '#8692A0', '不通': '#C9D1DB', '受付ブロック': '#E8B4BC', 'キーマン断り': '#E2C68A', '問い合わせフォーム': '#EEF0F3', 'アポ獲得': '#C8A45A', '除外': '#4B5868' };
+
 const normalizePhone = (n) => {
   if (!n) return '';
   const digits = n.replace(/\D/g, '');
@@ -339,7 +342,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   const card = (g, i) => {
     const canDial = g.raw && g.raw !== 'anonymous';
     return (
-      <div key={g.key} className={`icard ${g.m ? '' : 'unk'}`}>
+      <div key={g.key} className={`icard ${g.m ? '' : 'unk'}`} style={{ animationDelay: `${Math.min(i, 24) * 0.02}s` }}>
         <span className="rk">{i + 1}</span>
         <div className="main">
           {g.m ? (
@@ -357,13 +360,19 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
                   <span>{g.promise.t}</span>
                 </div>
               )}
-              <div className="lastl">{g.l ? <>前回<span className={`tag ${tagOf(g.l.s)}`}>{g.l.s}</span><span>{md(g.l.at)} {first(g.l.g)}</span>{g.m.ceo && g.m.ceo !== '除外' ? <span className="ceo">社長の温度感 {g.m.ceo}</span> : null}</> : <span>まだ架電していない会社</span>}</div>
+              <div className="lastl">{g.l ? <>前回<span className="sd"><i style={{ background: COL[g.l.s] || '#C9D1DB' }} />{g.l.s}</span><span>{md(g.l.at)} {first(g.l.g)}</span>{g.m.ceo && g.m.ceo !== '除外' ? <span className="ceo">社長の温度感 {g.m.ceo}</span> : null}</> : <span>まだ架電していない会社</span>}</div>
               {g.l && talkOf(g.l) && <div className="talk">「{talkOf(g.l)}」</div>}
             </>
           )}
         </div>
         <div className="inc-at">
           <b className="n">{when(g.at)}</b>
+          {(() => {
+            // 着信からの経過：3日で満タン。半日を過ぎたら黄、2日を過ぎたら赤
+            const h = (now - new Date(g.at).getTime()) / 3600000;
+            const c = !g.open ? 'var(--line)' : h > 48 ? 'var(--red)' : h > 12 ? 'var(--amber)' : 'var(--royal)';
+            return <span className="age" title={`着信から${ago(g.at)}`}><i style={{ width: `${Math.max(4, Math.min(100, (h / 72) * 100))}%`, background: c }} /></span>;
+          })()}
           {g.callees.length ? <span className="to">{g.callees.map(first).join('・')}あて</span> : <span className="to na">あて先不明</span>}
           <small>{ago(g.at)} ・ {g.missed ? <span className="miss">出られなかった</span> : '誰かが出た'}</small>
           {g.rows.length > 1 && <small className={g.claim ? '' : 'many'}>{g.rows.length}回目の着信（初回 {when(g.firstAt)}）</small>}
@@ -436,6 +445,33 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
         </div>
       </div>
 
+      {(() => {
+        // 直近7日の流れ：着信（番号ごと）→ 折り返し済み → アポ
+        const since = now - 7 * 86400000;
+        const wk = groups.filter(g => new Date(g.firstAt).getTime() >= since);
+        const done = wk.filter(g => !g.open);
+        const apo = done.filter(g => g.l?.s === 'アポ獲得' && g.l?.at >= g.firstAt);
+        const td = groups.filter(g => dayOf(g.at) === today);
+        const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+        return (
+          <div className="card flow">
+            <div className="fl-h"><b>直近7日の折り返し</b><span>今日 {td.length}件の着信 ・ 折り返し済み {td.filter(g => !g.open).length}件</span></div>
+            <div className="fl-steps">
+              <div className="st"><span className="t-label">着信</span><b className="n">{wk.length}</b><small>番号ごと</small></div>
+              <span className="ar">→</span>
+              <div className="st"><span className="t-label">折り返し済み</span><b className="n">{done.length}</b><small>{pct(done.length, wk.length)}%</small></div>
+              <span className="ar">→</span>
+              <div className="st g"><span className="t-label">アポ</span><b className="n">{apo.length}</b><small>{pct(apo.length, done.length)}%</small></div>
+              <div className="fl-bar">
+                <i style={{ width: `${pct(apo.length, wk.length)}%`, background: 'var(--gold)' }} />
+                <i style={{ width: `${pct(done.length - apo.length, wk.length)}%`, background: 'var(--royal)', animationDelay: '.1s' }} />
+                <i style={{ width: `${100 - pct(done.length, wk.length)}%`, background: 'var(--line)', animationDelay: '.2s' }} />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="views">
         {VIEWS.map(([k, t, f, cl]) => (
           <button key={k} type="button" className={`v ${cl} ${view === k ? 'on' : ''}`} onClick={() => setView(view === k && k !== 'all' ? 'all' : k)}>
@@ -450,6 +486,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
           {!loading && showOpen && (
             <div className="card sec">
               <div className="card-h"><b>折り返す順番</b><span>約束のある会社・社長と話した会社を上に。クレームの恐れがある着信は下に</span></div>
+              {openGroups.length > 0 && <div className="ihead"><span>#</span><span>会社・前回の電話</span><span>着信・あて先</span><span>番号・録音</span><span className="r">操作</span></div>}
               {openGroups.length ? openGroups.map(card) : <div className="hint">{loadError ? '読み込めませんでした。「更新」を押してください' : '折り返し待ちの着信はありません'}</div>}
             </div>
           )}

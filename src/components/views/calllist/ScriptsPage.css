@@ -102,3 +102,23 @@
   .clh.scp .fe-grid{grid-template-columns:220px minmax(0,1fr)}
   .clh.scp .fe-prev{grid-column:2;position:static;max-height:none}
 }
+
+/* 2026-10-10：架電リストの水準に（リストの数字と状態の帯・番号付きの見出し・差し込み先が光る・動き） */
+.clh.scp .pr{flex-direction:column;align-items:stretch;gap:4px;padding:8px 14px 8px 22px}
+.clh.scp .pr .pr-t{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.clh.scp .pr .pr-m{display:flex;flex-direction:column;gap:3px}
+.clh.scp .pr .pr-n{font-size:10.5px;color:var(--ink-3);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clh.scp .pr .pr-n b{font-weight:600;color:var(--ink-2)}
+.clh.scp .pr .pr-n b.g{color:var(--gold)}
+.clh.scp .pr .pr-st{display:flex;height:4px;border-radius:2px;overflow:hidden;background:var(--line-2)}
+.clh.scp .pr .pr-st i{height:100%;min-width:1px;transform-origin:left;animation:clh-grow .7s var(--out) both}
+.clh.scp .fe-h{align-items:center}
+.clh.scp .fe-h .no6{width:20px;height:20px;font-size:11px}
+.clh.scp .fe-sec.fsec{overflow:visible}
+.clh.scp .fe .fe-sec:nth-of-type(2){animation-delay:.04s}.clh.scp .fe .fe-sec:nth-of-type(3){animation-delay:.08s}
+.clh.scp .fe .fe-sec:nth-of-type(4){animation-delay:.12s}.clh.scp .fe .fe-sec:nth-of-type(5){animation-delay:.16s}
+.clh.scp .fe .fe-sec:nth-of-type(6){animation-delay:.2s}.clh.scp .fe .fe-sec:nth-of-type(7){animation-delay:.24s}
+.clh.scp .fe-f .input:focus{outline:2px solid var(--royal-line);border-color:var(--royal)}
+.clh.scp .cfv .hl{outline:2px solid var(--royal);outline-offset:1px;border-radius:3px;animation:scp-hl 1.2s ease-in-out infinite}
+@keyframes scp-hl{0%,100%{box-shadow:0 0 0 0 rgba(1,118,211,.35)}50%{box-shadow:0 0 0 4px rgba(1,118,211,.12)}}
+.clh.scp .stage,.clh.scp .picker,.clh.scp .fe{animation:clh-fin .35s var(--out) both}

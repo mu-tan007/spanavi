@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ScriptV2, { IND_NOUN, IND_RECEPTION } from '../callflow/ScriptV2';
 import ScriptView from '../ScriptView';
 import ScriptBody from '../../common/ScriptBody';
@@ -29,6 +29,19 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [old, setOld] = useState(false);
+  // 入力欄にカーソルを置くと、右の台本でその言葉が入る場所を光らせる
+  const [fv, setFv] = useState('');
+  const prevRef = useRef(null);
+  useEffect(() => {
+    const root = prevRef.current;
+    if (!root) return;
+    root.querySelectorAll('.hl').forEach(e => e.classList.remove('hl'));
+    const v = String(fv || '').trim();
+    if (v.length < 2) return;
+    const hits = [...root.querySelectorAll('.v-c, .v-i, .v-k')].filter(e => e.textContent.includes(v) || v.includes(e.textContent.trim()) && e.textContent.trim().length >= 2);
+    hits.forEach(e => e.classList.add('hl'));
+    hits[0]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [fv, d]);
   useEffect(() => { setD({ ...(list?.scriptV2 || {}) }); setCa(list?.cautions || ''); setMsg(''); setOld(false); }, [list]);
 
   const dirty = JSON.stringify(d) !== JSON.stringify(base) || ca !== (list?.cautions || '');
@@ -64,8 +77,9 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
     );
   }
 
-  const ins = (k, ph) => <input className="input" value={d[k] || ''} placeholder={ph} onChange={e => set(k, e.target.value)} />;
-  const area = (k, ph, rows = 2) => <textarea className="input ta" rows={rows} value={d[k] || ''} placeholder={ph} onChange={e => set(k, e.target.value)} />;
+  const lit = (k, ph) => ({ onFocus: () => setFv(d[k] || ph || ''), onBlur: () => setFv('') });
+  const ins = (k, ph) => <input className="input" value={d[k] || ''} placeholder={ph} onChange={e => { set(k, e.target.value); setFv(e.target.value || ph || ''); }} {...lit(k, ph)} />;
+  const area = (k, ph, rows = 2) => <textarea className="input ta" rows={rows} value={d[k] || ''} placeholder={ph} onChange={e => { set(k, e.target.value); setFv(e.target.value || ph || ''); }} {...lit(k, ph)} />;
   const listArea = (k, ph, rows = 3) => <textarea className="input ta" rows={rows} defaultValue={lines(d[k])} key={`${list._supaId}-${k}`} placeholder={ph} onBlur={e => set(k, toList(e.target.value))} />;
 
   return (
@@ -80,15 +94,15 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
         </div>
 
         {legacy ? (
-          <div className="fe-sec">
+          <div className="fe-sec fsec">
             <div className="fe-h"><b>今までの台本を使っています</b><span>架電ページには、自由文の台本がそのまま出ます</span></div>
             <p className="fe-note">基本台本に切り替えると、下の項目を埋めるだけで台本が組み上がります。自由文・分岐・アウト返し・PDFの編集は、今までの編集画面で行います。</p>
             <button className="btn" onClick={() => setOld(true)}>今までの編集画面を開く</button>
           </div>
         ) : (
           <>
-            <div className="fe-sec">
-              <div className="fe-h"><b>名乗りと面談</b><span>色の帯：<i className="v-c">クライアント・リストごと</i></span></div>
+            <div className="fe-sec fsec">
+              <div className="fe-h"><span className="no6">1</span><b>名乗りと面談</b><span>色の帯：<i className="v-c">クライアント・リストごと</i></span></div>
               <div className="fe-g2">
                 <Field label="名乗る社名" hint="受付と社長への名乗り">{ins('client', list.company?.replace(/株式会社|有限会社/g, '').trim())}</Field>
                 <Field label="面談する上長" hint="「私の上長の〇〇」">{ins('boss', '〇〇')}</Field>
@@ -100,8 +114,8 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
               {d.mode === 'both' && <Field label="面談の形の補足">{ins('mode_note', '注意事項②：対面でもオンラインでも可')}</Field>}
             </div>
 
-            <div className="fe-sec">
-              <div className="fe-h"><b>相手の呼び方</b><span>空なら業種の言い方（{IND_NOUN[grp] || '—'}）と「社長」「御社」</span></div>
+            <div className="fe-sec fsec">
+              <div className="fe-h"><span className="no6">2</span><b>相手の呼び方</b><span>空なら業種の言い方（{IND_NOUN[grp] || '—'}）と「社長」「御社」</span></div>
               <div className="fe-g3">
                 <Field label="〇〇会社様">{ins('noun', IND_NOUN[grp] || '')}</Field>
                 <Field label="相手の呼び方">{ins('honorific', '社長')}</Field>
@@ -109,14 +123,14 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
               </div>
             </div>
 
-            <div className="fe-sec">
-              <div className="fe-h"><b>受付への用件</b><span>空なら業種の一文（{IND_RECEPTION[grp] ? `${IND_RECEPTION[grp]}アライアンス` : 'まだ決めていない'}）</span></div>
+            <div className="fe-sec fsec">
+              <div className="fe-h"><span className="no6">3</span><b>受付への用件</b><span>空なら業種の一文（{IND_RECEPTION[grp] ? `${IND_RECEPTION[grp]}アライアンス` : 'まだ決めていない'}）</span></div>
               <Field label="受付への一文" hint="「〇〇市の［ここ］アライアンスの件」">{ins('reception', IND_RECEPTION[grp] || '')}</Field>
               <Field label="用件をまるごと差し替える" hint="入れると上の一文の代わりにこの文を出す">{area('reception_full', '')}</Field>
             </div>
 
-            <div className="fe-sec">
-              <div className="fe-h"><b>社長への用件</b></div>
+            <div className="fe-sec fsec">
+              <div className="fe-h"><span className="no6">4</span><b>社長への用件</b></div>
               <Field label="用件の型">
                 <div className="seg sm">{PITCHES.map(([k, t]) => <button key={k} type="button" className={(d.pitch || 'base') === k ? 'on' : ''} style={(d.pitch || 'base') === k ? { background: 'var(--navy)', color: '#fff' } : undefined} onClick={() => set('pitch', k)}>{t}</button>)}</div>
               </Field>
@@ -130,8 +144,8 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
               <Field label="最初の一文を差し替える" hint="空なら「我々が〇〇会社様の資本提携のご支援をしておりまして」">{area('support', '')}</Field>
             </div>
 
-            <div className="fe-sec">
-              <div className="fe-h"><b>足す言葉</b><span>1行に1つ</span></div>
+            <div className="fe-sec fsec">
+              <div className="fe-h"><span className="no6">5</span><b>足す言葉</b><span>1行に1つ</span></div>
               <div className="fe-g2">
                 <Field label="社長への追加の質問・確認">{listArea('extra', '')}</Field>
                 <Field label="アポが取れた後に足す言葉">{listArea('after_extra', '')}</Field>
@@ -143,8 +157,8 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
           </>
         )}
 
-        <div className="fe-sec">
-          <div className="fe-h"><b>注意事項</b><span>架電ページの「注意事項」のタブに出る。見出しは①〜⑥のまま</span></div>
+        <div className="fe-sec fsec">
+          <div className="fe-h"><span className="no6">6</span><b>注意事項</b><span>架電ページの「注意事項」のタブに出る。見出しは①〜⑥のまま</span></div>
           <div className="fe-heads">{CAUTION_HEADS.map(h => <button key={h} type="button" className="chipb" onClick={() => setCa(v => (v.includes(h) ? v : `${v}${v && !v.endsWith('\n') ? '\n' : ''}${h}\n`))}>{h}</button>)}</div>
           <textarea className="input ta" rows={10} value={ca} onChange={e => setCa(e.target.value)} />
         </div>
@@ -167,7 +181,7 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
             </label>
           )}
         </div>
-        <div className="cfv sb">
+        <div className="cfv sb" ref={prevRef}>
           <ScriptV2 key={`${list._supaId}-${legacy}`} spec={legacy ? { ...d, legacy: true } : d} list={list} row={sample} rebuttal={rebuttal}
             renderLegacy={() => (list.scriptBody ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={{ ...sample, company: '〇〇株式会社', representative: '〇〇' }} style={{ fontSize: 13, lineHeight: 1.8 }} /> : <div className="hint">台本はまだありません</div>)} />
         </div>
