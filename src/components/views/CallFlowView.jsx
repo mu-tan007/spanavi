@@ -3023,10 +3023,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                             <td style={{ padding: '7px 8px', fontFamily: font.family.mono, fontSize: 9, color: color.gray500, textAlign: 'right', whiteSpace: 'nowrap' }}>{item.no}</td>
                             <td style={{ padding: '7px 8px', fontWeight: font.weight.semibold, color: color.navyDeep, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: space[1] }}>
-                                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company}</span>
+                                <span data-company={item.company} style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company}</span>
                                 {item.reapproach_at && <span title={item.reapproach_note || '再アプローチ'} style={{ flexShrink: 0, fontSize: 10, padding: '1px 7px', borderRadius: 999, background: '#F7F0E1', color: '#7A5A1E', fontWeight: 600 }}>再アプローチ</span>}
-                                <Button variant="ghost" size="sm" aria-label={`${item.company}の企業カルテ`} title="共有情報・全リストの対応履歴を開く"
-                                  onClick={e => { e.stopPropagation(); setProfileTarget({ itemId: item.id }); }} style={{ flexShrink: 0, padding: space[1], fontSize: font.size.xs }}>カルテ</Button>
                               </div>
                             </td>
                             <td style={{ padding: '7px 8px', color: color.gray500, fontSize: font.size.xs - 1, maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.business}</td>
@@ -3105,7 +3103,6 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: space[3] }}>
                       <div style={{ fontSize: font.size.xl + 2, fontWeight: font.weight.bold, color: color.navyDeep, flex: 1, lineHeight: 1.3 }}>{selectedRow.company}{docViewBadge ? <div style={{ marginTop: space[1] }}>{docViewBadge}</div> : null}
                         {selectedRow.reapproach_at && <div style={{ marginTop: space[1], fontSize: 12, fontWeight: 500, color: '#7A5A1E', background: '#F7F0E1', borderRadius: 8, padding: '4px 10px', display: 'inline-block' }}>再アプローチ ・ {selectedRow.reapproach_note || '元のアポから30日'}</div>}</div>
-                      <Button variant="outline" size="sm" onClick={() => setProfileTarget({ itemId: selectedRow.id })}>企業カルテ</Button>
                       <span style={{ fontSize: font.size.xs, padding: '1px 6px', borderRadius: radius.sm, fontWeight: font.weight.semibold, background: prevBadgeStyle.bg, color: prevBadgeStyle.color, flexShrink: 0 }}>
                         {lastResult}
                       </span>
@@ -3551,8 +3548,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       <div className="card cocard">
                         <div className="info">
                           <div className="no n">No. {selectedRow.no}</div>
-                          <div className="name"><h1>{selectedRow.company}</h1>
-                            <Button variant="outline" size="sm" onClick={() => setProfileTarget({ itemId: selectedRow.id })}>企業カルテ</Button></div>
+                          <div className="name"><h1>{selectedRow.company}</h1></div>
                           {docViewBadge ? <div style={{ marginBottom: 6 }}>{docViewBadge}</div> : null}
                           {selectedRow.reapproach_at && <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 500, color: '#7A5A1E', background: '#F7F0E1', borderRadius: 8, padding: '4px 10px', alignSelf: 'flex-start' }}>再アプローチ ・ {selectedRow.reapproach_note || '元のアポから30日'}</div>}
                           {strong && <div className="strong"><b>この会社の強み</b><span>{strong}</span></div>}

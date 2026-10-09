@@ -51,8 +51,8 @@ const rows = [
 let renderer;
 const select = () => renderer.root.findAllByType('select').find(node => node.props['aria-label'] === '会社住所と代表者自宅住所');
 const button = text => renderer.root.findAllByType('button').find(node => node.children.includes(text));
-const companies = () => renderer.root.findAllByType('button')
-  .map(node => node.props['aria-label']).filter(label => label?.endsWith('の企業カルテ')).map(label => label.replace(/の企業カルテ$/, ''));
+const companies = () => renderer.root.findAll(node => node.type === 'span' && node.props['data-company'] != null)
+  .map(node => node.props['data-company']);
 async function mountFlow(extra = {}) {
   await act(async () => { renderer = create(<MemoryRouter><CallFlowView list={list} onClose={vi.fn()} {...extra} /></MemoryRouter>); });
 }
