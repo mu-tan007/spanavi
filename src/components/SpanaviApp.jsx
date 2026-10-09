@@ -73,6 +73,7 @@ import RecallListView from './views/RecallListView';
 import ListDetailModal from './views/calllist/ListDetailModal';
 import ListPage from './views/calllist/ListPage';
 import ScriptsPage from './views/calllist/ScriptsPage';
+import RecordToast from './views/callflow/RecordToast';
 import ShiftManagementView from './views/ShiftManagementView';
 import RulesView from './views/RulesView';
 import PlaceholderView from './views/PlaceholderView';
@@ -1490,6 +1491,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
         </>
       )}
       {selectedList && <ListDetailModal list={enrichedLists.find(l => l.id === selectedList)} onClose={() => setSelectedList(null)} setCallFlowScreen={setCallFlowScreen} callListData={callListData} userKey={userId || ''} me={displayUserName} onOpenListPage={l => setListPageId(l._supaId)} />}
+      <RecordToast />
       {listPageId && <ListPage list={enrichedLists.find(l => l._supaId === listPageId)} onClose={() => setListPageId(null)} setCallFlowScreen={setCallFlowScreen} callListData={callListData} userKey={userId || ''} me={displayUserName} myPhone={currentMemberDetail?.zoomPhoneNumber || ''} />}
       {callFlowScreen && (
         <>

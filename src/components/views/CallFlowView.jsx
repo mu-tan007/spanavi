@@ -42,6 +42,8 @@ import HeatRule from './callflow/HeatRule';
 import TempsBox from './callflow/TempsBox';
 import AltNumbers from './callflow/AltNumbers';
 import ScriptV2 from './callflow/ScriptV2';
+import useCandidateDates from './callflow/useCandidateDates';
+import CandidateCal from './callflow/CandidateCal';
 import './callflow/CallPage.css';
 import { supabase } from '../../lib/supabase';
 import { telFmt } from '../../utils/telFormat';
@@ -1193,6 +1195,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       console.error('[handleResult] insertCallRecord 失敗');
       return;
     }
+    // 記録の知らせ（取り消せる）を画面全体に出す。会社が次へ移っても消えないよう、知らせは SpanaviApp 側で持つ
+    try { window.dispatchEvent(new CustomEvent('spanavi:recorded', { detail: { recId: newRec.id, itemId: selectedRow.id, company: selectedRow.company, round: selectedRound, status: result, prevStatus: selectedRow.call_status || '未架電', prevExcluded: !!selectedRow.is_excluded } })); } catch { /* 知らせが出せなくても記録は済んでいる */ }
 
     // State更新・次企業遷移（即時）
     const newRecords = [...callRecords, newRec];
@@ -1498,6 +1502,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       called_at: calledAtRecall, recording_url: null, getter_name: currentUser,
     });
     if (error || !newRec) { setRecallModal(null); return; }
+    try { window.dispatchEvent(new CustomEvent('spanavi:recorded', { detail: { recId: newRec.id, itemId: row.id, company: row.company, round, status: label, prevStatus: row.call_status || '未架電', prevExcluded: !!row.is_excluded, when: `${recallData.recallDate || ''} ${recallData.recallTime || ''}`.trim() } })); } catch { /* 知らせが出せなくても記録は済んでいる */ }
 
     // 録音URL取得をバックグラウンドで実行
     const _prevCalledAtRecall = _prevRecRecall?.called_at || null;
@@ -2217,6 +2222,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const linkedContacts = resolveListContacts(list, contacts);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {!(listMode || isMobile) && <CandidateCal data={candData} visitor={list?.scriptV2?.boss || ''} onPick={p => { setApoPick(p); setScriptTab('script'); }} />}
                   <TravelHint address={selectedRow?.address} />
                   <MultiCalendarPanel
                     showRegisteredAppointments
@@ -2289,6 +2295,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           onCancel={() => setRecallModal(null)}
           members={members}
           currentUser={currentUser}
+          initialTime={recallModal.initialTime || ''}
+          initialDate={recallModal.initialDate || ''}
         />
       )}
 
@@ -2383,8 +2391,28 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     const b = tabsRef.current?.querySelector('button.on');
     if (b) setTabUl({ left: b.offsetLeft, width: b.offsetWidth });
   }, [scriptTab, listMode, letterPath]);
+  // 結果のあとに1問（キーマン不在 → 戻りの時刻）と、アポ獲得のカード（2026-10-09 見本 call.html）
+  // 台本の候補日と、選んだアポの日時（会社が変わったら選び直し）
+  const candData = useCandidateDates({ list, clientData, contactsByClient, appoData, enabled: !(listMode || isMobile) });
+  const [apoPick, setApoPick] = useState(null);
+  useEffect(() => { setApoPick(null); }, [selectedRow?.id]);
+  const [follow, setFollow] = useState(null);
+  const [apoCard, setApoCard] = useState(false);
+  useEffect(() => { setFollow(null); setApoCard(false); }, [selectedRow?.id]);
+  const cfvResult = (label, opts = {}) => {
+    if (label === 'キーマン不在' && !opts.direct) { zoomPhone.hangUp(); setFollow('absent'); return; }
+    if (label === 'アポ獲得' && !opts.direct) { zoomPhone.hangUp(); setApoCard(true); return; }
+    cfvRecord(label);
+  };
+  // 戻りの時刻が聞けたら、その時刻の受付再コールにする（再コールの窓に時刻を入れて開く）
+  const absentBack = (time) => {
+    setFollow(null);
+    if (!selectedRow) return;
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+    setRecallModal({ row: selectedRow, statusId: 'reception_recall', round: selectedRound, label: '受付再コール', initialTime: time || '', initialDate: time ? today : '' });
+  };
   // 結果を押したら貯金に足し、今日の数を取り直す
-  const cfvResult = (label) => {
+  const cfvRecord = (label) => {
     const recsB = selectedRow ? getRecordsForItem(selectedRow.id) : [];
     const before = recsB.length ? recsB.reduce((a, b) => ((a.round || 0) >= (b.round || 0) ? a : b)).status : (selectedRow?.call_status || '未架電');
     const r = rateOf(cfvRates, segmentOf(list?.engagementSlug), before);
@@ -2508,6 +2536,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               const meM = members.find(m => typeof m === 'object' && norm2(m.name) === norm2(currentUser));
               const rawN = String(meM?.zoomPhoneNumber || '').replace(/[^\d+]/g, '');
               return <ScriptV2 key={list._supaId} spec={list.scriptV2} list={list} row={selectedRow} rebuttal={rdS} renderLegacy={renderLegacyScript}
+                cands={candData.cands} pick={apoPick} onPick={setApoPick}
                 myNumber={telFmt(rawN.startsWith('+81') ? `0${rawN.slice(3)}` : rawN)} />;
             })())}
             {scriptTab === 'letter' && letterPath && (() => {
@@ -3448,6 +3477,30 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             );
           })()}
 
+          {apoCard && selectedRow && (() => {
+            const ca = String(list?.cautions || '');
+            const sec = n => { const m = ca.match(new RegExp(n + '[^\\n]*\\n([\\s\\S]*?)(?=\\n[①-⑳]|$)')); return m ? m[1].trim() : ''; };
+            const book = sec('④'); const todo = sec('⑤');
+            const url = (book.match(/https?:\/\/\S+/) || [])[0];
+            return (
+              <div className="apo-card on" onClick={e => { if (e.target === e.currentTarget) setApoCard(false); }}>
+                <div className="in">
+                  <svg width="40" height="46" viewBox="0 0 52 60"><defs><linearGradient id="ag" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stopColor="#0176D3" /><stop offset="1" stopColor="#032D60" /></linearGradient></defs><path d="M26 3 L5 12 L5 34 Q5 52 26 58 Q47 52 47 34 L47 12 Z" fill="url(#ag)" /></svg>
+                  <h3>アポ獲得</h3><p>{selectedRow.company}</p>
+                  {apoPick && <div className="spir"><div className="sp-h">選んだ日時</div><div className="sp-at">{apoPick.md}（{apoPick.w}）{apoPick.t}〜 <small>60分</small></div></div>}
+                  {(book || todo) && (
+                    <div className="spir">
+                      {book && <><div className="sp-h">予約の方法（注意事項④）</div><div style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>{book.replace(url || '', '').trim()}</div></>}
+                      {url && <ol className="sp-st"><li><button className="btn sm pri" onClick={() => window.open(url, '_blank', 'noopener')}>予約のページを開く</button><span>決めた日時の枠を押して確定する</span></li></ol>}
+                      {todo && <><div className="sp-h" style={{ marginTop: 6 }}>アポ取得後のTODO（注意事項⑤）</div><div style={{ whiteSpace: 'pre-wrap' }}>{todo}</div></>}
+                    </div>
+                  )}
+                  <button className="go btn pri lg" onClick={() => { setApoCard(false); cfvResult('アポ獲得', { direct: true }); }}>アポ報告を書く</button><br />
+                  <button className="later" onClick={() => setApoCard(false)}>結果を選び直す</button>
+                </div>
+              </div>
+            );
+          })()}
           <div className="wrap" style={{ height: 'auto', flex: 1, minHeight: 0 }}>
             <div className="left">
               {selectedRow ? (() => {
@@ -3519,8 +3572,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                               <button className="btn sm" onClick={() => handleDeleteRecord(roundRec)}>取消</button></div>
                           ) : (
                             <>
-                              <div className="res-h"><b>結果</b><span>F1〜F9（Macは1〜9）でも押せます</span></div>
-                              <div className="res">
+                              {follow === 'absent' && (
+                                <div className="follow on">
+                                  <h5>キーマン不在<small>戻り時刻を聞けたら、その時刻の受付再コールとして記録します</small></h5>
+                                  <div className="q">戻りは何時ごろと言われましたか</div>
+                                  <div className="opts">
+                                    {['午後', '13:00', '14:00', '15:00', '16:00', '17:00'].map(x => <button key={x} className={`opt ${/\d/.test(x) ? 'n' : ''}`} onClick={() => absentBack(x === '午後' ? '13:00' : x)}>{x}</button>)}
+                                    <button className="opt" onClick={() => absentBack('')}>明日以降</button>
+                                    <button className="opt" onClick={() => { setFollow(null); cfvResult('キーマン不在', { direct: true }); }}>聞けなかった（キーマン不在のまま）</button>
+                                  </div>
+                                  <div className="row"><button className="btn sm ghost" onClick={() => setFollow(null)}>← 結果を選び直す</button><span className="sp" /></div>
+                                </div>
+                              )}
+                              <div className="res-h" style={follow ? { display: 'none' } : undefined}><b>結果</b><span>F1〜F9（Macは1〜9）でも押せます</span></div>
+                              <div className={`res ${follow ? 'hide' : ''}`}>
                                 {callStatuses.map(st => {
                                   const sc = cfvShortcuts.find(s => s.id === st.id);
                                   const cls = st.label === 'アポ獲得' ? 'apo' : ['不通', '受付ブロック', 'キーマン断り', '除外'].includes(st.label) ? 'ng' : '';
@@ -3666,6 +3731,8 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           onCancel={() => setRecallModal(null)}
           members={members}
           currentUser={currentUser}
+          initialTime={recallModal.initialTime || ''}
+          initialDate={recallModal.initialDate || ''}
         />
       )}
 

@@ -63,7 +63,27 @@ const cityOf = addr => {
 };
 const tailOf = addr => (String(addr || '').match(/[0-9０-９][0-9０-９\-－丁目番地号]*$/) || ['〇〇'])[0];
 
-export default function ScriptV2({ spec, list, row, myNumber, renderLegacy, rebuttal }) {
+// 候補日：cands（useCandidateDates の結果）。日付を押すと時刻を選べ、選んだ日時はアポ後の締めとアポ獲得のカードに使う
+function DatePick({ c, onPick }) {
+  const [open, setOpen] = useState(false);
+  if (!c) return <K>〇日の〇曜日</K>;
+  const starts = [];
+  for (const [a, b] of c.free || []) for (let h = a; h + 1 <= b; h += 0.5) starts.push(h);
+  const tt = h => `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+  return (
+    <span style={{ position: 'relative' }}>
+      <span className="v-c tipd" title={`${c.md}（${c.w}）の空き ${c.tip || '（カレンダー未連携）'}・押すと時刻を選べる`} onClick={() => setOpen(o => !o)} style={{ cursor: 'pointer' }}>{c.md}の{c.w}曜日</span>
+      {open && (
+        <span className="picker on" style={{ position: 'absolute', left: 0, top: '1.6em', display: 'block', minWidth: 220 }}>
+          <span className="pk-h" style={{ display: 'block' }}>{c.md}（{c.w}）の何時にしますか</span>
+          <span className="pk-t" style={{ display: 'flex' }}>{(starts.length ? starts : [10, 11, 13, 14, 15, 16]).map(h => <button key={h} onClick={() => { setOpen(false); onPick({ ...c, t: tt(h) }); }}>{tt(h)}</button>)}</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+export default function ScriptV2({ spec, list, row, myNumber, renderLegacy, rebuttal, cands = [], pick = null, onPick = () => {} }) {
   const [sub, setSub] = useState('dai');
   const [modeSel, setModeSel] = useState(spec?.mode === 'online' ? 'online' : 'face');
   const mode = spec?.mode === 'face' ? 'face' : spec?.mode === 'online' ? 'online' : modeSel;
@@ -88,7 +108,7 @@ export default function ScriptV2({ spec, list, row, myNumber, renderLegacy, rebu
     if (spec?.pitch === 'buyer') return <>今回、<C>{spec?.buyer || '（買い手の言い方）'}</C>が上がっておりましてですね、<C>{tail}</C>、そちらについてぜひともお話させていただきたく思っておりまして、</>;
     return <>今回、とある我々と従前からお付き合いのある会社が、{spec?.shimei && <C>指名ではないものの、</C>}御社のような会社と将来的にぜひとも一緒に成長していきたいというお話が上がっておりましてですね、{tail}、そちらについてぜひともお話させていただきたく思っておりまして、</>;
   };
-  const d1 = <K>〇日の〇曜日</K>, d2 = <K>〇日の〇曜日</K>;
+  const d1 = <DatePick c={cands[0]} onPick={onPick} />, d2 = <DatePick c={cands[1]} onPick={onPick} />;
 
   return (
     <div>
@@ -122,6 +142,7 @@ export default function ScriptV2({ spec, list, row, myNumber, renderLegacy, rebu
                 <div className="ln"><span className="who">（「どうぞ」）</span>ありがとうございます。<br />まず、{spec.support ? <C>{spec.support}</C> : <>我々が{noun ? <I>{noun}</I> : <Miss>（〇〇会社様）</Miss>}の資本提携のご支援をしておりまして</>}、{pitchMiddle()}社長もなかなかお忙しいかと思いますが、
                   {mode === 'face' ? (spec.visit_face ? <><C>{spec.visit_face}</C>、</> : <>私の上長の者が、{d1}と{d2}に、ちょうど御社のすぐ近くにおりますので、その際にぜひともお話しできればと思っておりましたが、</>) : <>私の上長の者から一度<C>オンラインで</C>お話しさせていただければと思っておりましたが、</>}
                   {d1}か、{d2}でしたら、どちらの方がご都合よろしいでしょうか？</div>
+                {cands.length > 2 && <div className="more"><b>その他候補</b>{cands.slice(2).map(c => <span key={c.k} className="tipd" title={`${c.md}（${c.w}）の空き ${c.tip}`}>{c.md}（{c.w}）</span>)}</div>}
                 {(spec.extra || []).map((x, i) => <div key={i} className="ln"><C>{x}</C></div>)}
               </div>
               <div className="blk"><h5>アポが取れたら（{mode === 'face' ? '対面' : 'オンライン'}）</h5>
@@ -130,7 +151,7 @@ export default function ScriptV2({ spec, list, row, myNumber, renderLegacy, rebu
                   : <div className="ln">後ほどオンライン面談のリンクをお送りさせていただきますので、社長のメールアドレスか携帯番号をお伺いしてもよろしいでしょうか？<span className="who">（聞いたら）</span>ありがとうございます。念のため復唱させていただきます。〇〇でお間違いございませんでしょうか？</div>}
                 <div className="ln">ちなみに社長、今までにこういったM&Aに関するご面談というのはご経験ございますでしょうか？<span className="who">（「あります」）</span>左様でしたか。その際、ご検討が進まなかった理由などございますでしょうか？</div>
                 <div className="ln"><span className="who">（答え）</span>ありがとうございます。{spec.pre_q && <C>{spec.pre_q}</C>}ちなみに、<K>{sur}社長</K>として、お相手様や金額次第で将来的にM&Aをする可能性というのは、少しでもございますでしょうか？</div>
-                <div className="ln"><span className="who">（答え）</span>ありがとうございます。でしたら、<K>〇月〇日〇曜日の〇時</K>に、{spec.closing_who ? <C>{spec.closing_who}</C> : <>私の上長の<C>{boss}</C>というもの</>}が{mode === 'face' ? 'お伺い' : '担当'}させていただきますので、どうぞよろしくお願いいたします。</div>
+                <div className="ln"><span className="who">（答え）</span>ありがとうございます。でしたら、<K>{pick ? `${pick.md}の${pick.w}曜日の${pick.t}` : '〇月〇日〇曜日の〇時'}</K>に、{spec.closing_who ? <C>{spec.closing_who}</C> : <>私の上長の<C>{boss}</C>というもの</>}が{mode === 'face' ? 'お伺い' : '担当'}させていただきますので、どうぞよろしくお願いいたします。</div>
                 {(spec.after_extra || []).map((x, i) => <div key={i} className="ln"><C>{x}</C></div>)}
                 {spec.after && <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>アポ取得後：{spec.after}</div>}
               </div>

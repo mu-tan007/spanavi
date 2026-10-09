@@ -4,13 +4,14 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 
 const NAVY = '#0D2247';
 
-export default function RecallModal({ row, statusId, onSubmit, onCancel, members = [], currentUser = '' }) {
+// initialTime：架電ページで「戻りは何時ごろ」を選んだときの時刻（その日のかけ直しとして入れておく・2026-10-09）
+export default function RecallModal({ row, statusId, onSubmit, onCancel, members = [], currentUser = '', initialTime = '', initialDate = '' }) {
   const isMobile = useIsMobile();
   // membersは文字列配列またはオブジェクト配列のどちらでも受け付ける
   const memberNames = members.map(m => typeof m === 'string' ? m : (m?.name || ''));
   const [form, setForm] = useState({
-    recallDate: "",
-    recallTime: "",
+    recallDate: initialDate || (initialTime ? new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) : ""),
+    recallTime: initialTime || "",
     assignee: currentUser,
     note: "",
   });
