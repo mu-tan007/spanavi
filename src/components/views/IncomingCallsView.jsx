@@ -398,19 +398,6 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
         </div>
 
         <aside className="inc-r">
-          <div className="card side">
-            <div className="card-h"><b>折り返しの第一声</b></div>
-            <div className="say">
-              <p><span className="who">受付</span>「お世話になっております。先ほどお電話をいただいておりましたので、折り返しご連絡いたしました。以前、社長様あてにお電話を差し上げていた件でございます。社長様はいらっしゃいますか。」</p>
-              <p><span className="who">社長</span>「お電話をいただきありがとうございます。先日お話しした件で、ぜひ一度お時間をいただければと思いまして。」</p>
-            </div>
-            <ul className="tips">
-              <li>相手からの着信は関心の合図。いつもより早く日程の話に入る</li>
-              <li>約束の日が来た会社と、何度もかけてきた番号を先に</li>
-              <li>不在なら戻りの時間を聞き、再コールに入れる</li>
-              <li>会社が分からない番号は、出た相手の会社名を聞いてから紐づける</li>
-            </ul>
-          </div>
           {openByCallee.length > 0 && (
             <div className="card side">
               <div className="card-h"><b>あて先ごとの折り返し待ち</b></div>
