@@ -101,12 +101,15 @@ export default function ScriptV2({ spec, list, row, myNumber, renderLegacy, rebu
   for (const [k, w] of [['reception', '受付'], ['president', '社長']]) for (const x of (rebuttal?.[k] || [])) if (x?.q && x?.a) listOuts.push([w, x.q, x.a, 'このリストの登録']);
 
   const hasText = !!spec?.text || !!spec?.legacy;
-  const tail = spec?.pitch_tail || 'その会社が具体的にどういった会社で、御社が将来的にM&Aをした際にどういったメリットがあるのか';
+  // 呼び方（歯科医院は「院長」「御院」など）
+  const T = spec?.honorific || '社長';
+  const H = spec?.house || '御社';
+  const tail = spec?.pitch_tail || `その会社が具体的にどういった会社で、${H}が将来的にM&Aをした際にどういったメリットがあるのか`;
   const pitchMiddle = () => {
     if (spec?.pitch === 'custom') return <><C>{spec.pitch_text}</C>、</>;
-    if (spec?.pitch === 'nohint') return <>今回お電話したのが、<C>{spec?.nohint || '御社の事業内容等をお調べさせていただいた上で、将来的な資本提携の可能性について、ぜひともお力添えさせていただきたく、将来的なお相手候補先や、その際の御社にとってのメリット等々も詳細に資料におまとめの上、ぜひとも30分でお伝えできればと思っておりまして'}</C>、</>;
+    if (spec?.pitch === 'nohint') return <>今回お電話したのが、<C>{spec?.nohint || `${H}の事業内容等をお調べさせていただいた上で、将来的な資本提携の可能性について、ぜひともお力添えさせていただきたく、将来的なお相手候補先や、その際の${H}にとってのメリット等々も詳細に資料におまとめの上、ぜひとも30分でお伝えできればと思っておりまして`}</C>、</>;
     if (spec?.pitch === 'buyer') return <>今回、<C>{spec?.buyer || '（買い手の言い方）'}</C>が上がっておりましてですね、<C>{tail}</C>、そちらについてぜひともお話させていただきたく思っておりまして、</>;
-    return <>今回、とある我々と従前からお付き合いのある会社が、{spec?.shimei && <C>指名ではないものの、</C>}御社のような会社と将来的にぜひとも一緒に成長していきたいというお話が上がっておりましてですね、{tail}、そちらについてぜひともお話させていただきたく思っておりまして、</>;
+    return <>今回、とある我々と従前からお付き合いのある会社が、{spec?.shimei && <C>指名ではないものの、</C>}{H}のような会社と将来的にぜひとも一緒に成長していきたいというお話が上がっておりましてですね、{tail}、そちらについてぜひともお話させていただきたく思っておりまして、</>;
   };
   const d1 = <DatePick c={cands[0]} onPick={onPick} />, d2 = <DatePick c={cands[1]} onPick={onPick} />;
 
@@ -129,8 +132,10 @@ export default function ScriptV2({ spec, list, row, myNumber, renderLegacy, rebu
                   <small>{spec.mode_note || '注意事項②：対面でもオンラインでも可'}</small></div>
               )}
               <div className="blk"><h5>受付</h5>
-                <div className="ln"><C>{client}</C>の（あなたの名前）です。お世話様です。<K>{sur}社長</K>をお願いします。</div>
-                {spec.reception_say
+                <div className="ln"><C>{client}</C>の（あなたの名前）です。お世話様です。<K>{sur}{T}</K>をお願いします。</div>
+                {spec.reception_full
+                  ? <div className="ln"><span className="who">ご用件は？と聞かれたら</span><C>{spec.reception_full}</C></div>
+                  : spec.reception_say
                   ? <div className="ln"><span className="who">用件は聞かれる前に一息で</span><C>{spec.reception_say}</C></div>
                   : <div className="ln"><span className="who">ご用件は？と聞かれたら</span><K>{city || '〇〇市'}</K>の{rec ? (spec.reception ? <C>{rec}</C> : <I>{rec}</I>) : <Miss>（業種の一文）</Miss>}{spec.reception_suffix ?? 'アライアンス'}の件とお伝えください。</div>}
               </div>
@@ -138,19 +143,19 @@ export default function ScriptV2({ spec, list, row, myNumber, renderLegacy, rebu
                 <div className="ln">承知しました。何時頃でしたらお戻りでしょうか。<span className="who">分からなければ</span>折り返しをお願いできますでしょうか。番号は <K>{myNumber || 'あなたの番号'}</K> です。<span className="who">「こちらには来ない」→</span>ふだんはどちらの事業所にいらっしゃいますか。そちらのお電話番号を伺えますでしょうか。<span className="who">「退任した・代わった」→</span>その場で「社長名を調べる」を押してから、お礼を言って切る（新しい社長の名前は聞かなくてよい）。</div>
               </div>
               <div className="blk"><h5>社長</h5>
-                <div className="ln">お世話になります。私、<C>{client}</C>の（あなたの名前）と申します。<K>{sur}社長</K>、ただいまお時間1分だけよろしいでしょうか？すぐに終わらせます。</div>
-                <div className="ln"><span className="who">（「どうぞ」）</span>ありがとうございます。<br />まず、{spec.support ? <C>{spec.support}</C> : <>我々が{noun ? <I>{noun}</I> : <Miss>（〇〇会社様）</Miss>}の資本提携のご支援をしておりまして</>}、{pitchMiddle()}社長もなかなかお忙しいかと思いますが、
-                  {mode === 'face' ? (spec.visit_face ? <><C>{spec.visit_face}</C>、</> : <>私の上長の者が、{d1}と{d2}に、ちょうど御社のすぐ近くにおりますので、その際にぜひともお話しできればと思っておりましたが、</>) : <>私の上長の者から一度<C>オンラインで</C>お話しさせていただければと思っておりましたが、</>}
+                <div className="ln">お世話になります。私、<C>{client}</C>の（あなたの名前）と申します。<K>{sur}{T}</K>、ただいまお時間1分だけよろしいでしょうか？すぐに終わらせます。</div>
+                <div className="ln"><span className="who">（「どうぞ」）</span>ありがとうございます。<br />まず、{spec.support ? <C>{spec.support}</C> : <>我々が{noun ? <I>{noun}</I> : <Miss>（〇〇会社様）</Miss>}の資本提携のご支援をしておりまして</>}、{pitchMiddle()}{T}もなかなかお忙しいかと思いますが、
+                  {mode === 'face' ? (spec.visit_face ? <><C>{spec.visit_face}</C>、</> : <>私の上長の者が、{d1}と{d2}に、ちょうど{H}のすぐ近くにおりますので、その際にぜひともお話しできればと思っておりましたが、</>) : <>私の上長の者から一度<C>オンラインで</C>お話しさせていただければと思っておりましたが、</>}
                   {d1}か、{d2}でしたら、どちらの方がご都合よろしいでしょうか？</div>
                 {cands.length > 2 && <div className="more"><b>その他候補</b>{cands.slice(2).map(c => <span key={c.k} className="tipd" title={`${c.md}（${c.w}）の空き ${c.tip}`}>{c.md}（{c.w}）</span>)}</div>}
                 {(spec.extra || []).map((x, i) => <div key={i} className="ln"><C>{x}</C></div>)}
               </div>
               <div className="blk"><h5>アポが取れたら（{mode === 'face' ? '対面' : 'オンライン'}）</h5>
                 {mode === 'face'
-                  ? <div className="ln">お伺いさせていただく先は、末尾<K>{tailOf(row?.address)}</K>の御社の住所の方でよろしいでしょうか？<span className="who">（「はい」）ありがとうございます。</span></div>
-                  : <div className="ln">後ほどオンライン面談のリンクをお送りさせていただきますので、社長のメールアドレスか携帯番号をお伺いしてもよろしいでしょうか？<span className="who">（聞いたら）</span>ありがとうございます。念のため復唱させていただきます。〇〇でお間違いございませんでしょうか？</div>}
-                <div className="ln">ちなみに社長、今までにこういったM&Aに関するご面談というのはご経験ございますでしょうか？<span className="who">（「あります」）</span>左様でしたか。その際、ご検討が進まなかった理由などございますでしょうか？</div>
-                <div className="ln"><span className="who">（答え）</span>ありがとうございます。{spec.pre_q && <C>{spec.pre_q}</C>}ちなみに、<K>{sur}社長</K>として、お相手様や金額次第で将来的にM&Aをする可能性というのは、少しでもございますでしょうか？</div>
+                  ? <div className="ln">お伺いさせていただく先は、末尾<K>{tailOf(row?.address)}</K>の{H}の住所の方でよろしいでしょうか？<span className="who">（「はい」）ありがとうございます。</span></div>
+                  : <div className="ln">後ほどオンライン面談のリンクをお送りさせていただきますので、{T}のメールアドレスか携帯番号をお伺いしてもよろしいでしょうか？<span className="who">（聞いたら）</span>ありがとうございます。念のため復唱させていただきます。〇〇でお間違いございませんでしょうか？</div>}
+                <div className="ln">ちなみに{T}、今までにこういったM&Aに関するご面談というのはご経験ございますでしょうか？<span className="who">（「あります」）</span>左様でしたか。その際、ご検討が進まなかった理由などございますでしょうか？</div>
+                <div className="ln"><span className="who">（答え）</span>ありがとうございます。{spec.pre_q && <C>{spec.pre_q}</C>}ちなみに、<K>{sur}{T}</K>として、お相手様や金額次第で将来的にM&Aをする可能性というのは、少しでもございますでしょうか？</div>
                 <div className="ln"><span className="who">（答え）</span>ありがとうございます。でしたら、<K>{pick ? `${pick.md}の${pick.w}曜日の${pick.t}` : '〇月〇日〇曜日の〇時'}</K>に、{spec.closing_who ? <C>{spec.closing_who}</C> : <>私の上長の<C>{boss}</C>というもの</>}が{mode === 'face' ? 'お伺い' : '担当'}させていただきますので、どうぞよろしくお願いいたします。</div>
                 {(spec.after_extra || []).map((x, i) => <div key={i} className="ln"><C>{x}</C></div>)}
                 {spec.after && <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>アポ取得後：{spec.after}</div>}

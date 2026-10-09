@@ -2434,7 +2434,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     if (summaryRef) {
       summaryRef.current = {
         company: selectedRow?.company || list.company || '',
-        position: currentIdx >= 0 ? `${currentIdx + 1} / ${sorted.length}件` : `- / ${sorted.length}件`,
+        position: singleItemMode && queuePos ? String(queuePos).replace('件', '社') : currentIdx >= 0 ? `${currentIdx + 1} / ${sorted.length}社` : `- / ${sorted.length}社`,
         total: sorted.length,
       };
     }
@@ -3484,7 +3484,12 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
             const ca = String(list?.cautions || '');
             const sec = n => { const m = ca.match(new RegExp(n + '[^\\n]*\\n([\\s\\S]*?)(?=\\n[①-⑳]|$)')); return m ? m[1].trim() : ''; };
             const book = sec('④'); const todo = sec('⑤');
-            const url = (book.match(/https?:\/\/\S+/) || [])[0];
+            const rawUrl = (book.match(/https?:\/\/\S+/) || [])[0];
+            // Spir は invitee_name・invitee_email を付けると、お名前・メールアドレスが入った状態で開く（Spir公式ヘルプ「URLパラメータによるフォーム初期値の設定」）
+            const spirMail = (todo.match(/[\w.+-]+@[\w-]+\.[\w.-]+/) || [])[0];
+            const url = rawUrl && /spirinc\.com/.test(rawUrl)
+              ? `${rawUrl}${rawUrl.includes('?') ? '&' : '?'}invitee_name=${encodeURIComponent(selectedRow.company || '')}${spirMail ? `&invitee_email=${encodeURIComponent(spirMail)}` : ''}`
+              : rawUrl;
             return (
               <div className="apo-card on" onClick={e => { if (e.target === e.currentTarget) setApoCard(false); }}>
                 <div className="in">
@@ -3494,7 +3499,10 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                   {(book || todo) && (
                     <div className="spir">
                       {book && <><div className="sp-h">予約の方法（注意事項④）</div><div style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>{book.replace(url || '', '').trim()}</div></>}
-                      {url && <ol className="sp-st"><li><button className="btn sm pri" onClick={() => window.open(url, '_blank', 'noopener')}>予約のページを開く</button><span>決めた日時の枠を押して確定する</span></li></ol>}
+                      {url && <ol className="sp-st">
+                        <li><button className="btn sm pri" onClick={() => window.open(url, '_blank', 'noopener')}>予約のページを開く</button><span>{/spirinc\.com/.test(url) ? `お名前（${selectedRow.company}）${spirMail ? 'とメールアドレス' : ''}は入った状態で開きます` : ''}</span></li>
+                        <li><span>{apoPick ? `${apoPick.md}（${apoPick.w}）${apoPick.t}` : '決めた日時'} の枠を押す</span></li>
+                        <li><span>「日程調整を確定」を押す</span></li></ol>}
                       {todo && <><div className="sp-h" style={{ marginTop: 6 }}>アポ取得後のTODO（注意事項⑤）</div><div style={{ whiteSpace: 'pre-wrap' }}>{todo}</div></>}
                     </div>
                   )}

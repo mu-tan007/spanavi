@@ -1,22 +1,21 @@
 import { useState, useRef, useCallback } from 'react';
-import { color, radius, font, shadow, alpha } from '../../constants/design';
 
 /**
- * PiP（ピクチャーインピクチャー）フローティングミニウィンドウ
- * 架電画面を最小化した際に右下に表示される。
+ * 架電ページを最小化したときの小窓（2026-10-09 むー様・見本 call.html の minicall）
+ * 右下に「架電中（最小化）」・会社名・何社目。「終了」で架電を終え、「元に戻す」で架電ページへ戻る。つかんで動かせる
  */
 export default function PiPWidget({ title, subtitle, onMaximize, onClose }) {
-  const [pos, setPos] = useState(null); // null = デフォルト右下
+  const [pos, setPos] = useState(null); // null = 右下
   const widgetRef = useRef(null);
 
   const onMouseDown = useCallback((e) => {
+    if (e.target.closest('button')) return;
     e.preventDefault();
     const el = widgetRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const offsetX = e.clientX - rect.left;
     const offsetY = e.clientY - rect.top;
-
     const onMouseMove = (ev) => {
       setPos({
         x: Math.max(0, Math.min(window.innerWidth - rect.width, ev.clientX - offsetX)),
@@ -31,109 +30,24 @@ export default function PiPWidget({ title, subtitle, onMaximize, onClose }) {
     document.addEventListener('mouseup', onMouseUp);
   }, []);
 
-  const posStyle = pos
-    ? { top: pos.y, left: pos.x }
-    : { bottom: 24, right: 24 };
+  const posStyle = pos ? { top: pos.y, left: pos.x } : { bottom: 20, right: 20 };
+  const btn = { height: 28, padding: '0 12px', borderRadius: 6, border: '1px solid #E3E6EB', background: '#fff', color: '#032D60', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' };
 
   return (
-    <div
-      ref={widgetRef}
-      style={{
-        position: 'fixed',
-        ...posStyle,
-        width: 320,
-        zIndex: 10050,
-        background: color.navy,
-        borderRadius: 12,
-        border: `1px solid ${alpha(color.gold, 0.4)}`,
-        boxShadow: shadow.xl,
-        fontFamily: font.family.sans,
-        animation: 'pipSlideIn 0.25s ease-out',
-        userSelect: 'none',
-      }}
-    >
-      {/* keyframes */}
-      <style>{`
-        @keyframes pipSlideIn {
-          from { opacity: 0; transform: translateY(12px) scale(0.95); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
-
-      {/* ドラッグハンドル + メイン情報 */}
-      <div
-        onMouseDown={onMouseDown}
-        style={{
-          padding: '10px 14px 6px',
-          cursor: 'grab',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        {/* ドラッグインジケータ */}
-        <span style={{ color: alpha(color.white, 0.3), fontSize: font.size.md, flexShrink: 0, lineHeight: 1 }}>⠿</span>
-
-        {/* タイトル */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: font.size.base,
-            fontWeight: font.weight.bold,
-            color: color.white,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
-            {title}
-          </div>
-        </div>
-
-        {/* 最大化ボタン */}
-        <button
-          onClick={onMaximize}
-          title="元に戻す"
-          style={{
-            width: 28, height: 28, borderRadius: radius.lg,
-            background: alpha(color.white, 0.1),
-            border: `1px solid ${alpha(color.white, 0.2)}`,
-            color: color.white, cursor: 'pointer',
-            fontSize: font.size.md, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          ↗
-        </button>
-
-        {/* 終了ボタン */}
-        <button
-          onClick={onClose}
-          title="架電終了"
-          style={{
-            width: 28, height: 28, borderRadius: radius.lg,
-            background: alpha(color.danger, 0.15),
-            border: `1px solid ${alpha(color.danger, 0.3)}`,
-            color: '#ff6b6b', cursor: 'pointer',
-            fontSize: font.size.md, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          ✕
-        </button>
+    <div ref={widgetRef} onMouseDown={onMouseDown}
+      style={{ position: 'fixed', ...posStyle, zIndex: 10050, width: 260, background: '#fff', border: '1px solid #E3E6EB', borderRadius: 12,
+        boxShadow: '0 12px 32px rgba(1,18,38,.18)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4,
+        fontFamily: '"Noto Sans JP", sans-serif', cursor: 'grab', userSelect: 'none', animation: 'pipIn .25s both' }}>
+      <style>{'@keyframes pipIn{from{opacity:0;transform:translateY(6px)}}'}</style>
+      <div style={{ fontSize: 11, color: '#8692A0', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2E844A', boxShadow: '0 0 0 3px rgba(46,132,74,.18)' }} />架電中（最小化）
       </div>
-
-      {/* サブ情報行 */}
-      {subtitle && (
-        <div style={{
-          padding: '0 14px 10px 36px',
-          fontSize: font.size.xs,
-          color: alpha(color.white, 0.55),
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}>
-          {subtitle}
-        </div>
-      )}
+      <b style={{ fontSize: 14, color: '#032D60', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={title}>{title}</b>
+      {subtitle && <span style={{ fontSize: 12, color: '#4B5868' }}>{subtitle}</span>}
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 6 }}>
+        <button style={btn} onClick={onClose}>終了</button>
+        <button style={{ ...btn, background: '#032D60', borderColor: '#032D60', color: '#fff' }} onClick={onMaximize}>元に戻す</button>
+      </div>
     </div>
   );
 }
