@@ -922,9 +922,8 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
       <HangupKeyCoach userId={userId} />
       <style>{String.raw`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: ${C.cream}; }
-        ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+        *::-webkit-scrollbar { display: none; width: 0; height: 0; }
         input, select, textarea { font-family: 'Noto Sans JP', sans-serif; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
