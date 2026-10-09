@@ -40,9 +40,10 @@
 .clh.inc2 .icard .lastl q::before{content:"「"}.clh.inc2 .icard .lastl q::after{content:"」"}
 .clh.inc2 .icard .cands{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .clh.inc2 .icard .cands .ch{font-size:11.5px;color:var(--ink-3);width:100%}
-.clh.inc2 .icard .cand{display:inline-flex;align-items:baseline;gap:6px;height:26px;padding:0 10px;border-radius:999px;border:1px dashed var(--royal-line);background:var(--sheet);color:var(--navy);font-size:12px;cursor:pointer;transition:background var(--t-fast),border-color var(--t-fast)}
+.clh.inc2 .icard .cand{display:inline-flex;align-items:center;gap:6px;height:26px;max-width:100%;white-space:nowrap;overflow:hidden;padding:0 10px;border-radius:999px;border:1px dashed var(--royal-line);background:var(--sheet);color:var(--navy);font-size:12px;cursor:pointer;transition:background var(--t-fast),border-color var(--t-fast)}
 .clh.inc2 .icard .cand:hover{background:var(--royal-soft);border-style:solid}
-.clh.inc2 .icard .cand small{font-size:10.5px;color:var(--ink-3)}
+.clh.inc2 .icard .cand small{flex:none;font-size:10.5px;color:var(--ink-3)}
+.clh.inc2 .icard .cand{text-overflow:ellipsis}
 .clh.inc2 .icard .inc-at{display:flex;flex-direction:column;gap:1px;line-height:1.35}
 .clh.inc2 .icard .inc-at b{font-size:13px;font-weight:600;color:var(--navy)}
 .clh.inc2 .icard .inc-at small{font-size:11px;color:var(--ink-3)}
