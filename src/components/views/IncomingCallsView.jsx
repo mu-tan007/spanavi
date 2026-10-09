@@ -247,7 +247,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
       } else if (r0.cands?.length) score += 10;
       if (g.rows.length > 1) { reasons.unshift({ t: `${g.rows.length}回着信`, c: 'red' }); score += 10 + g.rows.length * 5; }
       const hrs = (now - new Date(r0.at).getTime()) / 3600000;
-      score += dayOf(r0.at) === today ? 20 : Math.max(0, 14 - hrs / 12);
+      score += dayOf(r0.at) === today ? 20 : Math.max(-30, 14 - hrs / 12); // 日がたつほど下げる（2週間で約-14）
       const recRow = g.rows.find(x => x.rec);
       return {
         ...g, open, id: r0.id, ids: g.rows.map(x => x.id), at: r0.at, firstAt: g.rows[g.rows.length - 1].at,
@@ -291,7 +291,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
     const canDial = g.raw && g.raw !== 'anonymous';
     return (
       <div key={g.key} className={`icard ${g.m ? '' : 'unk'}`}>
-        <span className="rk n">{i + 1}</span>
+        <span className="rk">{i + 1}</span>
         <div className="main">
           {g.m ? (
             <div className="nm"><b className="lk" onClick={() => (g.matches.length > 1 ? setSelectModal(g.matches) : navigateTo(g.m))}>{g.name}</b>
@@ -329,7 +329,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
             ? <button className="btn sm pri cb" onClick={() => callback(g)}><PhoneIcon />折り返す</button>
             : <button className="btn sm cb" disabled={!canDial} onClick={() => canDial && dialPhone(g.n)}><PhoneIcon />電話する</button>}
           <button className="btn sm" style={g.m ? undefined : { visibility: 'hidden' }} onClick={() => g.m && openAppoFromIncoming(g, g.m)}>アポ取得</button>
-          <button className="btn sm ghost" onClick={() => markHandled(g.ids)}>対応済</button>
+          <button className="btn sm" onClick={() => markHandled(g.ids)}>対応済</button>
         </div>
       </div>
     );
