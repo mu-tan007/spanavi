@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import ScriptV2, { IND_NOUN, IND_RECEPTION } from '../callflow/ScriptV2';
-import ScriptView from '../ScriptView';
+import ScriptEditor from './ScriptEditor';
 import ScriptBody from '../../common/ScriptBody';
 import './CallListHome.css';
 import '../callflow/CallPage.css';
@@ -70,6 +70,26 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
   const extras = spec ? [...(spec.extra || []), ...(spec.after_extra || [])] : [];
   const ngs = spec?.ng || [];
 
+  const picker = (
+    <aside className="card picker">
+      <div className="ph"><input className="input" placeholder="クライアント・リストで探す" value={q} onChange={e => setQ(e.target.value)} /></div>
+      <div className="pl">
+        {byClient.map(([c, ls]) => (
+          <div key={c} className="pg">
+            <div className="pgh"><span>{c}</span><b className="n">{ls.length}</b></div>
+            {ls.map(l => (
+              <button key={l._supaId} className={`pr ${l._supaId === list?._supaId ? 'on' : ''}`} onClick={() => { setListId(l._supaId); setGrp(''); }}>
+                <span className="ind">{l.industry || '—'}</span>
+                <span className={`tag ${l.scriptV2 && !l.scriptV2.legacy ? 'blue' : 'gray'}`}>{l.scriptV2 && !l.scriptV2.legacy ? '基本台本' : '今までの台本'}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+        {!byClient.length && <div className="hint">見つかりません</div>}
+      </div>
+    </aside>
+  );
+
   return (
     <div className="clh scp">
       <div className="pt">
@@ -90,23 +110,7 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
 
       {view === 'build' && (
         <div className="scp-grid">
-          <aside className="card picker">
-            <div className="ph"><input className="input" placeholder="クライアント・リストで探す" value={q} onChange={e => setQ(e.target.value)} /></div>
-            <div className="pl">
-              {byClient.map(([c, ls]) => (
-                <div key={c} className="pg">
-                  <div className="pgh"><span>{c}</span><b className="n">{ls.length}</b></div>
-                  {ls.map(l => (
-                    <button key={l._supaId} className={`pr ${l._supaId === list?._supaId ? 'on' : ''}`} onClick={() => { setListId(l._supaId); setGrp(''); }}>
-                      <span className="ind">{l.industry || '—'}</span>
-                      <span className={`tag ${l.scriptV2 && !l.scriptV2.legacy ? 'blue' : 'gray'}`}>{l.scriptV2 && !l.scriptV2.legacy ? '基本台本' : '今までの台本'}</span>
-                    </button>
-                  ))}
-                </div>
-              ))}
-              {!byClient.length && <div className="hint">見つかりません</div>}
-            </div>
-          </aside>
+          {picker}
 
           <section className="card stage">
             <div className="sh">
@@ -169,7 +173,10 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
       )}
 
       {view === 'edit' && isAdmin && (
-        <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} embedded />
+        <div className="scp-grid fe-grid">
+          {picker}
+          <ScriptEditor list={list} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} grp={g} />
+        </div>
       )}
     </div>
   );

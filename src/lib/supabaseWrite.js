@@ -2497,6 +2497,17 @@ export async function updateCallListCautions(supaId, cautions) {
   return error
 }
 
+// 台本の差し込み（call_lists.script_v2）を丸ごと保存する。顧客情報（cust）など画面に出さない項目も渡された値のまま残す（2026-10-10）
+export async function updateCallListScriptV2(supaId, scriptV2) {
+  if (!supaId) { console.warn('[DB] updateCallListScriptV2: no supaId'); return null }
+  const { error } = await supabase
+    .from('call_lists')
+    .update({ script_v2: scriptV2 })
+    .eq('id', supaId)
+  if (error) console.error('[DB] updateCallListScriptV2 error:', error)
+  return error
+}
+
 // ============================================================
 // Script PDFs (クライアント別スクリプト添付PDF)
 // ============================================================
