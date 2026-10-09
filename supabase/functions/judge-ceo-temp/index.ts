@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
           ceo_temp: levelOf(reasons, M), ceo_temp_reasons: reasons, ceo_temp_quote: (o.quote || '').slice(0, 80) || null,
           ceo_temp_judged_at: new Date().toISOString(),
         }).eq('id', o.id)
-        if (e) failed++; else done++
+        if (e) { failed++; lastErr = 'DB: ' + e.message } else done++
       }
     }
   }

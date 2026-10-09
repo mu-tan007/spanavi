@@ -41,7 +41,7 @@ begin
     v_reason := 'AI判定:社長の温度感 除外（' || coalesce(array_to_string(new.ceo_temp_reasons, '・'), '') || '）';
     select public.company_key(i.corporate_number, i.phone) into v_key from call_list_items i where i.id = new.item_id;
     create temp table if not exists _ceo_tgt (id uuid) on commit drop;
-    delete from _ceo_tgt;
+    delete from _ceo_tgt where true;  -- WHERE の無い DELETE はこのDBでは止められる
     insert into _ceo_tgt
       select i.id from call_list_items i join call_lists l on l.id = i.list_id
        where i.org_id = new.org_id and not coalesce(l.is_archived, false)
