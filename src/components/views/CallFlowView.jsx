@@ -3495,7 +3495,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                       {todo && <><div className="sp-h" style={{ marginTop: 6 }}>アポ取得後のTODO（注意事項⑤）</div><div style={{ whiteSpace: 'pre-wrap' }}>{todo}</div></>}
                     </div>
                   )}
-                  <button className="go btn pri lg" onClick={() => { setApoCard(false); cfvResult('アポ獲得', { direct: true }); }}>アポ報告を書く</button><br />
+                  <button className="go btn pri" style={{ height: 44 }} onClick={() => { setApoCard(false); cfvResult('アポ獲得', { direct: true }); }}>アポ報告を書く</button><br />
                   <button className="later" onClick={() => setApoCard(false)}>結果を選び直す</button>
                 </div>
               </div>
