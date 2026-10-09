@@ -361,7 +361,6 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   const todayRows = records.filter(r => r.received_at && dayOf(r.received_at) === today);
   const nToday = todayRows.length;
   const nTodayOpen = todayRows.filter(r => r.status !== '対応済み').length;
-  const answeredRate = records.length ? Math.round((records.filter(r => r.answered_by_zoom_user_id).length / records.length) * 100) : 0;
   const matchesOf = r => { const m = phoneItemMap[normalizePhone(r.caller_number)] || []; return m.filter((x, i, a) => a.findIndex(y => y.itemId === x.itemId) === i); };
   const linkedRate = records.length ? Math.round((records.filter(r => matchesOf(r).length || r.company_name).length / records.length) * 100) : 0;
   const oldestOpen = records.filter(r => r.status !== '対応済み').map(r => r.received_at).sort()[0];
@@ -410,7 +409,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
           <div className="desk-h"><span className="lbl">直近{records.length}件の着信</span><span className="live"><i />{loading ? '読み込み中' : '最新'}</span></div>
           <div className="desks">
             <div className="desk"><div className="who">今日の着信</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: 'var(--navy)' }}>{nToday}</b> 件</span></div></div>
-            <div className="desk"><div className="who">出られた着信</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: 'var(--navy)' }}>{answeredRate}</b> %</span></div><div className="what">誰かが電話に出た割合</div></div>
+            <div className="desk"><div className="who">会社が分かる未対応</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: 'var(--navy)' }}>{records.filter(r => r.status !== '対応済み' && (matchesOf(r).length || r.company_name)).length}</b> 件</span></div><div className="what">すぐ架電ページで折り返せる着信</div></div>
             <div className="desk"><div className="who">会社が分かった着信</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: 'var(--navy)' }}>{linkedRate}</b> %</span></div><div className="what">番号でリストの会社と照らせた割合</div></div>
             <div className="desk"><div className="who">未対応（全体）</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: nOpen ? 'var(--red)' : 'var(--navy)' }}>{nOpen}</b> 件</span></div></div>
           </div>
@@ -442,7 +441,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
                   )}
                 </span>
                 <span className="last">{lc ? <><span className={`tag ${tagOf(lc.status)}`}>{lc.status}</span><small>{new Date(lc.called_at).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' })} {(lc.getter_name || '').split(/\s/)[0]}</small></> : <small style={{ color: 'var(--ink-3)' }}>{m ? 'まだかけていない' : '—'}</small>}</span>
-                <span className="ans">{ans ? <span className="tag green">{ans}が出た</span> : <span className="tag red">不在着信</span>}</span>
+                <span className="ans">{ans ? <span className="tag blue" title="この着信を受けた番号の持ち主">{ans}あて</span> : <span className="tag gray">あて先不明</span>}</span>
                 <span className="tel n">{telFmt(normalizePhone(r.caller_number)) || r.caller_number || '—'}</span>
                 <span className="rec">{activeRecordingId === r.id && r.recording_url ? <InlineAudioPlayer url={r.recording_url} onClose={() => setActiveRecordingId(null)} />
                   : r.recording_url ? <button className="lnk" onClick={() => setActiveRecordingId(r.id)}>▶ 録音</button> : <span style={{ color: 'var(--ink-3)' }}>—</span>}</span>
