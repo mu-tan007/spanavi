@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../lib/supabase';
 import { color, space, radius, font, shadow, alpha } from '../../constants/design';
-import { Button, Badge, DataTable } from '../ui';
+import { Button, Badge } from '../ui';
 import { invokeGetZoomRecording } from '../../lib/supabaseWrite';
 import InlineAudioPlayer from '../common/InlineAudioPlayer';
 
 import { getOrgId } from '../../lib/orgContext';
-import PageHeader from '../common/PageHeader';
+import { telFmt } from '../../utils/telFormat';
+import './calllist/CallListHome.css';
 import { useUrlState } from '../../hooks/useUrlState';
 
 const formatJST = (iso) => {
@@ -334,46 +335,8 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   // ステータス → Badge variant
   const statusVariant = (s) => s === '対応済み' ? 'success' : 'danger';
 
-  return (
-    <div style={{ animation: 'fadeIn 0.3s ease', height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
-      <PageHeader
-        title="着信対応"
-        description="着信履歴"
-        style={{ marginBottom: isMobile ? 16 : 24 }}
-      />
-      {/* フィルター */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-        marginBottom: space[4], gap: space[2],
-      }}>
-        <div style={{ display: 'flex', gap: space[2], alignItems: 'center' }}>
-          {['all', '未対応', '対応済み'].map(s => (
-            <Button
-              key={s}
-              size="sm"
-              variant={statusFilter === s ? 'primary' : 'outline'}
-              onClick={() => setStatusFilter(s)}
-              style={statusFilter !== s ? { color: color.textMid, borderColor: color.border } : undefined}
-            >
-              {s === 'all' ? 'すべて' : s}
-            </Button>
-          ))}
-          <Button size="sm" variant="outline" onClick={load}>
-            ↻ 更新
-          </Button>
-        </div>
-      </div>
-
-      {/* テーブル (DataTable 共通コンポーネント) */}
-      <DataTable
-        ariaLabel="着信履歴"
-        height="100%"
-        style={{ flex: 1, minHeight: 0 }}
-        loading={loading}
-        rows={filtered}
-        rowKey="id"
-        emptyMessage="着信履歴がありません"
-        columns={[
+  // 表の列（見本の表の形で出す・2026-10-09）
+  const cols = [
           {
             key: 'receivedAt', label: '受信日時', width: 130, align: 'right',
             cellStyle: { color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs },
@@ -447,7 +410,7 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           {
             key: 'phone', label: '電話番号', width: 130, align: 'left',
             cellStyle: { fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums', color: color.textMid },
-            render: (r) => r.caller_number || '-',
+            render: (r) => telFmt(normalizePhone(r.caller_number)) || r.caller_number || '-',
           },
           {
             key: 'duration', label: '通話時間', width: 80, align: 'right',
@@ -522,8 +485,39 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
               );
             }
           },
-        ]}
-      />
+  ];
+  const nOpen = records.filter(r => r.status !== '対応済み').length;
+  const todayJst = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+  const nToday = records.filter(r => r.received_at && new Date(r.received_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) === todayJst).length;
+
+  return (
+    <div className="clh" style={{ animation: 'fadeIn 0.3s ease', height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
+      <div className="pt">
+        <div><h1>着信対応</h1><p>折り返しの着信・未対応 {nOpen}件・今日 {nToday}件。企業名を押すと、その会社の架電ページを開きます</p></div>
+        <div className="r">
+          <div className="seg" style={{ position: 'relative' }}>
+            {[['all', 'すべて', records.length], ['未対応', '未対応', nOpen], ['対応済み', '対応済み', records.length - nOpen]].map(([v, t, n]) => (
+              <button key={v} className={statusFilter === v ? 'on' : ''} style={statusFilter === v ? { background: 'var(--navy)', color: '#fff' } : undefined} onClick={() => setStatusFilter(v)}>{t}<span className="c">{n}</span></button>
+            ))}
+          </div>
+          <button className="btn sm" onClick={load}>↻ 更新</button>
+        </div>
+      </div>
+      <div className="card grp" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        <table className="tbl lt" style={{ minWidth: 1100 }} aria-label="着信履歴">
+          <colgroup>{cols.map(c => <col key={c.key} style={{ width: c.width }} />)}</colgroup>
+          <thead><tr>{cols.map(c => <th key={c.key} className={c.align === 'right' ? 'r' : ''} style={{ textAlign: c.align, paddingLeft: c.key === 'receivedAt' ? 16 : undefined }}>{c.label}</th>)}</tr></thead>
+          <tbody>
+            {loading && <tr><td colSpan={cols.length} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 28 }}>読み込み中…</td></tr>}
+            {!loading && !filtered.length && <tr><td colSpan={cols.length} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 28 }}>着信履歴がありません</td></tr>}
+            {!loading && filtered.map(r => (
+              <tr key={r.id} style={{ cursor: 'default' }}>
+                {cols.map(c => <td key={c.key} style={{ textAlign: c.align, ...(c.cellStyle || {}), paddingLeft: c.key === 'receivedAt' ? 16 : undefined }}>{c.render(r)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* リスト選択モーダル */}
       {selectModal && (

@@ -72,6 +72,7 @@ import IncomingCallsView from './views/IncomingCallsView';
 import RecallListView from './views/RecallListView';
 import ListDetailModal from './views/calllist/ListDetailModal';
 import ListPage from './views/calllist/ListPage';
+import ScriptsPage from './views/calllist/ScriptsPage';
 import ShiftManagementView from './views/ShiftManagementView';
 import RulesView from './views/RulesView';
 import PlaceholderView from './views/PlaceholderView';
@@ -1453,7 +1454,7 @@ function SpanaviAppInner({ userName, userId, isAdmin: isAdminProp, onLogout, sup
               : null}
           />
         )}
-        {currentTab === "scripts" && <ScriptView isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
+        {currentTab === "scripts" && <ScriptsPage isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {currentTab === "library" && <LibraryView currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
         {/* 旧「ロープレ」へのリンクは、ライブラリーのロープレの本を開いて出す */}
         {currentTab === "edu_roleplay" && <LibraryView initialCard="roleplay" currentUser={currentUser} userId={userId} members={members} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} />}
