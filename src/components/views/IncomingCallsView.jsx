@@ -33,6 +33,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   // (CRM の ?status=面談予定 を そのまま読むと着信対応が全件除外になる事故防止)
   const [statusFilter, setStatusFilter] = useUrlState('inc_status', '未対応');
   const [calleeFilter, setCalleeFilter] = useUrlState('inc_to', 'all');
+  const [lastFilter, setLastFilter] = useUrlState('inc_last', 'all');
   const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
   // リスト選択モーダル: null | [{ itemId, company, listId, listName, clientName }]
   const [selectModal, setSelectModal] = useState(null);
@@ -268,7 +269,11 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   })();
 
   const callees = [...new Set(records.map(r => r.callee).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
-  const byWho = g => calleeFilter === 'all' || g.callees.includes(calleeFilter);
+  // 前回のステータスでの絞り込み（会社が分からない番号・まだかけていない会社も選べる）
+  const lastOf = g => (!g.m ? '会社が分からない' : g.l?.s || 'まだかけていない');
+  const LAST_ORDER = ['アポ獲得', 'キーマン再コール', 'キーマン不在', '受付再コール', '受付ブロック', 'キーマン断り', '不通', '除外', 'まだかけていない', '会社が分からない'];
+  const lastOpts = [...new Set(groups.map(lastOf))].sort((a, b) => (LAST_ORDER.indexOf(a) + 99 * (LAST_ORDER.indexOf(a) < 0)) - (LAST_ORDER.indexOf(b) + 99 * (LAST_ORDER.indexOf(b) < 0)));
+  const byWho = g => (calleeFilter === 'all' || g.callees.includes(calleeFilter)) && (lastFilter === 'all' || lastOf(g) === lastFilter);
   const openGroups = groups.filter(g => g.open && byWho(g)).sort((a, b) => b.score - a.score);
   const doneGroups = groups.filter(g => !g.open && byWho(g)).sort((a, b) => String(b.handledAt || b.at).localeCompare(String(a.handledAt || a.at)));
   const queueable = openGroups.filter(g => g.m);
@@ -352,6 +357,10 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
           <select className="input" value={calleeFilter} onChange={e => setCalleeFilter(e.target.value)} title="着信を受けた人で絞る">
             <option value="all">全員</option>
             {callees.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select className="input" value={lastFilter} onChange={e => setLastFilter(e.target.value)} title="前回のステータスで絞る">
+            <option value="all">前回のステータス：すべて</option>
+            {lastOpts.map(x => <option key={x} value={x}>{x}（{groups.filter(g => g.open && lastOf(g) === x).length}）</option>)}
           </select>
           <div className="seg" style={{ position: 'relative' }}>
             {[['未対応', '折り返し待ち', openGroups.length], ['対応済み', '対応済み', doneGroups.length], ['all', 'すべて', openGroups.length + doneGroups.length]].map(([v, t, n]) => (
