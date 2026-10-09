@@ -100,3 +100,10 @@
 .clh.inc2 .icard .inc-at b{font-size:14px}
 .clh.inc2 .icard .inc-at .to{align-self:flex-start;display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;background:var(--navy);color:#fff;font-size:12px;font-weight:600}
 .clh.inc2 .icard .inc-at .to.na{background:var(--line-2);color:var(--ink-3);font-weight:500}
+
+/* 2026-10-10：札は会社名の横に1つだけ */
+.clh.inc2 .icard .nm .nmr{display:flex;align-items:center;gap:8px;min-width:0}
+.clh.inc2 .icard .nm .nmr b{min-width:0}
+.clh.inc2 .icard .nm .nmr .tag{flex:none}
+.clh.inc2 .icard .lastl .ceo{color:var(--ink-3);font-size:11.5px}
+.clh.inc2 .icard .inc-at small.many{color:var(--red);font-weight:600}

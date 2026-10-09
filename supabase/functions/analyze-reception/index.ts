@@ -2,7 +2,8 @@
 // 受付が出た架電（受付ブロック・受付再コール・キーマン不在）を、10分ごとに新しいものから処理する：
 //   1) 書き起こしが無ければ transcribe-call-batch で作る
 //   2) Claude Haiku で受付の対応を短く分類して call_records.reception に入れる
-//      { outcome: blocked|return_time|connected|absent|unknown, return_hint, receptionist_name, tone: soft|neutral|curt, note }
+//      { outcome: blocked|return_time|connected|absent|unknown, return_hint, receptionist_name, tone: soft|neutral|curt, note,
+//        callback: asked|promised|none }  … callback は 2026-10-10 追加（着信対応の「折り返しの約束」に使う）
 // 書き起こしが作れない・短すぎる記録は { outcome: 'skip' } にして、二度と拾わない。
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -32,7 +33,8 @@ ${transcript.slice(0, 4000)}
  "return_hint":"戻り時間・在席の目安の言葉（無ければ空）",
  "receptionist_name":"受付の人が名乗った名字（無ければ空。会社名は入れない）",
  "tone":"soft（丁寧・協力的）| neutral | curt（ぶっきらぼう・警戒）",
- "note":"次にかける人へのひとこと（30字以内。事実だけ）"}
+ "note":"次にかける人へのひとこと（30字以内。事実だけ）",
+ "callback":"asked（こちらが折り返しの電話を頼んだ・こちらの番号を伝えた）| promised（相手が「折り返させます」「折り返します」と言った）| none（折り返しの話は出ていない・こちらから改めると伝えただけ）"}
 取り次ぎを断られた・用件を聞かれて断られた場合は blocked。unknown は書き起こしから判断できないときだけ使う。`
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -48,12 +50,17 @@ ${transcript.slice(0, 4000)}
 
 const OUTCOMES = new Set(['blocked', 'return_time', 'connected', 'absent', 'unknown'])
 const TONES = new Set(['soft', 'neutral', 'curt'])
+const CALLBACKS = new Set(['asked', 'promised', 'none'])
 
 Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}))
     const since = new Date(Date.now() - (Number(body?.days) || 3) * 86400000).toISOString()
-    const { data: rows, error } = await sb.from('call_records')
+    // record_ids を渡すと、読み取り済みでもその記録だけ読み直す（折り返しの項目を後から足すとき）
+    const ids: string[] = Array.isArray(body?.record_ids) ? body.record_ids.slice(0, 50) : []
+    const { data: rows, error } = ids.length
+      ? await sb.from('call_records').select('id, status, transcript').in('id', ids)
+      : await sb.from('call_records')
       .select('id, status, transcript')
       .is('reception', null).not('recording_url', 'is', null)
       .in('status', STATUSES).gte('called_at', since)
@@ -83,6 +90,7 @@ Deno.serve(async (req) => {
         receptionist_name: String(c.receptionist_name || '').slice(0, 10),
         tone: TONES.has(String(c.tone)) ? String(c.tone) : 'neutral',
         note: String(c.note || '').slice(0, 40),
+        callback: CALLBACKS.has(String(c.callback)) ? String(c.callback) : 'none',
       }
       await sb.from('call_records').update({ reception }).eq('id', r.id); done++
     }

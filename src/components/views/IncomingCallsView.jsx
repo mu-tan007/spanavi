@@ -33,6 +33,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   // (CRM の ?status=面談予定 を そのまま読むと着信対応が全件除外になる事故防止)
   const [statusFilter, setStatusFilter] = useUrlState('inc_status', '未対応');
   const [calleeFilter, setCalleeFilter] = useUrlState('inc_to', 'all');
+  const [coFilter, setCoFilter] = useUrlState('inc_co', 'all');
   const [lastRaw, setLastRaw] = useUrlState('inc_last', '');
   const lastSel = new Set(String(lastRaw || '').split(',').filter(Boolean));
   const setLastSel = (set) => setLastRaw([...set].join(','));
@@ -246,28 +247,35 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
       const matches = (r0.matches || []).map(m => ({ ...m, itemId: m.item_id, listId: m.list_id, listName: m.list_name || '', clientName: m.client || '' }));
       const m = matches[0];
       const l = m?.last;
-      const reasons = [];
+      // 札は1行に1つだけ（いちばん強い理由）。クレームの恐れは別に出す（2026-10-10 むー様：札が多すぎる）
       let promise = null;
       let score = 0;
+      let badge = null;
+      const pick = (t, c) => { if (!badge) badge = { t, c }; };
+      // 前回が断り・受付ブロック・除外、社長の温度感が低・除外、受付がぶっきらぼう → 何度もかかってきてもクレームの恐れ
+      const claim = !!m && (['キーマン断り', '受付ブロック', '除外'].includes(l?.s) || ['低', '除外'].includes(m.ceo) || l?.tone === 'curt');
       if (m) {
         score += 30;
         if (l?.rd) {
           const due = l.rd <= today;
           const [, mo, d] = l.rd.split('-');
           promise = { t: `${Number(mo)}/${Number(d)}${l.rt ? ` ${l.rt.slice(0, 5)}` : ''}にこちらからかけ直す約束`, due };
-          reasons.push({ t: '約束あり', c: due ? 'red' : 'amber' });
           score += due ? 45 : 30;
+        } else if (l?.cb) {
+          promise = { t: l.cbk === 'promised' ? '先方が「折り返します」と言っていた' : 'こちらから折り返しを頼んでいた', due: true };
+          score += 40;
         }
-        if (l?.cb) { reasons.push({ t: '折り返しの話あり', c: 'red' }); score += 35; }
-        if (l?.s === 'キーマン再コール') { reasons.push({ t: '社長と話した会社', c: 'green' }); score += 25; }
-        else if (l?.s === 'キーマン不在') { reasons.push({ t: '前回は社長不在', c: 'blue' }); score += 20; }
-        else if (l?.s === '受付再コール') { reasons.push({ t: '受付で再コール', c: 'blue' }); score += 15; }
-        else if (l?.s === 'アポ獲得') { reasons.push({ t: 'アポ済みの会社', c: 'green' }); score += 20; }
-        else if (l?.s === 'キーマン断り') { reasons.push({ t: '前回お断り', c: 'gray' }); score -= 10; }
-        if (m.ceo === '高') { reasons.push({ t: '温度感 高', c: 'red' }); score += 25; }
-        else if (m.ceo === '中') { reasons.push({ t: '温度感 中', c: 'amber' }); score += 10; }
+        if (!claim) {
+          if (l?.s === 'キーマン再コール') { pick('社長と話した', 'green'); score += 25; }
+          else if (m.ceo === '高') { pick('社長の温度感 高', 'green'); score += 25; }
+          else if (l?.s === 'アポ獲得') { pick('アポ済み', 'green'); score += 20; }
+          else if (l?.s === 'キーマン不在') score += 20;
+          else if (l?.s === '受付再コール') score += 15;
+          if (m.ceo === '中') score += 10;
+          if (g.rows.length > 1) score += 10 + g.rows.length * 5;
+        } else score -= 30;
       } else if (r0.cands?.length) score += 10;
-      if (g.rows.length > 1) { reasons.unshift({ t: `${g.rows.length}回着信`, c: 'red' }); score += 10 + g.rows.length * 5; }
+      if (claim) badge = { t: 'クレームの恐れ', c: 'red' };
       const hrs = (now - new Date(r0.at).getTime()) / 3600000;
       score += dayOf(r0.at) === today ? 20 : Math.max(-30, 14 - hrs / 12); // 日がたつほど下げる（2週間で約-14）
       const recRow = g.rows.find(x => x.rec);
@@ -275,7 +283,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
         ...g, open, id: r0.id, ids: g.rows.map(x => x.id), at: r0.at, firstAt: g.rows[g.rows.length - 1].at,
         n: r0.n, raw: r0.raw, callees: [...new Set(g.rows.map(x => x.callee).filter(Boolean))],
         missed: g.rows.every(x => !x.zid), rec: recRow?.rec || null, recId: recRow?.id,
-        matches, m, l, promise, cands: r0.cands || [], name: m?.company || r0.company_name || '', reasons, score,
+        matches, m, l, promise, claim, badge, cands: r0.cands || [], name: m?.company || r0.company_name || '', score,
         handledBy: r0.handled_by, handledAt: r0.handled_at,
       };
     });
@@ -286,18 +294,14 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   const lastOf = g => (!g.m ? '会社が分からない' : g.l?.s || 'まだかけていない');
   const LAST_ORDER = ['アポ獲得', 'キーマン再コール', 'キーマン不在', '受付再コール', '受付ブロック', 'キーマン断り', '不通', '除外', 'まだかけていない', '会社が分からない'];
   const lastOpts = [...new Set(groups.map(lastOf))].sort((a, b) => (LAST_ORDER.indexOf(a) + 99 * (LAST_ORDER.indexOf(a) < 0)) - (LAST_ORDER.indexOf(b) + 99 * (LAST_ORDER.indexOf(b) < 0)));
-  const byWho = g => (calleeFilter === 'all' || g.callees.includes(calleeFilter)) && (!lastSel.size || lastSel.has(lastOf(g)));
+  const byWho = g => (calleeFilter === 'all' || g.callees.includes(calleeFilter)) && (!lastSel.size || lastSel.has(lastOf(g))) && (coFilter === 'all' || (coFilter === 'known' ? !!g.m : !g.m));
   const openGroups = groups.filter(g => g.open && byWho(g)).sort((a, b) => b.score - a.score);
   const doneGroups = groups.filter(g => !g.open && byWho(g)).sort((a, b) => String(b.handledAt || b.at).localeCompare(String(a.handledAt || a.at)));
   const queueable = openGroups.filter(g => g.m);
-  const nHot = openGroups.filter(g => g.reasons.some(x => x.c === 'red' || x.c === 'green')).length;
+  const nHot = openGroups.filter(g => !g.claim && (g.promise || (g.badge && g.badge.c === 'green'))).length;
+  const nClaim = openGroups.filter(g => g.claim).length;
   const nUnknown = openGroups.filter(g => !g.m).length;
   const todayRecs = records.filter(r => dayOf(r.at) === today);
-  const medianMin = (() => {
-    const xs = groups.filter(g => !g.open && g.handledAt).map(g => (new Date(g.handledAt) - new Date(g.firstAt)) / 60000).filter(x => x >= 0).sort((a, b) => a - b);
-    return xs.length ? xs[Math.floor(xs.length / 2)] : null;
-  })();
-  const fmtMin = x => (x == null ? '—' : x < 60 ? `${Math.round(x)}分` : x < 1440 ? `${(x / 60).toFixed(1)}時間` : `${(x / 1440).toFixed(1)}日`);
   const openByCallee = callees.map(c => [c, groups.filter(g => g.open && g.callees.includes(c)).length]).filter(x => x[1]).sort((a, b) => b[1] - a[1]);
 
   // 折り返す：アポに近い順のまま架電ページで順に開く。各社に着信の時刻・宛先を添え、架電ページの上に出す
@@ -312,6 +316,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   const talkOf = l => {
     if (l.q) return l.q;
     if (l.nt) return l.nt;
+    if (l.rn) return l.rn;
     if (l.rr) return l.rr;
     if (l.cbs) { const line = String(l.cbs).split(/\r?\n/).find(x => x.includes('折り返')) || ''; return line.replace(/^[\d:\]\s]+/, '').trim(); }
     return '';
@@ -328,21 +333,21 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
         <span className="rk">{i + 1}</span>
         <div className="main">
           {g.m ? (
-            <div className="nm"><b className="lk" onClick={() => (g.matches.length > 1 ? setSelectModal(g.matches) : navigateTo(g.m))}>{g.name}</b>
+            <div className="nm"><span className="nmr"><b className="lk" onClick={() => (g.matches.length > 1 ? setSelectModal(g.matches) : navigateTo(g.m))}>{g.name}</b>{g.badge && <span className={`tag ${g.badge.c}`}>{g.badge.t}</span>}</span>
               <small>{g.m.client ? `${g.m.client} ・ ` : ''}{g.m.list_ind || ''}{g.matches.length > 1 ? ` ほか${g.matches.length - 1}件` : ''}</small></div>
           ) : (
             <div className="nm"><b className="unk-t">{g.name || '会社が分からない番号'}</b><small>{g.name ? '紐づけ済み・リストには見当たらない' : 'どのリストの番号とも一致しない'}</small></div>
           )}
-          {g.reasons.length > 0 && <div className="rs">{g.reasons.map(x => <span key={x.t} className={`tag ${x.c}`}>{x.t}</span>)}</div>}
+
           {g.m && (
             <>
-              {(g.promise || g.l?.cb) && (
-                <div className={`promise ${g.promise?.due || g.l?.cb ? 'due' : ''}`}>
+              {g.promise && (
+                <div className={`promise ${g.promise.due ? 'due' : ''}`}>
                   <b>約束</b>
-                  <span>{g.promise ? g.promise.t : '前回の電話で折り返しの話が出ている'}</span>
+                  <span>{g.promise.t}</span>
                 </div>
               )}
-              <div className="lastl">{g.l ? <>前回<span className={`tag ${tagOf(g.l.s)}`}>{g.l.s}</span><span>{md(g.l.at)} {first(g.l.g)}</span></> : <span>まだ架電していない会社</span>}</div>
+              <div className="lastl">{g.l ? <>前回<span className={`tag ${tagOf(g.l.s)}`}>{g.l.s}</span><span>{md(g.l.at)} {first(g.l.g)}</span>{g.m.ceo && g.m.ceo !== '除外' ? <span className="ceo">社長の温度感 {g.m.ceo}</span> : null}</> : <span>まだ架電していない会社</span>}</div>
               {g.l && talkOf(g.l) && <div className="talk">「{talkOf(g.l)}」</div>}
             </>
           )}
@@ -350,7 +355,8 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
         <div className="inc-at">
           <b className="n">{when(g.at)}</b>
           {g.callees.length ? <span className="to">{g.callees.map(first).join('・')}あて</span> : <span className="to na">あて先不明</span>}
-          <small>{ago(g.at)} ・ {g.missed ? <span className="miss">出られなかった</span> : '誰かが出た'}{g.rows.length > 1 ? ` ・ 初回 ${when(g.firstAt)}` : ''}</small>
+          <small>{ago(g.at)} ・ {g.missed ? <span className="miss">出られなかった</span> : '誰かが出た'}</small>
+          {g.rows.length > 1 && <small className={g.claim ? '' : 'many'}>{g.rows.length}回目の着信（初回 {when(g.firstAt)}）</small>}
         </div>
         <div className="tel">
           <span className="n">{telFmt(g.n) || g.raw || '—'}</span>
@@ -388,6 +394,11 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
             <option value="all">全員</option>
             {callees.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          <select className="input" value={coFilter} onChange={e => setCoFilter(e.target.value)} title="かけてきた会社が分かるかで絞る">
+            <option value="all">会社：すべて</option>
+            <option value="known">会社が分かる</option>
+            <option value="unknown">会社が分からない</option>
+          </select>
           <div className="dd" ref={lastDdRef}>
             <button className={`dd-b ${lastSel.size ? 'on' : ''}`} type="button" onClick={() => setLastDd(v => !v)}>
               前回のステータス：{!lastSel.size ? 'すべて' : lastSel.size === 1 ? [...lastSel][0] : `${lastSel.size}つ選択中`} ▾
@@ -417,10 +428,10 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
 
       <div className="card kpis">
         <div className="k"><span className="t-label">折り返し待ち</span><b className="n">{openGroups.length}<small>件</small></b><small>同じ番号はまとめて1件</small></div>
-        <div className="k hot"><span className="t-label">うちアポに近い</span><b className="n">{nHot}<small>件</small></b><small>約束・社長と話した・何度も着信</small></div>
+        <div className="k hot"><span className="t-label">うちアポに近い</span><b className="n">{nHot}<small>件</small></b><small>約束あり・社長と話した・温度感 高</small></div>
         <div className="k"><span className="t-label">今日の着信</span><b className="n">{todayRecs.length}<small>本</small></b><small>出られなかった {todayRecs.filter(r => !r.zid).length}本</small></div>
         <div className="k"><span className="t-label">会社が分からない番号</span><b className="n">{nUnknown}<small>件</small></b><small>候補の会社を押すと紐づく</small></div>
-        <div className="k"><span className="t-label">折り返しまでの時間</span><b className="n">{fmtMin(medianMin)}</b><small>着信から対応済みまで（中央値）</small></div>
+        <div className="k"><span className="t-label">クレームの恐れ</span><b className="n">{nClaim}<small>件</small></b><small>前回お断り・温度感 低など</small></div>
       </div>
 
       <div className="inc-grid">
@@ -428,7 +439,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
           {loading && <div className="card hint">読み込み中…</div>}
           {!loading && showOpen && (
             <div className="card sec">
-              <div className="card-h"><b>折り返す順番</b><span>約束の日が来た会社・社長と話した会社・何度もかけてきた番号を上に</span></div>
+              <div className="card-h"><b>折り返す順番</b><span>約束のある会社・社長と話した会社を上に。クレームの恐れがある着信は下に</span></div>
               {openGroups.length ? openGroups.map(card) : <div className="hint">{loadError ? '読み込めませんでした。「更新」を押してください' : '折り返し待ちの着信はありません'}</div>}
             </div>
           )}
