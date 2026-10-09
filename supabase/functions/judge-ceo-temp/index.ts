@@ -99,8 +99,9 @@ Deno.serve(async (req) => {
   const chunks: Rec[][] = []
   for (let i = 0; i < todo.length; i += 8) chunks.push(todo.slice(i, i + 8))
   let done = 0, failed = 0
+  let lastErr = ''
   for (let i = 0; i < chunks.length; i += 4) {
-    const outs = await Promise.all(chunks.slice(i, i + 4).map(c => judge(c, labels).catch(() => null)))
+    const outs = await Promise.all(chunks.slice(i, i + 4).map(c => judge(c, labels).catch((e) => { lastErr = String(e?.message || e).slice(0, 300); return null })))
     for (let j = 0; j < outs.length; j++) {
       const out = outs[j]
       if (!out) { failed += chunks[i + j].length; continue }
@@ -118,5 +119,5 @@ Deno.serve(async (req) => {
   for (const r of empty) await sb.from('call_records').update({ ceo_temp_judged_at: new Date().toISOString() }).eq('id', r.id)
   const { count } = await sb.from('call_records').select('id', { count: 'exact', head: true })
     .eq('org_id', 'a0000000-0000-0000-0000-000000000001').eq('status', 'キーマン断り').is('ceo_temp_judged_at', null)
-  return json({ done, failed, empty: empty.length, remaining: count })
+  return json({ done, failed, empty: empty.length, remaining: count, lastErr })
 })
