@@ -52,7 +52,7 @@ export default function IndustryHours({ listSupaId }) {
     <div style={{ padding: `${space[3]}px ${space[4]}px`, borderRadius: radius.md, background: color.offWhite, border: `1px solid ${color.border}`, marginBottom: space[4] }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: space[2] }}>
         <span style={{ fontSize: font.size.xs, fontWeight: font.weight.semibold, color: color.navy }}>つながりやすい時間</span>
-        <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>キーマン接続率・これまでの全架電・毎日20時に更新</span>
+        <span style={{ fontSize: font.size.xs - 1, color: color.textLight }}>キーマン接続率・これまでの全架電</span>
       </div>
       {rows.map(r => {
         const best = bestHoursLabel(r.byHour);

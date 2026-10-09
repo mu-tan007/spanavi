@@ -2440,7 +2440,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 <Input size="sm" value={search} onChange={e => setSearchAndResetPage(e.target.value)} placeholder="検索..."
                   fullWidth={false} containerStyle={{ width: 180, minWidth: 120 }} style={{ fontSize: font.size.xs }} />
                 {appoOutlook && (
-                  <span title={appoOutlook.n ? `いまの絞り込みの${appoOutlook.n.toLocaleString()}社に1回ずつかけたときの見込みアポ${appoOutlook.expected.toFixed(1)}件。会社ごとに直前の結果のアポ率（これまでの全記録・毎日20時に更新）を当てて出しています` : undefined}
+                  <span title={appoOutlook.n ? `いまの絞り込みの${appoOutlook.n.toLocaleString()}社に1回ずつかけたときの見込みアポ${appoOutlook.expected.toFixed(1)}件。会社ごとに直前の結果のアポ率（これまでの全記録）を当てて出しています` : undefined}
                     style={{ padding: '3px 8px', borderRadius: radius.md, fontSize: font.size.xs - 1, fontWeight: font.weight.semibold, whiteSpace: 'nowrap', color: color.navyDeep, background: alpha(color.navyLight, 0.08), border: `1px solid ${color.gray200}` }}>
                     {`アポ1件まで ${perAppoLabel(appoOutlook)}`}
                   </span>

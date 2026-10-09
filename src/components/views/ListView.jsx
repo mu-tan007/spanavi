@@ -1312,7 +1312,7 @@ export default function ListView({ filteredLists, allLists, filterStatus, setFil
           fontSize: isMobile ? 10 : font.size.xs, fontWeight: font.weight.semibold, color: color.white, verticalAlign: 'middle',
         }}>
           {['クライアント', '商材', 'タイプ', 'リスト名', '社数', '担当者', '当社売上', '架電進捗率', 'アポ1件まで', 'おすすめ度', ''].map((label, i) => (
-            <span key={i} title={label === 'アポ1件まで' ? 'まだかけられる会社に1回ずつかけたとき、アポ1件に要る架電数。会社ごとに直前の結果のアポ率（これまでの全記録・毎日20時に更新）を当てて出しています' : undefined} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
+            <span key={i} title={label === 'アポ1件まで' ? 'まだかけられる会社に1回ずつかけたとき、アポ1件に要る架電数。会社ごとに直前の結果のアポ率（これまでの全記録）を当てて出しています' : undefined} style={{ position: 'relative', textAlign: lvCols[i]?.align || 'left', minWidth: 0, cursor: 'default', userSelect: 'none' }}>
               {label}
               {i < 10 && <ColumnResizeHandle colIndex={i} onResizeStart={lvResize} />}
             </span>
