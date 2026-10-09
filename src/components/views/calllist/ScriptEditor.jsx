@@ -22,7 +22,7 @@ function Field({ label, hint, children }) {
   );
 }
 
-export default function ScriptEditor({ list, isAdmin, clientData, callListData, setCallListData, grp }) {
+export default function ScriptEditor({ list, isAdmin, clientData, callListData, setCallListData, grp, setGrp }) {
   const base = useMemo(() => ({ ...(list?.scriptV2 || {}) }), [list]);
   const [d, setD] = useState(base);
   const [ca, setCa] = useState(list?.cautions || '');
@@ -157,7 +157,16 @@ export default function ScriptEditor({ list, isAdmin, clientData, callListData, 
       </section>
 
       <aside className="card stage fe-prev">
-        <div className="sh"><div className="tt"><b>架電ページでの見え方</b><span>入力するとすぐ反映（保存前）</span></div></div>
+        <div className="sh">
+          <div className="tt"><b>架電ページでの見え方</b><span>入力するとすぐ反映（保存前）</span></div>
+          {setGrp && (
+            <label className="as">この会社の業種
+              <select className="input" value={grp} onChange={e => setGrp(e.target.value)}>
+                {Object.keys(IND_NOUN).map(x => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
         <div className="cfv sb">
           <ScriptV2 key={`${list._supaId}-${legacy}`} spec={legacy ? { ...d, legacy: true } : d} list={list} row={sample} rebuttal={rebuttal}
             renderLegacy={() => (list.scriptBody ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={{ ...sample, company: '〇〇株式会社', representative: '〇〇' }} style={{ fontSize: 13, lineHeight: 1.8 }} /> : <div className="hint">台本はまだありません</div>)} />

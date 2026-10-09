@@ -47,11 +47,9 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
   const cautions = parseCautions(list?.cautions);
   let rebuttal = null;
   try { rebuttal = list?.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch { /* 読めなければ共通のアウト返しだけ */ }
-  const views = [['build', '台本を見る'], ['packs', '業種の一覧'], ...(isAdmin ? [['edit', '編集']] : [])];
+  // 台本を見ると編集は1つにまとめた（2026-10-10 むー様）。管理者は左で選んで中で直し、右で見え方を確かめる
+  const views = [['build', '台本'], ['packs', '業種の一覧']];
 
-  const nV2 = lists.filter(l => l.scriptV2 && !l.scriptV2.legacy).length;
-  const nLegacy = lists.length - nV2;
-  const nClients = new Set(lists.map(l => l.company)).size;
 
   // クライアントごとにまとめる（検索はクライアント名・リスト名どちらでも）
   const byClient = useMemo(() => {
@@ -101,14 +99,15 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
         </div>
       </div>
 
-      <div className="card kpis">
-        <div className="k"><span className="t-label">使っているリスト</span><b className="n">{lists.length}<small>本</small></b><small>{nClients}社のクライアント</small></div>
-        <div className="k"><span className="t-label">基本台本で話すリスト</span><b className="n">{nV2}<small>本</small></b><small>違いだけを差し込む</small></div>
-        <div className="k"><span className="t-label">今までの台本のまま</span><b className="n">{nLegacy}<small>本</small></b><small>売り手ソーシング以外など</small></div>
-        <div className="k"><span className="t-label">業種の言い方</span><b className="n">{Object.keys(IND_NOUN).length}<small>業種</small></b><small>受付の一文は{Object.keys(IND_RECEPTION).length}業種</small></div>
-      </div>
 
-      {view === 'build' && (
+      {view === 'build' && isAdmin && (
+        <div className="scp-grid fe-grid">
+          {picker}
+          <ScriptEditor list={list} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} grp={g} setGrp={setGrp} />
+        </div>
+      )}
+
+      {view === 'build' && !isAdmin && (
         <div className="scp-grid">
           {picker}
 
@@ -172,12 +171,6 @@ export default function ScriptsPage({ isAdmin, clientData, callListData, setCall
         </div>
       )}
 
-      {view === 'edit' && isAdmin && (
-        <div className="scp-grid fe-grid">
-          {picker}
-          <ScriptEditor list={list} isAdmin={isAdmin} clientData={clientData} callListData={callListData} setCallListData={setCallListData} grp={g} />
-        </div>
-      )}
     </div>
   );
 }
