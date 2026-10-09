@@ -67,24 +67,26 @@ begin
       (select r.ceo_temp from call_records r where r.item_id = mt.item_id and r.ceo_temp is not null order by r.called_at desc limit 1) ceo
       from mt
   ), cand as (
-    -- 会社が分からない着信：着信を受けた人が、その前の7日間にかけた会社（新しい順に3社）
-    select ic.id inc_id, jsonb_agg(c order by c.at desc) cands from ic
-      cross join lateral (
-        select distinct on (r.item_id) r.item_id, r.called_at at, r.status s, i.company, l.industry list_ind, cl.name client
-          from call_records r join call_list_items i on i.id = r.item_id join call_lists l on l.id = i.list_id left join clients cl on cl.id = l.client_id
-         where ic.callee is not null and r.org_id = v_org and r.getter_name = ic.callee and r.called_at < ic.received_at and r.called_at > ic.received_at - interval '7 days'
-           and r.status not in ('不通')
-         order by r.item_id, r.called_at desc) c0
-      cross join lateral (select c0.*) c
-     where not exists (select 1 from mt where mt.inc_id = ic.id)
-     group by ic.id
+    -- 会社が分からない未対応の着信だけ：着信を受けた人が、その前の7日間にかけた会社（新しい順に3社）
+    select ic.id inc_id,
+      (select jsonb_agg(jsonb_build_object('item_id', c.item_id, 'at', c.at, 's', c.s, 'company', i.company, 'list_ind', l.industry, 'client', cl.name) order by c.at desc)
+         from (select * from (
+                 select distinct on (r.item_id) r.item_id, r.called_at at, r.status s
+                   from call_records r
+                  where r.org_id = v_org and r.getter_name = ic.callee
+                    and r.called_at < ic.received_at and r.called_at > ic.received_at - interval '7 days' and r.status <> '不通'
+                  order by r.item_id, r.called_at desc) d
+               order by d.at desc limit 3) c
+         join call_list_items i on i.id = c.item_id join call_lists l on l.id = i.list_id left join clients cl on cl.id = l.client_id) cands
+      from ic
+     where ic.status <> '対応済み' and ic.callee is not null and not exists (select 1 from mt where mt.inc_id = ic.id)
   )
   select coalesce(jsonb_agg(jsonb_build_object(
       'id', ic.id, 'at', ic.received_at, 'n', ic.n, 'raw', ic.caller_number, 'callee', ic.callee, 'status', ic.status,
       'handled_at', ic.handled_at, 'handled_by', ic.handled_by, 'rec', ic.recording_url, 'zid', ic.answered_by_zoom_user_id,
       'company_name', ic.company_name,
       'matches', (select coalesce(jsonb_agg(to_jsonb(m2) - 'inc_id'), '[]'::jsonb) from mt2 m2 where m2.inc_id = ic.id),
-      'cands', (select (select jsonb_agg(x) from (select * from jsonb_array_elements(cand.cands) limit 3) z(x)) from cand where cand.inc_id = ic.id)
+      'cands', (select cand.cands from cand where cand.inc_id = ic.id)
     ) order by ic.received_at desc), '[]'::jsonb) into v
   from ic;
   return v;
