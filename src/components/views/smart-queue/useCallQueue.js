@@ -148,6 +148,8 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
       onQueueNext: goNext,
       queuePos: `${q.idx + 1} / ${q.items.length}件`,
       queueLabel: q.opts?.label || '',
+      queueItems: q.items,
+      queueIdx: q.idx,
       autoDialOnLoad: autoDialNext,
       onResultSubmit: () => {
         queueRef.current = { items: q.items, idx: q.idx + 1, opts: q.opts };

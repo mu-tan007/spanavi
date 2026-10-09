@@ -38,7 +38,14 @@ import { initialAppoStatus } from '../../utils/appoStatus';
 import { useAccessControl } from '../../hooks/useAccessControl';
 import { pickExcludeReason } from '../common/excludeReasonPicker';
 import RepName from './callflow/RepName';
-import { fetchCallStatusRates, outlookOf, perAppoLabel, segmentOf } from '../../utils/appoOutlook';
+import HeatRule from './callflow/HeatRule';
+import TempsBox from './callflow/TempsBox';
+import AltNumbers from './callflow/AltNumbers';
+import './callflow/CallPage.css';
+import { supabase } from '../../lib/supabase';
+import { telFmt } from '../../utils/telFormat';
+import { appoUnitPrice, manYen } from '../../utils/appoUnitPrice';
+import { fetchCallStatusRates, outlookOf, perAppoLabel, segmentOf, rateOf } from '../../utils/appoOutlook';
 
 const CompanyProfileDialog = React.lazy(() => import('../company/CompanyProfileDialog'));
 
@@ -222,7 +229,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false, initialViewedOnly = false, onViewedOnlyChange = null, initialSentOnly = false, onSentOnlyChange = null, onBackToList = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false, initialViewedOnly = false, onViewedOnlyChange = null, initialSentOnly = false, onSentOnlyChange = null, onBackToList = null, queueLabel = '', queueItems = null, queueIdx = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -1061,6 +1068,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
       if (e.key === '?') { e.preventDefault(); setShowShortcutHelp(v => !v); return; }
       if (appoM || recallM || helpOpen) return;
 
+      // 架電ページ（パソコン）：← → で右のタブ、Ctrl（Macは⌘）＋← → で前後の会社（2026-10-09 むー様）
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && cfvKbRef.current.newPage) {
+        e.preventDefault();
+        if (e.ctrlKey || e.metaKey) {
+          const f = e.key === 'ArrowRight' ? cfvKbRef.current.goNext : cfvKbRef.current.goPrev;
+          if (f) f();
+          return;
+        }
+        const tabs = cfvKbRef.current.cfvTabs || [];
+        const i = tabs.findIndex(t => t[0] === cfvKbRef.current.scriptTab);
+        const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+        if (n) setScriptTab(n[0]);
+        return;
+      }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
         if (singleItemMode || currentIdx < 0) return;
@@ -1550,15 +1571,16 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, memo: newMemo } : prev);
   };
 
-  const handleSubPhoneBlur = async () => {
-    if (!selectedRow) return;
+  // 別事業所の番号を保存（値を渡す。保存できたら true）
+  const saveSubPhone = async (value) => {
+    if (!selectedRow) return false;
     const oldValue = (selectedRow.sub_phone_number || '').trim();
-    const newValue = (subPhone || '').trim();
-    if (oldValue === newValue) return;
+    const newValue = (value || '').trim();
+    if (oldValue === newValue) return false;
     const err = await updateCallListItem(selectedRow.id, { sub_phone_number: newValue });
     if (err) {
       console.error('[subPhone] DB保存失敗 — call_list_items.sub_phone_numberカラムが存在しない可能性があります。SQL: ALTER TABLE call_list_items ADD COLUMN IF NOT EXISTS sub_phone_number TEXT;', err);
-      return;
+      return false;
     }
     // 旧別事業所番号で紐づいていた着信履歴を解除
     if (oldValue) {
@@ -1568,17 +1590,20 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     // DB保存後にメモリ上のitemsも更新（企業切り替え後に復元できるように）
     setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, sub_phone_number: newValue } : i));
     setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, sub_phone_number: newValue } : prev);
+    return true;
   };
+  const handleSubPhoneBlur = () => saveSubPhone(subPhone);
 
-  const handleKeymanMobileBlur = async () => {
-    if (!selectedRow) return;
+  // キーマンの携帯番号を保存（値を渡す。保存できたら true）
+  const saveKeymanMobile = async (value) => {
+    if (!selectedRow) return false;
     const oldValue = (selectedRow.keyman_mobile || '').trim();
-    const newValue = (keymanMobile || '').trim();
-    if (oldValue === newValue) return; // 変更なし
+    const newValue = (value || '').trim();
+    if (oldValue === newValue) return false; // 変更なし
     const err = await updateCallListItem(selectedRow.id, { keyman_mobile: newValue });
     if (err) {
       console.error('[keymanMobile] DB保存失敗', err);
-      return;
+      return false;
     }
     // 旧キーマン携帯番号で紐づいていた着信履歴を解除（削除・別番号に変更どちらも）
     if (oldValue) {
@@ -1587,7 +1612,9 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
     setItems(prev => prev.map(i => i.id === selectedRow.id ? { ...i, keyman_mobile: newValue } : i));
     setSelectedRow(prev => prev?.id === selectedRow.id ? { ...prev, keyman_mobile: newValue } : prev);
+    return true;
   };
+  const handleKeymanMobileBlur = () => saveKeymanMobile(keymanMobile);
 
   // AI企業分析: itemIdごとに生成状態を管理し、awaitから戻った時点でも対象企業に正しく反映する
   const triggerAiGenerate = async (row) => {
@@ -2296,9 +2323,82 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     </div>
   ); } // OLD_UI_END
 
+  // ── 架電ページ（2026-10-09 むー様・見本 call.html をそのまま本番へ） ──────────────────
+  // 今日の自分の架電・接続・アポと、今日の貯金（1回ごとに、その会社の次の1回でアポになる割合を足す）
+  const [meToday, setMeToday] = useState({ calls: 0, conn: 0, apo: 0, bank: 0 });
+  const [bankPlus, setBankPlus] = useState(null);
+  const [cfvRates, setCfvRates] = useState(null);
+  useEffect(() => { fetchCallStatusRates().then(setCfvRates); }, []);
+  const loadMeToday = () => {
+    const d0 = new Date(`${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })}T00:00:00+09:00`).toISOString();
+    Promise.all([supabase.rpc('member_call_stats', { p_from: d0 }), supabase.rpc('call_floor_today')]).then(([st, fl]) => {
+      const norm = s => String(s || '').replace(/[\s　]/g, '');
+      const mine = (st.data || []).find(r => norm(r.getter_name) === norm(currentUser));
+      const p = (fl.data?.people || []).find(r => norm(r.name) === norm(currentUser));
+      setMeToday({ calls: Number(mine?.calls || 0), conn: Number(mine?.keyman || 0), apo: Number(p?.appos || 0), bank: Number(p?.bank || 0) });
+    });
+  };
+  useEffect(() => { loadMeToday(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 発信ボタン：押したら数秒だけ呼び出しの波紋を出す（Zoomの通話の状態はこちらから取れないため）
+  const [dialing, setDialing] = useState(false);
+  const dialTimer = useRef(null);
+  const cfvDial = (num) => {
+    if (!num) return;
+    dialPhone(num); setLastDialedPhone(num);
+    setDialing(true); clearTimeout(dialTimer.current); dialTimer.current = setTimeout(() => setDialing(false), 6000);
+  };
+  const [altDialLabel, setAltDialLabel] = useState('');
+  useEffect(() => { setAltDialLabel(''); setDialing(false); }, [selectedRow?.id]);
+  // この後の会社・いまの会社の注意（今日ほかのリストでかけた・別のリストでキーマン断り）
+  const [brief, setBrief] = useState({});
+  const upcomingIds = (() => {
+    if (queueItems && queueIdx != null) return queueItems.slice(queueIdx + 1, queueIdx + 6).map(x => x.item_id);
+    if (currentIdx >= 0) return sorted.slice(currentIdx + 1, currentIdx + 6).map(x => x.id);
+    return [];
+  })();
+  const briefKey = [selectedRow?.id, ...upcomingIds].filter(Boolean).join(',');
+  useEffect(() => {
+    if (!briefKey) return undefined;
+    let alive = true;
+    supabase.rpc('call_items_brief', { p_ids: briefKey.split(',') }).then(({ data }) => {
+      if (alive) setBrief(Object.fromEntries((data || []).map(x => [x.id, x])));
+    });
+    return () => { alive = false; };
+  }, [briefKey]);
+  // 架電メモ：書くそばから保存（0.7秒止まったら）
+  const [memoSaved, setMemoSaved] = useState(false);
+  useEffect(() => {
+    if (!selectedRow) return undefined;
+    if (localMemo === extractUserNote(selectedRow.memo)) return undefined;
+    setMemoSaved(false);
+    const t = setTimeout(() => { handleMemoBlur().then(() => setMemoSaved(true)); }, 700);
+    return () => clearTimeout(t);
+  }, [localMemo]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 右のタブ（← → で行き来）
+  const cfvTabs = [['script', 'スクリプト'], ...(letterPath ? [['letter', '手紙']] : []), ['calendar', 'カレンダー'], ['cautions', '注意事項'], ['info', '顧客情報']];
+  const tabsRef = useRef(null);
+  const [tabUl, setTabUl] = useState({ left: 0, width: 0 });
+  useEffect(() => {
+    const b = tabsRef.current?.querySelector('button.on');
+    if (b) setTabUl({ left: b.offsetLeft, width: b.offsetWidth });
+  }, [scriptTab, listMode, letterPath]);
+  // 結果を押したら貯金に足し、今日の数を取り直す
+  const cfvResult = (label) => {
+    const recsB = selectedRow ? getRecordsForItem(selectedRow.id) : [];
+    const before = recsB.length ? recsB.reduce((a, b) => ((a.round || 0) >= (b.round || 0) ? a : b)).status : (selectedRow?.call_status || '未架電');
+    const r = rateOf(cfvRates, segmentOf(list?.engagementSlug), before);
+    if (label !== 'アポ獲得' && label !== '受付再コール' && label !== 'キーマン再コール') {
+      setMeToday(m => ({ ...m, calls: m.calls + 1, bank: m.bank + r }));
+      setBankPlus({ v: r, k: Date.now() });
+    }
+    setTimeout(loadMeToday, 6000);
+    handleResult(label);
+  };
+  const norm2 = s => String(s || '').replace(/[\s　]/g, '');
+
   // ── NEW UI: 架電ページ（フルスクリーン・1企業ずつ） ──────────────────────────
   // ref を毎レンダーで最新化（keydownハンドラーが参照する）
-  cfvKbRef.current = { sel: selectedRow, sorted, currentIdx, appoM: appoModal, recallM: recallModal, helpOpen: showShortcutHelp, handleResult };
+  cfvKbRef.current = { ...cfvKbRef.current, sel: selectedRow, sorted, currentIdx, appoM: appoModal, recallM: recallModal, helpOpen: showShortcutHelp, handleResult: (listMode || isMobile) ? handleResult : cfvResult, newPage: !(listMode || isMobile), cfvTabs, scriptTab };
 
   // PiP: summaryRefを更新
   useEffect(() => {
@@ -2311,10 +2411,226 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
     }
   });
 
+  // 右のタブの中身（スマホ・一覧の旧画面と、架電ページの新しい画面で同じものを使う）
+  const renderTabBody = () => (
+    <>
+            {scriptTab === 'script' && <RuleAskBar list={list} />}
+            {scriptTab === 'script' && (() => {
+              // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
+              let rdScript = null;
+              try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
+              const rebuttal = rdScript || qaData;
+              const selectedPdf = scriptPdfList.find(p => p.path === selectedScriptPdfPath) || scriptPdfList[0] || null;
+              const scriptIframeUrl = selectedPdf ? scriptPdfUrls[selectedPdf.path] : null;
+              const modeTabs = scriptModes.length > 1 ? (
+                <div style={{ display: 'flex', gap: space[1], marginBottom: space[2], flexShrink: 0 }}>
+                  {scriptModes.map(([m, l]) => (
+                    <button key={m} onClick={() => setScriptViewMode(m)}
+                      style={{ fontSize: font.size.xs, padding: '4px 14px', borderRadius: radius.md, cursor: 'pointer', fontFamily: font.family.sans, border: 'none',
+                        background: effectiveScriptMode === m ? color.navyDeep : color.gray100,
+                        color: effectiveScriptMode === m ? color.white : color.gray500,
+                        fontWeight: effectiveScriptMode === m ? font.weight.semibold : font.weight.normal }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              ) : null;
+              if (effectiveScriptMode === 'pdf') {
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[2] }}>
+                    {modeTabs}
+                    {scriptPdfList.length > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flexShrink: 0, borderBottom: `1px solid ${color.gray200}`, paddingBottom: space[2] }}>
+                        {scriptPdfList.map(pdf => {
+                          const active = pdf.path === (selectedPdf?.path);
+                          return (
+                            <button key={pdf.path}
+                              onClick={() => { setSelectedScriptPdfPath(pdf.path); ensureScriptPdfUrl(pdf); }}
+                              title={pdf.name}
+                              style={{
+                                padding: '4px 10px', fontSize: font.size.xs, borderRadius: radius.sm,
+                                border: active ? `1px solid ${color.navyDeep}` : `1px solid ${color.gray200}`,
+                                background: active ? color.navyDeep : color.white,
+                                color: active ? color.white : color.navyDeep,
+                                cursor: 'pointer', fontWeight: active ? font.weight.semibold : font.weight.normal,
+                                fontFamily: font.family.sans,
+                                maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                              {pdf.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {selectedPdf && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexShrink: 0 }}>
+                          <span style={{ fontSize: font.size.xs, color: color.gray500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedPdf.name}</span>
+                          {scriptIframeUrl && (
+                            <a href={scriptIframeUrl} target="_blank" rel="noopener noreferrer"
+                              style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
+                              新規タブで開く
+                            </a>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
+                          {scriptIframeUrl ? (
+                            <iframe
+                              src={`${scriptIframeUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                              title={selectedPdf.name}
+                              style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }}
+                            />
+                          ) : (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>PDFを読み込み中...</div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <>
+                  {modeTabs}
+                  {effectiveScriptMode === 'guide'
+                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} row={selectedRow} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: font.size.sm, color: color.navyDeep }} />
+                    : list.scriptBody
+                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={selectedRow} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
+                      : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
+                </>
+              );
+            })()}
+            {scriptTab === 'letter' && letterPath && (() => {
+              const url = letterUrl?.path === letterPath ? letterUrl.url : null;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[2] }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: font.size.xs, color: color.gray500 }}>
+                    <span>お送りした手紙（印刷したものと同じ紙面）</span>
+                    {url && (
+                      <a href={url} target="_blank" rel="noopener noreferrer"
+                        style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
+                        新規タブで開く
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
+                    {url ? (
+                      <iframe key={letterPath} src={`${url}#toolbar=0&navpanes=0&view=FitH`} title="手紙"
+                        style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }} />
+                    ) : (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>手紙を読み込み中...</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+            {scriptTab === 'info' && (() => {
+              const pdfs = Array.isArray(list.companyOverviewPdfs) ? list.companyOverviewPdfs : [];
+              const selectedPdf = pdfs.find(p => p.path === selectedOverviewPdfPath) || pdfs[0] || null;
+              const iframeUrl = selectedPdf ? overviewPdfUrls[selectedPdf.path] : null;
+              if (!list.companyInfo && pdfs.length === 0) {
+                return <div style={{ color: color.gray400, fontSize: font.size.sm }}>企業概要未設定</div>;
+              }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[3] }}>
+                  {list.companyInfo && (
+                    <pre style={{ fontSize: font.size.sm, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: font.family.sans, flexShrink: 0, maxHeight: pdfs.length > 0 ? '30%' : 'none', overflowY: 'auto' }}>{list.companyInfo}</pre>
+                  )}
+                  {pdfs.length > 0 && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flexShrink: 0, borderBottom: `1px solid ${color.gray200}`, paddingBottom: space[2] }}>
+                        {pdfs.map(pdf => {
+                          const active = pdf.path === (selectedPdf?.path);
+                          return (
+                            <button key={pdf.path}
+                              onClick={() => { setSelectedOverviewPdfPath(pdf.path); ensureOverviewPdfUrl(pdf); }}
+                              title={pdf.name}
+                              style={{
+                                padding: '4px 10px', fontSize: font.size.xs,
+                                borderRadius: radius.sm,
+                                border: active ? `1px solid ${color.navyDeep}` : `1px solid ${color.gray200}`,
+                                background: active ? color.navyDeep : color.white,
+                                color: active ? color.white : color.navyDeep,
+                                cursor: 'pointer', fontWeight: active ? font.weight.semibold : font.weight.normal,
+                                fontFamily: font.family.sans,
+                                maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                              {pdf.name}
+                            </button>
+                          );
+                        })}
+                        {iframeUrl && (
+                          <a href={iframeUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
+                            新規タブで開く
+                          </a>
+                        )}
+                      </div>
+                      {selectedPdf && (
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
+                          {iframeUrl ? (
+                            <iframe
+                              src={`${iframeUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                              title={selectedPdf.name}
+                              style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }}
+                            />
+                          ) : (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>PDFを読み込み中...</div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+            {scriptTab === 'cautions' && (
+              list.cautions
+                ? <CautionsCards text={list.cautions} fontSize={12} filter="non-calendar" />
+                : <div style={{ color: color.gray400, fontSize: font.size.sm }}>注意事項未設定</div>
+            )}
+            {scriptTab === 'calendar' && (() => {
+              const cl = resolveListClient(list, clientData);
+              const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
+              const linkedContacts = resolveListContacts(list, contacts);
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <TravelHint address={selectedRow?.address} />
+                  <MultiCalendarPanel
+                    showRegisteredAppointments
+                    contacts={linkedContacts}
+                    fallbackClient={cl}
+                    updateContactFn={(ctId, ctData) => {
+                      return updateClientContact(ctId, ctData).then(() => {
+                        if (setContactsByClient && cl?._supaId) {
+                          setContactsByClient(prev => ({
+                            ...prev,
+                            [cl._supaId]: (prev[cl._supaId] || []).map(ct => ct.id === ctId ? { ...ct, ...ctData } : ct),
+                          }));
+                        }
+                      });
+                    }}
+                    onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
+                    existingAppointments={tagAppointmentContacts((appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime), [list, ...callListData], contacts)}
+                    staticNoteLines={extractCalendarCautionLines(list.cautions)}
+                    onUpdateCalendarLines={async (newLines) => {
+                      if (!list?._supaId) return;
+                      const newCautions = replaceCalendarSection(list.cautions, newLines);
+                      const err = await updateCallListCautions(list._supaId, newCautions);
+                      if (err) { alert('注意事項の保存に失敗しました'); return; }
+                      if (setCallListData) setCallListData(prev => prev.map(l => l._supaId === list._supaId ? { ...l, cautions: newCautions } : l));
+                    }}
+                  />
+                </div>
+              );
+            })()}
+    </>
+  );
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: color.offWhite, zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: font.family.sans }}>
+    <div className={(listMode || isMobile) ? undefined : 'cfv'} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: color.offWhite, zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: font.family.sans }}>
       {profileTarget && <React.Suspense fallback={<div role="status">企業カルテを読み込んでいます…</div>}><CompanyProfileDialog target={profileTarget} onClose={() => setProfileTarget(null)} onChanged={() => setLoadAttempt(n => n + 1)} onSelectCompany={companyId => setProfileTarget({ companyId })} /></React.Suspense>}
 
+      {(listMode || isMobile) ? (<>
       {/* ── ヘッダーバー（height:48px） ── */}
       <div style={{ height: 48, background: color.navyDeep, display: 'flex', alignItems: 'center', padding: `0 ${space[4] - 2}px`, gap: space[2] + 2, flexShrink: 0, borderBottom: `1px solid ${alpha('#FFFFFF', 0.08)}` }}>
 
@@ -3066,7 +3382,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           {/* タブヘッダー */}
           <div onClick={() => isMobile && setMobileScriptOpen(o => !o)} style={{ display: 'flex', borderBottom: `2px solid ${color.gray200}`, background: color.offWhite, flexShrink: 0, cursor: isMobile ? 'pointer' : 'default' }}>
             {isMobile && <span style={{ display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: font.size.md, color: color.gray400 }}>{mobileScriptOpen ? '▼' : '▲'}</span>}
-            {[{ key: 'script', label: 'スクリプト' }, ...(letterPath ? [{ key: 'letter', label: '手紙' }] : []), { key: 'info', label: '企業概要' }, { key: 'cautions', label: '注意事項' }, { key: 'calendar', label: 'カレンダー' }].map(tab => (
+            {[{ key: 'script', label: 'スクリプト' }, ...(letterPath ? [{ key: 'letter', label: '手紙' }] : []), { key: 'calendar', label: 'カレンダー' }, { key: 'cautions', label: '注意事項' }, { key: 'info', label: '顧客情報' }].map(tab => (
               <button key={tab.key} onClick={(e) => { e.stopPropagation(); setScriptTab(tab.key); if (isMobile) setMobileScriptOpen(true); }}
                 style={{ flex: 1, padding: isMobile ? '12px 4px' : '11px 4px', border: 'none', borderBottom: scriptTab === tab.key ? `2px solid ${color.navyDeep}` : '2px solid transparent',
                   background: 'transparent', color: scriptTab === tab.key ? color.navyDeep : color.gray400,
@@ -3078,221 +3394,230 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
           </div>
           {/* タブコンテンツ */}
           <div style={{ flex: 1, overflowY: 'auto', padding: space[5] }}>
-            {scriptTab === 'script' && <RuleAskBar list={list} />}
-            {scriptTab === 'script' && (() => {
-              // チップ・即時検索が参照するアウト返し（リスト別優先、なければ共通）
-              let rdScript = null;
-              try { rdScript = list.rebuttalData ? JSON.parse(list.rebuttalData) : null; } catch {}
-              const rebuttal = rdScript || qaData;
-              const selectedPdf = scriptPdfList.find(p => p.path === selectedScriptPdfPath) || scriptPdfList[0] || null;
-              const scriptIframeUrl = selectedPdf ? scriptPdfUrls[selectedPdf.path] : null;
-              const modeTabs = scriptModes.length > 1 ? (
-                <div style={{ display: 'flex', gap: space[1], marginBottom: space[2], flexShrink: 0 }}>
-                  {scriptModes.map(([m, l]) => (
-                    <button key={m} onClick={() => setScriptViewMode(m)}
-                      style={{ fontSize: font.size.xs, padding: '4px 14px', borderRadius: radius.md, cursor: 'pointer', fontFamily: font.family.sans, border: 'none',
-                        background: effectiveScriptMode === m ? color.navyDeep : color.gray100,
-                        color: effectiveScriptMode === m ? color.white : color.gray500,
-                        fontWeight: effectiveScriptMode === m ? font.weight.semibold : font.weight.normal }}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              ) : null;
-              if (effectiveScriptMode === 'pdf') {
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[2] }}>
-                    {modeTabs}
-                    {scriptPdfList.length > 1 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flexShrink: 0, borderBottom: `1px solid ${color.gray200}`, paddingBottom: space[2] }}>
-                        {scriptPdfList.map(pdf => {
-                          const active = pdf.path === (selectedPdf?.path);
-                          return (
-                            <button key={pdf.path}
-                              onClick={() => { setSelectedScriptPdfPath(pdf.path); ensureScriptPdfUrl(pdf); }}
-                              title={pdf.name}
-                              style={{
-                                padding: '4px 10px', fontSize: font.size.xs, borderRadius: radius.sm,
-                                border: active ? `1px solid ${color.navyDeep}` : `1px solid ${color.gray200}`,
-                                background: active ? color.navyDeep : color.white,
-                                color: active ? color.white : color.navyDeep,
-                                cursor: 'pointer', fontWeight: active ? font.weight.semibold : font.weight.normal,
-                                fontFamily: font.family.sans,
-                                maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                              }}>
-                              {pdf.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {selectedPdf && (
-                      <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: space[2], flexShrink: 0 }}>
-                          <span style={{ fontSize: font.size.xs, color: color.gray500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedPdf.name}</span>
-                          {scriptIframeUrl && (
-                            <a href={scriptIframeUrl} target="_blank" rel="noopener noreferrer"
-                              style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
-                              新規タブで開く
-                            </a>
-                          )}
-                        </div>
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
-                          {scriptIframeUrl ? (
-                            <iframe
-                              src={`${scriptIframeUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                              title={selectedPdf.name}
-                              style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }}
-                            />
-                          ) : (
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>PDFを読み込み中...</div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <>
-                  {modeTabs}
-                  {effectiveScriptMode === 'guide'
-                    ? <ScriptTreeGuide tree={list.scriptTree} rebuttal={rebuttal} row={selectedRow} resetKey={`${list._supaId}|${selectedRow?.id || ''}`} style={{ fontSize: font.size.sm, color: color.navyDeep }} />
-                    : list.scriptBody
-                      ? <ScriptBody text={list.scriptBody} rebuttal={rebuttal} row={selectedRow} style={{ fontSize: font.size.sm, color: color.navyDeep, lineHeight: 1.8 }} />
-                      : <div style={{ color: color.gray400, fontSize: font.size.sm }}>スクリプト未設定</div>}
-                </>
-              );
-            })()}
-            {scriptTab === 'letter' && letterPath && (() => {
-              const url = letterUrl?.path === letterPath ? letterUrl.url : null;
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[2] }}>
-                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: font.size.xs, color: color.gray500 }}>
-                    <span>お送りした手紙（印刷したものと同じ紙面）</span>
-                    {url && (
-                      <a href={url} target="_blank" rel="noopener noreferrer"
-                        style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
-                        新規タブで開く
-                      </a>
-                    )}
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
-                    {url ? (
-                      <iframe key={letterPath} src={`${url}#toolbar=0&navpanes=0&view=FitH`} title="手紙"
-                        style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }} />
-                    ) : (
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>手紙を読み込み中...</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-            {scriptTab === 'info' && (() => {
-              const pdfs = Array.isArray(list.companyOverviewPdfs) ? list.companyOverviewPdfs : [];
-              const selectedPdf = pdfs.find(p => p.path === selectedOverviewPdfPath) || pdfs[0] || null;
-              const iframeUrl = selectedPdf ? overviewPdfUrls[selectedPdf.path] : null;
-              if (!list.companyInfo && pdfs.length === 0) {
-                return <div style={{ color: color.gray400, fontSize: font.size.sm }}>企業概要未設定</div>;
-              }
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: space[3] }}>
-                  {list.companyInfo && (
-                    <pre style={{ fontSize: font.size.sm, color: '#4a4a4a', whiteSpace: 'pre-wrap', lineHeight: 1.8, margin: 0, fontFamily: font.family.sans, flexShrink: 0, maxHeight: pdfs.length > 0 ? '30%' : 'none', overflowY: 'auto' }}>{list.companyInfo}</pre>
-                  )}
-                  {pdfs.length > 0 && (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', flexShrink: 0, borderBottom: `1px solid ${color.gray200}`, paddingBottom: space[2] }}>
-                        {pdfs.map(pdf => {
-                          const active = pdf.path === (selectedPdf?.path);
-                          return (
-                            <button key={pdf.path}
-                              onClick={() => { setSelectedOverviewPdfPath(pdf.path); ensureOverviewPdfUrl(pdf); }}
-                              title={pdf.name}
-                              style={{
-                                padding: '4px 10px', fontSize: font.size.xs,
-                                borderRadius: radius.sm,
-                                border: active ? `1px solid ${color.navyDeep}` : `1px solid ${color.gray200}`,
-                                background: active ? color.navyDeep : color.white,
-                                color: active ? color.white : color.navyDeep,
-                                cursor: 'pointer', fontWeight: active ? font.weight.semibold : font.weight.normal,
-                                fontFamily: font.family.sans,
-                                maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                              }}>
-                              {pdf.name}
-                            </button>
-                          );
-                        })}
-                        {iframeUrl && (
-                          <a href={iframeUrl} target="_blank" rel="noopener noreferrer"
-                            style={{ marginLeft: 'auto', fontSize: font.size.xs - 1, color: color.gray500, textDecoration: 'underline', flexShrink: 0 }}>
-                            新規タブで開く
-                          </a>
-                        )}
-                      </div>
-                      {selectedPdf && (
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 200, borderRadius: radius.md, border: `1px solid ${color.gray200}`, overflow: 'hidden', background: color.white }}>
-                          {iframeUrl ? (
-                            <iframe
-                              src={`${iframeUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                              title={selectedPdf.name}
-                              style={{ flex: 1, border: 'none', width: '100%', minHeight: 0 }}
-                            />
-                          ) : (
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.gray400, fontSize: font.size.xs }}>PDFを読み込み中...</div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })()}
-            {scriptTab === 'cautions' && (
-              list.cautions
-                ? <CautionsCards text={list.cautions} fontSize={12} filter="non-calendar" />
-                : <div style={{ color: color.gray400, fontSize: font.size.sm }}>注意事項未設定</div>
-            )}
-            {scriptTab === 'calendar' && (() => {
-              const cl = resolveListClient(list, clientData);
-              const contacts = cl ? (contactsByClient[cl._supaId] || []) : [];
-              const linkedContacts = resolveListContacts(list, contacts);
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <TravelHint address={selectedRow?.address} />
-                  <MultiCalendarPanel
-                    showRegisteredAppointments
-                    contacts={linkedContacts}
-                    fallbackClient={cl}
-                    updateContactFn={(ctId, ctData) => {
-                      return updateClientContact(ctId, ctData).then(() => {
-                        if (setContactsByClient && cl?._supaId) {
-                          setContactsByClient(prev => ({
-                            ...prev,
-                            [cl._supaId]: (prev[cl._supaId] || []).map(ct => ct.id === ctId ? { ...ct, ...ctData } : ct),
-                          }));
-                        }
-                      });
-                    }}
-                    onSelectSlot={(dateStr, timeLabel) => { if (selectedRow) setQuickAppoSlot({ date: dateStr, time: timeLabel }); }}
-                    existingAppointments={tagAppointmentContacts((appoData || []).filter(a => a.client === list.company && a.meetDate && a.meetTime), [list, ...callListData], contacts)}
-                    staticNoteLines={extractCalendarCautionLines(list.cautions)}
-                    onUpdateCalendarLines={async (newLines) => {
-                      if (!list?._supaId) return;
-                      const newCautions = replaceCalendarSection(list.cautions, newLines);
-                      const err = await updateCallListCautions(list._supaId, newCautions);
-                      if (err) { alert('注意事項の保存に失敗しました'); return; }
-                      if (setCallListData) setCallListData(prev => prev.map(l => l._supaId === list._supaId ? { ...l, cautions: newCautions } : l));
-                    }}
-                  />
-                </div>
-              );
-            })()}
+            {renderTabBody()}
           </div>
         </div>
         )}
 
       </div>
+      </>) : (
+        <div className="cfv-in" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+          {/* ── 上の帯（見本 call.html） ── */}
+          {(() => {
+            const qm = String(queuePos || '').match(/(\d+)\s*\/\s*([\d,]+)/);
+            const pos = qm ? Number(qm[1]) : currentIdx + 1;
+            const tot = qm ? Number(qm[2].replace(/,/g, '')) : sorted.length;
+            const canPrev = singleItemMode ? !!onQueuePrev : currentIdx > 0;
+            const canNext = singleItemMode ? !!onQueueNext : currentIdx < sorted.length - 1;
+            const goPrev = () => { if (singleItemMode) onQueuePrev && onQueuePrev(); else if (currentIdx > 0) setSelectedRow(sorted[currentIdx - 1]); };
+            const goNext = () => { if (singleItemMode) onQueueNext && onQueueNext(); else if (currentIdx < sorted.length - 1) setSelectedRow(sorted[currentIdx + 1]); };
+            cfvKbRef.current.goPrev = goPrev; cfvKbRef.current.goNext = goNext;
+            const norm = (x) => String(x || '').replace(/[\s　]/g, '');
+            const me = members.find(m => typeof m === 'object' && norm(m.name) === norm(currentUser));
+            const raw = String(me?.zoomPhoneNumber || '').replace(/[^\d+]/g, '');
+            const myNum = telFmt(raw.startsWith('+81') ? `0${raw.slice(3)}` : raw);
+            return (
+              <div className="bar">
+                <button className="nav-b" onClick={() => (onBackToList ? onBackToList() : setListMode(true))}>一覧ページへ</button>
+                <button className="nav-b" disabled={!canPrev} style={canPrev ? undefined : { opacity: 0.4 }} onClick={goPrev}>← 前へ</button>
+                <div className="where"><b>{list?.company} ・ {list?.industry}</b><span>{queueLabel && queueLabel.startsWith('条件で探す') ? queueLabel : `${list?.productCategoryName || ''} ・ ${list?.engagementName || ''}`}</span></div>
+                <div className="prog">
+                  <svg className="ring" viewBox="0 0 36 36"><circle className="bgc" cx="18" cy="18" r="15" /><circle className="fg" cx="18" cy="18" r="15" strokeDasharray="94.2" strokeDashoffset={tot ? 94.2 * (1 - pos / tot) : 94.2} /></svg>
+                  <span className="t n">{pos > 0 ? pos : '-'}<small>/ {tot.toLocaleString()}社</small></span>
+                </div>
+                <div className="today">今日の架電<b className="n">{meToday.calls}</b>接続<b className="n">{meToday.conn}</b>アポ<b className="n g">{meToday.apo}</b></div>
+                <span className="sp" />
+                <span className="bank" title="1回かけるごとに、その会社の次の1回でアポになる割合を貯める">今日の貯金<span className="mt"><i style={{ width: `${Math.min(100, meToday.bank * 100)}%` }} /></span><b>{meToday.bank.toFixed(2)}</b>件分
+                  {bankPlus && <span key={bankPlus.k} className="plus go">+{bankPlus.v.toFixed(4).replace(/0+$/, '')}</span>}</span>
+                <span className="mine" title="受付で戻り時間が分からないときは、この番号と用件を伝えて折り返しを頼む">あなたの番号<b>{myNum || '未登録'}</b></span>
+                <label className="auto" onClick={e => { e.preventDefault(); toggleAutoDial(); }}>オートコール<span className={`sw ${autoDial ? 'on' : ''}`}><i /></span></label>
+                <button className="nav-b" disabled={!canNext} style={canNext ? undefined : { opacity: 0.4 }} onClick={goNext}>次へ →</button>
+                {onMinimize && <button className="nav-b minb" title="最小化（一覧ページを見ながら、右下の小窓で架電を続ける）" onClick={onMinimize}><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h10" /></svg>最小化</button>}
+                <button className="end" onClick={handleClose}>終了</button>
+              </div>
+            );
+          })()}
+
+          <div className="wrap" style={{ height: 'auto', flex: 1, minHeight: 0 }}>
+            <div className="left">
+              {selectedRow ? (() => {
+                const recs = getRecordsForItem(selectedRow.id).slice().sort((a, b) => (a.round || 0) - (b.round || 0));
+                const latest = recs[recs.length - 1] || null;
+                const cur = brief[selectedRow.id] || {};
+                const nextRound = getNextRound(selectedRow.id);
+                const roundRec = recs.find(r => r.round === selectedRound);
+                const strong = String(selectedRow.ai_strengths || '').split('\n').map(s => s.replace(/^[・\-\s●■]+/, '').trim()).filter(Boolean)[0] || '';
+                const parsedMemo = (() => { try { return selectedRow.memo ? JSON.parse(selectedRow.memo) : null; } catch { return null; } })();
+                const netIncome = selectedRow.net_income ?? parsedMemo?.net_income ?? null;
+                const unit = appoUnitPrice({ list, clientData, rewardMaster, revenue: selectedRow.revenue, netIncome });
+                const md = s => { const d = new Date(s); return `${d.getMonth() + 1}/${d.getDate()}`; };
+                const days = latest ? Math.floor((Date.now() - new Date(latest.called_at).getTime()) / 86400000) : null;
+                const short = s => String(s || '').replace(/株式会社|有限会社/g, '').trim();
+                const prevCls = latest && ['キーマン不在', '受付再コール', 'キーマン再コール'].includes(latest.status) ? 'k' : '';
+                const ot = cur.other_today; const ng = cur.other_ng;
+                const showTel = altDialLabel ? lastDialedPhone : selectedRow.phone;
+                return (
+                  <>
+                    <div className="stagewrap">
+                      <div className="card cocard">
+                        <div className="info">
+                          <div className="no n">No. {selectedRow.no}</div>
+                          <div className="name"><h1>{selectedRow.company}</h1>
+                            <Button variant="outline" size="sm" onClick={() => setProfileTarget({ itemId: selectedRow.id })}>企業カルテ</Button></div>
+                          {docViewBadge ? <div style={{ marginBottom: 6 }}>{docViewBadge}</div> : null}
+                          {selectedRow.reapproach_at && <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 500, color: '#7A5A1E', background: '#F7F0E1', borderRadius: 8, padding: '4px 10px', alignSelf: 'flex-start' }}>再アプローチ ・ {selectedRow.reapproach_note || '元のアポから30日'}</div>}
+                          {strong && <div className="strong"><b>この会社の強み</b><span>{strong}</span></div>}
+                          {ot && <div className="twarn on">今日 {new Date(ot.at).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })} に{(ot.g || '').split(/\s/)[0]}さんが、別のクライアント（{short(ot.client)}）でこの会社にかけています（{ot.s}）</div>}
+                          {ng && <div className="ngwarn on"><b>別のリストでキーマン断り</b>　{md(ng.at)} {short(ng.client)}・{(ng.g || '').split(/\s/)[0]}{ng.temp ? `・温度感 ${ng.temp}` : ''}{(ng.reasons || []).length ? `・理由「${ng.reasons.join('・')}」` : ''}<span className="tip">相手が違う話として切り出す。前の断りの話は持ち出さない</span></div>}
+                          <div className={`prev ${prevCls}`}>{latest ? `${recs.length}回目 ・ ${latest.status} ・ ${md(latest.called_at)} ${(latest.getter_name || '').split(/\s/)[0]}` : 'まだかけていない'}</div>
+                          <dl className="facts">
+                            {selectedRow.business && <><dt>事業内容</dt><dd>{selectedRow.business}</dd></>}
+                            {selectedRow.representative && <><dt>代表者</dt><dd><RepName key={selectedRow.id} row={selectedRow} /></dd></>}
+                            {selectedRow.address && <><dt>住所</dt><dd>{(selectedRow.address || '').replace(/\/\s*$/, '')}</dd></>}
+                            {selectedRow.revenue != null && <><dt>売上</dt><dd><span className="n">{Number(selectedRow.revenue).toLocaleString()}</span>千円<small>約{(Number(selectedRow.revenue) / 100000).toFixed(1)}億</small>
+                              {unit != null && <span style={{ marginLeft: 10, fontSize: 12, color: '#8A6A24', background: 'var(--gold-soft)', borderRadius: 999, padding: '1px 9px' }}>アポ単価 <b className="n">{manYen(unit)}</b>（税込）</span>}</dd></>}
+                            <dt>当期純利益</dt><dd>{netIncome == null ? <span style={{ color: 'var(--ink-3)' }}>―</span> : <><span className="n">{Number(netIncome).toLocaleString()}</span>千円</>}</dd>
+                            {parsedMemo?.biko && <><dt>備考</dt><dd>{parsedMemo.biko}</dd></>}
+                          </dl>
+                          <HeatRule grp={selectedRow.industry_group && selectedRow.industry_group !== 'その他' ? selectedRow.industry_group : null} />
+                        </div>
+                        <div className="call">
+                          <div className="rounds"><span className="lb">回数</span>
+                            {Array.from({ length: Math.min(Math.max(nextRound, 1), 9) }, (_, i) => i + 1).map(r => {
+                              const done = recs.some(x => x.round === r);
+                              return <button key={r} className={`n ${done ? 'done' : ''} ${r === selectedRound ? 'on' : ''}`} disabled={r > nextRound} onClick={() => setSelectedRound(r)}>{r}</button>;
+                            })}
+                          </div>
+                          <div className="phone">
+                            <span className="num n">{showTel ? telFmt(showTel) : '電話番号なし'}{altDialLabel && <small className="altlb">{altDialLabel}</small>}</span>
+                            {selectedRow.phone && (
+                              <span className="dialwrap">
+                                <button className={`dial ${dialing ? 'ringing' : ''}`} onClick={() => { setAltDialLabel(''); cfvDial(selectedRow.phone); }}>
+                                  <span className="rings"><i /><i /><i /></span>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>
+                                  <span>{dialing ? '発信しました' : '発信'}</span>
+                                </button>
+                                <span className="hk">切電 <kbd>Ctrl＋Shift＋E</kbd></span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="st">{dialing ? <b>Zoomで発信しています</b> : latest ? `前回から ${days}日 ・ ${latest.status}${latest.getter_name ? `（${latest.getter_name.split(/\s/)[0]}）` : ''}` : 'はじめての架電'}</div>
+                          <AltNumbers itemId={selectedRow.id} sub={subPhone} setSub={setSubPhone} onSubSave={saveSubPhone} km={keymanMobile} setKm={setKeymanMobile} onKmSave={saveKeymanMobile}
+                            onDial={(num, label) => { setAltDialLabel(label); cfvDial(num); }} />
+                          {roundRec ? (
+                            <div className="res-h" style={{ alignItems: 'center' }}><b>{selectedRound}回目の結果：{roundRec.status}</b>
+                              <button className="btn sm" onClick={() => handleDeleteRecord(roundRec)}>取消</button></div>
+                          ) : (
+                            <>
+                              <div className="res-h"><b>結果</b><span>F1〜F9（Macは1〜9）でも押せます</span></div>
+                              <div className="res">
+                                {callStatuses.map(st => {
+                                  const sc = cfvShortcuts.find(s => s.id === st.id);
+                                  const cls = st.label === 'アポ獲得' ? 'apo' : ['不通', '受付ブロック', 'キーマン断り', '除外'].includes(st.label) ? 'ng' : '';
+                                  return (
+                                    <button key={st.id} className={`r ${cls}`} onClick={() => cfvResult(st.label)}>
+                                      <span className="lb">{st.label}</span>{sc && <kbd>{sc.key}</kbd>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {list?.engagementSlug === 'matching' && <button className="btn sm" style={{ width: '100%' }} onClick={() => setNeedsModal(selectedRow)}>買収ニーズを記録</button>}
+                            </>
+                          )}
+                          <div className="memo">
+                            <textarea value={localMemo} onChange={e => setLocalMemo(e.target.value)} onBlur={handleMemoBlur} placeholder="架電メモ（書くそばから自動保存）" />
+                            <span className={`saved ${memoSaved && !savingMemo ? 'on' : ''}`}><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 6.5l2.5 2.5L10 3" /></svg> 保存しました</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedRow.call_status === 'アポ獲得' && (
+                      <PrecheckPanel itemId={selectedRow.id} clientName={list?.company || ''} currentUser={currentUser} members={members}
+                        dialedPhone={lastDialedPhone || selectedRow.phone} onBeforeSave={() => zoomPhone.hangUp()} setAppoData={setAppoData} />
+                    )}
+
+                    <div className="lower">
+                      <div className="card box"><div className="box-h"><b>架電履歴</b><span>この会社 ・ {recs.length}回</span></div>
+                        <div className="hist">
+                          {recs.slice().reverse().map(rec => {
+                            const k = ['不通', '受付ブロック', 'キーマン断り', '除外'].includes(rec.status) ? 'x' : rec.status === 'アポ獲得' ? '' : 'k';
+                            return (
+                              <div key={rec.id}>
+                                <div className={`h ${k}`}>
+                                  <span className="d n">{md(rec.called_at)}</span>
+                                  <span className="s"><b>{rec.status}</b><small>{(rec.getter_name || '').split(/\s/)[0]} ・ {rec.round}回目</small></span>
+                                  {rec.recording_url
+                                    ? <button className="play" onClick={() => setActiveRecordingId(activeRecordingId === rec.id ? null : rec.id)}><i>▶</i>録音</button>
+                                    : <button className="play" onClick={() => handleFetchRecording(rec)} title="録音を取り直す"><i>↻</i>録音</button>}
+                                </div>
+                                {activeRecordingId === rec.id && rec.recording_url && <InlineAudioPlayer url={rec.recording_url} onClose={() => setActiveRecordingId(null)} />}
+                              </div>
+                            );
+                          })}
+                          {!recs.length && <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>まだ架電の記録はありません</div>}
+                        </div>
+                      </div>
+                      <div className="card box ai"><div className="box-h"><b>温度感</b><span>通話から・リストをまたいで</span></div>
+                        <TempsBox itemId={selectedRow.id} />
+                        <ReceptionHistory itemId={selectedRow.id} />
+                      </div>
+                    </div>
+
+                    {upcomingIds.length > 0 && (
+                      <div className="card box" style={{ overflow: 'hidden' }}>
+                        <div className="box-h"><b>この後の会社</b><span>Ctrl＋→ で次へ ・ Ctrl＋← で前へ</span></div>
+                        <table className="tbl dense click q" id="queue">
+                          <colgroup><col style={{ width: 48 }} /><col /><col style={{ width: 130 }} /><col style={{ width: 170 }} /><col style={{ width: 150 }} /><col style={{ width: 110 }} /></colgroup>
+                          <thead><tr><th>No.</th><th>会社</th><th>代表者</th><th>前回</th><th>次の約束</th><th style={{ textAlign: 'right' }}>アポ単価（税込）</th></tr></thead>
+                          <tbody>
+                            {upcomingIds.map((id, k) => {
+                              const x = brief[id];
+                              if (!x) return <tr key={id}><td colSpan={6} style={{ color: 'var(--ink-3)' }}>読み込み中…</td></tr>;
+                              const l = x.last;
+                              const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+                              const tagC = ({ 'キーマン不在': 'blue', '受付再コール': 'amber', 'キーマン再コール': 'amber', 'キーマン断り': 'red' })[x.st] || 'gray';
+                              const rd = l && l.rd && l.s === x.st ? l.rd : null;
+                              const late = rd && rd < today, isToday = rd === today;
+                              const tk = l && new Date(l.at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) === today && norm2(l.g) !== norm2(currentUser);
+                              const u = appoUnitPrice({ list, clientData, rewardMaster, revenue: x.rv, netIncome: x.ni });
+                              return (
+                                <tr key={id} className={k === 0 ? 'first' : ''}>
+                                  <td className="n" style={{ color: 'var(--ink-3)' }}>{x.no}</td>
+                                  <td><b style={{ fontWeight: 500 }}>{x.c}</b><small className="qind">{x.ind || '業種不明'}</small>
+                                    {tk && <span className="qmk red">今日 {(l.g || '').split(/\s/)[0]} {new Date(l.at).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })}</span>}
+                                    {x.other_ng && <span className="qmk">別リストで断り{x.other_ng.temp ? `・${x.other_ng.temp}` : ''}</span>}</td>
+                                  <td><ruby>{x.rep}<rt>{x.k || ''}</rt></ruby></td>
+                                  <td><span className="qprev">{l ? <><span className={`tag ${tagC}`}>{x.st}</span><small>{md(l.at)} {(l.g || '').split(/\s/)[0]}</small></> : <span style={{ color: 'var(--ink-3)' }}>未架電</span>}</span></td>
+                                  <td>{rd ? <span style={{ color: late ? 'var(--red)' : isToday ? '#8A6A24' : 'var(--ink-2)', fontWeight: late || isToday ? 700 : 400 }}>{md(rd)}{l.rt ? ` ${l.rt.slice(0, 5)}` : ''}{late ? ' 期限切れ' : isToday ? '（今日）' : ''}</span> : <span style={{ color: 'var(--ink-3)' }}>—</span>}</td>
+                                  <td style={{ textAlign: 'right' }}><b className="n" style={{ color: '#8A6A24' }}>{manYen(u)}</b></td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                );
+              })() : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--ink-3)', fontSize: 14 }}>読み込み中…</div>
+              )}
+            </div>
+
+            <div className="card side">
+              <div className="tabs" ref={tabsRef}>
+                {cfvTabs.map(([k, l]) => <button key={k} className={scriptTab === k ? 'on' : ''} onClick={() => setScriptTab(k)}>{l}</button>)}
+                <span className="ul" style={{ left: tabUl.left, width: tabUl.width }} />
+                <span className="tabk">← → で切替</span>
+              </div>
+              <div className="pane on" style={{ display: 'block' }}>
+                {renderTabBody()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── アポ取得報告モーダル（既存） ─── */}
       {appoModal && (
