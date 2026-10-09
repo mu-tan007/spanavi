@@ -1,28 +1,88 @@
-/* 着信対応（2026-10-09 むー様：架電リストと同じつくり）。色や文字は架電リストの .clh の決まりを使う */
-.clh.inc .floor-r .desks{grid-template-columns:repeat(4,minmax(0,1fr))}
-.clh.inc .floor-r .desk{min-height:84px}
-.clh.inc .floor-r .desk .who{color:var(--ink-2);font-weight:500}
-.clh.inc .incr{display:grid;grid-template-columns:56px minmax(0,1.6fr) 150px 110px 130px 90px 80px 230px;gap:12px;align-items:center;padding:8px 16px;border-top:1px solid var(--line-2);font-size:13px;transition:background var(--t-fast)}
-.clh.inc .incr:hover{background:var(--hover)}
-.clh.inc .incr.open{box-shadow:inset 3px 0 0 var(--red)}
-.clh.inc .incr.done{opacity:.72}
-.clh.inc .incr .tm{font-weight:600;color:var(--navy)}
-.clh.inc .incr .cname{min-width:0}
-.clh.inc .incr .cname b{display:block;font-weight:500;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.clh.inc .incr .cname b.lk{cursor:pointer;text-decoration:underline;text-decoration-color:var(--royal-line);text-underline-offset:3px}
-.clh.inc .incr .cname b.lk:hover{color:var(--royal)}
-.clh.inc .incr .cname small{display:block;font-size:11px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.clh.inc .incr .last{display:flex;flex-direction:column;gap:2px;align-items:flex-start;line-height:1.3}
-.clh.inc .incr .last small{font-size:11px;color:var(--ink-3)}
-.clh.inc .incr .tel{color:var(--ink-2);font-size:13px}
-.clh.inc .incr .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center}
-.clh.inc .tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
-.clh.inc .tag.blue{background:var(--royal-soft);color:var(--navy)}
-.clh.inc .tag.amber{background:var(--amber-soft);color:var(--amber)}
-.clh.inc .tag.red{background:var(--red-soft);color:var(--red)}
-.clh.inc .tag.green{background:var(--green-soft);color:var(--green)}
-.clh.inc .tag.gray{background:var(--line-2);color:var(--ink-2)}
-.clh.inc .lnk{font-size:11.5px;color:var(--royal);padding:0}
-.clh.inc .dialb{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--royal);box-shadow:0 4px 10px rgba(1,118,211,.28);transition:transform .15s}
-.clh.inc .dialb:hover{transform:translateY(-1px)}
-@media (max-width:1300px){.clh.inc .incr{grid-template-columns:50px minmax(0,1.4fr) 130px 100px 120px 70px 70px 210px;gap:8px}}
+/* 着信対応（2026-10-09 むー様）：色・文字・ボタン・札は架電リスト（.clh）の決まりを使い、並べ方は着信対応のもの */
+.clh.inc2 .pt .r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.clh.inc2 .pt .r select.input{height:var(--h-md);min-width:140px}
+.clh.inc2 .seg .c{margin-left:6px;font-size:11px;opacity:.75}
+.clh.inc2 .btn.go{display:inline-flex;align-items:center;gap:6px}
+.clh.inc2 .btn.go .c{font-size:11.5px;padding:1px 7px;border-radius:999px;background:rgba(255,255,255,.18)}
+.clh.inc2 .btn[disabled]{opacity:.45;cursor:default}
+
+/* 上の数字：1枚のカードに5つ並べる（架電リストの大きな床とは別の、細い帯） */
+.clh.inc2 .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-bottom:14px}
+.clh.inc2 .kpis .k{display:flex;flex-direction:column;gap:2px;padding:12px 18px;border-left:1px solid var(--line-2)}
+.clh.inc2 .kpis .k:first-child{border-left:0}
+.clh.inc2 .kpis .k b{font-size:24px;font-weight:700;color:var(--navy);line-height:1.2}
+.clh.inc2 .kpis .k b small{font-size:12px;font-weight:500;color:var(--ink-3);margin-left:2px}
+.clh.inc2 .kpis .k > small{font-size:11px;color:var(--ink-3)}
+.clh.inc2 .kpis .k.hot b{color:var(--red)}
+
+.clh.inc2 .inc-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}
+.clh.inc2 .inc-l{display:flex;flex-direction:column;gap:14px;min-width:0}
+.clh.inc2 .inc-r{display:flex;flex-direction:column;gap:14px;position:sticky;top:12px}
+.clh.inc2 .sec{overflow:hidden}
+.clh.inc2 .card-h{display:flex;align-items:baseline;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line-2)}
+.clh.inc2 .hint{padding:18px 16px;font-size:13px;color:var(--ink-3)}
+
+/* 折り返す順番のカード：順位・会社と理由・着信・番号と録音・操作（操作は3つの決まった位置） */
+.clh.inc2 .icard{display:grid;grid-template-columns:30px minmax(0,1fr) 168px 150px 286px;gap:14px;align-items:center;padding:12px 16px;border-top:1px solid var(--line-2);transition:background var(--t-fast)}
+.clh.inc2 .icard:first-of-type{border-top:0}
+.clh.inc2 .icard:hover{background:var(--hover)}
+.clh.inc2 .icard .rk{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--navy);background:var(--royal-soft);align-self:start}
+.clh.inc2 .icard.unk .rk{background:var(--line-2);color:var(--ink-3)}
+.clh.inc2 .icard .main{min-width:0;display:flex;flex-direction:column;gap:5px}
+.clh.inc2 .icard .nm b{font-size:14px;font-weight:600;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.clh.inc2 .icard .nm b.lk{cursor:pointer;text-decoration:underline;text-decoration-color:var(--royal-line);text-underline-offset:3px}
+.clh.inc2 .icard .nm b.lk:hover{color:var(--royal)}
+.clh.inc2 .icard .nm b.unk-t{color:var(--ink-2);font-weight:500}
+.clh.inc2 .icard .nm small{display:block;font-size:11.5px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clh.inc2 .icard .rs{display:flex;flex-wrap:wrap;gap:4px}
+.clh.inc2 .icard .lastl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);min-width:0;white-space:nowrap}
+.clh.inc2 .icard .lastl q{color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.clh.inc2 .icard .lastl q::before{content:"「"}.clh.inc2 .icard .lastl q::after{content:"」"}
+.clh.inc2 .icard .cands{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.clh.inc2 .icard .cands .ch{font-size:11.5px;color:var(--ink-3);width:100%}
+.clh.inc2 .icard .cand{display:inline-flex;align-items:baseline;gap:6px;height:26px;padding:0 10px;border-radius:999px;border:1px dashed var(--royal-line);background:var(--sheet);color:var(--navy);font-size:12px;cursor:pointer;transition:background var(--t-fast),border-color var(--t-fast)}
+.clh.inc2 .icard .cand:hover{background:var(--royal-soft);border-style:solid}
+.clh.inc2 .icard .cand small{font-size:10.5px;color:var(--ink-3)}
+.clh.inc2 .icard .inc-at{display:flex;flex-direction:column;gap:1px;line-height:1.35}
+.clh.inc2 .icard .inc-at b{font-size:13px;font-weight:600;color:var(--navy)}
+.clh.inc2 .icard .inc-at small{font-size:11px;color:var(--ink-3)}
+.clh.inc2 .icard .inc-at .miss{color:var(--red)}
+.clh.inc2 .icard .tel{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--ink-2);min-width:0}
+.clh.inc2 .icard .tel small{font-size:11px;color:var(--ink-3)}
+.clh.inc2 .icard .acts{display:grid;grid-template-columns:104px 82px 76px;gap:8px;justify-content:end}
+.clh.inc2 .icard .acts .btn{width:100%;justify-content:center;padding:0 8px;white-space:nowrap}
+.clh.inc2 .icard .acts .cb{display:inline-flex;align-items:center;gap:5px}
+.clh.inc2 .lnk{font-size:11.5px;color:var(--royal);padding:0;background:none;border:0;cursor:pointer;text-align:left}
+.clh.inc2 .lnk:hover{text-decoration:underline}
+
+/* 対応済み：1行ずつ静かに */
+.clh.inc2 .drow{display:grid;grid-template-columns:96px minmax(0,1fr) 130px 120px 130px;gap:12px;align-items:center;padding:8px 16px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-2)}
+.clh.inc2 .drow:first-of-type{border-top:0}
+.clh.inc2 .drow .nm2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clh.inc2 .drow .nm2 b{font-weight:500;color:var(--navy)}
+.clh.inc2 .drow .nm2 b.lk{cursor:pointer}
+.clh.inc2 .drow .nm2 b.lk:hover{color:var(--royal);text-decoration:underline}
+.clh.inc2 .drow .by{text-align:right;color:var(--ink-3)}
+
+/* 右：折り返しの第一声と、あて先ごとの待ち件数 */
+.clh.inc2 .side .say{padding:12px 16px 4px;display:flex;flex-direction:column;gap:10px}
+.clh.inc2 .side .say p{font-size:12.5px;line-height:1.8;color:var(--ink);margin:0}
+.clh.inc2 .side .say .who{display:inline-block;margin-right:6px;padding:0 6px;border-radius:4px;font-size:10.5px;font-weight:600;color:var(--navy);background:var(--royal-soft);vertical-align:1px}
+.clh.inc2 .side .tips{margin:6px 16px 14px;padding:10px 12px 10px 26px;border-radius:var(--r-md);background:var(--bg);font-size:12px;line-height:1.75;color:var(--ink-2)}
+.clh.inc2 .who-row{display:grid;grid-template-columns:96px minmax(0,1fr) 28px;gap:10px;align-items:center;width:100%;padding:7px 16px;border:0;border-top:1px solid var(--line-2);background:none;font-size:12.5px;color:var(--ink);cursor:pointer;text-align:left}
+.clh.inc2 .who-row:hover,.clh.inc2 .who-row.on{background:var(--royal-soft)}
+.clh.inc2 .who-row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clh.inc2 .who-row .bar{height:6px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.clh.inc2 .who-row .bar i{display:block;height:100%;background:var(--royal);border-radius:3px}
+.clh.inc2 .who-row b{text-align:right;color:var(--navy)}
+
+@media (max-width:1400px){
+  .clh.inc2 .inc-grid{grid-template-columns:minmax(0,1fr)}
+  .clh.inc2 .inc-r{position:static;display:grid;grid-template-columns:1fr 1fr}
+}
+@media (max-width:1100px){
+  .clh.inc2 .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .clh.inc2 .icard{grid-template-columns:26px minmax(0,1fr) 150px;}
+  .clh.inc2 .icard .tel{grid-column:2}
+  .clh.inc2 .icard .acts{grid-column:2 / -1;justify-content:start}
+}

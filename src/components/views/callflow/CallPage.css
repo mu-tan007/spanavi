@@ -546,3 +546,9 @@
 .cfv .hm-lg span:first-child{margin-right:4px}
 .cfv .hm-lg .sp2{width:10px}
 .cfv .hm-lg i.few{background:repeating-linear-gradient(45deg,#F2F4F7 0 3px,#E6EAF0 3px 5px)}
+/* 着信から折り返し（2026-10-09）：上の帯のすぐ下に1行 */
+.cfv .incb{flex:none;display:flex;align-items:center;gap:14px;padding:8px 16px;background:var(--amber-soft);border-bottom:1px solid #F0DDB8;font-size:12.5px;color:var(--ink);min-width:0}
+.cfv .incb .lb{flex:none;padding:2px 8px;border-radius:4px;background:var(--amber);color:#fff;font-size:11px;font-weight:600}
+.cfv .incb .at{flex:none;color:var(--ink-2)}
+.cfv .incb .at b{color:var(--navy);margin-right:2px}
+.cfv .incb .say{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}

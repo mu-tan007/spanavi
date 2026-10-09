@@ -3462,7 +3462,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
               <div className="bar">
                 <button className="nav-b" onClick={() => (onBackToList ? onBackToList() : setListMode(true))}>一覧ページへ</button>
                 <button className="nav-b" disabled={!canPrev} style={canPrev ? undefined : { opacity: 0.4 }} onClick={goPrev}>← 前へ</button>
-                <div className="where"><b>{list?.company} ・ {list?.industry}</b><span>{queueLabel && queueLabel.startsWith('条件で探す') ? queueLabel : `${list?.productCategoryName || ''} ・ ${list?.engagementName || ''}`}</span></div>
+                <div className="where"><b>{list?.company} ・ {list?.industry}</b><span>{queueLabel && (queueLabel.startsWith('条件で探す') || queueLabel.startsWith('着信')) ? queueLabel : `${list?.productCategoryName || ''} ・ ${list?.engagementName || ''}`}</span></div>
                 <div className="prog">
                   <svg className="pring" viewBox="0 0 36 36"><circle className="bgc" cx="18" cy="18" r="15" /><circle className="fg" cx="18" cy="18" r="15" strokeDasharray="94.2" strokeDashoffset={tot ? 94.2 * (1 - pos / tot) : 94.2} /></svg>
                   <span className="t n">{pos > 0 ? pos : '-'}<small>/ {tot.toLocaleString()}社</small></span>
@@ -3476,6 +3476,21 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
                 <button className="nav-b" disabled={!canNext} style={canNext ? undefined : { opacity: 0.4 }} onClick={goNext}>次へ →</button>
                 {onMinimize && <button className="nav-b minb" title="最小化（一覧ページを見ながら、右下の小窓で架電を続ける）" onClick={onMinimize}><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h10" /></svg>最小化</button>}
                 <button className="end" onClick={handleClose}>終了</button>
+              </div>
+            );
+          })()}
+
+          {(() => {
+            // 着信の折り返しから開いたとき：いつ・誰あてにかかってきたかと、第一声を出す（2026-10-09）
+            const inc = queueItems && queueIdx != null ? queueItems[queueIdx]?.inc : null;
+            if (!inc || !selectedRow) return null;
+            const d = new Date(inc.at);
+            const t = d.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            return (
+              <div className="incb">
+                <span className="lb">着信から折り返し</span>
+                <span className="at"><b className="n">{t}</b>に着信{inc.who ? `（${inc.who}あて）` : ''}{inc.cnt > 1 ? `・${inc.cnt}回` : ''}</span>
+                <span className="say">第一声「先ほどお電話をいただいておりましたので、折り返しご連絡いたしました。以前、社長様あてにお電話を差し上げていた件でございます。」</span>
               </div>
             );
           })()}
