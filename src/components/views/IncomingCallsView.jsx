@@ -34,6 +34,7 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   const [statusFilter, setStatusFilter] = useUrlState('inc_status', '未対応');
   const [calleeFilter, setCalleeFilter] = useUrlState('inc_to', 'all');
   const [coFilter, setCoFilter] = useUrlState('inc_co', 'all');
+  const [view, setView] = useUrlState('inc_view', 'all');
   const [lastRaw, setLastRaw] = useUrlState('inc_last', '');
   const lastSel = new Set(String(lastRaw || '').split(',').filter(Boolean));
   const setLastSel = (set) => setLastRaw([...set].join(','));
@@ -295,13 +296,22 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
   const LAST_ORDER = ['アポ獲得', 'キーマン再コール', 'キーマン不在', '受付再コール', '受付ブロック', 'キーマン断り', '不通', '除外', 'まだかけていない', '会社が分からない'];
   const lastOpts = [...new Set(groups.map(lastOf))].sort((a, b) => (LAST_ORDER.indexOf(a) + 99 * (LAST_ORDER.indexOf(a) < 0)) - (LAST_ORDER.indexOf(b) + 99 * (LAST_ORDER.indexOf(b) < 0)));
   const byWho = g => (calleeFilter === 'all' || g.callees.includes(calleeFilter)) && (!lastSel.size || lastSel.has(lastOf(g))) && (coFilter === 'all' || (coFilter === 'known' ? !!g.m : !g.m));
-  const openGroups = groups.filter(g => g.open && byWho(g)).sort((a, b) => b.score - a.score);
-  const doneGroups = groups.filter(g => !g.open && byWho(g)).sort((a, b) => String(b.handledAt || b.at).localeCompare(String(a.handledAt || a.at)));
+  // 上の5つのボタン（一覧ページの左上と同じ：押すと絞り込み、もう一度押すと解除）
+  const isHot = g => !g.claim && !!(g.promise || (g.badge && g.badge.c === 'green'));
+  const VIEWS = [
+    ['all', 'すべて', () => true, ''],
+    ['hot', 'アポに近い', isHot, 'good'],
+    ['today', '今日の着信', g => g.rows.some(x => dayOf(x.at) === today), ''],
+    ['unknown', '会社が分からない', g => !g.m, ''],
+    ['claim', 'クレームの恐れ', g => g.claim, 'warn'],
+  ];
+  const viewFn = (VIEWS.find(v => v[0] === view) || VIEWS[0])[2];
+  const openAll = groups.filter(g => g.open && byWho(g));
+  const doneAll = groups.filter(g => !g.open && byWho(g));
+  const openGroups = openAll.filter(viewFn).sort((a, b) => b.score - a.score);
+  const doneGroups = doneAll.filter(viewFn).sort((a, b) => String(b.handledAt || b.at).localeCompare(String(a.handledAt || a.at)));
   const queueable = openGroups.filter(g => g.m);
-  const nHot = openGroups.filter(g => !g.claim && (g.promise || (g.badge && g.badge.c === 'green'))).length;
-  const nClaim = openGroups.filter(g => g.claim).length;
-  const nUnknown = openGroups.filter(g => !g.m).length;
-  const todayRecs = records.filter(r => dayOf(r.at) === today);
+  const baseForCount = statusFilter === '対応済み' ? doneAll : statusFilter === '未対応' ? openAll : [...openAll, ...doneAll];
   const openByCallee = callees.map(c => [c, groups.filter(g => g.open && g.callees.includes(c)).length]).filter(x => x[1]).sort((a, b) => b[1] - a[1]);
 
   // 折り返す：アポに近い順のまま架電ページで順に開く。各社に着信の時刻・宛先を添え、架電ページの上に出す
@@ -390,18 +400,18 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
       <div className="pt">
         <div><h1>着信対応</h1><p>折り返しはアポにいちばん近い電話。アポに近い順に並べています</p></div>
         <div className="r">
-          <select className="input" value={calleeFilter} onChange={e => setCalleeFilter(e.target.value)} title="着信を受けた人で絞る">
+          <select className={`input ${calleeFilter !== 'all' ? 'on' : ''}`} value={calleeFilter} onChange={e => setCalleeFilter(e.target.value)} title="着信を受けた人で絞る">
             <option value="all">全員</option>
             {callees.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select className="input" value={coFilter} onChange={e => setCoFilter(e.target.value)} title="かけてきた会社が分かるかで絞る">
+          <select className={`input ${coFilter !== 'all' ? 'on' : ''}`} value={coFilter} onChange={e => setCoFilter(e.target.value)} title="かけてきた会社が分かるかで絞る">
             <option value="all">会社：すべて</option>
             <option value="known">会社が分かる</option>
             <option value="unknown">会社が分からない</option>
           </select>
           <div className="dd" ref={lastDdRef}>
             <button className={`dd-b ${lastSel.size ? 'on' : ''}`} type="button" onClick={() => setLastDd(v => !v)}>
-              前回のステータス：{!lastSel.size ? 'すべて' : lastSel.size === 1 ? [...lastSel][0] : `${lastSel.size}つ選択中`} ▾
+              前回のステータス：{!lastSel.size ? 'すべて' : lastSel.size === 1 ? [...lastSel][0] : `${lastSel.size}つ選択中`}
             </button>
             {lastDd && (
               <div className="dd-p">
@@ -426,12 +436,12 @@ export default function IncomingCallsView({ setCallFlowScreen, callListData = []
         </div>
       </div>
 
-      <div className="card kpis">
-        <div className="k"><span className="t-label">折り返し待ち</span><b className="n">{openGroups.length}<small>件</small></b><small>同じ番号はまとめて1件</small></div>
-        <div className="k hot"><span className="t-label">うちアポに近い</span><b className="n">{nHot}<small>件</small></b><small>約束あり・社長と話した・温度感 高</small></div>
-        <div className="k"><span className="t-label">今日の着信</span><b className="n">{todayRecs.length}<small>本</small></b><small>出られなかった {todayRecs.filter(r => !r.zid).length}本</small></div>
-        <div className="k"><span className="t-label">会社が分からない番号</span><b className="n">{nUnknown}<small>件</small></b><small>候補の会社を押すと紐づく</small></div>
-        <div className="k"><span className="t-label">クレームの恐れ</span><b className="n">{nClaim}<small>件</small></b><small>前回お断り・温度感 低など</small></div>
+      <div className="views">
+        {VIEWS.map(([k, t, f, cl]) => (
+          <button key={k} type="button" className={`v ${cl} ${view === k ? 'on' : ''}`} onClick={() => setView(view === k && k !== 'all' ? 'all' : k)}>
+            {t}<span className="c">{baseForCount.filter(f).length}</span>
+          </button>
+        ))}
       </div>
 
       <div className="inc-grid">

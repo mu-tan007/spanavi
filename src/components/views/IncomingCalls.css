@@ -7,6 +7,7 @@
 .clh.inc2 .btn[disabled]{opacity:.45;cursor:default}
 
 /* 上の数字：1枚のカードに5つ並べる（架電リストの大きな床とは別の、細い帯） */
+/* 旧：数字のカード（使っていない） */
 .clh.inc2 .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-bottom:14px}
 .clh.inc2 .kpis .k{display:flex;flex-direction:column;gap:2px;padding:12px 18px;border-left:1px solid var(--line-2)}
 .clh.inc2 .kpis .k:first-child{border-left:0}
@@ -82,7 +83,8 @@
   .clh.inc2 .inc-r{position:static;display:grid;grid-template-columns:1fr 1fr}
 }
 @media (max-width:1100px){
-  .clh.inc2 .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  /* 旧：数字のカード（使っていない） */
+.clh.inc2 .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
   .clh.inc2 .icard{grid-template-columns:26px minmax(0,1fr) 150px;}
   .clh.inc2 .icard .tel{grid-column:2}
   .clh.inc2 .icard .acts{grid-column:2 / -1;justify-content:start}
@@ -111,3 +113,19 @@
 .clh.inc2 .icard .nm .nmr b{flex:none;max-width:100%}
 .clh.inc2 .icard .lastl{flex-wrap:wrap;white-space:normal;row-gap:2px}
 .clh.inc2 .icard .lastl > *{white-space:nowrap}
+
+/* 2026-10-10：上の5つは一覧ページの左上と同じ切り替えボタン。押すと絞り込み・もう一度で解除 */
+.clh.inc2 .views{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.clh.inc2 .views .v{height:var(--h-md);padding:0 12px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--sheet);font-size:var(--fs-sm);color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:transform var(--t-base) var(--spring),background var(--t-fast),border-color var(--t-fast)}
+.clh.inc2 .views .v:hover{border-color:var(--royal-line)}
+.clh.inc2 .views .v:active{transform:scale(.94)}
+.clh.inc2 .views .v .c{font-variant-numeric:tabular-nums;font-size:var(--fs-xs);background:var(--line-2);border-radius:var(--r-full);padding:0 6px;line-height:16px;color:var(--ink-2)}
+.clh.inc2 .views .v.good .c{background:var(--green-soft);color:var(--green)}
+.clh.inc2 .views .v.warn .c{background:var(--red-soft);color:var(--red)}
+.clh.inc2 .views .v.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:500}
+.clh.inc2 .views .v.on .c{background:rgba(255,255,255,.18);color:#fff}
+/* 上の絞り込み：プルダウンと「前回のステータス」を同じ形に（高さ・枠・角・文字・右の矢印） */
+.clh.inc2 .pt select.input,.clh.inc2 .pt .dd-b{-webkit-appearance:none;appearance:none;height:var(--h-md);min-width:140px;padding:0 30px 0 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--sheet) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%234B5868' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center;font:inherit;font-size:var(--fs-base);color:var(--ink);text-align:left;cursor:pointer}
+.clh.inc2 .pt .dd-b{min-width:210px;font-weight:400}
+.clh.inc2 .pt .dd-b.on,.clh.inc2 .pt select.input.on{border-color:var(--navy);background-color:var(--royal-soft);color:var(--navy);font-weight:500}
+.clh.inc2 .pt select.input:focus,.clh.inc2 .pt .dd-b:focus{outline:2px solid var(--royal-line);border-color:var(--royal)}
