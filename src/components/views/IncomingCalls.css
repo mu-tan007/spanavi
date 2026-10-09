@@ -1,0 +1,28 @@
+/* 着信対応（2026-10-09 むー様：架電リストと同じつくり）。色や文字は架電リストの .clh の決まりを使う */
+.clh.inc .floor-r .desks{grid-template-columns:repeat(4,minmax(0,1fr))}
+.clh.inc .floor-r .desk{min-height:84px}
+.clh.inc .floor-r .desk .who{color:var(--ink-2);font-weight:500}
+.clh.inc .incr{display:grid;grid-template-columns:56px minmax(0,1.6fr) 150px 110px 130px 90px 80px 230px;gap:12px;align-items:center;padding:8px 16px;border-top:1px solid var(--line-2);font-size:13px;transition:background var(--t-fast)}
+.clh.inc .incr:hover{background:var(--hover)}
+.clh.inc .incr.open{box-shadow:inset 3px 0 0 var(--red)}
+.clh.inc .incr.done{opacity:.72}
+.clh.inc .incr .tm{font-weight:600;color:var(--navy)}
+.clh.inc .incr .cname{min-width:0}
+.clh.inc .incr .cname b{display:block;font-weight:500;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clh.inc .incr .cname b.lk{cursor:pointer;text-decoration:underline;text-decoration-color:var(--royal-line);text-underline-offset:3px}
+.clh.inc .incr .cname b.lk:hover{color:var(--royal)}
+.clh.inc .incr .cname small{display:block;font-size:11px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clh.inc .incr .last{display:flex;flex-direction:column;gap:2px;align-items:flex-start;line-height:1.3}
+.clh.inc .incr .last small{font-size:11px;color:var(--ink-3)}
+.clh.inc .incr .tel{color:var(--ink-2);font-size:13px}
+.clh.inc .incr .acts{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.clh.inc .tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
+.clh.inc .tag.blue{background:var(--royal-soft);color:var(--navy)}
+.clh.inc .tag.amber{background:var(--amber-soft);color:var(--amber)}
+.clh.inc .tag.red{background:var(--red-soft);color:var(--red)}
+.clh.inc .tag.green{background:var(--green-soft);color:var(--green)}
+.clh.inc .tag.gray{background:var(--line-2);color:var(--ink-2)}
+.clh.inc .lnk{font-size:11.5px;color:var(--royal);padding:0}
+.clh.inc .dialb{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--royal);box-shadow:0 4px 10px rgba(1,118,211,.28);transition:transform .15s}
+.clh.inc .dialb:hover{transform:translateY(-1px)}
+@media (max-width:1300px){.clh.inc .incr{grid-template-columns:50px minmax(0,1.4fr) 130px 100px 120px 70px 70px 210px;gap:8px}}

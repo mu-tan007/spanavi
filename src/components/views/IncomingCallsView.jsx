@@ -8,6 +8,8 @@ import InlineAudioPlayer from '../common/InlineAudioPlayer';
 
 import { getOrgId } from '../../lib/orgContext';
 import { telFmt } from '../../utils/telFormat';
+import { dialPhone } from '../../utils/phone';
+import './IncomingCalls.css';
 import './calllist/CallListHome.css';
 import { useUrlState } from '../../hooks/useUrlState';
 
@@ -42,7 +44,7 @@ const normalizePhone = (n) => {
   return digits;
 };
 
-export default function IncomingCallsView({ setCallFlowScreen }) {
+export default function IncomingCallsView({ setCallFlowScreen, callListData = [] }) {
   const isMobile = useIsMobile();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   const [linkSearching, setLinkSearching] = useState(false);
   // 録音再生表示中の行ID
   const [activeRecordingId, setActiveRecordingId] = useState(null);
+  // 前回の架電（会社ごとの最新）と、着信に出た人の名前（Zoom のユーザーID → メンバー名）
+  const [lastCalls, setLastCalls] = useState({});
+  const [memberByZoom, setMemberByZoom] = useState({});
   // 録音自動取得を 1 行 1 回に制限するための refs
   const _autoFetchedRef = useRef(new Set());
 
@@ -124,7 +129,17 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
         });
       });
       setPhoneItemMap(map);
+      const ids = [...new Set(Object.values(map).flat().map(x => x.itemId))];
+      if (ids.length) {
+        const { data: recs } = await supabase.from('call_records').select('item_id, status, called_at, getter_name')
+          .in('item_id', ids).order('called_at', { ascending: false }).limit(3000);
+        const lc = {};
+        (recs || []).forEach(x => { if (!lc[x.item_id]) lc[x.item_id] = x; });
+        setLastCalls(lc);
+      }
     }
+    const { data: ms } = await supabase.from('members').select('name, zoom_user_id').eq('org_id', getOrgId()).not('zoom_user_id', 'is', null);
+    setMemberByZoom(Object.fromEntries((ms || []).map(x => [x.zoom_user_id, String(x.name || '').split(/[\s　]/)[0]])));
 
     setLoading(false);
   };
@@ -302,8 +317,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
 
   const navigateTo = (match) => {
     if (!setCallFlowScreen) return;
+    const full = callListData.find(l => l._supaId === match.listId);
     setCallFlowScreen({
-      list: { _supaId: match.listId, id: match.listId, company: match.company },
+      list: full || { _supaId: match.listId, id: match.listId, company: match.company },
       defaultItemId: match.itemId,
       defaultListMode: false,
       singleItemMode: true,
@@ -315,8 +331,9 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   // 録音URLも初期値として渡す
   const openAppoFromIncoming = (row, match) => {
     if (!setCallFlowScreen || !match) return;
+    const fullL = callListData.find(l => l._supaId === match.listId);
     setCallFlowScreen({
-      list: { _supaId: match.listId, id: match.listId, company: match.company },
+      list: fullL || { _supaId: match.listId, id: match.listId, company: match.company },
       defaultItemId: match.itemId,
       defaultListMode: false,
       singleItemMode: true,
@@ -335,165 +352,41 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
   // ステータス → Badge variant
   const statusVariant = (s) => s === '対応済み' ? 'success' : 'danger';
 
-  // 表の列（見本の表の形で出す・2026-10-09）
-  const cols = [
-          {
-            key: 'receivedAt', label: '受信日時', width: 130, align: 'right',
-            cellStyle: { color: color.textMid, fontFamily: font.family.mono, fontSize: font.size.xs },
-            render: (r) => formatJST(r.received_at),
-          },
-          {
-            key: 'company', label: '企業名・リスト', width: 280, align: 'left',
-            cellStyle: { whiteSpace: 'normal', overflow: 'visible', textOverflow: 'clip' },
-            render: (r) => {
-              const phone = normalizePhone(r.caller_number);
-              const matches = phoneItemMap[phone] || [];
-              const uniqueMatches = matches.filter((m, idx, arr) =>
-                arr.findIndex(x => x.itemId === m.itemId) === idx
-              );
-              const companyName = uniqueMatches[0]?.company || r.company_name || null;
-              const canNavigate = uniqueMatches.length > 0 && setCallFlowScreen;
-              if (!companyName) {
-                return (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setLinkModal({ callId: r.id, callerNumber: r.caller_number }); setLinkQuery(''); setLinkResults([]); }}
-                    style={{
-                      padding: '3px 10px', borderRadius: radius.md, border: `1px dashed ${color.border}`,
-                      background: color.white, color: color.textMid, cursor: 'pointer',
-                      fontSize: font.size.xs, fontFamily: font.family.sans, fontWeight: font.weight.medium,
-                    }}
-                  >
-                    企業に紐づける
-                  </button>
-                );
-              }
-              return (
-                <div>
-                  {canNavigate ? (
-                    <span
-                      onClick={(e) => { e.stopPropagation(); handleCompanyClick(uniqueMatches); }}
-                      style={{ color: color.navy, fontWeight: font.weight.bold, cursor: 'pointer', textDecoration: 'underline', fontSize: font.size.sm }}
-                    >
-                      {companyName}
-                    </span>
-                  ) : (
-                    <span style={{ color: color.textDark, fontWeight: font.weight.bold, fontSize: font.size.sm }}>
-                      {companyName}
-                    </span>
-                  )}
-                  {uniqueMatches.length > 0 && (
-                    <div style={{ marginTop: 3 }}>
-                      {uniqueMatches.map(m => (
-                        <div key={m.itemId} style={{
-                          fontSize: 10, color: color.textLight,
-                          display: 'flex', alignItems: 'center', gap: 3,
-                        }}>
-                          <span style={{ color: color.textLight }}>└</span>
-                          <span
-                            onClick={(e) => { e.stopPropagation(); setCallFlowScreen && navigateTo(m); }}
-                            style={{
-                              cursor: setCallFlowScreen ? 'pointer' : 'default',
-                              color: setCallFlowScreen ? alpha(color.navy, 0.8) : color.textLight,
-                              textDecoration: setCallFlowScreen ? 'underline' : 'none',
-                            }}
-                          >
-                            {listLabel(m)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            },
-          },
-          {
-            key: 'phone', label: '電話番号', width: 130, align: 'left',
-            cellStyle: { fontFamily: font.family.mono, fontVariantNumeric: 'tabular-nums', color: color.textMid },
-            render: (r) => telFmt(normalizePhone(r.caller_number)) || r.caller_number || '-',
-          },
-          {
-            key: 'duration', label: '通話時間', width: 80, align: 'right',
-            cellStyle: { fontFamily: font.family.mono, color: color.textMid, fontSize: font.size.xs },
-            render: (r) => formatDuration(r.duration_sec),
-          },
-          {
-            key: 'recording', label: '録音', width: 180, align: 'left',
-            cellStyle: { whiteSpace: 'normal', overflow: 'visible' },
-            render: (r) => {
-              if (activeRecordingId === r.id && r.recording_url) {
-                return (
-                  <InlineAudioPlayer
-                    url={r.recording_url}
-                    onClose={() => setActiveRecordingId(null)}
-                  />
-                );
-              }
-              if (r.recording_url) {
-                return (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setActiveRecordingId(r.id); }}
-                    style={{
-                      padding: '4px 10px', borderRadius: radius.md,
-                      border: `1px solid ${color.border}`, background: color.white,
-                      color: color.navy, cursor: 'pointer',
-                      fontSize: font.size.xs, fontWeight: font.weight.semibold,
-                    }}
-                  >
-                    ▶ 再生
-                  </button>
-                );
-              }
-              if (r.ended_at && r.duration_sec >= 5) {
-                return <span style={{ fontSize: font.size.xs, color: color.textLight }}>取得中…</span>;
-              }
-              return <span style={{ color: color.textLight }}>-</span>;
-            },
-          },
-          {
-            key: 'status', label: 'ステータス', width: 100, align: 'center',
-            render: (r) => r.status
-              ? <Badge variant={statusVariant(r.status)} dot>{r.status}</Badge>
-              : '-'
-          },
-          {
-            key: 'action', label: '操作', width: 220, align: 'center',
-            cellStyle: { whiteSpace: 'normal', overflow: 'visible' },
-            render: (r) => {
-              const phone = normalizePhone(r.caller_number);
-              const matches = phoneItemMap[phone] || [];
-              const primaryMatch = matches[0] || null;
-              const hasCompany = primaryMatch || r.company_name;
-              return (
-                <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {hasCompany && primaryMatch && (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onClick={(e) => { e.stopPropagation(); openAppoFromIncoming(r, primaryMatch); }}
-                      style={{ fontSize: font.size.xs }}
-                    >
-                      アポ取得
-                    </Button>
-                  )}
-                  {r.status !== '対応済み' && (
-                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); markHandled(r.id); }}>
-                      対応済
-                    </Button>
-                  )}
-                </div>
-              );
-            }
-          },
-  ];
+  // ── 着信対応（2026-10-09 むー様：架電リストと同じつくりに） ──────────────────
+  // 上：未対応の数と今日の着信。下：日ごとのカード。1行に、時刻・会社（リスト）・前回の架電・出た人・番号・状態・操作
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+  const dayOf = iso => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+  const hm = iso => new Date(iso).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
   const nOpen = records.filter(r => r.status !== '対応済み').length;
-  const todayJst = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
-  const nToday = records.filter(r => r.received_at && new Date(r.received_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) === todayJst).length;
+  const todayRows = records.filter(r => r.received_at && dayOf(r.received_at) === today);
+  const nToday = todayRows.length;
+  const nTodayOpen = todayRows.filter(r => r.status !== '対応済み').length;
+  const answeredRate = records.length ? Math.round((records.filter(r => r.answered_by_zoom_user_id).length / records.length) * 100) : 0;
+  const matchesOf = r => { const m = phoneItemMap[normalizePhone(r.caller_number)] || []; return m.filter((x, i, a) => a.findIndex(y => y.itemId === x.itemId) === i); };
+  const linkedRate = records.length ? Math.round((records.filter(r => matchesOf(r).length || r.company_name).length / records.length) * 100) : 0;
+  const oldestOpen = records.filter(r => r.status !== '対応済み').map(r => r.received_at).sort()[0];
+  const oldestDays = oldestOpen ? Math.floor((Date.now() - new Date(oldestOpen).getTime()) / 86400000) : 0;
+  const groups = [];
+  for (const r of filtered) {
+    const d = r.received_at ? dayOf(r.received_at) : '';
+    let g = groups[groups.length - 1];
+    if (!g || g.d !== d) { g = { d, rows: [] }; groups.push(g); }
+    g.rows.push(r);
+  }
+  const dayLabel = d => {
+    if (!d) return '日付なし';
+    const dt = new Date(`${d}T00:00:00+09:00`);
+    const w = '日月火水木金土'[dt.getDay()];
+    const y = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+    return `${d === today ? '今日 ' : d === y ? '昨日 ' : ''}${dt.getMonth() + 1}/${dt.getDate()}（${w}）`;
+  };
+  const tagOf = s => ({ 'キーマン不在': 'blue', '受付再コール': 'amber', 'キーマン再コール': 'amber', 'キーマン断り': 'red', 'アポ獲得': 'green' }[s] || 'gray');
+  const PhoneIcon = () => <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>;
 
   return (
-    <div className="clh" style={{ animation: 'fadeIn 0.3s ease', height: 'calc(100vh - 130px)', display: 'flex', flexDirection: 'column' }}>
+    <div className="clh inc" style={{ animation: 'fadeIn 0.3s ease' }}>
       <div className="pt">
-        <div><h1>着信対応</h1><p>折り返しの着信・未対応 {nOpen}件・今日 {nToday}件。企業名を押すと、その会社の架電ページを開きます</p></div>
+        <div><h1>着信対応</h1><p>折り返しの着信。会社名を押すと、その会社の架電ページを開きます</p></div>
         <div className="r">
           <div className="seg" style={{ position: 'relative' }}>
             {[['all', 'すべて', records.length], ['未対応', '未対応', nOpen], ['対応済み', '対応済み', records.length - nOpen]].map(([v, t, n]) => (
@@ -503,21 +396,67 @@ export default function IncomingCallsView({ setCallFlowScreen }) {
           <button className="btn sm" onClick={load}>↻ 更新</button>
         </div>
       </div>
-      <div className="card grp" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        <table className="tbl lt" style={{ minWidth: 1100 }} aria-label="着信履歴">
-          <colgroup>{cols.map(c => <col key={c.key} style={{ width: c.width }} />)}</colgroup>
-          <thead><tr>{cols.map(c => <th key={c.key} className={c.align === 'right' ? 'r' : ''} style={{ textAlign: c.align, paddingLeft: c.key === 'receivedAt' ? 16 : undefined }}>{c.label}</th>)}</tr></thead>
-          <tbody>
-            {loading && <tr><td colSpan={cols.length} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 28 }}>読み込み中…</td></tr>}
-            {!loading && !filtered.length && <tr><td colSpan={cols.length} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 28 }}>着信履歴がありません</td></tr>}
-            {!loading && filtered.map(r => (
-              <tr key={r.id} style={{ cursor: 'default' }}>
-                {cols.map(c => <td key={c.key} style={{ textAlign: c.align, ...(c.cellStyle || {}), paddingLeft: c.key === 'receivedAt' ? 16 : undefined }}>{c.render(r)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      <div className="card floor">
+        <div className="floor-l">
+          <div>
+            <div className="lbl">未対応の着信</div>
+            <div className="big n">{nOpen.toLocaleString()}<small>件</small></div>
+            <div className="s">今日の未対応 <b className="n">{nTodayOpen}</b>件{oldestOpen ? <><br />いちばん古い未対応は <b>{oldestDays}日前</b></> : null}</div>
+          </div>
+          <div className="tb"><small>着信を折り返したら「対応済」。会社に紐づけると、次からその番号の着信は自動で会社名が出ます</small></div>
+        </div>
+        <div className="floor-r">
+          <div className="desk-h"><span className="lbl">直近{records.length}件の着信</span><span className="live"><i />{loading ? '読み込み中' : '最新'}</span></div>
+          <div className="desks">
+            <div className="desk"><div className="who">今日の着信</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: 'var(--navy)' }}>{nToday}</b> 件</span></div></div>
+            <div className="desk"><div className="who">出られた着信</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: 'var(--navy)' }}>{answeredRate}</b> %</span></div><div className="what">誰かが電話に出た割合</div></div>
+            <div className="desk"><div className="who">会社が分かった着信</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: 'var(--navy)' }}>{linkedRate}</b> %</span></div><div className="what">番号でリストの会社と照らせた割合</div></div>
+            <div className="desk"><div className="who">未対応（全体）</div><div className="ft" style={{ marginTop: 8 }}><span><b className="n" style={{ fontSize: 22, color: nOpen ? 'var(--red)' : 'var(--navy)' }}>{nOpen}</b> 件</span></div></div>
+          </div>
+        </div>
       </div>
+
+      {loading && <div className="hint">読み込み中…</div>}
+      {!loading && !filtered.length && <div className="hint">該当する着信はありません</div>}
+      {groups.map(g => (
+        <div key={g.d} className="card sec fsec">
+          <div className="sec-h"><span className="ttl">{dayLabel(g.d)}</span><span className="cnt n">{g.rows.length}</span><span className="why">件の着信・未対応 {g.rows.filter(r => r.status !== '対応済み').length}件</span></div>
+          {g.rows.map(r => {
+            const ms = matchesOf(r);
+            const m = ms[0];
+            const name = m?.company || r.company_name || '';
+            const lc = m ? lastCalls[m.itemId] : null;
+            const ans = r.answered_by_zoom_user_id ? (memberByZoom[r.answered_by_zoom_user_id] || '出た') : null;
+            const open = r.status !== '対応済み';
+            return (
+              <div key={r.id} className={`incr ${open ? 'open' : 'done'}`}>
+                <span className="tm n">{r.received_at ? hm(r.received_at) : '—'}</span>
+                <span className="cname">
+                  {name ? (
+                    <><b className={m && setCallFlowScreen ? 'lk' : ''} onClick={() => m && handleCompanyClick(ms)}>{name}</b>
+                      <small>{ms.length ? ms.map(x => listLabel(x)).join(' ／ ') : 'リストの会社と照らせていない'}</small></>
+                  ) : (
+                    <><b style={{ color: 'var(--ink-3)', fontWeight: 500 }}>会社が分からない番号</b>
+                      <small><button className="lnk" onClick={() => { setLinkModal({ callId: r.id, callerNumber: r.caller_number }); setLinkQuery(''); setLinkResults([]); }}>企業に紐づける</button></small></>
+                  )}
+                </span>
+                <span className="last">{lc ? <><span className={`tag ${tagOf(lc.status)}`}>{lc.status}</span><small>{new Date(lc.called_at).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' })} {(lc.getter_name || '').split(/\s/)[0]}</small></> : <small style={{ color: 'var(--ink-3)' }}>{m ? 'まだかけていない' : '—'}</small>}</span>
+                <span className="ans">{ans ? <span className="tag green">{ans}が出た</span> : <span className="tag red">不在着信</span>}</span>
+                <span className="tel n">{telFmt(normalizePhone(r.caller_number)) || r.caller_number || '—'}</span>
+                <span className="rec">{activeRecordingId === r.id && r.recording_url ? <InlineAudioPlayer url={r.recording_url} onClose={() => setActiveRecordingId(null)} />
+                  : r.recording_url ? <button className="lnk" onClick={() => setActiveRecordingId(r.id)}>▶ 録音</button> : <span style={{ color: 'var(--ink-3)' }}>—</span>}</span>
+                <span className="st"><span className={`tag ${open ? 'red' : 'green'}`}>{open ? '未対応' : '対応済み'}</span></span>
+                <span className="acts">
+                  {r.caller_number && r.caller_number !== 'anonymous' && <button className="dialb" title="この番号に折り返す" onClick={() => dialPhone(normalizePhone(r.caller_number))}><PhoneIcon /></button>}
+                  {m && <button className="btn sm pri" onClick={() => openAppoFromIncoming(r, m)}>アポ取得</button>}
+                  {open && <button className="btn sm" onClick={() => markHandled(r.id)}>対応済</button>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
 
       {/* リスト選択モーダル */}
       {selectModal && (
