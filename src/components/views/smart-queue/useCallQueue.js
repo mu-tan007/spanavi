@@ -114,7 +114,7 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
       }
       // 本日、自分以外が架電 → 注意
       const others = check.today_other_getters || [];
-      if (others.length > 0) {
+      if (others.length > 0 && !q.opts?.noTodayWarn) {
         const msg = `⚠ この企業は本日、別のメンバーが架電しています。\n`
           + `架電者: ${others.join(' / ')}\n\n`
           + `そのまま架電を続けますか？\n「OK」: 続行 / 「キャンセル」: スキップ`;
@@ -157,7 +157,7 @@ export function useCallQueue({ setCallFlowScreen, callListData, suppressChecks =
     });
   }, [setCallFlowScreen, resolveFullList, finishQueue, suppressChecks]);
 
-  // opts: { label: '条件で探す・受付再コール' など（前回の続きからの表示）, noRecallWarn: true }
+  // opts: { label: '条件で探す・受付再コール' など（前回の続きからの表示）, noRecallWarn: true, noTodayWarn: true }
   const openQueue = useCallback((rows, startIdx = 0, opts = {}) => {
     const items = (rows || []).filter(r => r && r.item_id && r.list_id);
     if (items.length === 0) return;

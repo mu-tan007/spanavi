@@ -397,7 +397,11 @@ export default function CallListHome({ lists, callListData, setCallFlowScreen, s
     // 開いた直後は他の読み込みと重なって時間切れになることがあるので、失敗したら少し置いて取り直す
     let tries = 0;
     const loadFinds = () => supabase.rpc('call_find_sections', { p_limit: 200 }).then(({ data, error }) => {
-      if (data && !error) setFinds(data);
+      if (data && !error) {
+        setFinds(data);
+        // 押したらすぐ開けるよう、欄の全件を裏で取っておく（表示は上位だけ）
+        supabase.rpc('call_find_sections', { p_limit: 5000 }).then(({ data: all, error: e2 }) => { if (all && !e2) setFinds(all); });
+      }
       else if (++tries < 4) setTimeout(loadFinds, 1500 * tries);
       else setFinds({ n: {}, error: true });
     });
@@ -446,7 +450,8 @@ export default function CallListHome({ lists, callListData, setCallFlowScreen, s
     const items = rows.map(r => ({ item_id: r.id, list_id: r.list_id, no: r.no, company: r.company }));
     const at = Math.max(0, start ? items.findIndex(x => x.item_id === start.id) : 0);
     const s = SECS[si];
-    openQueue(items, at, { label: `条件で探す・${s.t === '再アプローチ' ? `再アプローチ（${s.sub}）` : s.t}`, noRecallWarn: si <= 1 });
+    openQueue(items, at, { label: `条件で探す・${s.t === '再アプローチ' ? `再アプローチ（${s.sub}）` : s.t}`, noRecallWarn: si <= 1, noTodayWarn: true });
+    // 確認の窓で架電を止めない（今日ほかの人がかけた印は架電ページ側に出る）（2026-10-09）
   }, [finds, openQueue]);
 
   const resume = () => { const l = readLastCall(); if (l) openQueue(l.items, l.idx, l.opts); };

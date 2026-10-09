@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabase';
 
 // 業種別ルール（2026-10-09 むー様）
@@ -63,8 +64,9 @@ export default function IndustryRulesModal({ open, onClose }) {
   if (G) for (let w = 1; w <= 5; w++) for (const h of HRS) { const c = G.c[`${w}-${h}`] || [0, 0]; cells.push({ w, h, n: c[0], v: c[1] }); }
   const top = cells.filter(c => c.n >= MINN).sort((a, b) => b.v - a.v).slice(0, 3);
 
-  return (
-    <div className="rl-veil" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+  // ページ側の動き（transform）に引きずられないよう、窓は body の直下に出す
+  return createPortal(
+    <div className="clh"><div className="rl-veil" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="rl" role="dialog" aria-label="業種別ルール">
         <div className="rl-h"><div><b>業種別ルール</b><span>{upd ? `本番の全架電から計算・最終更新 ${upd}` : '読み込み中'}</span></div><button className="rl-x" onClick={onClose} aria-label="閉じる">✕</button></div>
         <div className="rl-b">
@@ -114,6 +116,7 @@ export default function IndustryRulesModal({ open, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </div></div>,
+    document.body,
   );
 }
