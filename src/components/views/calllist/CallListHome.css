@@ -360,3 +360,8 @@
 .clh .rl{height:min(760px,calc(100vh - 32px))}
 .clh .rl-b{grid-template-rows:minmax(0,1fr);overflow:hidden}
 .clh .rl-l{overflow:hidden}
+/* 2026-10-10：クライアントの見出しで社名が「ブ…」と切れていた。別の欄の .kv（ラベル120px＋値の2列）が混ざり、数字の欄が横に広がっていた。
+   見出しの数字はラベルの下に値を置き、社名に最低限の幅を取る */
+.clh .grp-h{grid-template-columns:28px minmax(240px,1fr) repeat(7,auto)}
+.clh .grp-h .kv{display:block;font-size:11px}
+.clh .grp-h .kv .lbl{color:var(--ink-3);margin-bottom:2px}
