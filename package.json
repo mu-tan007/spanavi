@@ -27,6 +27,7 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
+    "libphonenumber-js": "^1.11.18",
     "lucide-react": "^0.577.0",
     "pizzip": "^3.2.0",
     "qrcode": "1.5",

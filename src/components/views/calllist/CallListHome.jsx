@@ -4,6 +4,7 @@ import { fetchCallStatusRates, perAppoLabel } from '../../../utils/appoOutlook';
 import { CALLING_WINDOW_MIN } from '../../../utils/memberStatus';
 import { useCallQueue, readLastCall } from '../smart-queue/useCallQueue';
 import IndustryRulesModal from './IndustryRulesModal';
+import { fetchListHome } from './listHomeData';
 import './CallListHome.css';
 
 // 架電リストのトップ（2026-10-09 むー様・見本 calllist.html をそのまま本番へ）
@@ -393,7 +394,7 @@ export default function CallListHome({ lists, callListData, setCallFlowScreen, s
   const { openQueue } = useCallQueue({ setCallFlowScreen, callListData });
 
   useEffect(() => {
-    supabase.rpc('call_list_home').then(({ data }) => setHome(data || []));
+    fetchListHome({ fresh: true }).then(setHome);
     // 開いた直後は他の読み込みと重なって時間切れになることがあるので、失敗したら少し置いて取り直す
     let tries = 0;
     const loadFinds = () => supabase.rpc('call_find_sections', { p_limit: 200 }).then(({ data, error }) => {

@@ -222,7 +222,7 @@ function CautionsCards({ text, fontSize = 12, filter = 'all' }) {
   );
 }
 
-export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false, initialViewedOnly = false, onViewedOnlyChange = null, initialSentOnly = false, onSentOnlyChange = null }) {
+export default function CallFlowView({ list, startNo, endNo, statusFilter = null, onClose, onMinimize, isMinimized, summaryRef, closeRef, setAppoData, members = [], currentUser = '', defaultItemId = null, defaultListMode = null, clientData = [], rewardMaster = [], initialRevenueMin = null, initialRevenueMax = null, initialPrefFilter = null, initialPrefMode = 'include', initialCallCountMin = null, initialCallCountMax = null, initialAddressMatchFilter = '', onAddressMatchFilterChange = null, appoData = [], contactsByClient = {}, setContactsByClient, setCallListData = null, callListData = [], singleItemMode = false, onResultSubmit = null, onQueuePrev = null, onQueueNext = null, queuePos = null, initialRecordingUrl = '', autoOpenAppoModal = false, initialDialedPhone = '', autoDialOnLoad = false, initialViewedOnly = false, onViewedOnlyChange = null, initialSentOnly = false, onSentOnlyChange = null, onBackToList = null }) {
   // 動的ステータス定義（useCallStatuses フックから取得）
   const { statuses: callStatuses, shortcuts: cfvShortcuts, keymanConnectLabels, getStatusColor, excludedIds } = useCallStatuses();
 
@@ -2320,7 +2320,7 @@ export default function CallFlowView({ list, startNo, endNo, statusFilter = null
 
         {/* 左: 一覧ページに戻る（架電ページのときだけ表示） */}
         {!listMode && (
-          <button onClick={() => setListMode(true)}
+          <button onClick={() => (onBackToList ? onBackToList() : setListMode(true))}
             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: radius.lg, flexShrink: 0,
               border: `1px solid ${alpha('#FFFFFF', 0.25)}`, cursor: 'pointer', fontSize: font.size.xs, fontWeight: font.weight.semibold, fontFamily: font.family.sans,
               background: alpha('#FFFFFF', 0.07), color: color.white }}>
