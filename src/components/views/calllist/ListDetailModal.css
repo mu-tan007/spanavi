@@ -206,3 +206,5 @@
 .lpm .md-veil{z-index:8000}
 .lpm .md{z-index:8001}
 .lpm .btn:disabled{opacity:.45;cursor:not-allowed}
+/* 中身が多いときも各段を縮めず、モーダルの中でスクロールさせる */
+.lpm .md-b{grid-auto-rows:max-content;min-height:0}
