@@ -189,7 +189,7 @@
 .clh .grp-b{display:grid;grid-template-rows:1fr;transition:grid-template-rows .4s var(--out)}
 .clh .grp-b>*{overflow:hidden;min-height:0}
 .clh .grp.closed .grp-b{grid-template-rows:0fr}
-.clh .lt{min-width:1300px}
+.clh .lt{min-width:1040px}
 .clh .lt td:first-child,.clh .lt th:first-child{padding-left:56px}
 .clh .lt tbody tr{cursor:pointer;transition:background var(--t-fast)}
 .clh .lt tbody tr:hover{background:var(--hover)}

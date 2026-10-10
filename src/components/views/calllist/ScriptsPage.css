@@ -123,3 +123,4 @@
 @keyframes scp-hl{0%,100%{box-shadow:0 0 0 0 rgba(1,118,211,.35)}50%{box-shadow:0 0 0 4px rgba(1,118,211,.12)}}
 .clh.scp .stage,.clh.scp .picker,.clh.scp .fe{animation:clh-fin .35s var(--out) both}
 .clh.scp .pr .pr-st{flex:none;min-height:4px;height:4px;width:100%}
+.clh.scp .seg.sm{height:auto;min-height:32px;row-gap:2px}
