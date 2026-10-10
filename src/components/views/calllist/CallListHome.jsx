@@ -10,7 +10,6 @@ import './CallListHome.css';
 // 架電リストのトップ（2026-10-09 むー様・見本 calllist.html をそのまま本番へ）
 // 上：いま誰がどのリストを／チームの今日のアポの貯金。下：「条件で探す」「リスト」の2つのタブ（選んだタブは人ごとに覚える）
 const COL = { '未架電': '#B9D7F3', 'キーマン再コール': '#032D60', '受付再コール': '#0176D3', 'キーマン不在': '#8692A0', '不通': '#C9D1DB', '受付ブロック': '#E8B4BC', 'キーマン断り': '#E2C68A', '問い合わせフォーム': '#EEF0F3', 'アポ獲得': '#C8A45A' };
-const ORDER = ['キーマン再コール', '受付再コール', '未架電', 'キーマン断り', 'キーマン不在', '不通', '受付ブロック', '問い合わせフォーム'];
 const CATS = ['M&A', 'IFA', 'SaaS', 'コンサル', '人材', 'Spartia AI'];
 const DOW = ['日', '月', '火', '水', '木', '金', '土'];
 const fmt = n => Number(n || 0).toLocaleString('ja-JP');
@@ -28,9 +27,8 @@ const COLS = [
   ['t', '元の社数', r => r.t || 0, 1, 84, 't3 l'],
   ['n', '架電可能', r => r.n, 1, 96, 't3'],
   ['x', '見込みアポ', r => r.x, 1, 96, 't3 rr'],
-  ['per', 'アポ1件まで', perOf, 1, 180],
-  ['rd', '周回', r => r.rd + (r.rp || 0) / 100, 1, 150],
-  ['st', 'いまの状態', recallShare, 1, 170],
+  ['per', 'アポ1件まで', perOf, 1, 150],
+  ['rd', '周回', r => r.rd + (r.rp || 0) / 100, 1, 130],
   ['a30', '直近1か月のアポ', r => r.a30 || 0, 1, 96],
   ['cr', '取り込み日', r => r.cr || '', 1, 80],
   ['lc', '最終架電', r => r.lc || '', 1, 76],
@@ -292,7 +290,7 @@ function ListsPane({ L, live, grouped, search, onOpenList, onEditList }) {
   );
   const cols = <colgroup>{COLS.map(c => <col key={c[0]} style={c[4] ? { width: c[4] } : undefined} />)}<col style={{ width: 110 }} /></colgroup>;
   const row = (r, ri) => {
-    const tot = Object.values(r.st).reduce((a, b) => a + b, 0) || 1, per = r.x > 0 ? r.n / r.x : null, isLive = live.has(r.id);
+    const per = r.x > 0 ? r.n / r.x : null, isLive = live.has(r.id);
     return (
       <tr key={r.id} onClick={() => onOpenList(r.listId)}>
         <td><span className="ln">{grouped ? r.l : `${r.c}・${r.l}`}</span>{r.crd === today && <> <span className="newb">本日取り込み</span></>}{isLive && <> <span className="live" style={{ marginLeft: 6 }}><i /></span></>}</td>
@@ -303,7 +301,6 @@ function ListsPane({ L, live, grouped, search, onOpenList, onEditList }) {
         <td className="r t3 rr"><span className="xnum">{r.x.toFixed(1)}</span><small style={{ fontSize: 10.5, color: 'var(--ink-3)', marginLeft: 2 }}>件</small></td>
         <td className="r"><span className={`exp ${per ? '' : 'dim'}`}><span className="bar"><i style={{ width: `${per ? Math.min(100, Math.max(3, (300 / per) * 100)) : 0}%`, animationDelay: `${ri * 30}ms` }} /></span><b>{perAppoLabel({ n: r.n, perAppo: per })}</b><span className="hot">{per && per <= 400 ? '濃い' : ''}</span></span></td>
         <td><Laps v={r.rd} p={r.rp} /></td>
-        <td><div className="stk">{ORDER.filter(s => r.st[s]).map((s, k) => <i key={s} style={{ width: `${(r.st[s] / tot) * 100}%`, background: COL[s], animationDelay: `${ri * 30 + k * 20}ms` }} title={`${s} ${fmt(r.st[s])}社`} />)}</div></td>
         <td className="r n" style={r.a30 ? { color: 'var(--gold)', fontWeight: 700 } : { color: 'var(--ink-3)' }}>{r.a30 || 0}</td>
         <td className="r n" style={{ color: 'var(--ink-2)' }}>{md(r.cr)}</td>
         <td className="r n" style={{ color: 'var(--ink-2)' }}>{md(r.lc)}</td>
@@ -366,7 +363,6 @@ function ListsPane({ L, live, grouped, search, onOpenList, onEditList }) {
           <span className="fsum"><b>{cur.length}</b>リスト・架電可能 <b>{fmt(cur.reduce((a, r) => a + r.n, 0))}</b>社・見込みアポ <b>{cur.reduce((a, r) => a + r.x, 0).toFixed(1)}</b>件</span>
         </div>
       </div>
-      <div className="clh-lg"><span style={{ color: 'var(--ink-3)' }}>いまの状態：</span>{ORDER.slice(0, 7).map(s => <span key={s}><i style={{ background: COL[s] }} />{s}</span>)}</div>
       <div id="groups">{body}</div>
     </>
   );
